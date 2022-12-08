@@ -4,6 +4,8 @@
 #if defined(__MINGW64__) || defined(__linux__) || defined(__APPLE__)
 mffi_value miniffi_call_intern(MINIFFI_FUNC target, MiniFFIFuncArgs *p, int nparams) {
     assert(nparams <= MINIFFI_MAX_ARGS);
+    // Be sure to add more args to the below line if MINIFFI_MAX_ARGS is bumped
+    // in the future.
     return target(p->params[0], p->params[1], p->params[2], p->params[3],
                                  p->params[4], p->params[5], p->params[6],
                                  p->params[7], p->params[8], p->params[9]);
