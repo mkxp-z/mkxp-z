@@ -1114,6 +1114,10 @@ static void mriBindingExecute() {
         rubyArgsC.push_back(maxCache.c_str());
         rubyArgsC.push_back(minCalls.c_str());
         node = ruby_options(rubyArgsC.size(), const_cast<char**>(rubyArgsC.data()));
+    } else if (conf.yjit.enabled) {
+        rubyArgsC.push_back("--yjit");
+        // TODO: Maybe support --yjit-exec-mem-size, --yjit-call-threshold
+        node = ruby_options(rubyArgsC.size(), const_cast<char**>(rubyArgsC.data()));
     } else {
         node = ruby_options(rubyArgsC.size(), const_cast<char**>(rubyArgsC.data()));
     }

@@ -315,6 +315,7 @@
     // Determines whether MJIT is enabled. This probably
     // won't work unless you also have the header file
     // that it needs. Only works with Ruby 2.6 or higher.
+    // This Ruby feature is experimental.
     // (default: false)
     //
     // "JITEnable": false,
@@ -338,6 +339,12 @@
     //
     // "JITMinCalls": 10000,
 
+    // Determines whether YJIT is enabled.
+    // Only works with Ruby 3.1 or higher.
+    // This Ruby feature is experimental.
+    // (default: false)
+    //
+    // "YJITEnable": false,
 
     // SoundFont to use for midi playback (via fluidsynth)
     // (default: none)
