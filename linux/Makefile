@@ -44,7 +44,7 @@ RUBY_CONFIGURE_ARGS := \
 	--enable-install-static-library \
 	--enable-shared \
 	--disable-install-doc \
-	--with-out-ext=openssl,readline,dbm,gdbm \
+	--with-out-ext=openssl,readline,dbm,gdbm,pty,syslog \
 	--with-static-linked-ext \
 	--disable-rubygems \
 	--without-gmp
@@ -320,9 +320,9 @@ $(DOWNLOADS)/openssl/Configure:
 	$(CLONE) $(GITHUB)/openssl/openssl $(DOWNLOADS)/openssl --single-branch --branch openssl-3.0.12 --depth 1
 
 # Standard ruby
-ruby: init_dirs openssl $(LIBDIR)/libruby.so.3.1
+ruby: init_dirs openssl $(LIBDIR)/libruby.so.3.2
 
-$(LIBDIR)/libruby.so.3.1: $(DOWNLOADS)/ruby/Makefile
+$(LIBDIR)/libruby.so.3.2: $(DOWNLOADS)/ruby/Makefile
 	cd $(DOWNLOADS)/ruby; \
 	make -j$(NPROC); make install DESTDIR="$(BUILD_PREFIX)"
 
@@ -337,7 +337,7 @@ $(DOWNLOADS)/ruby/configure: $(DOWNLOADS)/ruby/configure.ac
 	cd $(DOWNLOADS)/ruby; autoreconf -i
 
 $(DOWNLOADS)/ruby/configure.ac:
-	$(CLONE) $(GITHUB)/mkxp-z/ruby $(DOWNLOADS)/ruby --single-branch --branch mkxp-z-3.1.3 --depth 1;
+	$(CLONE) $(GITHUB)/Nathan-MV/ruby $(DOWNLOADS)/ruby --single-branch --branch ruby_3_2 --depth 1;
 
 # ====
 init_dirs:

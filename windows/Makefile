@@ -39,10 +39,12 @@ RUBY_CONFIGURE_ARGS := \
 	--prefix="$(shell cygpath -m ${BUILD_PREFIX})" \
 	--enable-install-static-library \
 	--disable-install-doc \
-	--with-out-ext=openssl,readline,dbm,gdbm,win32ole \
+	--with-out-ext=openssl,readline,dbm,gdbm,win32ole,pty,syslog \
 	--with-static-linked-ext \
 	--disable-rubygems \
-	--without-gmp
+	--without-gmp \
+	--with-libyaml-dir="$(shell cygpath -m $(PREFIX))" \
+	--with-libffi-dir="$(shell cygpath -m $(PREFIX))"
 
 CONFIGURE := $(CONFIGURE_ENV) ./configure $(CONFIGURE_ARGS)
 AUTOGEN   := $(CONFIGURE_ENV) ./autogen.sh $(CONFIGURE_ARGS)
@@ -299,10 +301,40 @@ $(DOWNLOADS)/openssl/Makefile: $(DOWNLOADS)/openssl/Configure
 $(DOWNLOADS)/openssl/Configure:
 	$(CLONE) $(GITHUB)/openssl/openssl $(DOWNLOADS)/openssl --single-branch --branch openssl-3.0.12 --depth 1
 
-# Standard ruby
-ruby: init_dirs openssl $(BINDIR)/$(RB_PREFIX)-ruby310.dll
+# libyaml
+libyaml: init_dirs $(LIBDIR)/libyaml.a
 
-$(BINDIR)/$(RB_PREFIX)-ruby310.dll: $(DOWNLOADS)/ruby/Makefile
+$(LIBDIR)/libyaml.a: $(DOWNLOADS)/libyaml/Makefile
+	cd $(DOWNLOADS)/libyaml; make -j$(NPROC); make install
+
+$(DOWNLOADS)/libyaml/Makefile: $(DOWNLOADS)/libyaml/configure
+	cd $(DOWNLOADS)/libyaml; $(CONFIGURE) --disable-shared --enable-static --disable-docs
+
+$(DOWNLOADS)/libyaml/configure: $(DOWNLOADS)/libyaml/configure.ac
+	cd $(DOWNLOADS)/libyaml; autoreconf -i
+
+$(DOWNLOADS)/libyaml/configure.ac:
+	$(CLONE) $(GITHUB)/yaml/libyaml $(DOWNLOADS)/libyaml --single-branch --branch 0.2.5 --depth 1
+
+# libffi
+libffi: init_dirs $(LIBDIR)/libffi.a
+
+$(LIBDIR)/libffi.a: $(DOWNLOADS)/libffi/Makefile
+	cd $(DOWNLOADS)/libffi; make -j$(NPROC); make install
+
+$(DOWNLOADS)/libffi/Makefile: $(DOWNLOADS)/libffi/configure
+	cd $(DOWNLOADS)/libffi; $(CONFIGURE) --disable-shared --enable-static --disable-docs
+
+$(DOWNLOADS)/libffi/configure: $(DOWNLOADS)/libffi/configure.ac
+	cd $(DOWNLOADS)/libffi; autoreconf -i
+
+$(DOWNLOADS)/libffi/configure.ac:
+	$(CLONE) $(GITHUB)/libffi/libffi $(DOWNLOADS)/libffi --single-branch --branch v3.4.4 --depth 1
+
+# Standard ruby
+ruby: init_dirs openssl libyaml libffi $(BINDIR)/$(RB_PREFIX)-ruby320.dll
+
+$(BINDIR)/$(RB_PREFIX)-ruby320.dll: $(DOWNLOADS)/ruby/Makefile
 	cd $(DOWNLOADS)/ruby; \
 	make -j$(NPROC); make install
 
@@ -317,7 +349,7 @@ $(DOWNLOADS)/ruby/configure: $(DOWNLOADS)/ruby/configure.ac
 	cd $(DOWNLOADS)/ruby; autoreconf -i
 
 $(DOWNLOADS)/ruby/configure.ac:
-	$(CLONE) $(GITHUB)/mkxp-z/ruby $(DOWNLOADS)/ruby --single-branch --branch mkxp-z-3.1.3 --depth 1;
+	$(CLONE) $(GITHUB)/Nathan-MV/ruby $(DOWNLOADS)/ruby --single-branch --branch ruby_3_2 --depth 1;
 
 # ====
 init_dirs:
