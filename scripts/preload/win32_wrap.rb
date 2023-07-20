@@ -162,7 +162,7 @@ end
 
 def get_raw_keystates
 	if $win32KeyStates == nil
-		$win32KeyStates = MKXP.raw_key_states
+		$win32KeyStates = Input.raw_key_states
 	end
 
 	return $win32KeyStates
@@ -171,16 +171,33 @@ end
 def common_keystate(vkey)
 	vkey_name = Scancodes::WIN32INV[vkey]
 
-	if vkey_name == :LBUTTON
-		return Input.press?(Input::MOUSELEFT) ? 1 : 0
-	elsif vkey_name == :RBUTTON
-		return Input.press?(Input::MOUSERIGHT) ? 1 : 0
-	elsif vkey_name == :MBUTTON
-		return Input.press?(Input::MOUSEMIDDLE) ? 1 : 0
+	states = get_raw_keystates
+	pressed = false
+
+	if vkey == :LBUTTON
+		pressed = Input.press?(Input::MOUSELEFT)
+	elsif vkey == :RBUTTON
+		pressed = Input.press?(Input::MOUSERIGHT)
+	elsif vkey == :MBUTTON
+		pressed = Input.press?(Input::MOUSEMIDDLE)
+	elsif vkey == :SHIFT
+		pressed = double_state(states, :LSHIFT, :RSHIFT)
+	elsif vkey == :MENU
+		pressed = double_state(states, :LALT, :RALT)
+	elsif vkey == :CONTROL
+		pressed = double_state(states, :LCTRL, :RCTRL)
+	else
+		scan = nil
+		if Scancodes::SDL.key?(vkey_name)
+			scan = vkey_name
+		else
+			scan = Scancodes::WIN2SDL[vkey_name]
+		end
+
+		pressed = state_pressed(states, scan)
 	end
 
-	offset = Scancodes::SDL[vkey_name]
-	return get_raw_keystates.getbyte(offset)
+	return pressed ? 1 : 0
 end
 
 def memcpy_string(dst, src)
@@ -192,7 +209,7 @@ def memcpy_string(dst, src)
 end
 
 def state_pressed(states, sdl_scan)
-	return states.getbyte(Scancodes::SDL[sdl_scan]) == 1
+	return states[Scancodes::SDL[sdl_scan]]
 end
 
 def double_state(states, left, right)
@@ -246,33 +263,9 @@ module Win32API_Impl
 			PRESSED_BIT = 0x80
 			def call(args)
 				out_states = args[0]
-				states = get_raw_keystates
 
 				Scancodes::WIN32.each do |name, val|
-					pressed = false
-
-					if name == :LBUTTON
-						pressed = Input.press?(Input::MOUSELEFT)
-					elsif name == :RBUTTON
-						pressed = Input.press?(Input::MOUSERIGHT)
-					elsif name == :MBUTTON
-						pressed = Input.press?(Input::MOUSEMIDDLE)
-					elsif name == :SHIFT
-						pressed = double_state(states, :LSHIFT, :RSHIFT)
-					elsif name == :MENU
-						pressed = double_state(states, :LALT, :RALT)
-					elsif name == :CONTROL
-						pressed = double_state(states, :LCONTROL, :RCONTROL)
-					else
-						scan = nil
-						if Scancodes::SDL.key?(name)
-							scan = name
-						else
-							scan = Scancodes::WIN2SDL[name]
-						end
-
-						pressed = state_pressed(states, name)
-					end
+					pressed = common_keystate(val) == 1
 
 					out_states.setbyte(val, pressed ? PRESSED_BIT : 0)
 				end
@@ -362,7 +355,7 @@ class Win32API
 			return @impl.call(args)
 		end
 
-		MKXP.puts("[#{@dll}:#{@func}] #{args.to_s}") if !@called
+		System.puts("[#{@dll}:#{@func}] #{args.to_s}") if !@called
 		@called = true
 		return 0
 	end
