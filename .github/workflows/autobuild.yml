@@ -3,8 +3,10 @@ name: Automatic Build
 
 on:
   push:
-    branches: ['dev', 'autobuild']
-    paths-ignore: ['*.md', '*.json', '*.png']
+    tags:
+      - 'reborn-[0-9]+.[0-9]+.[0-9]+'
+      - 'rejuvenation-[0-9]+.[0-9]+.[0-9]+'
+      - 'desolation-[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
   build-windows:
@@ -32,6 +34,13 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@v3
+
+      - name: Game
+        id: game
+        run: echo ("game=" + $env:GITHUB_REF.replace('refs/tags/', '').split('-')[0]) >> $env:GITHUB_OUTPUT
+
+      - name: Icon
+        run: cp icons/${{ steps.game.outputs.game }}.ico windows/icon.ico
 
       - uses: actions/cache@v3
         with:
@@ -88,6 +97,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Game
+        id: game
+        run: echo game=$(echo ${{github.ref_name}}| cut -d- -f1) >> $GITHUB_OUTPUT
+
+      - name: Icon
+        run: cp icons/${{ steps.game.outputs.game }}.png linux/mkxp-z.png
+
       - uses: actions/cache@v3
         with:
           path: |
@@ -139,6 +155,13 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@v3
+
+      - name: Game
+        id: game
+        run: echo game=$(echo ${{github.ref_name}}| cut -d- -f1) >> $GITHUB_OUTPUT
+
+      - name: Icon
+        run: cp icons/${{ steps.game.outputs.game }}.icns macos/icon.icns
 
       - uses: actions/cache@v3
         with:
