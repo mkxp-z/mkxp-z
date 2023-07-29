@@ -219,12 +219,12 @@ jobs:
           cd windows
           rm -rf stdlib
           rm -f mkxp.json
-          zip -r ../mkxp-z.windows.${{github.ref_name}}.zip *
+          zip -r ../mkxp-z.windows.zip *
           cd ../linux
           mv mkxp-z-x86_64.AppImage Game.AppImage
-          zip -r ../mkxp-z.linux.${{github.ref_name}}.zip Game.AppImage
+          zip -r ../mkxp-z.linux.zip Game.AppImage
           cd ..
-          mv macos/Z-universal.app.zip mkxp-z.macos.${{github.ref_name}}.zip
+          mv macos/Z-universal.app.zip mkxp-z.macos.zip
 
       - name: Release
         uses: softprops/action-gh-release@v1
@@ -232,6 +232,6 @@ jobs:
           draft: false
           fail_on_unmatched_files: true
           files: |
-            mkxp-z.windows.${{github.ref_name}}.zip
-            mkxp-z.linux.${{github.ref_name}}.zip
-            mkxp-z.macos.${{github.ref_name}}.zip
+            mkxp-z.windows.zip
+            mkxp-z.linux.zip
+            mkxp-z.macos.zip
