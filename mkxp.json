@@ -92,7 +92,7 @@
 
     // Specify the window width on startup. If set to 0,
     // it will default to the default resolution width
-    // specific to  the RGSS version (640 in RGSS1, 544
+    // specific to the RGSS version (640 in RGSS1, 544
     // in RGSS2 or higher).
     // (default: 0)
     //
