@@ -74,7 +74,7 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: mkxp-z.windows.${{github.ref_name}}
+          name: ${{ github.job }}
           path: |
             build/artifact/*.dll
             build/artifact/*.exe
@@ -136,7 +136,7 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: mkxp-z.linux.${{github.ref_name}}
+          name: ${{ github.job }}
           path: |
             build/local/**
             build/mkxp-z-x86_64.AppImage
@@ -188,7 +188,7 @@ jobs:
       - name: Upload archive
         uses: actions/upload-artifact@v3
         with:
-          name: mkxp-z.macos.${{github.ref_name}}
+          name: ${{ github.job }}
           path: build/Build/Products/Release/Z-universal.app.zip
 
   release:
@@ -201,17 +201,17 @@ jobs:
     steps:
       - uses: actions/download-artifact@v3
         with:
-          name: mkxp-z.windows.${{github.ref_name}}
+          name: build-windows
           path: windows
 
       - uses: actions/download-artifact@v3
         with:
-          name: mkxp-z.linux.${{github.ref_name}}
+          name: build-linux
           path: linux
 
       - uses: actions/download-artifact@v3
         with:
-          name: mkxp-z.macos.${{github.ref_name}}
+          name: build-macos
           path: macos
 
       - name: Zip Folder
