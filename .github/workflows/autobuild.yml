@@ -219,6 +219,7 @@ jobs:
           cd windows
           rm -rf stdlib
           rm -f mkxp.json
+          mv mkxp-z.exe Game.exe
           zip -r ../mkxp-z.windows.zip *
           cd ../linux
           mv mkxp-z-x86_64.AppImage Game.AppImage
