@@ -115,7 +115,6 @@ Shader::Shader()
 
 Shader::~Shader()
 {
-	gl.UseProgram(0);
 	gl.DeleteProgram(program);
 	gl.DeleteShader(vertShader);
 	gl.DeleteShader(fragShader);
