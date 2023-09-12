@@ -400,16 +400,16 @@ struct Movie
                 THEORAPLAY_freeAudio(audioQueueHead->audio);
             }
             audioQueueHead = NULL;
+            SDL_DestroyMutex(audioMutex);
+            audioThreadTermReq.set();
+            alSourceStop(audioSource);
+            alDeleteSources(1, &audioSource);
+            alDeleteBuffers(STREAM_BUFS, alBuffers);
         }
-        SDL_DestroyMutex(audioMutex);
-        audioThreadTermReq.set();
         if(audioThread) {
             SDL_WaitThread(audioThread, 0);
             audioThread = 0;
         }
-        alSourceStop(audioSource);
-        alDeleteSources(1, &audioSource);
-        alDeleteBuffers(STREAM_BUFS, alBuffers);
         if (video) THEORAPLAY_freeVideo(video);
         if (audio) THEORAPLAY_freeAudio(audio);
         if (decoder) THEORAPLAY_stopDecode(decoder);
