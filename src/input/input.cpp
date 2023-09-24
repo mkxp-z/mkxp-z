@@ -728,6 +728,13 @@ struct InputPrivate
     } dir8Data;
     
     void recalcRepeatTime(unsigned int fps) {
+        // 0 fps would cause a divide by zero segfault later.
+        // Bail in that case.
+        if (fps == 0)
+        {
+            return;
+        }
+
         double framems = 1.f / fps;
         
         // Approximate time in milliseconds
