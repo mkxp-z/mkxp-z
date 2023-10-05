@@ -114,11 +114,11 @@ jobs:
         run: make
 
       - name: Download AppImageKit
-        uses: dsaltares/fetch-gh-release-asset@master
+        uses: MrOctopus/download-asset-action@1.1
         with:
-          repo: AppImage/AppImageKit
-          version: tags/13
-          file: appimagetool-x86_64.AppImage
+          repository: AppImage/AppImageKit
+          tag: 13
+          asset: appimagetool-x86_64.AppImage
 
       - name: Build executable
         run: |
