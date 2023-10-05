@@ -105,7 +105,9 @@ jobs:
           key: lin-${{ hashFiles('linux/Makefile') }}
 
       - name: Install apt dependencies
-        run: sudo apt install libfuse2 git build-essential cmake meson autoconf automake libtool pkg-config ruby bison zlib1g-dev libbz2-dev xorg-dev libgl1-mesa-dev libasound2-dev libpulse-dev -y
+        run: |
+          sudo apt update
+          sudo apt install libfuse2 git build-essential cmake meson autoconf automake libtool pkg-config ruby bison zlib1g-dev libbz2-dev xorg-dev libgl1-mesa-dev libasound2-dev libpulse-dev -y
 
       - name: Build everything else
         working-directory: linux
