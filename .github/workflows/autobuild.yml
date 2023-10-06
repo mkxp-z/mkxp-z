@@ -37,7 +37,9 @@ jobs:
         run: echo ("game=" + $env:GITHUB_REF.replace('refs/tags/', '').split('-')[0]) >> $env:GITHUB_OUTPUT
 
       - name: Icon
-        run: cp icons/${{ steps.game.outputs.game }}.ico windows/icon.ico
+        run: |
+          cp icons/${{ steps.game.outputs.game }}.ico windows/icon.ico
+          cp icons/${{ steps.game.outputs.game }}.png assets/icon.png
 
       - uses: actions/cache@v3
         with:
@@ -95,7 +97,9 @@ jobs:
         run: echo game=$(echo ${{ github.ref_name }}| cut -d- -f1) >> $GITHUB_OUTPUT
 
       - name: Icon
-        run: cp icons/${{ steps.game.outputs.game }}.png linux/mkxp-z.png
+        run: |
+          cp icons/${{ steps.game.outputs.game }}.png linux/mkxp-z.png
+          cp icons/${{ steps.game.outputs.game }}.png assets/icon.png
 
       - uses: actions/cache@v3
         with:
@@ -160,7 +164,9 @@ jobs:
         run: echo game=$(echo ${{ github.ref_name }}| cut -d- -f1) >> $GITHUB_OUTPUT
 
       - name: Icon
-        run: cp icons/${{ steps.game.outputs.game }}.icns macos/icon.icns
+        run: |
+          cp icons/${{ steps.game.outputs.game }}.icns macos/icon.icns
+          cp icons/${{ steps.game.outputs.game }}.png assets/icon.png
 
       - uses: actions/cache@v3
         with:
