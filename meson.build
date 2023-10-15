@@ -116,7 +116,7 @@ endif
 global_args += '-DMKXPZ_INIT_GL_LATER'
 
 subdir('src')
-subdir('binding')
+#subdir('binding')
 subdir('shader')
 subdir('assets')
 
@@ -182,7 +182,7 @@ if steamworks == true
         install: (host_system != 'windows'))
 endif
 
-executable(exe_name,
+static_library(exe_name,
     sources: global_sources,
     dependencies: global_dependencies,
     include_directories: global_include_dirs,
