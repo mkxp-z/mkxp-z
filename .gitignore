@@ -74,3 +74,4 @@ DerivedData/
 ## Gcc Patch
 /*.gcno
 .idea/
+cmake-build-release/

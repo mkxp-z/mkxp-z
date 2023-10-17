@@ -38,7 +38,6 @@
 #include "keybindings.h"
 
 struct RGSSThreadData;
-typedef struct MKXPZ_ALCDEVICE ALCdevice;
 struct SDL_Window;
 union SDL_Event;
 
