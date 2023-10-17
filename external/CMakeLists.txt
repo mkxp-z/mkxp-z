@@ -1,0 +1,2 @@
+add_subdirectory(pixman)
+add_subdirectory(SDL_sound)

@@ -1,6 +1,6 @@
 project(MKXPZ_Bindings)
 
-add_library(${PROJECT_NAME} STATIC
+target_sources(MKXP-Z PUBLIC
         binding-mri.cpp
         binding-util.cpp
         table-binding.cpp
@@ -21,15 +21,14 @@ add_library(${PROJECT_NAME} STATIC
         tilemapvx-binding.cpp
         http-binding.cpp)
 
-target_include_directories(${PROJECT_NAME} PUBLIC
+target_include_directories(MKXP-Z PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_BINARY_DIR}
-        ${COMMON_INCLUDES}
         ${Ruby_INCLUDE_DIRS}
         ${uchardet_INCLUDE_DIRS}/uchardet
         )
 
-target_link_libraries(${PROJECT_NAME} PUBLIC
+target_link_libraries(MKXP-Z PUBLIC
         ${Ruby_LIBRARY}
         SDL2::SDL2
         )

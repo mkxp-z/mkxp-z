@@ -1,21 +1,93 @@
 project(MKXPZ_Core)
 
-add_library(${PROJECT_NAME} STATIC
-        )
+target_sources(MKXP-Z PUBLIC
+        main.cpp
+        config.cpp
+        eventthread.cpp
+        settingsmenu.cpp
+        sharedstate.cpp
 
-target_include_directories(${PROJECT_NAME} PUBLIC
+        audio/alstream.cpp
+        audio/audio.cpp
+        audio/audiostream.cpp
+        audio/fluid-fun.cpp
+        audio/midisource.cpp
+        audio/sdlsoundsource.cpp
+        audio/soundemitter.cpp
+        audio/vorbissource.cpp
+        theoraplay/theoraplay.c
+
+        crypto/rgssad.cpp
+
+        display/autotiles.cpp
+        display/autotilesvx.cpp
+        display/bitmap.cpp
+        display/font.cpp
+        display/graphics.cpp
+        display/plane.cpp
+        display/sprite.cpp
+        display/tilemap.cpp
+        display/tilemapvx.cpp
+        display/viewport.cpp
+        display/window.cpp
+        display/windowvx.cpp
+
+        display/libnsgif/libnsgif.c
+        display/libnsgif/lzw.c
+
+        display/gl/gl-debug.cpp
+        display/gl/gl-fun.cpp
+        display/gl/gl-meta.cpp
+        display/gl/glstate.cpp
+        display/gl/scene.cpp
+        display/gl/shader.cpp
+        display/gl/texpool.cpp
+        display/gl/tileatlas.cpp
+        display/gl/tileatlasvx.cpp
+        display/gl/tilequad.cpp
+        display/gl/vertex.cpp
+
+        util/iniconfig.cpp
+        util/win-consoleutils.cpp
+
+        etc/etc.cpp
+        etc/table.cpp
+
+        filesystem/filesystem.cpp
+        filesystem/filesystemImpl.cpp
+
+        input/input.cpp
+        input/keybindings.cpp
+
+        net/LUrlParser.cpp
+        net/net.cpp
+
+        system/systemImpl.cpp)
+
+target_include_directories(MKXP-Z PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_BINARY_DIR}
-        ${CMAKE_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/windows
-        ${COMMON_INCLUDES}
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/audio
+        ${CMAKE_CURRENT_SOURCE_DIR}/crypto
+        ${CMAKE_CURRENT_SOURCE_DIR}/display
+        ${CMAKE_CURRENT_SOURCE_DIR}/display/gl
+        ${CMAKE_CURRENT_SOURCE_DIR}/display/libnsgif
+        ${CMAKE_CURRENT_SOURCE_DIR}/display/libnsgif/utils
+        ${CMAKE_CURRENT_SOURCE_DIR}/etc
+        ${CMAKE_CURRENT_SOURCE_DIR}/filesystem
+        ${CMAKE_CURRENT_SOURCE_DIR}/filesystem/ghc
+        ${CMAKE_CURRENT_SOURCE_DIR}/input
+        ${CMAKE_CURRENT_SOURCE_DIR}/net
+        ${CMAKE_CURRENT_SOURCE_DIR}/system
+        ${CMAKE_CURRENT_SOURCE_DIR}/util
+        ${CMAKE_CURRENT_SOURCE_DIR}/util/sigslot
+        ${CMAKE_CURRENT_SOURCE_DIR}/util/sigslot/adapter
         ${Ruby_INCLUDE_DIRS}
         ${uchardet_INCLUDE_DIRS}/uchardet
         )
 
-target_link_libraries(${PROJECT_NAME} PUBLIC
-        MKXPZ_Assets
-        MKXPZ_Shaders
+target_link_libraries(MKXP-Z PUBLIC
         ${Ruby_LIBRARY}
         SDL2::SDL2
         SDL2_image::SDL2_image
@@ -28,4 +100,9 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         uchardet::uchardet
         theora::theora
         pixman-1
+        )
+
+target_compile_definitions(MKXP-Z PUBLIC
+        SDL_MAIN_HANDLED
+        MKXPZ_ALCDEVICE=ALCdevice
         )
