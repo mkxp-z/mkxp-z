@@ -1,6 +1,6 @@
 project(MKXPZ_Core)
 
-target_sources(MKXP-Z PUBLIC
+target_sources(mkxp_z PUBLIC
         main.cpp
         config.cpp
         eventthread.cpp
@@ -64,7 +64,7 @@ target_sources(MKXP-Z PUBLIC
 
         system/systemImpl.cpp)
 
-target_include_directories(MKXP-Z PUBLIC
+target_include_directories(mkxp_z PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_BINARY_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
@@ -87,7 +87,7 @@ target_include_directories(MKXP-Z PUBLIC
         ${uchardet_INCLUDE_DIRS}/uchardet
         )
 
-target_link_libraries(MKXP-Z PUBLIC
+target_link_libraries(mkxp_z PUBLIC
         ${Ruby_LIBRARY}
         SDL2::SDL2
         SDL2_image::SDL2_image
@@ -102,7 +102,7 @@ target_link_libraries(MKXP-Z PUBLIC
         pixman-1
         )
 
-target_compile_definitions(MKXP-Z PUBLIC
+target_compile_definitions(mkxp_z PUBLIC
         SDL_MAIN_HANDLED
         MKXPZ_ALCDEVICE=ALCdevice
         )

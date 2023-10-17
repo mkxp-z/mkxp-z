@@ -1,16 +1,16 @@
 project(MKXPZ_WindowsResourcesX)
 
-target_sources(MKXP-Z PUBLIC resource.rc)
+target_sources(mkxp_z PUBLIC resource.rc)
 
-target_include_directories(MKXP-Z PUBLIC
+target_include_directories(mkxp_z PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_BINARY_DIR}
         )
 
-target_link_libraries(MKXP-Z PUBLIC
+target_link_libraries(mkxp_z PUBLIC
         wsock32
         Ws2_32)
 
-target_compile_definitions(MKXP-Z PUBLIC
+target_compile_definitions(mkxp_z PUBLIC
         _WIN32
 )
