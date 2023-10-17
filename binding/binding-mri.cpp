@@ -161,13 +161,13 @@ static void mriBindingInit() {
     viewportBindingInit();
     planeBindingInit();
     
-    if (rgssVer == 1) {
+    #if RGSS_VERSION == 1
         windowBindingInit();
         tilemapBindingInit();
-    } else {
+    #else
         windowVXBindingInit();
         tilemapVXBindingInit();
-    }
+    #endif
     
     inputBindingInit();
     audioBindingInit();
@@ -185,7 +185,7 @@ static void mriBindingInit() {
     
     httpBindingInit();
     
-    if (rgssVer >= 3) {
+    #if RGSS_VERSION >= 3
         _rb_define_module_function(rb_mKernel, "rgss_main", mriRgssMain);
         _rb_define_module_function(rb_mKernel, "rgss_stop", mriRgssStop);
         
@@ -193,23 +193,24 @@ static void mriBindingInit() {
         _rb_define_module_function(rb_mKernel, "msgbox_p", mriP);
         
         rb_define_global_const("RGSS_VERSION", rb_utf8_str_new_cstr("3.0.1"));
-    } else {
+    #else
         _rb_define_module_function(rb_mKernel, "print", mriPrint);
         _rb_define_module_function(rb_mKernel, "p", mriP);
         
         rb_define_alias(rb_singleton_class(rb_mKernel), "_mkxp_kernel_caller_alias",
                         "caller");
         _rb_define_module_function(rb_mKernel, "caller", _kernelCaller);
-    }
+    #endif
     
-    if (rgssVer == 1)
+    #if RGSS_VERSION == 1
         rb_eval_string(module_rpg1);
-    else if (rgssVer == 2)
+    #elif RGSS_VERSION == 2
         rb_eval_string(module_rpg2);
-    else if (rgssVer == 3)
+    #elif RGSS_VERSION == 3
         rb_eval_string(module_rpg3);
-    else
+    #else
         assert(!"unreachable");
+#endif
     
     VALUE mod = rb_define_module("System");
     _rb_define_module_function(mod, "delta", mkxpDelta);
@@ -261,10 +262,11 @@ static void mriBindingInit() {
     rb_gv_set("MKXP", Qtrue);
     
     VALUE debug = rb_bool_new(shState->config().editor.debug);
-    if (rgssVer == 1)
+    #if RGSS_VERSION == 1
         rb_gv_set("DEBUG", debug);
-    else if (rgssVer >= 2)
+    #elif RGSS_VERSION >= 2
         rb_gv_set("TEST", debug);
+    #endif
     
     rb_gv_set("BTEST", rb_bool_new(shState->config().editor.battleTest));
     

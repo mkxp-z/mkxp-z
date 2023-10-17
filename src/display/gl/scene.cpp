@@ -171,14 +171,13 @@ bool SceneElement::operator<(const SceneElement &o) const
 	{
 		if (z == o.z)
 		{
-			if (rgssVer >= 2)
-			{
+			#if RGSS_VERSION >= 2
 				/* RGSS2: If two sprites' Z values collide,
 				 * their Y coordinates decide draw order. Only
 				 * on equal Y does the creation time take effect */
 				if (spriteY != o.spriteY)
 					return (spriteY < o.spriteY);
-			}
+#endif
 
 			return (creationStamp < o.creationStamp);
 		}

@@ -615,7 +615,7 @@ void inputBindingInit() {
     _rb_define_module_function(module, "clipboard", inputGetClipboard);
     _rb_define_module_function(module, "clipboard=", inputSetClipboard);
     
-    if (rgssVer >= 3) {
+    #if RGSS_VERSION >= 3
         VALUE symHash = rb_hash_new();
         
         for (size_t i = 0; i < buttonCodesN; ++i) {
@@ -630,12 +630,12 @@ void inputBindingInit() {
         
         rb_iv_set(module, "buttoncodes", symHash);
         getRbData()->buttoncodeHash = symHash;
-    } else {
+    #else
         for (size_t i = 0; i < buttonCodesN; ++i) {
             ID sym = rb_intern(buttonCodes[i].str);
             VALUE val = INT2FIX(buttonCodes[i].val);
             
             rb_const_set(module, sym, val);
         }
-    }
+#endif
 }

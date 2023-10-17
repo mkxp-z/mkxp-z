@@ -95,8 +95,9 @@ RB_METHOD(fontInitialize) {
 
   wrapProperty(self, &f->getColor(), "color", ColorType);
 
-  if (rgssVer >= 3)
+  #if RGSS_VERSION >= 3
     wrapProperty(self, &f->getOutColor(), "out_color", ColorType);
+#endif
 
   return self;
 }
@@ -117,8 +118,9 @@ RB_METHOD(fontInitializeCopy) {
 
   wrapProperty(self, &f->getColor(), "color", ColorType);
 
-  if (rgssVer >= 3)
+  #if RGSS_VERSION >= 3
     wrapProperty(self, &f->getOutColor(), "out_color", ColorType);
+#endif
 
   return self;
 }
@@ -262,9 +264,10 @@ void fontBindingInit() {
 
   rb_iv_set(klass, "default_name", defNamesObj);
 
-  if (rgssVer >= 3)
+  #if RGSS_VERSION >= 3
     wrapProperty(klass, &Font::getDefaultOutColor(), "default_out_color",
                  ColorType);
+#endif
 
   INIT_KLASS_PROP_BIND(Font, DefaultName, "default_name");
   INIT_KLASS_PROP_BIND(Font, DefaultSize, "default_size");
@@ -272,14 +275,14 @@ void fontBindingInit() {
   INIT_KLASS_PROP_BIND(Font, DefaultItalic, "default_italic");
   INIT_KLASS_PROP_BIND(Font, DefaultColor, "default_color");
 
-  if (rgssVer >= 2) {
+  #if RGSS_VERSION >= 2
     INIT_KLASS_PROP_BIND(Font, DefaultShadow, "default_shadow");
-  }
+#endif
 
-  if (rgssVer >= 3) {
+  #if RGSS_VERSION >= 3
     INIT_KLASS_PROP_BIND(Font, DefaultOutline, "default_outline");
     INIT_KLASS_PROP_BIND(Font, DefaultOutColor, "default_out_color");
-  }
+#endif
 
   rb_define_class_method(klass, "exist?", fontDoesExist);
 
@@ -292,12 +295,12 @@ void fontBindingInit() {
   INIT_PROP_BIND(Font, Italic, "italic");
   INIT_PROP_BIND(Font, Color, "color");
 
-  if (rgssVer >= 2) {
+  #if RGSS_VERSION >= 2
     INIT_PROP_BIND(Font, Shadow, "shadow");
-  }
+  #endif
 
-  if (rgssVer >= 3) {
+  #if RGSS_VERSION >= 3
     INIT_PROP_BIND(Font, Outline, "outline");
     INIT_PROP_BIND(Font, OutColor, "out_color");
-  }
+  #endif
 }

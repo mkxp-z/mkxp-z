@@ -411,7 +411,7 @@ void graphicsBindingInit()
 
     // end
     
-    //if (rgssVer >= 3)
+    //#if RGSS_VERSION >= 3
     //{
     _rb_define_module_function(module, "play_movie", graphicsPlayMovie);
     //}

@@ -26,7 +26,9 @@
 
 #define shState SharedState::instance
 #define glState shState->_glState()
-#define rgssVer SharedState::rgssVersion
+
+// Quick hack to get the RGSS Version fixed on compile time
+#define rgssVer RGSS_VERSION //SharedState::rgssVersion
 
 struct SharedStatePrivate;
 struct RGSSThreadData;

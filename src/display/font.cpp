@@ -446,16 +446,18 @@ void Font::initDynAttribs()
 {
 	p->color = new Color(p->colorTmp);
 
-	if (rgssVer >= 3)
-		p->outColor = new Color(p->outColorTmp);;
+	#if RGSS_VERSION >= 3
+		p->outColor = new Color(p->outColorTmp);
+#endif
 }
 
 void Font::initDefaultDynAttribs()
 {
 	FontPrivate::defaultColor = new Color(FontPrivate::defaultColorTmp);
 
-	if (rgssVer >= 3)
+	#if RGSS_VERSION >= 3
 		FontPrivate::defaultOutColor = new Color(FontPrivate::defaultOutColorTmp);
+#endif
 }
 
 void Font::initDefaults(const SharedFontState &sfs)

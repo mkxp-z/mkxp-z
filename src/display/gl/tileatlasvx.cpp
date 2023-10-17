@@ -279,14 +279,13 @@ void build(TEXFBO &tf, Bitmap *bitmaps[BM_COUNT])
 	FBO::clear();
 	glState.clearColor.pop();
 
-	if (rgssVer >= 3)
-	{
+	#if RGSS_VERSION >= 3
 		SDL_Surface *shadow = createShadowSet();
 		TEX::bind(tf.tex);
 		TEX::uploadSubImage(shadowArea.x*32, shadowArea.y*32,
 							shadow->w, shadow->h, shadow->pixels, GL_RGBA);
 		SDL_FreeSurface(shadow);
-	}
+#endif
 
 	Bitmap *bm;
 #define EXEC_BLITS(part) \
@@ -556,10 +555,11 @@ onTile(Reader &reader, int16_t tileID,
 	bool overPlayer = flag & OVER_PLAYER_FLAG;
 	bool isTable;
 
-	if (rgssVer >= 3)
+	#if RGSS_VERSION >= 3
 		isTable = flag & TABLE_FLAG;
-	else
+    #else
 		isTable = (tileID - 0x0B00) % (8 * 0x30) >= (7 * 0x30);
+#endif
 
 	/* B ~ E */
 	if (tileID < 0x0400)
@@ -657,8 +657,9 @@ void readTiles(Reader &reader, const Table &data,
 	for (int i = 0; i < 2; ++i)
 		readLayer(reader, data, flags, ox, oy, w, h, i);
 
-	if (rgssVer >= 3)
+	#if RGSS_VERSION >= 3
 		readShadowLayer(reader, data, ox, oy, w, h);
+#endif
 
 	readLayer(reader, data, flags, ox, oy, w, h, 2);
 }

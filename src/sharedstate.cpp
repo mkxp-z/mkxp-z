@@ -49,12 +49,13 @@ static GlobalIBO *_globalIBO = 0;
 
 static const char *gameArchExt()
 {
-	if (rgssVer == 1)
+	#if RGSS_VERSION == 1
 		return ".rgssad";
-	else if (rgssVer == 2)
+	#elif RGSS_VERSION == 2
 		return ".rgss2a";
-	else if (rgssVer == 3)
+	#elif RGSS_VERSION == 3
 		return ".rgss3a";
+#endif
 
 	assert(!"unreachable");
 	return 0;
@@ -114,55 +115,54 @@ struct SharedStatePrivate
 	      audio(*threadData),
 	      _glState(threadData->config),
 	      fontState(threadData->config),
-	      stampCounter(0)
-	{
-        
+	      stampCounter(0) {
+
         startupTime = std::chrono::steady_clock::now();
-        
-		/* Shaders have been compiled in ShaderSet's constructor */
-		if (gl.ReleaseShaderCompiler)
-			gl.ReleaseShaderCompiler();
 
-		std::string archPath = config.execName + gameArchExt();
+        /* Shaders have been compiled in ShaderSet's constructor */
+        if (gl.ReleaseShaderCompiler)
+            gl.ReleaseShaderCompiler();
 
-		/* Check if a game archive exists */
-		FILE *tmp = fopen(archPath.c_str(), "rb");
-		if (tmp)
-		{
-			fileSystem.addPath(archPath.c_str());
-			fclose(tmp);
-		}
+        std::string archPath = config.execName + gameArchExt();
 
-		fileSystem.addPath(".");
+        /* Check if a game archive exists */
+        FILE *tmp = fopen(archPath.c_str(), "rb");
+        if (tmp) {
+            fileSystem.addPath(archPath.c_str());
+            fclose(tmp);
+        }
 
-		for (size_t i = 0; i < config.rtps.size(); ++i)
-			fileSystem.addPath(config.rtps[i].c_str());
+        fileSystem.addPath(".");
 
-		if (config.pathCache)
-			fileSystem.createPathCache();
+        for (size_t i = 0; i < config.rtps.size(); ++i)
+            fileSystem.addPath(config.rtps[i].c_str());
 
-		fileSystem.initFontSets(fontState);
+        if (config.pathCache)
+            fileSystem.createPathCache();
 
-		globalTexW = 128;
-		globalTexH = 64;
+        fileSystem.initFontSets(fontState);
 
-		globalTex = TEX::gen();
-		TEX::bind(globalTex);
-		TEX::setRepeat(false);
-		TEX::setSmooth(false);
-		TEX::allocEmpty(globalTexW, globalTexH);
-		globalTexDirty = false;
+        globalTexW = 128;
+        globalTexH = 64;
 
-		TEXFBO::init(gpTexFBO);
-		/* Reuse starting values */
-		TEXFBO::allocEmpty(gpTexFBO, globalTexW, globalTexH);
-		TEXFBO::linkFBO(gpTexFBO);
+        globalTex = TEX::gen();
+        TEX::bind(globalTex);
+        TEX::setRepeat(false);
+        TEX::setSmooth(false);
+        TEX::allocEmpty(globalTexW, globalTexH);
+        globalTexDirty = false;
 
-		/* RGSS3 games will call setup_midi, so there's
-		 * no need to do it on startup */
-		if (rgssVer <= 2)
-			midiState.initIfNeeded(threadData->config);
-	}
+        TEXFBO::init(gpTexFBO);
+        /* Reuse starting values */
+        TEXFBO::allocEmpty(gpTexFBO, globalTexW, globalTexH);
+        TEXFBO::linkFBO(gpTexFBO);
+
+        /* RGSS3 games will call setup_midi, so there's
+         * no need to do it on startup */
+#if RGSS_VERSION <= 2
+        midiState.initIfNeeded(threadData->config);
+#endif
+    }
 
 	~SharedStatePrivate()
 	{

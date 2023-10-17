@@ -768,10 +768,11 @@ struct WindowVXPrivate
 			glState.scissorBox.push();
 			glState.scissorTest.pushSet(true);
 
-			if (rgssVer >= 3)
+			#if RGSS_VERSION >= 3
 				glState.scissorBox.setIntersect(clip);
-			else
+            #else
 				glState.scissorBox.setIntersect(IntRect(trans, geo.size()));
+#endif
 
 			IntRect pad = padRect;
 			pad.setPos(pad.pos() + trans);
@@ -782,8 +783,9 @@ struct WindowVXPrivate
 				contTrans.x += cursorRect->x;
 				contTrans.y += cursorRect->y;
 
-				if (rgssVer >= 3)
+				#if RGSS_VERSION >= 3
 					contTrans -= contentsOff;
+                #endif
 
 				shader.setTranslation(contTrans);
 
@@ -794,8 +796,9 @@ struct WindowVXPrivate
 
 			if (contentsValid)
 			{
-				if (rgssVer <= 2)
+				#if RGSS_VERSION <= 2
 					glState.scissorBox.setIntersect(clip);
+                #endif
 
 				Vec2i contTrans = pad.pos();
 				contTrans -= contentsOff;
@@ -1089,11 +1092,10 @@ void WindowVX::initDynAttribs()
 	p->cursorRect = new Rect;
 	p->refreshCursorRectCon();
 
-	if (rgssVer >= 3)
-	{
+	#if RGSS_VERSION >= 3
 		p->tone = new Tone;
 		p->refreshToneCon();
-	}
+    #endif
 }
 
 void WindowVX::draw()
