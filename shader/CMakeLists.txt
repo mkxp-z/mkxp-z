@@ -29,8 +29,8 @@ set(EMBEDED_SHADERS
         simpleMatrix.vert)
 
 foreach(SHADER ${EMBEDED_SHADERS})
-    execute_process(COMMAND xxd -i ./shader/${SHADER} ${CMAKE_CURRENT_BINARY_DIR}/${SHADER}.xxd
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+    execute_process(COMMAND xxd -i ../shader/${SHADER} ${CMAKE_CURRENT_BINARY_DIR}/${SHADER}.xxd
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 endforeach()
 
 add_library(${PROJECT_NAME} INTERFACE)

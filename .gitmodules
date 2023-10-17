@@ -1,0 +1,3 @@
+[submodule "external/SDL_sound"]
+	path = external/SDL_sound
+	url = https://github.com/icculus/SDL_sound.git

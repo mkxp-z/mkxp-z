@@ -4,11 +4,10 @@ os_build=Windows
 arch=x86_64
 arch_build=x86_64
 compiler=gcc
-compiler.version=12.1
+compiler.version=13.1
 compiler.libcxx=libstdc++11
 build_type=Release
 [options]
 [build_requires]
-[env]
-CC=C:/mingw64/bin/gcc.exe
-CXX=C:/mingw64/bin/g++.exe
+[conf]
+tools.cmake.cmaketoolchain:generator=Ninja

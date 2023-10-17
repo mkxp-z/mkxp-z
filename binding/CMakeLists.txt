@@ -1,6 +1,7 @@
 project(MKXPZ_Bindings)
 
 add_library(${PROJECT_NAME} STATIC
+        binding-mri.cpp
         binding-util.cpp
         table-binding.cpp
         etc-binding.cpp
@@ -23,8 +24,12 @@ add_library(${PROJECT_NAME} STATIC
 target_include_directories(${PROJECT_NAME} PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_BINARY_DIR}
+        ${COMMON_INCLUDES}
+        ${Ruby_INCLUDE_DIRS}
+        ${uchardet_INCLUDE_DIRS}/uchardet
         )
 
 target_link_libraries(${PROJECT_NAME} PUBLIC
-        Ruby
+        ${Ruby_LIBRARY}
+        SDL2::SDL2
         )
