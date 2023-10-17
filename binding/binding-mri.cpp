@@ -51,7 +51,9 @@ extern "C" {
 }
 
 #ifdef __WIN32__
+
 #include "binding-mri-win32.h"
+
 #endif
 
 #include <assert.h>
@@ -68,28 +70,42 @@ extern const char module_rpg2[];
 extern const char module_rpg3[];
 
 static void mriBindingExecute();
+
 static void mriBindingTerminate();
+
 static void mriBindingReset();
 
 ScriptBinding scriptBindingImpl = {mriBindingExecute, mriBindingTerminate,
-    mriBindingReset};
+                                   mriBindingReset};
 
 ScriptBinding *scriptBinding = &scriptBindingImpl;
 
 void tableBindingInit();
+
 void etcBindingInit();
+
 void fontBindingInit();
+
 void bitmapBindingInit();
+
 void spriteBindingInit();
+
 void viewportBindingInit();
+
 void planeBindingInit();
+
 void windowBindingInit();
+
 void tilemapBindingInit();
+
 void windowVXBindingInit();
+
 void tilemapVXBindingInit();
 
 void inputBindingInit();
+
 void audioBindingInit();
+
 void graphicsBindingInit();
 
 void fileIntBindingInit();
@@ -105,51 +121,83 @@ void CUSLBindingInit();
 void httpBindingInit();
 
 RB_METHOD(mkxpDelta);
+
 RB_METHOD(mriPrint);
+
 RB_METHOD(mriP);
+
 RB_METHOD(mkxpDataDirectory);
+
 RB_METHOD(mkxpSetTitle);
+
 RB_METHOD(mkxpGetTitle);
+
 RB_METHOD(mkxpDesensitize);
+
 RB_METHOD(mkxpPuts);
 
 RB_METHOD(mkxpPlatform);
+
 RB_METHOD(mkxpIsMacHost);
+
 RB_METHOD(mkxpIsWindowsHost);
+
 RB_METHOD(mkxpIsLinuxHost);
+
 RB_METHOD(mkxpIsUsingRosetta);
+
 RB_METHOD(mkxpIsUsingWine);
+
 RB_METHOD(mkxpIsReallyMacHost);
+
 RB_METHOD(mkxpIsReallyLinuxHost);
+
 RB_METHOD(mkxpIsReallyWindowsHost);
 
 RB_METHOD(mkxpUserLanguage);
+
 RB_METHOD(mkxpUserName);
+
 RB_METHOD(mkxpGameTitle);
+
 RB_METHOD(mkxpPowerState);
+
 RB_METHOD(mkxpSettingsMenu);
+
 RB_METHOD(mkxpCpuCount);
+
 RB_METHOD(mkxpSystemMemory);
+
 RB_METHOD(mkxpReloadPathCache);
+
 RB_METHOD(mkxpAddPath);
+
 RB_METHOD(mkxpRemovePath);
+
 RB_METHOD(mkxpFileExists);
+
 RB_METHOD(mkxpLaunch);
 
 RB_METHOD(mkxpGetJSONSetting);
+
 RB_METHOD(mkxpSetJSONSetting);
+
 RB_METHOD(mkxpGetAllJSONSettings);
 
 RB_METHOD(mkxpSetDefaultFontFamily);
 
 RB_METHOD(mriRgssMain);
+
 RB_METHOD(mriRgssStop);
+
 RB_METHOD(_kernelCaller);
 
 RB_METHOD(mkxpStringToUTF8);
+
 RB_METHOD(mkxpStringToUTF8Bang);
 
 VALUE json2rb(json5pp::value const &v);
+
 json5pp::value rb2json(VALUE v);
 
 static void mriBindingInit() {
@@ -160,58 +208,58 @@ static void mriBindingInit() {
     spriteBindingInit();
     viewportBindingInit();
     planeBindingInit();
-    
-    #if RGSS_VERSION == 1
-        windowBindingInit();
-        tilemapBindingInit();
-    #else
-        windowVXBindingInit();
-        tilemapVXBindingInit();
-    #endif
-    
+
+#if RGSS_VERSION == 1
+    windowBindingInit();
+    tilemapBindingInit();
+#else
+    windowVXBindingInit();
+    tilemapVXBindingInit();
+#endif
+
     inputBindingInit();
     audioBindingInit();
     graphicsBindingInit();
-    
+
     fileIntBindingInit();
-    
+
 #ifdef MKXPZ_MINIFFI
     MiniFFIBindingInit();
 #endif
-    
+
 #ifdef MKXPZ_STEAM
     CUSLBindingInit();
 #endif
-    
+
     httpBindingInit();
-    
-    #if RGSS_VERSION >= 3
-        _rb_define_module_function(rb_mKernel, "rgss_main", mriRgssMain);
-        _rb_define_module_function(rb_mKernel, "rgss_stop", mriRgssStop);
-        
-        _rb_define_module_function(rb_mKernel, "msgbox", mriPrint);
-        _rb_define_module_function(rb_mKernel, "msgbox_p", mriP);
-        
-        rb_define_global_const("RGSS_VERSION", rb_utf8_str_new_cstr("3.0.1"));
-    #else
-        _rb_define_module_function(rb_mKernel, "print", mriPrint);
-        _rb_define_module_function(rb_mKernel, "p", mriP);
-        
-        rb_define_alias(rb_singleton_class(rb_mKernel), "_mkxp_kernel_caller_alias",
-                        "caller");
-        _rb_define_module_function(rb_mKernel, "caller", _kernelCaller);
-    #endif
-    
-    #if RGSS_VERSION == 1
-        rb_eval_string(module_rpg1);
-    #elif RGSS_VERSION == 2
-        rb_eval_string(module_rpg2);
-    #elif RGSS_VERSION == 3
-        rb_eval_string(module_rpg3);
-    #else
-        assert(!"unreachable");
+
+#if RGSS_VERSION >= 3
+    _rb_define_module_function(rb_mKernel, "rgss_main", mriRgssMain);
+    _rb_define_module_function(rb_mKernel, "rgss_stop", mriRgssStop);
+
+    _rb_define_module_function(rb_mKernel, "msgbox", mriPrint);
+    _rb_define_module_function(rb_mKernel, "msgbox_p", mriP);
+
+    rb_define_global_const("RGSS_VERSION", rb_utf8_str_new_cstr("3.0.1"));
+#else
+    _rb_define_module_function(rb_mKernel, "print", mriPrint);
+    _rb_define_module_function(rb_mKernel, "p", mriP);
+
+    rb_define_alias(rb_singleton_class(rb_mKernel), "_mkxp_kernel_caller_alias",
+                    "caller");
+    _rb_define_module_function(rb_mKernel, "caller", _kernelCaller);
 #endif
-    
+
+#if RGSS_VERSION == 1
+    rb_eval_string(module_rpg1);
+#elif RGSS_VERSION == 2
+    rb_eval_string(module_rpg2);
+#elif RGSS_VERSION == 3
+    rb_eval_string(module_rpg3);
+#else
+static_assert(false, "Invalid RGSS Version");
+#endif
+
     VALUE mod = rb_define_module("System");
     _rb_define_module_function(mod, "delta", mkxpDelta);
     _rb_define_module_function(mod, "uptime", mkxpDelta);
@@ -223,19 +271,19 @@ static void mriBindingInit() {
     _rb_define_module_function(mod, "puts", mkxpPuts);
     _rb_define_module_function(mod, "desensitize", mkxpDesensitize);
     _rb_define_module_function(mod, "platform", mkxpPlatform);
-    
+
     _rb_define_module_function(mod, "is_mac?", mkxpIsMacHost);
     _rb_define_module_function(mod, "is_rosetta?", mkxpIsUsingRosetta);
-    
+
     _rb_define_module_function(mod, "is_linux?", mkxpIsLinuxHost);
-    
+
     _rb_define_module_function(mod, "is_windows?", mkxpIsWindowsHost);
     _rb_define_module_function(mod, "is_wine?", mkxpIsUsingWine);
     _rb_define_module_function(mod, "is_really_mac?", mkxpIsReallyMacHost);
     _rb_define_module_function(mod, "is_really_linux?", mkxpIsReallyLinuxHost);
     _rb_define_module_function(mod, "is_really_windows?", mkxpIsReallyWindowsHost);
-    
-    
+
+
     _rb_define_module_function(mod, "user_language", mkxpUserLanguage);
     _rb_define_module_function(mod, "user_name", mkxpUserName);
     _rb_define_module_function(mod, "game_title", mkxpGameTitle);
@@ -247,29 +295,29 @@ static void mriBindingInit() {
     _rb_define_module_function(mod, "unmount", mkxpRemovePath);
     _rb_define_module_function(mod, "file_exist?", mkxpFileExists);
     _rb_define_module_function(mod, "launch", mkxpLaunch);
-    
+
     _rb_define_module_function(mod, "default_font_family=", mkxpSetDefaultFontFamily);
-    
+
     _rb_define_method(rb_cString, "to_utf8", mkxpStringToUTF8);
     _rb_define_method(rb_cString, "to_utf8!", mkxpStringToUTF8Bang);
-    
+
     VALUE cmod = rb_define_module("CFG");
     _rb_define_module_function(cmod, "[]", mkxpGetJSONSetting);
     _rb_define_module_function(cmod, "[]=", mkxpSetJSONSetting);
     _rb_define_module_function(cmod, "to_hash", mkxpGetAllJSONSettings);
-    
+
     /* Load global constants */
     rb_gv_set("MKXP", Qtrue);
-    
+
     VALUE debug = rb_bool_new(shState->config().editor.debug);
-    #if RGSS_VERSION == 1
-        rb_gv_set("DEBUG", debug);
-    #elif RGSS_VERSION >= 2
-        rb_gv_set("TEST", debug);
-    #endif
-    
+#if RGSS_VERSION == 1
+    rb_gv_set("DEBUG", debug);
+#elif RGSS_VERSION >= 2
+    rb_gv_set("TEST", debug);
+#endif
+
     rb_gv_set("BTEST", rb_bool_new(shState->config().editor.battleTest));
-    
+
 #ifdef MKXPZ_BUILD_XCODE
     std::string version = std::string(MKXPZ_VERSION "/") + getPlistValue("GIT_COMMIT_HASH");
     VALUE vers = rb_utf8_str_new_cstr(version.c_str());
@@ -278,16 +326,16 @@ static void mriBindingInit() {
 #endif
     rb_str_freeze(vers);
     rb_define_const(mod, "VERSION", vers);
-    
+
     // Automatically load zlib if it's present -- the correct way this time
     int state;
     rb_eval_string_protect("require('zlib') if !Kernel.const_defined?(:Zlib)", &state);
     if (state) {
         Debug() << "Could not load Zlib. If this is important, make sure Ruby was built with static extensions, or that"
-        << ((MKXPZ_PLATFORM == MKXPZ_PLATFORM_MACOS) ? "zlib.bundle" : "zlib.so")
-        << "is present and reachable by Ruby's loadpath.";
+                << ((MKXPZ_PLATFORM == MKXPZ_PLATFORM_MACOS) ? "zlib.bundle" : "zlib.so")
+                << "is present and reachable by Ruby's loadpath.";
     }
-    
+
     // Set $stdout and its ilk accordingly on Windows
     // I regret teaching you that word
 #ifdef __WIN32__
@@ -304,32 +352,32 @@ static void printP(int argc, VALUE *argv, const char *convMethod,
                    const char *sep) {
     VALUE dispString = rb_str_buf_new(128);
     ID conv = rb_intern(convMethod);
-    
+
     for (int i = 0; i < argc; ++i) {
         VALUE str = rb_funcall2(argv[i], conv, 0, NULL);
         rb_str_buf_append(dispString, str);
-        
+
         if (i < argc)
-            rb_str_buf_cat2(dispString, sep);
+                    rb_str_buf_cat2 (dispString, sep);
     }
-    
+
     showMsg(RSTRING_PTR(dispString));
 }
 
 
 RB_METHOD(mriPrint) {
     RB_UNUSED_PARAM;
-    
+
     printP(argc, argv, "to_s", "");
-    
+
     return Qnil;
 }
 
 RB_METHOD(mriP) {
     RB_UNUSED_PARAM;
-    
+
     printP(argc, argv, "inspect", "\n");
-    
+
     return Qnil;
 }
 
@@ -340,69 +388,69 @@ RB_METHOD(mkxpDelta) {
 
 RB_METHOD(mkxpDataDirectory) {
     RB_UNUSED_PARAM;
-    
+
     const std::string &path = shState->config().customDataPath;
     const char *s = path.empty() ? "." : path.c_str();
-    
+
     std::string s_nml = shState->fileSystem().normalize(s, 1, 1);
     VALUE ret = rb_utf8_str_new_cstr(s_nml.c_str());
-    
+
     return ret;
 }
 
 RB_METHOD(mkxpSetTitle) {
     RB_UNUSED_PARAM;
-    
+
     VALUE s;
     rb_scan_args(argc, argv, "1", &s);
     SafeStringValue(s);
-    
+
     shState->eThread().requestWindowRename(RSTRING_PTR(s));
     return s;
 }
 
 RB_METHOD(mkxpGetTitle) {
     RB_UNUSED_PARAM;
-    
+
     rb_check_argc(argc, 0);
-    
+
     return rb_utf8_str_new_cstr(SDL_GetWindowTitle(shState->sdlWindow()));
 }
 
 RB_METHOD(mkxpDesensitize) {
     RB_UNUSED_PARAM;
-    
+
     VALUE filename;
     rb_scan_args(argc, argv, "1", &filename);
     SafeStringValue(filename);
-    
+
     return rb_utf8_str_new_cstr(
-                                shState->fileSystem().desensitize(RSTRING_PTR(filename)));
+            shState->fileSystem().desensitize(RSTRING_PTR(filename)));
 }
 
 RB_METHOD(mkxpPuts) {
     RB_UNUSED_PARAM;
-    
+
     const char *str;
     rb_get_args(argc, argv, "z", &str RB_ARG_END);
-    
+
     Debug() << str;
-    
+
     return Qnil;
 }
 
 RB_METHOD(mkxpPlatform) {
     RB_UNUSED_PARAM;
-    
+
 #if MKXPZ_PLATFORM == MKXPZ_PLATFORM_MACOS
     std::string platform("macOS");
     
     if (mkxp_sys::isRosetta())
         platform += " (Rosetta)";
-    
+
 #elif MKXPZ_PLATFORM == MKXPZ_PLATFORM_WINDOWS
     std::string platform("Windows");
-    
+
     if (mkxp_sys::isWine()) {
         platform += " (Wine - ";
         switch (mkxp_sys::getRealHostType()) {
@@ -417,31 +465,31 @@ RB_METHOD(mkxpPlatform) {
 #else
     std::string platform("Linux");
 #endif
-    
+
     return rb_utf8_str_new_cstr(platform.c_str());
 }
 
 RB_METHOD(mkxpIsMacHost) {
     RB_UNUSED_PARAM;
-    
+
     return rb_bool_new(MKXPZ_PLATFORM == MKXPZ_PLATFORM_MACOS);
 }
 
 RB_METHOD(mkxpIsUsingRosetta) {
     RB_UNUSED_PARAM;
-    
+
     return rb_bool_new(mkxp_sys::isRosetta());
 }
 
 RB_METHOD(mkxpIsLinuxHost) {
     RB_UNUSED_PARAM;
-    
+
     return rb_bool_new(MKXPZ_PLATFORM == MKXPZ_PLATFORM_LINUX);
 }
 
 RB_METHOD(mkxpIsWindowsHost) {
     RB_UNUSED_PARAM;
-    
+
     return rb_bool_new(MKXPZ_PLATFORM == MKXPZ_PLATFORM_WINDOWS);
 }
 
@@ -467,13 +515,13 @@ RB_METHOD(mkxpIsReallyWindowsHost) {
 
 RB_METHOD(mkxpUserLanguage) {
     RB_UNUSED_PARAM;
-    
+
     return rb_utf8_str_new_cstr(mkxp_sys::getSystemLanguage().c_str());
 }
 
 RB_METHOD(mkxpUserName) {
     RB_UNUSED_PARAM;
-    
+
     // Using the Windows API isn't working with usernames that involve Unicode
     // characters for some dumb reason
 #ifdef __WIN32__
@@ -486,72 +534,72 @@ RB_METHOD(mkxpUserName) {
 
 RB_METHOD(mkxpGameTitle) {
     RB_UNUSED_PARAM;
-    
+
     return rb_utf8_str_new_cstr(shState->config().game.title.c_str());
 }
 
 RB_METHOD(mkxpPowerState) {
     RB_UNUSED_PARAM;
-    
+
     int secs, pct;
     SDL_PowerState ps = SDL_GetPowerInfo(&secs, &pct);
-    
+
     VALUE hash = rb_hash_new();
-    
+
     rb_hash_aset(hash, ID2SYM(rb_intern("seconds")),
                  (secs > -1) ? INT2NUM(secs) : RUBY_Qnil);
-    
+
     rb_hash_aset(hash, ID2SYM(rb_intern("percent")),
                  (pct > -1) ? INT2NUM(pct) : RUBY_Qnil);
-    
+
     rb_hash_aset(hash, ID2SYM(rb_intern("discharging")),
                  rb_bool_new(ps == SDL_POWERSTATE_ON_BATTERY));
-    
+
     return hash;
 }
 
 RB_METHOD(mkxpSettingsMenu) {
     RB_UNUSED_PARAM;
-    
+
     shState->eThread().requestSettingsMenu();
-    
+
     return Qnil;
 }
 
 RB_METHOD(mkxpCpuCount) {
     RB_UNUSED_PARAM;
-    
+
     return INT2NUM(SDL_GetCPUCount());
 }
 
 RB_METHOD(mkxpSystemMemory) {
     RB_UNUSED_PARAM;
-    
+
     return INT2NUM(SDL_GetSystemRAM());
 }
 
 RB_METHOD(mkxpReloadPathCache) {
     RB_UNUSED_PARAM;
-    
+
     shState->fileSystem().reloadPathCache();
     return Qnil;
 }
 
 RB_METHOD(mkxpAddPath) {
     RB_UNUSED_PARAM;
-    
+
     VALUE path, mountpoint, reload;
     rb_scan_args(argc, argv, "12", &path, &mountpoint, &reload);
     SafeStringValue(path);
     if (mountpoint != Qnil) SafeStringValue(mountpoint);
-    
+
     const char *mp = (mountpoint == Qnil) ? 0 : RSTRING_PTR(mountpoint);
-    
+
     try {
         bool rl = true;
         if (reload != Qnil)
             rb_bool_arg(reload, &rl);
-        
+
         shState->fileSystem().addPath(RSTRING_PTR(path), mp, rl);
     } catch (Exception &e) {
         raiseRbExc(e);
@@ -561,16 +609,16 @@ RB_METHOD(mkxpAddPath) {
 
 RB_METHOD(mkxpRemovePath) {
     RB_UNUSED_PARAM;
-    
+
     VALUE path, reload;
     rb_scan_args(argc, argv, "11", &path, &reload);
     SafeStringValue(path);
-    
+
     try {
         bool rl = true;
         if (reload != Qnil)
             rb_bool_arg(reload, &rl);
-        
+
         shState->fileSystem().removePath(RSTRING_PTR(path), rl);
     } catch (Exception &e) {
         raiseRbExc(e);
@@ -580,11 +628,11 @@ RB_METHOD(mkxpRemovePath) {
 
 RB_METHOD(mkxpFileExists) {
     RB_UNUSED_PARAM;
-    
+
     VALUE path;
     rb_scan_args(argc, argv, "1", &path);
     SafeStringValue(path);
-    
+
     if (shState->fileSystem().exists(RSTRING_PTR(path)))
         return Qtrue;
     return Qfalse;
@@ -592,43 +640,43 @@ RB_METHOD(mkxpFileExists) {
 
 RB_METHOD(mkxpSetDefaultFontFamily) {
     RB_UNUSED_PARAM;
-    
+
     VALUE familyV;
     rb_scan_args(argc, argv, "1", &familyV);
     SafeStringValue(familyV);
-    
+
     std::string family(RSTRING_PTR(familyV));
     shState->fontState().setDefaultFontFamily(family);
-    
+
     return Qnil;
 }
 
 RB_METHOD(mkxpStringToUTF8) {
     RB_UNUSED_PARAM;
-    
+
     rb_check_argc(argc, 0);
-    
+
     std::string ret(RSTRING_PTR(self), RSTRING_LEN(self));
-    GUARD_EXC(ret = Encoding::convertString(ret); );
-    
+    GUARD_EXC(ret = Encoding::convertString(ret););
+
     return rb_utf8_str_new(ret.c_str(), ret.length());
 }
 
 RB_METHOD(mkxpStringToUTF8Bang) {
     RB_UNUSED_PARAM;
-    
+
     rb_check_argc(argc, 0);
-    
+
     std::string ret(RSTRING_PTR(self), RSTRING_LEN(self));
-    GUARD_EXC(ret = Encoding::convertString(ret); );
-    
+    GUARD_EXC(ret = Encoding::convertString(ret););
+
     rb_str_resize(self, ret.length());
     memcpy(RSTRING_PTR(self), ret.c_str(), RSTRING_LEN(self));
-    
+
 #if RAPI_FULL >= 190
     rb_funcall(self, rb_intern("force_encoding"), 1, rb_enc_from_encoding(rb_utf8_encoding()));
 #endif
-    
+
     return self;
 }
 
@@ -645,28 +693,30 @@ RB_METHOD(mkxpStringToUTF8Bang) {
 
 RB_METHOD(mkxpLaunch) {
     RB_UNUSED_PARAM;
-    
+
     VALUE cmdname, args;
-    
+
     rb_scan_args(argc, argv, "11", &cmdname, &args);
     SafeStringValue(cmdname);
-    
+
     std::string command(OPENCMD);
-    command += "\""; command += RSTRING_PTR(cmdname); command += "\"";
-    
+    command += "\"";
+    command += RSTRING_PTR(cmdname);
+    command += "\"";
+
     if (args != RUBY_Qnil) {
 #ifndef __linux__
         command += " ";
         command += OPENARGS;
         Check_Type(args, T_ARRAY);
-        
+
         for (int i = 0; i < RARRAY_LEN(args); i++) {
             VALUE arg = rb_ary_entry(args, i);
             SafeStringValue(arg);
-            
+
             if (RSTRING_LEN(arg) <= 0)
                 continue;
-            
+
             command += " ";
             command += RSTRING_PTR(arg);
         }
@@ -674,74 +724,75 @@ RB_METHOD(mkxpLaunch) {
         Debug() << command << ":" << "Arguments are not supported with xdg-open. Ignoring.";
 #endif
     }
-    
+
     if (std::system(command.c_str()) != 0) {
         raiseRbExc(Exception(Exception::MKXPError, "Failed to launch \"%s\"", RSTRING_PTR(cmdname)));
     }
-    
+
     return RUBY_Qnil;
 }
 
 json5pp::value loadUserSettings() {
     json5pp::value ret;
     VALUE cpath = rb_utf8_str_new_cstr(shState->config().userConfPath.c_str());
-    
+
     if (rb_funcall(rb_cFile, rb_intern("exists?"), 1, cpath) == Qtrue) {
         VALUE f = rb_funcall(rb_cFile, rb_intern("open"), 2, cpath, rb_str_new("r", 1));
         VALUE data = rb_funcall(f, rb_intern("read"), 0);
         rb_funcall(f, rb_intern("close"), 0);
         ret = json5pp::parse5(RSTRING_PTR(data));
     }
-    
+
     if (!ret.is_object())
         ret = json5pp::object({});
-    
+
     return ret;
 }
 
 void saveUserSettings(json5pp::value &settings) {
     VALUE cpath = rb_utf8_str_new_cstr(shState->config().userConfPath.c_str());
     VALUE f = rb_funcall(rb_cFile, rb_intern("open"), 2, cpath, rb_str_new("w", 1));
-    rb_funcall(f, rb_intern("write"), 1, rb_utf8_str_new_cstr(settings.stringify5(json5pp::rule::space_indent<>()).c_str()));
+    rb_funcall(f, rb_intern("write"), 1,
+               rb_utf8_str_new_cstr(settings.stringify5(json5pp::rule::space_indent<>()).c_str()));
     rb_funcall(f, rb_intern("close"), 0);
 }
 
 RB_METHOD(mkxpGetJSONSetting) {
     RB_UNUSED_PARAM;
-    
+
     VALUE sname;
     rb_scan_args(argc, argv, "1", &sname);
     SafeStringValue(sname);
-    
+
     auto settings = loadUserSettings();
     auto &s = settings.as_object();
-    
+
     if (s[RSTRING_PTR(sname)].is_null()) {
         return json2rb(shState->config().raw.as_object()[RSTRING_PTR(sname)]);
     }
-    
+
     return json2rb(s[RSTRING_PTR(sname)]);
-    
+
 }
 
 RB_METHOD(mkxpSetJSONSetting) {
     RB_UNUSED_PARAM;
-    
+
     VALUE sname, svalue;
     rb_scan_args(argc, argv, "2", &sname, &svalue);
     SafeStringValue(sname);
-    
+
     auto settings = loadUserSettings();
     auto &s = settings.as_object();
     s[RSTRING_PTR(sname)] = rb2json(svalue);
     saveUserSettings(settings);
-    
+
     return Qnil;
 }
 
 RB_METHOD(mkxpGetAllJSONSettings) {
     RB_UNUSED_PARAM;
-    
+
     return json2rb(shState->config().raw);
 }
 
@@ -751,24 +802,24 @@ static VALUE rgssMainCb(VALUE block) {
 }
 
 static VALUE rgssMainRescue(VALUE arg, VALUE exc) {
-    VALUE *excRet = (VALUE *)arg;
-    
+    VALUE *excRet = (VALUE *) arg;
+
     *excRet = exc;
-    
+
     return Qnil;
 }
 
 static void processReset() {
     shState->graphics().reset();
     shState->audio().reset();
-    
+
     shState->rtData().rqReset.clear();
     shState->graphics().repaintWait(shState->rtData().rqResetFinish, false);
 }
 
 RB_METHOD(mriRgssMain) {
     RB_UNUSED_PARAM;
-    
+
     while (true) {
         VALUE exc = Qnil;
 #if RAPI_FULL < 270
@@ -776,67 +827,69 @@ RB_METHOD(mriRgssMain) {
                    (VALUE(*)(ANYARGS))rgssMainRescue, (VALUE)&exc, rb_eException,
                    (VALUE)0);
 #else
-        rb_rescue2(rgssMainCb, rb_block_proc(), rgssMainRescue, (VALUE)&exc,
-                   rb_eException, (VALUE)0);
+        rb_rescue2(rgssMainCb, rb_block_proc(), rgssMainRescue, (VALUE) &exc,
+                   rb_eException, (VALUE) 0);
 #endif
-        
+
         if (NIL_P(exc))
             break;
-        
+
         if (rb_obj_class(exc) == getRbData()->exc[Reset])
             processReset();
         else
             rb_exc_raise(exc);
     }
-    
+
     return Qnil;
 }
 
 RB_METHOD(mriRgssStop) {
     RB_UNUSED_PARAM;
-    
+
     while (true)
         shState->graphics().update();
-    
+
     return Qnil;
 }
 
 RB_METHOD(_kernelCaller) {
     RB_UNUSED_PARAM;
-    
+
     VALUE trace =
-    rb_funcall2(rb_mKernel, rb_intern("_mkxp_kernel_caller_alias"), 0, 0);
-    
+            rb_funcall2(rb_mKernel, rb_intern("_mkxp_kernel_caller_alias"), 0, 0);
+
     if (!RB_TYPE_P(trace, RUBY_T_ARRAY))
         return trace;
-    
+
     long len = RARRAY_LEN(trace);
-    
+
     if (len < 2)
         return trace;
-    
+
     /* Remove useless "ruby:1:in 'eval'" */
     rb_ary_pop(trace);
-    
+
     /* Also remove trace of this helper function */
     rb_ary_shift(trace);
-    
+
     len -= 2;
-    
+
     if (len == 0)
         return trace;
-    
+
     /* RMXP does this, not sure if specific or 1.8 related */
     VALUE args[] = {rb_utf8_str_new_cstr(":in `<main>'"), rb_utf8_str_new_cstr("")};
     rb_funcall2(rb_ary_entry(trace, len - 1), rb_intern("gsub!"), 2, args);
-    
+
     return trace;
 }
 
 #if RAPI_FULL > 187
+
 static VALUE newStringUTF8(const char *string, long length) {
     return rb_enc_str_new(string, length, rb_utf8_encoding());
 }
+
 #else
 #define newStringUTF8 rb_str_new
 #endif
@@ -853,17 +906,17 @@ static VALUE evalHelper(evalArg *arg) {
 
 static VALUE evalString(VALUE string, VALUE filename, int *state) {
     evalArg arg = {string, filename};
-    return rb_protect((VALUE(*)(VALUE))evalHelper, (VALUE)&arg, state);
+    return rb_protect((VALUE(*)(VALUE)) evalHelper, (VALUE) &arg, state);
 }
 
 static void runCustomScript(const std::string &filename) {
     std::string scriptData;
-    
+
     if (!readFileSDL(filename.c_str(), scriptData)) {
         showMsg(std::string("Unable to open '") + filename + "'");
         return;
     }
-    
+
     evalString(newStringUTF8(scriptData.c_str(), scriptData.size()),
                newStringUTF8(filename.c_str(), filename.size()), NULL);
 }
@@ -875,8 +928,7 @@ struct BacktraceData {
     BoostHash<std::string, std::string> scriptNames;
 };
 
-bool evalScript(VALUE string, const char *filename)
-{
+bool evalScript(VALUE string, const char *filename) {
     int state;
     evalString(string, rb_utf8_str_new_cstr(filename), &state);
     if (state) return false;
@@ -889,19 +941,19 @@ bool evalScript(VALUE string, const char *filename)
 static void runRMXPScripts(BacktraceData &btData) {
     const Config &conf = shState->rtData().config;
     const std::string &scriptPack = conf.game.scripts;
-    
+
     if (scriptPack.empty()) {
         showMsg("No script file has been specified. Check the game's INI and try again.");
         return;
     }
-    
+
     if (!shState->fileSystem().exists(scriptPack.c_str())) {
         showMsg("Unable to load scripts from '" + scriptPack + "'");
         return;
     }
-    
+
     VALUE scriptArray;
-    
+
     /* We checked if Scripts.rxdata exists, but something might
      * still go wrong */
     try {
@@ -910,130 +962,69 @@ static void runRMXPScripts(BacktraceData &btData) {
         showMsg(std::string("Failed to read script data: ") + e.msg);
         return;
     }
-    
+
     if (!RB_TYPE_P(scriptArray, RUBY_T_ARRAY)) {
         showMsg("Failed to read script data");
         return;
     }
-    
+
     rb_gv_set("$RGSS_SCRIPTS", scriptArray);
-    
+
     long scriptCount = RARRAY_LEN(scriptArray);
-    
+
     std::string decodeBuffer;
     decodeBuffer.resize(0x1000);
-    
+
     for (long i = 0; i < scriptCount; ++i) {
         VALUE script = rb_ary_entry(scriptArray, i);
-        
+
         if (!RB_TYPE_P(script, RUBY_T_ARRAY))
             continue;
-        
+
         VALUE scriptName = rb_ary_entry(script, 1);
         VALUE scriptString = rb_ary_entry(script, 2);
-        
+
         int result = Z_OK;
         unsigned long bufferLen;
-        
+
         while (true) {
             unsigned char *bufferPtr = reinterpret_cast<unsigned char *>(
-                                                                         const_cast<char *>(decodeBuffer.c_str()));
+                    const_cast<char *>(decodeBuffer.c_str()));
             const unsigned char *sourcePtr =
-            reinterpret_cast<const unsigned char *>(RSTRING_PTR(scriptString));
-            
+                    reinterpret_cast<const unsigned char *>(RSTRING_PTR(scriptString));
+
             bufferLen = decodeBuffer.length();
-            
+
             result = uncompress(bufferPtr, &bufferLen, sourcePtr,
                                 RSTRING_LEN(scriptString));
-            
+
             bufferPtr[bufferLen] = '\0';
-            
+
             if (result != Z_BUF_ERROR)
                 break;
-            
+
             decodeBuffer.resize(decodeBuffer.size() * 2);
         }
-        
+
         if (result != Z_OK) {
             static char buffer[256];
             snprintf(buffer, sizeof(buffer), "Error decoding script %ld: '%s'", i,
                      RSTRING_PTR(scriptName));
-            
+
             showMsg(buffer);
-            
+
             break;
         }
-        
+
         rb_ary_store(script, 3, rb_utf8_str_new_cstr(decodeBuffer.c_str()));
     }
-    
+
     /* Execute preloaded scripts */
+    /*
     for (std::vector<std::string>::const_iterator i = conf.preloadScripts.begin();
          i != conf.preloadScripts.end(); ++i)
         runCustomScript(*i);
-    
-    VALUE exc = rb_gv_get("$!");
-    if (exc != Qnil)
-        return;
-    
-    while (true) {
-        for (long i = 0; i < scriptCount; ++i) {
-            VALUE script = rb_ary_entry(scriptArray, i);
-            VALUE scriptDecoded = rb_ary_entry(script, 3);
-            VALUE string =
-            newStringUTF8(RSTRING_PTR(scriptDecoded), RSTRING_LEN(scriptDecoded));
-            
-            VALUE fname;
-            const char *scriptName = RSTRING_PTR(rb_ary_entry(script, 1));
-            char buf[512];
-            int len;
-            
-            if (conf.useScriptNames)
-                len = snprintf(buf, sizeof(buf), "%03ld:%s", i, scriptName);
-            else
-                len = snprintf(buf, sizeof(buf), SCRIPT_SECTION_FMT, i);
-            
-            fname = newStringUTF8(buf, len);
-            btData.scriptNames.insert(buf, scriptName);
-            
-            
-            // if the script name starts with |s|, only execute
-            // it if "s" is the same first letter as the platform
-            // we're running on
-            
-            // |W| - Windows, |M| - Mac OS X, |L| - Linux
-            
-            // Adding a 'not' symbol means it WON'T run on that
-            // platform (i.e. |!W| won't run on Windows)
-            /*
-             if (scriptName[0] == '|') {
-             int len = strlen(scriptName);
-             if (len > 2) {
-             if (scriptName[1] == '!' && len > 3 &&
-             scriptName[3] == scriptName[0]) {
-             if (toupper(scriptName[2]) == platform[0])
-             continue;
-             }
-             if (scriptName[2] == scriptName[0] &&
-             toupper(scriptName[1]) != platform[0])
-             continue;
-             }
-             }
-             */
-            
-            int state;
-            
-            evalString(string, fname, &state);
-            if (state)
-                break;
-        }
-        
-        VALUE exc = rb_gv_get("$!");
-        if (rb_obj_class(exc) != getRbData()->exc[Reset])
-            break;
-        
-        processReset();
-    }
+        */
 }
 
 static void showExc(VALUE exc, const BacktraceData &btData) {
@@ -1041,7 +1032,7 @@ static void showExc(VALUE exc, const BacktraceData &btData) {
     VALUE msg = rb_funcall2(exc, rb_intern("message"), 0, NULL);
     VALUE bt0 = rb_ary_entry(bt, 0);
     VALUE name = rb_class_path(rb_obj_class(exc));
-    
+
     VALUE ds = rb_sprintf("%" PRIsVALUE ": %" PRIsVALUE " (%" PRIsVALUE ")",
 #if RAPI_MAJOR >= 2
                           bt0, exc, name);
@@ -1058,55 +1049,55 @@ static void showExc(VALUE exc, const BacktraceData &btData) {
     RSTRING_PTR(rb_ary_entry(bt, i)));
 #endif
     Debug() << StringValueCStr(ds);
-    
+
     char *s = RSTRING_PTR(bt0);
-    
+
     char line[16];
     std::string file(512, '\0');
-    
+
     char *p = s + strlen(s);
     char *e;
-    
+
     while (p != s)
         if (*--p == ':')
             break;
-    
+
     e = p;
-    
+
     while (p != s)
         if (*--p == ':')
             break;
-    
+
     /* s         p  e
      * SectionXXX:YY: in 'blabla' */
-    
+
     *e = '\0';
     strncpy(line, *p ? p + 1 : p, sizeof(line));
     line[sizeof(line) - 1] = '\0';
     *e = ':';
     e = p;
-    
+
     /* s         e
      * SectionXXX:YY: in 'blabla' */
-    
+
     *e = '\0';
     strncpy(&file[0], s, file.size());
     *e = ':';
-    
+
     /* Shrink to fit */
     file.resize(strlen(file.c_str()));
     file = btData.scriptNames.value(file, file);
-    
+
     std::string ms(640, '\0');
     snprintf(&ms[0], ms.size(), "Script '%s' line %s: %s occured.\n\n%s",
              file.c_str(), line, RSTRING_PTR(name), RSTRING_PTR(msg));
-    
+
     showMsg(ms);
 }
 
 static void mriBindingExecute() {
     Config &conf = shState->rtData().config;
-    
+
 #if RAPI_MAJOR >= 2
     /* Normally only a ruby executable would do a sysinit,
      * but not doing it will lead to crashes due to closed
@@ -1114,11 +1105,11 @@ static void mriBindingExecute() {
     int argc = 0;
     char **argv = 0;
     ruby_sysinit(&argc, &argv);
-    
+
     RUBY_INIT_STACK;
     ruby_init();
-    
-    std::vector<const char*> rubyArgsC{"mkxp-z"};
+
+    std::vector<const char *> rubyArgsC{"mkxp-z"};
     rubyArgsC.push_back("-e ");
     void *node;
     if (conf.jit.enabled) {
@@ -1141,15 +1132,15 @@ static void mriBindingExecute() {
         rubyArgsC.push_back(verboseLevel.c_str());
         rubyArgsC.push_back(maxCache.c_str());
         rubyArgsC.push_back(minCalls.c_str());
-        node = ruby_options(rubyArgsC.size(), const_cast<char**>(rubyArgsC.data()));
+        node = ruby_options(rubyArgsC.size(), const_cast<char **>(rubyArgsC.data()));
     } else if (conf.yjit.enabled) {
         rubyArgsC.push_back("--yjit");
         // TODO: Maybe support --yjit-exec-mem-size, --yjit-call-threshold
-        node = ruby_options(rubyArgsC.size(), const_cast<char**>(rubyArgsC.data()));
+        node = ruby_options(rubyArgsC.size(), const_cast<char **>(rubyArgsC.data()));
     } else {
-        node = ruby_options(rubyArgsC.size(), const_cast<char**>(rubyArgsC.data()));
+        node = ruby_options(rubyArgsC.size(), const_cast<char **>(rubyArgsC.data()));
     }
-    
+
     int state;
     bool valid = ruby_executable_node(node, &state);
     if (valid)
@@ -1184,28 +1175,28 @@ static void mriBindingExecute() {
     }
 #endif
 #endif
-    
+
     VALUE rbArgv = rb_get_argv();
-    for (const auto &str : conf.launchArgs)
+    for (const auto &str: conf.launchArgs)
         rb_ary_push(rbArgv, rb_utf8_str_new_cstr(str.c_str()));
-    
+
     // Duplicates get pushed for some reason
     rb_funcall(rbArgv, rb_intern("uniq!"), 0);
-    
+
     VALUE lpaths = rb_gv_get(":");
     rb_ary_clear(lpaths);
-    
+
 #if defined(MKXPZ_BUILD_XCODE) && RAPI_MAJOR >= 2
     std::string resPath = mkxp_fs::getResourcePath();
     resPath += "/Ruby/" + std::to_string(RAPI_MAJOR) + "." + std::to_string(RAPI_MINOR) + ".0";
     rb_ary_push(lpaths, rb_str_new(resPath.c_str(), resPath.size()));
 #endif
-    
+
     if (!conf.rubyLoadpaths.empty()) {
         /* Setup custom load paths */
         for (size_t i = 0; i < conf.rubyLoadpaths.size(); ++i) {
             std::string &path = conf.rubyLoadpaths[i];
-            
+
             VALUE pathv = rb_str_new(path.c_str(), path.size());
             rb_ary_push(lpaths, pathv);
         }
@@ -1215,19 +1206,19 @@ static void mriBindingExecute() {
         rb_ary_push(lpaths, rb_utf8_str_new_cstr(mkxp_fs::getCurrentDirectory().c_str()));
     }
 #endif
-    
+
     RbData rbData;
     shState->setBindingData(&rbData);
     BacktraceData btData;
-    
+
     mriBindingInit();
-    
+
     std::string &customScript = conf.customScript;
     if (!customScript.empty())
         runCustomScript(customScript);
     else
         runRMXPScripts(btData);
-    
+
 #if RAPI_FULL > 187
     VALUE exc = rb_errinfo();
 #else
@@ -1235,9 +1226,9 @@ static void mriBindingExecute() {
 #endif
     if (!NIL_P(exc) && !rb_obj_is_kind_of(exc, rb_eSystemExit))
         showExc(exc, btData);
-    
+
     ruby_cleanup(0);
-    
+
     shState->rtData().rqTermAck.set();
 }
 
