@@ -150,6 +150,7 @@ $(DOWNLOADS)/libpng/Makefile: $(DOWNLOADS)/libpng/configure
 
 $(DOWNLOADS)/libpng/configure:
 	$(CLONE) $(GITHUB)/mkxp-z/libpng $(DOWNLOADS)/libpng
+	sed 's/zlib//g' -i $(DOWNLOADS)/libpng/libpng.pc.in
 
 # uchardet
 uchardet: init_dirs $(LIBDIR)/libuchardet.a
