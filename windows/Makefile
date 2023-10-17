@@ -247,7 +247,7 @@ $(LIBDIR)/libfreetype.a: $(DOWNLOADS)/freetype/Makefile
 
 $(DOWNLOADS)/freetype/Makefile: $(DOWNLOADS)/freetype/configure
 	cd $(DOWNLOADS)/freetype; \
-	$(CONFIGURE) --enable-static=true --enable-shared=false
+	$(CONFIGURE) --enable-static=true --enable-shared=false --with-zlib=no
 
 $(DOWNLOADS)/freetype/configure: $(DOWNLOADS)/freetype/autogen.sh
 	cd $(DOWNLOADS)/freetype; ./autogen.sh
