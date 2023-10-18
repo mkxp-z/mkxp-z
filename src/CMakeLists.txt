@@ -96,7 +96,7 @@ target_link_libraries(mkxp_z PUBLIC
         SDL2::SDL2
         SDL2_image::SDL2_image
         SDL2_ttf::SDL2_ttf
-        SDL2_sound::SDL2_sound
+        SDL2_sound::SDL2_sound-static
         Ogg::Ogg
         physfs::physfs
         OpenAL::OpenAL
