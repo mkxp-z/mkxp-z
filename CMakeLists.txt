@@ -49,7 +49,7 @@ add_subdirectory(external)
 add_subdirectory(assets)
 add_subdirectory(shader)
 
-add_executable(mkxp_z)
+add_library(mkxp_z SHARED)
 
 add_subdirectory(binding)
 add_subdirectory(src)

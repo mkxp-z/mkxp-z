@@ -1,7 +1,8 @@
 project(MKXPZ_Core)
 
 target_sources(mkxp_z PUBLIC
-        main.cpp
+        #main.cpp
+        gamelauncher.cpp
         config.cpp
         eventthread.cpp
         settingsmenu.cpp
@@ -47,6 +48,8 @@ target_sources(mkxp_z PUBLIC
         display/gl/tilequad.cpp
         display/gl/vertex.cpp
 
+        util/sdl/SDL_Instance.cpp
+
         util/iniconfig.cpp
         util/win-consoleutils.cpp
 
@@ -81,6 +84,7 @@ target_include_directories(mkxp_z PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/net
         ${CMAKE_CURRENT_SOURCE_DIR}/system
         ${CMAKE_CURRENT_SOURCE_DIR}/util
+        ${CMAKE_CURRENT_SOURCE_DIR}/util/sdl
         ${CMAKE_CURRENT_SOURCE_DIR}/util/sigslot
         ${CMAKE_CURRENT_SOURCE_DIR}/util/sigslot/adapter
         ${Ruby_INCLUDE_DIRS}
