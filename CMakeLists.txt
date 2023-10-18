@@ -4,31 +4,7 @@ project(mkxp_z VERSION 2.4.2 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 14)
 
-set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/cmake)
-include(conan)
-
-
-conan_cmake_configure(REQUIRES
-        ogg/1.3.5
-        openal/1.22.2
-        physfs/3.0.2
-        sdl/2.28.2
-        sdl_image/2.0.5
-        sdl_ttf/2.20.2
-        theora/1.1.1
-        uchardet/0.0.7
-        vorbis/1.3.7
-        zlib/1.2.13
-        GENERATORS cmake_find_package)
-
-conan_cmake_autodetect(settings)
-
-message("Compilers: ${CMAKE_C_COMPILER}, ${CMAKE_CXX_COMPILER}")
-conan_cmake_install(PATH_OR_REFERENCE .
-        BUILD missing
-        REMOTE conancenter
-        SETTINGS ${settings}
-        ENV CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER})
+set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_SOURCE_DIR}/cmake/conan)
 
 set(EXTERNAL_DEPS ${CMAKE_SOURCE_DIR}/windows/build-mingw64/)
 set(EXTERNAL_INCLUDES ${EXTERNAL_DEPS}/include)

@@ -75,3 +75,4 @@ DerivedData/
 /*.gcno
 .idea/
 cmake-build-release/
+cmake/conan/
