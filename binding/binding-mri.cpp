@@ -50,9 +50,12 @@ extern "C" {
 #endif
 }
 
+#include "binding-mri.h"
+
 #ifdef __WIN32__
 
 #include "binding-mri-win32.h"
+#include "gamelauncher.h"
 
 #endif
 
@@ -200,7 +203,27 @@ VALUE json2rb(json5pp::value const &v);
 
 json5pp::value rb2json(VALUE v);
 
-RUBY_FUNC_EXPORTED void Init_mkxp_z() {
+extern "C" {
+RUBY_FUNC_EXPORTED void Init_mkxp_z(void) {
+    Debug() << "Loading MKXP-Z!";
+
+    std::vector<std::string> launchArgs;
+    auto nativeResult = rb_eval_string("MKXP_Z.get_launch_args rescue []");
+    if (TYPE(nativeResult) == T_ARRAY) {
+        long len = rb_array_len(nativeResult);
+        for (long i = 0; i < len; i++) {
+            auto a = rb_ary_entry(nativeResult, i);
+            if (TYPE(a) == T_STRING) {
+                launchArgs.emplace_back(rb_string_value_cstr(&a));
+            }
+        }
+    }
+
+    auto config = std::make_shared<Config>();
+    config->read(launchArgs);
+
+    GameLauncher::instance().setConfig(config);
+
     tableBindingInit();
     etcBindingInit();
     fontBindingInit();
@@ -309,14 +332,14 @@ static_assert(false, "Invalid RGSS Version");
     /* Load global constants */
     rb_gv_set("MKXP", Qtrue);
 
-    VALUE debug = rb_bool_new(shState->config().editor.debug);
+    VALUE debug = rb_bool_new(GameLauncher::instance().getConfig()->editor.debug);
 #if RGSS_VERSION == 1
     rb_gv_set("DEBUG", debug);
 #elif RGSS_VERSION >= 2
     rb_gv_set("TEST", debug);
 #endif
 
-    rb_gv_set("BTEST", rb_bool_new(shState->config().editor.battleTest));
+    rb_gv_set("BTEST", rb_bool_new(GameLauncher::instance().getConfig()->editor.battleTest));
 
 #ifdef MKXPZ_BUILD_XCODE
     std::string version = std::string(MKXPZ_VERSION "/") + getPlistValue("GIT_COMMIT_HASH");
@@ -339,9 +362,10 @@ static_assert(false, "Invalid RGSS Version");
     // Set $stdout and its ilk accordingly on Windows
     // I regret teaching you that word
 #ifdef __WIN32__
-    if (shState->config().winConsole)
+    if (GameLauncher::instance().getConfig()->winConsole)
         configureWindowsStreams();
 #endif
+}
 }
 
 static void showMsg(const std::string &msg) {
@@ -389,7 +413,7 @@ RB_METHOD(mkxpDelta) {
 RB_METHOD(mkxpDataDirectory) {
     RB_UNUSED_PARAM;
 
-    const std::string &path = shState->config().customDataPath;
+    const std::string &path = GameLauncher::instance().getConfig()->customDataPath;
     const char *s = path.empty() ? "." : path.c_str();
 
     std::string s_nml = shState->fileSystem().normalize(s, 1, 1);
@@ -535,7 +559,7 @@ RB_METHOD(mkxpUserName) {
 RB_METHOD(mkxpGameTitle) {
     RB_UNUSED_PARAM;
 
-    return rb_utf8_str_new_cstr(shState->config().game.title.c_str());
+    return rb_utf8_str_new_cstr(GameLauncher::instance().getConfig()->game.title.c_str());
 }
 
 RB_METHOD(mkxpPowerState) {
@@ -734,7 +758,7 @@ RB_METHOD(mkxpLaunch) {
 
 json5pp::value loadUserSettings() {
     json5pp::value ret;
-    VALUE cpath = rb_utf8_str_new_cstr(shState->config().userConfPath.c_str());
+    VALUE cpath = rb_utf8_str_new_cstr(GameLauncher::instance().getConfig()->userConfPath.c_str());
 
     if (rb_funcall(rb_cFile, rb_intern("exists?"), 1, cpath) == Qtrue) {
         VALUE f = rb_funcall(rb_cFile, rb_intern("open"), 2, cpath, rb_str_new("r", 1));
@@ -750,7 +774,7 @@ json5pp::value loadUserSettings() {
 }
 
 void saveUserSettings(json5pp::value &settings) {
-    VALUE cpath = rb_utf8_str_new_cstr(shState->config().userConfPath.c_str());
+    VALUE cpath = rb_utf8_str_new_cstr(GameLauncher::instance().getConfig()->userConfPath.c_str());
     VALUE f = rb_funcall(rb_cFile, rb_intern("open"), 2, cpath, rb_str_new("w", 1));
     rb_funcall(f, rb_intern("write"), 1,
                rb_utf8_str_new_cstr(settings.stringify5(json5pp::rule::space_indent<>()).c_str()));
@@ -768,7 +792,7 @@ RB_METHOD(mkxpGetJSONSetting) {
     auto &s = settings.as_object();
 
     if (s[RSTRING_PTR(sname)].is_null()) {
-        return json2rb(shState->config().raw.as_object()[RSTRING_PTR(sname)]);
+        return json2rb(GameLauncher::instance().getConfig()->raw.as_object()[RSTRING_PTR(sname)]);
     }
 
     return json2rb(s[RSTRING_PTR(sname)]);
@@ -793,7 +817,7 @@ RB_METHOD(mkxpSetJSONSetting) {
 RB_METHOD(mkxpGetAllJSONSettings) {
     RB_UNUSED_PARAM;
 
-    return json2rb(shState->config().raw);
+    return json2rb(GameLauncher::instance().getConfig()->raw);
 }
 
 static VALUE rgssMainCb(VALUE block) {

@@ -25,6 +25,7 @@
 #include "glstate.h"
 #include "quad.h"
 #include "config.h"
+#include "gamelauncher.h"
 
 namespace GLMeta
 {
@@ -145,7 +146,7 @@ static void _blitBegin(FBO::ID fbo, const Vec2i &size)
 		FBO::bind(fbo);
 		glState.viewport.pushSet(IntRect(0, 0, size.x, size.y));
 
-		if (shState->config().lanczos3Scaling)
+		if (GameLauncher::instance().getConfig()->lanczos3Scaling)
 		{
 			Lanczos3Shader &shader = shState->shaders().lanczos3;
 			shader.bind();
@@ -182,7 +183,7 @@ void blitSource(TEXFBO &source)
 	}
 	else
 	{
-		if (shState->config().lanczos3Scaling)
+		if (GameLauncher::instance().getConfig()->lanczos3Scaling)
 		{
 			Lanczos3Shader &shader = shState->shaders().lanczos3;
 			shader.bind();

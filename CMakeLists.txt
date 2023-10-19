@@ -50,6 +50,10 @@ endif()
 
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
 set(CMAKE_SHARED_LIBRARY_SUFFIX ".so")
-install(FILES ${CMAKE_BINARY_DIR}/mkxp_z.so DESTINATION ${CMAKE_SOURCE_DIR}/../../lib/mkxp_z)
+install(FILES ${CMAKE_BINARY_DIR}/mkxp_z.so DESTINATION ${CMAKE_SOURCE_DIR}/../lib/mkxp_z)
 
 set(CMAKE_CXX_COMPILER)
+
+add_executable(test_app test/main.cpp)
+
+target_link_libraries(test_app PUBLIC mkxp_z)

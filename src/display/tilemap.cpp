@@ -40,6 +40,7 @@
 #include "tilemap-common.h"
 
 #include "sigslot/signal.hpp"
+#include "gamelauncher.h"
 
 #include <string.h>
 #include <stdint.h>
@@ -585,7 +586,7 @@ struct TilemapPrivate
 			/* Mega surface tileset */
 			SDL_Surface *tsSurf = tileset->megaSurface();
 
-			if (shState->config().subImageFix)
+			if (GameLauncher::instance().getConfig()->subImageFix)
 			{
 				/* Implementation for broken GL drivers */
 				FBO::bind(atlas.gl.fbo);

@@ -44,6 +44,7 @@
 #include "util.h"
 #include "input.h"
 #include "sprite.h"
+#include "gamelauncher.h"
 
 #include <SDL.h>
 #include <SDL_image.h>
@@ -1557,12 +1558,12 @@ bool Graphics::getFixedAspectRatio() const
 {
     // It's a bit hacky to expose config values as a Graphics
     // attribute, but there's really no point in state duplication
-    return shState->config().fixedAspectRatio;
+    return GameLauncher::instance().getConfig()->fixedAspectRatio;
 }
 
 void Graphics::setFixedAspectRatio(bool value)
 {
-    shState->config().fixedAspectRatio = value;
+    GameLauncher::instance().getConfig()->fixedAspectRatio = value;
     p->recalculateScreenSize(p->threadData->config.fixedAspectRatio);
     p->findHighestIntegerScale();
     p->recalculateScreenSize(p->threadData->config.fixedAspectRatio);
@@ -1572,12 +1573,12 @@ void Graphics::setFixedAspectRatio(bool value)
 bool Graphics::getSmoothScaling() const
 {
     // Same deal as with fixed aspect ratio
-    return shState->config().smoothScaling;
+    return GameLauncher::instance().getConfig()->smoothScaling;
 }
 
 void Graphics::setSmoothScaling(bool value)
 {
-    shState->config().smoothScaling = value;
+    GameLauncher::instance().getConfig()->smoothScaling = value;
 }
 
 bool Graphics::getIntegerScaling() const

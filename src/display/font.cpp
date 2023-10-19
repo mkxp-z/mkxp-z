@@ -40,6 +40,8 @@
 #ifndef MKXPZ_BUILD_XCODE
 #ifndef MKXPZ_CJK_FONT
 #include "liberation.ttf.xxd"
+#include "gamelauncher.h"
+
 #else
 #include "wqymicrohei.ttf.xxd"
 #endif
@@ -395,7 +397,7 @@ const Font &Font::operator=(const Font &o)
 void Font::setName(const std::vector<std::string> &names)
 {
 	pickExistingFontName(names, p->name, shState->fontState());
-    p->isSolid = strcmp(p->name.c_str(), "") && shState->config().fontIsSolid(p->name.c_str());
+    p->isSolid = strcmp(p->name.c_str(), "") && GameLauncher::instance().getConfig()->fontIsSolid(p->name.c_str());
 	p->sdlFont = 0;
 }
 

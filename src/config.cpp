@@ -125,7 +125,7 @@ json::value readConfFile(const char *path) {
 
 Config::Config() {}
 
-void Config::read(int argc, char *argv[]) {
+void Config::read(const std::vector<std::string> &args) {
     auto optsJ = json::object({
         {"rgssVersion", 0},
         {"debugMode", false},
@@ -202,16 +202,16 @@ try { exp } catch (...) {}
     
     editor.debug = false;
     editor.battleTest = false;
-    
-    if (argc > 1) {
-        if (!strcmp(argv[1], "debug") || !strcmp(argv[1], "test"))
+
+    if (!args.empty()) {
+        if (args[0] == "debug" || args[0] == "test")
             editor.debug = true;
-        else if (!strcmp(argv[1], "btest"))
+        else if (args[0] == "btest")
             editor.battleTest = true;
         
-        for (int i = 1; i < argc; i++) {
-            if (strcmp(argv[i], "debug"))
-                launchArgs.push_back(argv[i]);
+        for (int i = 1; i < args.size(); i++) {
+            if (args[i] != "debug")
+                launchArgs.push_back(args[i]);
         }
     }
     

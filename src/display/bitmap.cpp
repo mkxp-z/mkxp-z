@@ -50,6 +50,7 @@
 #include "debugwriter.h"
 
 #include "sigslot/signal.hpp"
+#include "gamelauncher.h"
 
 #include <math.h>
 #include <algorithm>
@@ -823,7 +824,7 @@ void Bitmap::stretchBlt(const IntRect &destRect,
     
     SDL_Surface *srcSurf = source.megaSurface();
     
-    if (srcSurf && shState->config().subImageFix)
+    if (srcSurf && GameLauncher::instance().getConfig()->subImageFix)
     {
         /* Blit from software surface, for broken GL drivers */
         Vec2i gpTexSize;
@@ -1618,7 +1619,7 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
     
     if (fastBlit)
     {
-        if (squeeze == 1.0f && !shState->config().subImageFix)
+        if (squeeze == 1.0f && !GameLauncher::instance().getConfig()->subImageFix)
         {
             /* Even faster: upload directly to bitmap texture.
              * We have to make sure the posRect lies within the texture

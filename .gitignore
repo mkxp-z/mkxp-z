@@ -77,3 +77,4 @@ DerivedData/
 cmake-build-release/
 cmake/conan/
 cmake-build-debug/
+ext/

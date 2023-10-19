@@ -262,10 +262,6 @@ bool GameLauncher::init(int argc, char *argv[]) {
     mkxp_fs::setCurrentDirectory(dataDir);
 #endif
 
-    /* now we load the config */
-    m_config = std::make_unique<Config>();
-    m_config->read(argc, argv);
-
 #if defined(__WIN32__)
     // Create a debug console in debug mode
     if (m_config->winConsole) {
@@ -483,7 +479,7 @@ GameLauncher::~GameLauncher() {
     Debug() << "Shutting down.";
 
     #if defined(__WIN32__)
-        if (wsadata->wVersion)
+        if (wsadata != nullptr && wsadata->wVersion)
             WSACleanup();
     #endif
 
@@ -493,6 +489,9 @@ GameLauncher::~GameLauncher() {
 }
 
 void GameLauncher::runThreads(const std::function<void()> &callback) {
+    if (!m_initialized || !m_windowCreated)
+        return;
+
     /* Start RGSS thread */
     SDL_Thread *rgssThread = SDL_CreateThread(rgssThreadFun, "rgss", &rtData);
 
@@ -529,4 +528,21 @@ void GameLauncher::runThreads(const std::function<void()> &callback) {
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, m_config->game.title.c_str(),
                                  rtData->rgssErrorMsg.c_str(), m_window.get());
     }
+}
+
+GameLauncher::GameLauncher() : m_window(nullptr, &SDL_DestroyWindow), m_alcDev(nullptr, &alcCloseDevice) {
+
+}
+
+GameLauncher &GameLauncher::instance() {
+    static GameLauncher gameLauncher;
+    return gameLauncher;
+}
+
+void GameLauncher::setConfig(std::shared_ptr<Config> config) {
+    m_config = std::move(config);
+}
+
+std::shared_ptr<Config> GameLauncher::getConfig() const {
+    return m_config;
 }
