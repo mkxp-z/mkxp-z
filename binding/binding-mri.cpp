@@ -200,7 +200,7 @@ VALUE json2rb(json5pp::value const &v);
 
 json5pp::value rb2json(VALUE v);
 
-static void mriBindingInit() {
+static void Init_mkxp_z() {
     tableBindingInit();
     etcBindingInit();
     fontBindingInit();
@@ -1211,7 +1211,7 @@ static void mriBindingExecute() {
     shState->setBindingData(&rbData);
     BacktraceData btData;
 
-    mriBindingInit();
+    Init_mkxp_z();
 
     std::string &customScript = conf.customScript;
     if (!customScript.empty())

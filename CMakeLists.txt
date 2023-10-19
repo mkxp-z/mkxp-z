@@ -47,3 +47,9 @@ target_compile_definitions(mkxp_z PUBLIC
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     add_subdirectory(windows)
 endif()
+
+set(CMAKE_SHARED_LIBRARY_PREFIX "")
+set(CMAKE_SHARED_LIBRARY_SUFFIX ".so")
+install(FILES ${CMAKE_BINARY_DIR}/mkxp_z.so DESTINATION ${CMAKE_SOURCE_DIR}/../../lib)
+
+set(CMAKE_CXX_COMPILER)
