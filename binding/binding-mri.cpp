@@ -200,7 +200,7 @@ VALUE json2rb(json5pp::value const &v);
 
 json5pp::value rb2json(VALUE v);
 
-static void Init_mkxp_z() {
+RUBY_FUNC_EXPORTED void Init_mkxp_z() {
     tableBindingInit();
     etcBindingInit();
     fontBindingInit();

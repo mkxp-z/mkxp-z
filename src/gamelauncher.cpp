@@ -292,7 +292,7 @@ bool GameLauncher::init(int argc, char *argv[]) {
     if (m_config->windowTitle.empty())
         m_config->windowTitle = m_config->game.title;
 
-    assert(m_config.rgssVersion >= 1 && m_config.rgssVersion <= 3);
+    assert(m_config->rgssVersion >= 1 && m_config->rgssVersion <= 3);
     printRgssVersion(m_config->rgssVersion);
 
     int imgFlags = IMG_INIT_PNG | IMG_INIT_JPG;
