@@ -51,6 +51,7 @@ LUrlParser::ParseURL readURL(const char *url) {
     return p;
 }
 
+
 std::string getHost(LUrlParser::ParseURL url) {
     std::string host;
     host += url.scheme_;

@@ -204,7 +204,7 @@ VALUE json2rb(json5pp::value const &v);
 json5pp::value rb2json(VALUE v);
 
 extern "C" {
-RUBY_FUNC_EXPORTED void Init_mkxp_z(void) {
+RUBY_FUNC_EXPORTED void initBindings(void) {
     Debug() << "Loading MKXP-Z!";
 
     std::vector<std::string> launchArgs;
@@ -1235,7 +1235,7 @@ static void mriBindingExecute() {
     shState->setBindingData(&rbData);
     BacktraceData btData;
 
-    Init_mkxp_z();
+    initBindings();
 
     std::string &customScript = conf.customScript;
     if (!customScript.empty())

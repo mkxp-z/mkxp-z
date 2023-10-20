@@ -48,9 +48,9 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     add_subdirectory(windows)
 endif()
 
-set(CMAKE_SHARED_LIBRARY_PREFIX "")
-set(CMAKE_SHARED_LIBRARY_SUFFIX ".so")
-install(FILES ${CMAKE_BINARY_DIR}/mkxp_z.so DESTINATION ${CMAKE_SOURCE_DIR}/../lib/mkxp_z)
+
+install(TARGETS mkxp_z RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/../ext/mkxp_z/bin ARCHIVE DESTINATION ${CMAKE_SOURCE_DIR}/../ext/mkxp_z/lib)
+install(FILES binding/binding-mri.h DESTINATION ${CMAKE_SOURCE_DIR}/../ext/mkxp_z/include)
 
 set(CMAKE_CXX_COMPILER)
 

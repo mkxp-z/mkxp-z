@@ -9,6 +9,6 @@ int main(int argc, char **argv) {
     RUBY_INIT_STACK
     ruby_init();
 
-    Init_mkxp_z();
+    initBindings();
     return 0;
 }
