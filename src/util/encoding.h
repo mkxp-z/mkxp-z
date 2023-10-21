@@ -25,7 +25,7 @@ static std::string getCharset(std::string &str) {
     
     std::string ret(uchardet_get_charset(ud));
     uchardet_delete(ud);
-    
+
     if (ret.empty())
         throw Exception(Exception::MKXPError, "Could not detect string encoding", str.c_str());
     return ret;

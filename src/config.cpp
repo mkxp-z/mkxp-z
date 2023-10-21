@@ -7,10 +7,10 @@
 
 #include "config.h"
 #include <SDL_filesystem.h>
-#include <assert.h>
+#include <cassert>
 
-#include <stdint.h>
 #include <vector>
+#include <fstream>
 
 #include "filesystem/filesystem.h"
 #include "util/exception.h"
@@ -24,7 +24,6 @@
 #include "util/encoding.h"
 
 #include "system/system.h"
-
 
 namespace json = json5pp;
 
@@ -123,6 +122,14 @@ json::value readConfFile(const char *path) {
 
 #define CONF_FILE "mkxp.json"
 
+#define SET_OPT_CUSTOMKEY(var, key, type) GUARD(var = opts[#key].as_##type();)
+#define SET_OPT(var, type) SET_OPT_CUSTOMKEY(var, var, type)
+#define SET_STRINGOPT(var, key) GUARD(var = std::string(opts[#key].as_string());)
+#define GUARD(exp) \
+try { exp } catch (...) {}
+
+#define BINDING_NAME(btn) kbActionNames.btn = bnames[#btn].as_string()
+
 Config::Config() {}
 
 void Config::read(const std::vector<std::string> &args) {
@@ -197,9 +204,6 @@ void Config::read(const std::vector<std::string> &args) {
     
     auto &opts = optsJ.as_object();
     
-#define GUARD(exp) \
-try { exp } catch (...) {}
-    
     editor.debug = false;
     editor.battleTest = false;
 
@@ -218,10 +222,6 @@ try { exp } catch (...) {}
     json::value baseConf = readConfFile(CONF_FILE);
     copyObject(optsJ, baseConf);
     copyObject(opts["bindingNames"], baseConf.as_object()["bindingNames"], "bindingNames .");
-    
-#define SET_OPT_CUSTOMKEY(var, key, type) GUARD(var = opts[#key].as_##type();)
-#define SET_OPT(var, type) SET_OPT_CUSTOMKEY(var, var, type)
-#define SET_STRINGOPT(var, key) GUARD(var = std::string(opts[#key].as_string());)
     
     SET_STRINGOPT(gameFolder, gameFolder);
     SET_STRINGOPT(dataPathOrg, dataPathOrg);
@@ -291,16 +291,15 @@ try { exp } catch (...) {}
     fillStringVec(opts["rubyLoadpath"], rubyLoadpaths);
     
     auto &bnames = opts["bindingNames"].as_object();
-    
-#define BINDING_NAME(btn) kbActionNames.btn = bnames[#btn].as_string()
-    BINDING_NAME(a);
-    BINDING_NAME(b);
-    BINDING_NAME(c);
-    BINDING_NAME(x);
-    BINDING_NAME(y);
-    BINDING_NAME(z);
-    BINDING_NAME(l);
-    BINDING_NAME(r);
+
+     BINDING_NAME(a);
+BINDING_NAME(b);
+BINDING_NAME(c);
+BINDING_NAME(x);
+BINDING_NAME(y);
+BINDING_NAME(z);
+BINDING_NAME(l);
+BINDING_NAME(r);
     
     rgssVersion = clamp(rgssVersion, 0, 3);
     SE.sourceCount = clamp(SE.sourceCount, 1, 64);
@@ -319,7 +318,7 @@ try { exp } catch (...) {}
     // Only works on macOS atm, mainly used to test games located outside of the bundle.
     // The config is re-read after the window is already created, so some entries
     // may not take effect
-    manualFolderSelect = getEnvironmentBool("MKXPZ_FOLDER_SELECT", false);
+    //manualFolderSelect = getEnvironmentBool("MKXPZ_FOLDER_SELECT", false);
     
     raw = optsJ;
 }
@@ -335,30 +334,20 @@ static void setupScreenSize(Config &conf) {
 bool Config::fontIsSolid(const char *fontName) const {
     for (std::string solidfont : solidFonts)
         if (!strcmp(solidfont.c_str(), fontName)) return true;
-    
+
     return false;
 }
 
 void Config::readGameINI() {
-    if (!customScript.empty()) {
-        game.title = customScript.c_str();
-        
-        if (rgssVersion == 0)
-            rgssVersion = 1;
-        
-        setupScreenSize(*this);
-        
-        return;
-    }
-    
     std::string iniFileName(execName + ".ini");
-    SDLRWStream iniFile(iniFileName.c_str(), "r");
-    
+    std::ifstream iniFile(iniFileName);
+    //SDLRWStream iniFile(iniFileName.c_str(), "r");
+
     bool convSuccess = false;
     if (iniFile)
     {
         INIConfiguration ic;
-        if (ic.load(iniFile.stream()))
+        if (ic.load(iniFile))
         {
             GUARD(game.title = ic.getStringProperty("Game", "Title"););
             GUARD(game.scripts = ic.getStringProperty("Game", "Scripts"););
@@ -394,25 +383,6 @@ void Config::readGameINI() {
         dataPathApp = game.title;
     
     customDataPath = mkxp_fs::normalizePath(prefPath(dataPathOrg.c_str(), dataPathApp.c_str()).c_str(), 0, 1);
-    
-    if (rgssVersion == 0) {
-        /* Try to guess RGSS version based on Data/Scripts extension */
-        rgssVersion = 1;
-        
-        if (!game.scripts.empty()) {
-            const char *p = &game.scripts[game.scripts.size()];
-            const char *head = &game.scripts[0];
-            
-            while (--p != head)
-                if (*p == '.')
-                    break;
-            
-            if (!strcmp(p, ".rvdata"))
-                rgssVersion = 2;
-            else if (!strcmp(p, ".rvdata2"))
-                rgssVersion = 3;
-        }
-    }
     
     setupScreenSize(*this);
 }

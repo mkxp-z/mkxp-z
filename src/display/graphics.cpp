@@ -45,6 +45,7 @@
 #include "input.h"
 #include "sprite.h"
 #include "gamelauncher.h"
+#include "ConfigManager.h"
 
 #include <SDL.h>
 #include <SDL_image.h>
@@ -1462,7 +1463,7 @@ bool Graphics::updateMovieInput(Movie *movie) {
 void Graphics::playMovie(const char *filename, int volume_, bool skippable) {
     Movie *movie = new Movie(skippable);
     MovieOpenHandler handler(movie->srcOps);
-    shState->fileSystem().openRead(handler, filename);
+    FILESYSTEM.openRead(handler, filename);
     float volume = volume_ * 0.01f;
     
     if (movie->preparePlayback()) {        
@@ -1558,12 +1559,12 @@ bool Graphics::getFixedAspectRatio() const
 {
     // It's a bit hacky to expose config values as a Graphics
     // attribute, but there's really no point in state duplication
-    return GameLauncher::instance().getConfig()->fixedAspectRatio;
+    return CONFIG.fixedAspectRatio;
 }
 
 void Graphics::setFixedAspectRatio(bool value)
 {
-    GameLauncher::instance().getConfig()->fixedAspectRatio = value;
+    CONFIG.fixedAspectRatio = value;
     p->recalculateScreenSize(p->threadData->config.fixedAspectRatio);
     p->findHighestIntegerScale();
     p->recalculateScreenSize(p->threadData->config.fixedAspectRatio);
@@ -1573,12 +1574,12 @@ void Graphics::setFixedAspectRatio(bool value)
 bool Graphics::getSmoothScaling() const
 {
     // Same deal as with fixed aspect ratio
-    return GameLauncher::instance().getConfig()->smoothScaling;
+    return CONFIG.smoothScaling;
 }
 
 void Graphics::setSmoothScaling(bool value)
 {
-    GameLauncher::instance().getConfig()->smoothScaling = value;
+    CONFIG.smoothScaling = value;
 }
 
 bool Graphics::getIntegerScaling() const

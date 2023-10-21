@@ -51,6 +51,7 @@
 
 #include "sigslot/signal.hpp"
 #include "gamelauncher.h"
+#include "ConfigManager.h"
 
 #include <math.h>
 #include <algorithm>
@@ -470,7 +471,7 @@ struct BitmapOpenHandler : FileSystem::OpenHandler
 Bitmap::Bitmap(const char *filename)
 {
     BitmapOpenHandler handler;
-    shState->fileSystem().openRead(handler, filename);
+    FILESYSTEM.openRead(handler, filename);
     
     if (!handler.error.empty()) {
         // Not loaded with SDL, but I want it to be caught with the same exception type
@@ -824,7 +825,7 @@ void Bitmap::stretchBlt(const IntRect &destRect,
     
     SDL_Surface *srcSurf = source.megaSurface();
     
-    if (srcSurf && GameLauncher::instance().getConfig()->subImageFix)
+    if (srcSurf && CONFIG.subImageFix)
     {
         /* Blit from software surface, for broken GL drivers */
         Vec2i gpTexSize;
@@ -1351,7 +1352,7 @@ void Bitmap::saveToFile(const char *filename)
         }
     }
     
-    std::string fn_normalized = shState->fileSystem().normalize(filename, 1, 1);
+    std::string fn_normalized = FILESYSTEM.normalize(filename, 1, 1);
     int rc;
     switch (filetype) {
         case 2:
@@ -1619,7 +1620,7 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
     
     if (fastBlit)
     {
-        if (squeeze == 1.0f && !GameLauncher::instance().getConfig()->subImageFix)
+        if (squeeze == 1.0f && !CONFIG.subImageFix)
         {
             /* Even faster: upload directly to bitmap texture.
              * We have to make sure the posRect lies within the texture

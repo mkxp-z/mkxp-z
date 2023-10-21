@@ -26,7 +26,7 @@
 #include "exception.h"
 #include "boost-hash.h"
 #include "util.h"
-#include "config.h"
+#include "ConfigManager.h"
 
 #include <string>
 #include <utility>
@@ -201,7 +201,7 @@ _TTF_Font *SharedFontState::getFont(std::string family,
 		                 ? req.regular.c_str() : req.other.c_str();
 
 		ops = SDL_AllocRW();
-		shState->fileSystem().openReadRaw(*ops, path, true);
+		FILESYSTEM.openReadRaw(*ops, path, true);
 	}
 
 	// FIXME 0.9 is guesswork at this point
@@ -363,7 +363,7 @@ bool Font::doesExist(const char *name)
 	if (!name)
 		return false;
 
-	return shState->fontState().fontPresent(name);
+	return FONT_STATE.fontPresent(name);
 }
 
 Font::Font(const std::vector<std::string> *names,
@@ -396,8 +396,8 @@ const Font &Font::operator=(const Font &o)
 
 void Font::setName(const std::vector<std::string> &names)
 {
-	pickExistingFontName(names, p->name, shState->fontState());
-    p->isSolid = strcmp(p->name.c_str(), "") && GameLauncher::instance().getConfig()->fontIsSolid(p->name.c_str());
+	pickExistingFontName(names, p->name, FONT_STATE);
+    p->isSolid = strcmp(p->name.c_str(), "") && CONFIG.fontIsSolid(p->name.c_str());
 	p->sdlFont = 0;
 }
 
@@ -493,7 +493,7 @@ void Font::initDefaults(const SharedFontState &sfs)
 _TTF_Font *Font::getSdlFont()
 {
 	if (!p->sdlFont)
-		p->sdlFont = shState->fontState().getFont(p->name.c_str(),
+		p->sdlFont = FONT_STATE.getFont(p->name.c_str(),
 		                                          p->size);
 
 	int style = TTF_STYLE_NORMAL;

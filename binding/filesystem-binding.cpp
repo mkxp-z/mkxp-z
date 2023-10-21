@@ -30,6 +30,8 @@
 #if RAPI_FULL > 187
 #include "ruby/encoding.h"
 #include "ruby/intern.h"
+#include "ConfigManager.h"
+
 #else
 #include "intern.h"
 #endif
@@ -55,7 +57,7 @@ static VALUE fileIntForPath(const char *path, bool rubyExc) {
     SDL_RWops *ops = SDL_AllocRW();
     
     try {
-        shState->fileSystem().openReadRaw(*ops, path);
+        FILESYSTEM.openReadRaw(*ops, path);
     } catch (const Exception &e) {
         SDL_FreeRW(ops);
         

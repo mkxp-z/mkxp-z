@@ -541,10 +541,6 @@ GameLauncher &GameLauncher::instance() {
     return gameLauncher;
 }
 
-void GameLauncher::setConfig(std::shared_ptr<Config> config) {
-    m_config = std::move(config);
-}
-
 std::shared_ptr<Config> GameLauncher::getConfig() const {
     return m_config;
 }

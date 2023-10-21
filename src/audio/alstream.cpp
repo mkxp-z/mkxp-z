@@ -30,6 +30,7 @@
 #include "fluid-fun.h"
 #include "sdl-util.h"
 #include "debugwriter.h"
+#include "ConfigManager.h"
 
 #include <SDL_mutex.h>
 #include <SDL_thread.h>
@@ -257,7 +258,7 @@ struct ALStreamOpenHandler : FileSystem::OpenHandler
 void ALStream::openSource(const std::string &filename)
 {
 	ALStreamOpenHandler handler(srcOps, looped);
-	shState->fileSystem().openRead(handler, filename.c_str());
+	FILESYSTEM.openRead(handler, filename.c_str());
 	source = handler.source;
 	needsRewind.clear();
 

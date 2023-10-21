@@ -65,6 +65,8 @@ target_sources(mkxp_z PUBLIC
         net/LUrlParser.cpp
         net/net.cpp
 
+        singletons/ConfigManager.cpp
+
         system/systemImpl.cpp)
 
 target_include_directories(mkxp_z PUBLIC
@@ -82,6 +84,7 @@ target_include_directories(mkxp_z PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/filesystem/ghc
         ${CMAKE_CURRENT_SOURCE_DIR}/input
         ${CMAKE_CURRENT_SOURCE_DIR}/net
+        ${CMAKE_CURRENT_SOURCE_DIR}/singletons
         ${CMAKE_CURRENT_SOURCE_DIR}/system
         ${CMAKE_CURRENT_SOURCE_DIR}/util
         ${CMAKE_CURRENT_SOURCE_DIR}/util/sdl

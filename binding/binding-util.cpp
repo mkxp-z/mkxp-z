@@ -29,7 +29,10 @@
 #include <stdarg.h>
 #include <string.h>
 
-RbData *getRbData() { return static_cast<RbData *>(shState->bindingData()); }
+RbData *getRbData() {
+    static RbData rbData;
+    return &rbData;
+}
 
 struct {
   RbException id;

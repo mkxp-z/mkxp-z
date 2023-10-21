@@ -75,7 +75,7 @@ std::string filesystemImpl::normalizePath(const char *path, bool preferred, bool
         stdPath = fs::current_path() / stdPath;
 
     stdPath = stdPath.lexically_normal();
-    std::string ret(stdPath);
+    std::string ret(stdPath.string());
     for (size_t i = 0; i < ret.length(); i++) {
         char sep;
         char sep_alt;

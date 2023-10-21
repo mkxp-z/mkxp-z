@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.24)
 
 project(mkxp_z VERSION 2.4.2 LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_SOURCE_DIR}/cmake/conan)
 
@@ -28,6 +28,7 @@ add_subdirectory(shader)
 add_library(mkxp_z SHARED)
 
 add_subdirectory(binding)
+add_subdirectory(interfaces)
 add_subdirectory(src)
 
 target_include_directories(${PROJECT_NAME} PUBLIC
@@ -60,3 +61,34 @@ target_include_directories(test_app PUBLIC
         ${Ruby_INCLUDE_DIRS})
 
 target_link_libraries(test_app PUBLIC ${RUBY_LIBRARY})# mkxp_z)
+
+get_target_property(ALL_INCLUDES mkxp_z INCLUDE_DIRECTORIES)
+
+add_library(minimal_example SHARED binding/binding-util.cpp binding/etc-binding.cpp src/etc/etc.cpp src/etc/table.cpp minimal.cpp
+        src/crypto/rgssad.cpp src/filesystem/filesystemImpl.cpp src/util/iniconfig.cpp src/config.cpp
+        src/singletons/ConfigManager.cpp binding/font-binding.cpp src/display/font.cpp  src/filesystem/filesystem.cpp)
+
+message("Includes: ${ALL_INCLUDES}")
+target_include_directories(minimal_example PUBLIC ${ALL_INCLUDES})
+
+target_link_libraries(minimal_example PUBLIC
+        ${RUBY_LIBRARY}
+        ${Ruby_LIBRARY}
+        SDL2::SDL2
+        SDL2_image::SDL2_image
+        SDL2_ttf::SDL2_ttf
+        SDL2_sound::SDL2_sound-static
+        #Ogg::Ogg
+        physfs::physfs
+        OpenAL::OpenAL
+        #Vorbis::Vorbis
+        uchardet::uchardet
+        #theora::theora
+        #pixman-1
+        MKXPZ_Assets
+        MKXPZ_Shaders)
+
+target_compile_definitions(minimal_example PUBLIC
+        RGSS_VERSION=1
+        SDL_MAIN_HANDLED
+        MKXPZ_ALCDEVICE=ALCdevice)

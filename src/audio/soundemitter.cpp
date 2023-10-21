@@ -27,6 +27,7 @@
 #include "config.h"
 #include "util.h"
 #include "debugwriter.h"
+#include "ConfigManager.h"
 
 #include <SDL_sound.h>
 
@@ -239,7 +240,7 @@ SoundBuffer *SoundEmitter::allocateBuffer(const std::string &filename)
 	{
 		/* Buffer not in cache, needs to be loaded */
 		SoundOpenHandler handler;
-		shState->fileSystem().openRead(handler, filename.c_str());
+		FILESYSTEM.openRead(handler, filename.c_str());
 		buffer = handler.buffer;
 
 		if (!buffer)

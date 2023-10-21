@@ -9,8 +9,9 @@ std::string toLowerCase(const std::string& str)
 	return lower;
 }
  
-std::string trim(const std::string& str, const std::string& chars = "\t\n\v\f\r ")
+std::string trim(const std::string& str)
 {
+    static const auto chars = "\t\n\v\f\r ";
 	std::string trimmed = str;
 	trimmed.erase(trimmed.find_last_not_of(chars) + 1);
 	trimmed.erase(0, trimmed.find_first_not_of(chars));
