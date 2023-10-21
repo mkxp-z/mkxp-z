@@ -56,4 +56,7 @@ set(CMAKE_CXX_COMPILER)
 
 add_executable(test_app test/main.cpp)
 
-target_link_libraries(test_app PUBLIC mkxp_z)
+target_include_directories(test_app PUBLIC
+        ${Ruby_INCLUDE_DIRS})
+
+target_link_libraries(test_app PUBLIC ${RUBY_LIBRARY})# mkxp_z)

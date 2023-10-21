@@ -78,10 +78,12 @@ static void mriBindingTerminate();
 
 static void mriBindingReset();
 
+/*
 ScriptBinding scriptBindingImpl = {mriBindingExecute, mriBindingTerminate,
                                    mriBindingReset};
 
 ScriptBinding *scriptBinding = &scriptBindingImpl;
+*/
 
 void tableBindingInit();
 

@@ -987,7 +987,7 @@ struct GraphicsPrivate {
         threadData->rqTermAck.set();
         shState->texPool().disable();
         
-        scriptBinding->terminate();
+        //scriptBinding->terminate();
     }
     
     void swapGLBuffer() {
@@ -1264,7 +1264,7 @@ void Graphics::transition(int duration, const char *filename, int vague) {
         if (p->threadData->rqReset) {
             glState.blend.pop();
             delete transMap;
-            scriptBinding->reset();
+            //scriptBinding->reset();
             return;
         }
         

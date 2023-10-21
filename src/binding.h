@@ -42,6 +42,6 @@ struct ScriptBinding
 };
 
 /* VTable defined in the binding source */
-extern ScriptBinding *scriptBinding;
+//extern ScriptBinding *scriptBinding;
 
 #endif // BINDING_H

@@ -9,7 +9,8 @@ target_include_directories(mkxp_z PUBLIC
 
 target_link_libraries(mkxp_z PUBLIC
         wsock32
-        Ws2_32)
+        Ws2_32
+        )
 
 target_compile_definitions(mkxp_z PUBLIC
         _WIN32

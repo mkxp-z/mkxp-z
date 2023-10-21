@@ -346,7 +346,7 @@ void SharedState::checkShutdown()
 
 	p->rtData.rqTermAck.set();
 	p->texPool.disable();
-	scriptBinding->terminate();
+	//scriptBinding->terminate();
 }
 
 void SharedState::checkReset()
@@ -355,7 +355,7 @@ void SharedState::checkReset()
 		return;
 
 	p->rtData.rqReset.clear();
-	scriptBinding->reset();
+	//scriptBinding->reset();
 }
 
 Font &SharedState::defaultFont() const
