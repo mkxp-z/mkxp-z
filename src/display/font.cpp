@@ -202,10 +202,8 @@ _TTF_Font *SharedFontState::getFont(std::string family,
 		shState->fileSystem().openReadRaw(*ops, path, true);
 	}
 
-	// FIXME 0.9 is guesswork at this point
-//	float gamma = (96.0/45.0)*(5.0/14.0)*(size-5);
-//	font = TTF_OpenFontRW(ops, 1, gamma /** .90*/);
-	font = TTF_OpenFontRW(ops, 1, size* 0.90f);
+	//Setting font size at 56 dpi allows us to accurately translate pt to px.
+	font = TTF_OpenFontDPIRW(ops, 1, size, 56, 56);
 
 	if (!font)
 		throw Exception(Exception::SDLError, "%s", SDL_GetError());
@@ -230,7 +228,7 @@ _TTF_Font *SharedFontState::openBundled(int size)
 {
 	SDL_RWops *ops = openBundledFont();
 
-	return TTF_OpenFontRW(ops, 1, size);
+	return TTF_OpenFontDPIRW(ops, 1, size, 56, 56);
 }
 
 void SharedFontState::setDefaultFontFamily(const std::string &family) {
@@ -339,7 +337,7 @@ struct FontPrivate
 };
 
 std::string FontPrivate::defaultName     = "Arial";
-int         FontPrivate::defaultSize     = 22;
+int         FontPrivate::defaultSize     = 24;
 bool        FontPrivate::defaultBold     = false;
 bool        FontPrivate::defaultItalic   = false;
 bool        FontPrivate::defaultOutline  = false; /* Inited at runtime */

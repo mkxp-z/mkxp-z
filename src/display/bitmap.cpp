@@ -1562,7 +1562,7 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
     if (p->font->getOutline())
     {
         SDL_Color co = outColor.toSDLColor();
-        co.a = 255;
+        co.a = 160;
         SDL_Surface *outline;
         /* set the next font render to render the outline */
         TTF_SetFontOutline(font, OUTLINE_SIZE);
@@ -1582,7 +1582,8 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
         TTF_SetFontOutline(font, 0);
     }
     
-    int alignX = rect.x;
+    // Offset x and y coordinates by -1 to match RGSS text position.
+    int alignX = rect.x - 1;
     
     switch (align)
     {
@@ -1599,10 +1600,11 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
             break;
     }
     
-    if (alignX < rect.x)
-        alignX = rect.x;
+    // Alignment is 1 pixel off if we do this.
+    //if (alignX < rect.x)
+        //alignX = rect.x;
     
-    int alignY = rect.y + (rect.h - rawTxtSurfH) / 2;
+    int alignY = (rect.y - 1) + (rect.h - rawTxtSurfH) / 2;
     
     float squeeze = (float) rect.w / txtSurf->w;
     
