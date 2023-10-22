@@ -46,6 +46,9 @@
 #include "sprite.h"
 #include "gamelauncher.h"
 #include "ConfigManager.h"
+#include "InputManager.h"
+#include "TimeManager.h"
+#include "ThreadManager.h"
 
 #include <SDL.h>
 #include <SDL_image.h>
@@ -324,8 +327,8 @@ struct Movie
             
             // Check for attempted skip
             if (skippable) {
-                INPUT.update();
-                if (INPUT.isTriggered(Input::C) || INPUT.isTriggered(Input::B)) break;
+                GAME_INPUT.update();
+                if (GAME_INPUT.isTriggered(Input::C) || GAME_INPUT.isTriggered(Input::B)) break;
             }
             
             const Uint32 now = SDL_GetTicks() - baseTicks;
@@ -1090,14 +1093,14 @@ struct GraphicsPrivate {
     }
     
     void checkSyncLock() {
-        if (!threadData->syncPoint.mainSyncLocked())
+        if (!threadData->syncPoint->mainSyncLocked())
             return;
         
         /* Releasing the GL context before sleeping and making it
          * current again on wakeup seems to avoid the context loss
          * when the app moves into the background on Android */
         SDL_GL_MakeCurrent(threadData->window, 0);
-        threadData->syncPoint.waitMainSync();
+        threadData->syncPoint->waitMainSync();
         SDL_GL_MakeCurrent(threadData->window, glCtx);
         
         fpsLimiter.resetFrameAdjust();
@@ -1157,7 +1160,7 @@ void Graphics::update(bool checkForShutdown) {
         double afr = std::abs(averageFrameRate()); // abs shouldn't be necessary but that's ok
         afr += mult / 2;
         afr -= std::fmod(afr, mult);
-        INPUT.recalcRepeat(std::floor(afr));
+        GAME_INPUT.recalcRepeat(std::floor(afr));
     }
     
     if (checkForShutdown)
@@ -1323,7 +1326,7 @@ void Graphics::setFrameRate(int value) {
         return;
     
     p->fpsLimiter.setDesiredFPS(p->frameRate);
-    //INPUT.recalcRepeat((unsigned int)p->frameRate);
+    //GAME_INPUT.recalcRepeat((unsigned int)p->frameRate);
 }
 
 double Graphics::averageFrameRate() {
@@ -1403,13 +1406,13 @@ int Graphics::height() const { return p->scRes.y; }
 
 int Graphics::displayWidth() const {
     SDL_DisplayMode dm{};
-    SDL_GetCurrentDisplayMode(SDL_GetWindowDisplayIndex(shState->sdlWindow()), &dm);
+    SDL_GetCurrentDisplayMode(SDL_GetWindowDisplayIndex(DISPLAY_MANAGER.getSdlWindow()), &dm);
     return dm.w / p->backingScaleFactor;
 }
 
 int Graphics::displayHeight() const {
     SDL_DisplayMode dm{};
-    SDL_GetCurrentDisplayMode(SDL_GetWindowDisplayIndex(shState->sdlWindow()), &dm);
+    SDL_GetCurrentDisplayMode(SDL_GetWindowDisplayIndex(DISPLAY_MANAGER.getSdlWindow()), &dm);
     return dm.h / p->backingScaleFactor;
 }
 
@@ -1442,19 +1445,23 @@ void Graphics::resizeScreen(int width, int height) {
 void Graphics::resizeWindow(int width, int height, bool center) {
     p->threadData->rqWindowAdjust.wait();
     p->checkResize();
-    
+
     if (width == p->winSize.x / p->backingScaleFactor &&
         height == p->winSize.y / p->backingScaleFactor)
-            return;
+        return;
 
     EVENT_THREAD.requestWindowResize(width, height);
-    
+
     if (center)
         this->center();
 }
 
+void Graphics::drawMovieFrame(const THEORAPLAY_VideoFrame *video, Bitmap *videoBitmap) {
+    // TODO: This need an actual implementation
+}
+
 bool Graphics::updateMovieInput(Movie *movie) {
-    return  p->threadData->rqTerm || p->threadData->rqReset;
+    return p->threadData->rqTerm || p->threadData->rqReset;
 }
 
 void Graphics::playMovie(const char *filename, int volume_, bool skippable) {

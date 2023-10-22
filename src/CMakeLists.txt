@@ -2,11 +2,11 @@ project(MKXPZ_Core)
 
 target_sources(mkxp_z PUBLIC
         #main.cpp
-        gamelauncher.cpp
+        #gamelauncher.cpp
         config.cpp
-        eventthread.cpp
-        settingsmenu.cpp
-        sharedstate.cpp
+        #eventthread.cpp
+        #settingsmenu.cpp
+        #sharedstate.cpp
 
         audio/alstream.cpp
         audio/audio.cpp
@@ -62,13 +62,13 @@ target_sources(mkxp_z PUBLIC
         input/input.cpp
         input/keybindings.cpp
 
-        net/LUrlParser.cpp
-        net/net.cpp
+        #net/LUrlParser.cpp
+        #net/net.cpp
 
         singletons/AudioManager.cpp
         singletons/ConfigManager.cpp
         singletons/DisplayManager.cpp
-        singletons/InputManager.h
+        singletons/InputManager.cpp
         singletons/ThreadManager.cpp
         singletons/TimeManager.cpp
 
@@ -119,7 +119,7 @@ target_compile_definitions(mkxp_z PUBLIC
         MKXPZ_ALCDEVICE=ALCdevice
         )
 
-option(WITH_OPEN_SSL "Use OpenSSL to enable HTTPS" ON)
+option(WITH_OPEN_SSL "Use OpenSSL to enable HTTPS" OFF)
 if (WITH_OPEN_SSL)
     find_package(OpenSSL REQUIRED)
     target_link_libraries(mkxp_z PUBLIC

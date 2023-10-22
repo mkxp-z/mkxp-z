@@ -57,6 +57,9 @@ extern "C" {
 #include "binding-mri-win32.h"
 #include "gamelauncher.h"
 #include "singletons/ConfigManager.h"
+#include "ThreadManager.h"
+#include "TimeManager.h"
+#include "AudioManager.h"
 
 #endif
 
@@ -242,7 +245,7 @@ RUBY_FUNC_EXPORTED void initBindings(void) {
     CUSLBindingInit();
 #endif
 
-    httpBindingInit();
+    //httpBindingInit();
 
 #if RGSS_VERSION >= 3
     _rb_define_module_function(rb_mKernel, "rgss_main", mriRgssMain);
@@ -312,10 +315,12 @@ static_assert(false, "Invalid RGSS Version");
     _rb_define_method(rb_cString, "to_utf8", mkxpStringToUTF8);
     _rb_define_method(rb_cString, "to_utf8!", mkxpStringToUTF8Bang);
 
+    /*
     VALUE cmod = rb_define_module("CFG");
     _rb_define_module_function(cmod, "[]", mkxpGetJSONSetting);
     _rb_define_module_function(cmod, "[]=", mkxpSetJSONSetting);
     _rb_define_module_function(cmod, "to_hash", mkxpGetAllJSONSettings);
+     */
 
     /* Load global constants */
     rb_gv_set("MKXP", Qtrue);
@@ -426,7 +431,7 @@ RB_METHOD(mkxpGetTitle) {
 
     rb_check_argc(argc, 0);
 
-    return rb_utf8_str_new_cstr(SDL_GetWindowTitle(shState->sdlWindow()));
+    return rb_utf8_str_new_cstr(SDL_GetWindowTitle(DISPLAY_MANAGER.getSdlWindow()));
 }
 
 RB_METHOD(mkxpDesensitize) {

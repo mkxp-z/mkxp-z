@@ -23,6 +23,7 @@
 #define GRAPHICS_H
 
 #include "IGraphics.h"
+#include "DisplayManager.h"
 
 #include <memory>
 
@@ -32,11 +33,13 @@ public:
 
     double lastUpdate() override;
 
-    void update(bool checkForShutdown) override;
+    void update(bool checkForShutdown = true) override;
 
     void freeze() override;
 
-    void transition(int duration, const char *filename, int vague) override;
+    void transition(int duration = 8,
+                    const char *filename = "",
+                    int vague = 40) override;
 
     void frameReset() override;
 

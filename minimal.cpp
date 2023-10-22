@@ -49,4 +49,5 @@ MKXPZ_EXPORT void initBindings() {
     audioBindingInit();
     inputBindingInit();
     //httpBindingInit();
+    graphicsBindingInit();
 }

@@ -18,8 +18,8 @@ target_sources(mkxp_z PUBLIC
         module_rpg.cpp
         filesystem-binding.cpp
         windowvx-binding.cpp
-        tilemapvx-binding.cpp
-        http-binding.cpp)
+        tilemapvx-binding.cpp)
+#http-binding.cpp)
 
 target_include_directories(mkxp_z PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}

@@ -4,6 +4,8 @@
 
 #include "DisplayManager.h"
 
+#include <SDL.h>
+
 #include <glstate.h>
 #include <graphics.h>
 #include <shader.h>
@@ -24,7 +26,7 @@ struct DisplayManagerPrivate {
     Quad gpQuad;
 };
 
-DisplayManager::DisplayManager() {
+DisplayManager::DisplayManager() : m_sdlWindow(nullptr, &SDL_DestroyWindow) {
     // TODO: Initialize the definite instances of the classes
 }
 
@@ -50,6 +52,11 @@ ITexPool &DisplayManager::getTexPool() const {
 ShaderSet &DisplayManager::getShaderSet() const {
     return *m_shaderSet;
 }
+
+SDL_Window *DisplayManager::getSdlWindow() const {
+    return m_sdlWindow.get();
+}
+
 
 void DisplayManager::ensureQuadIBO(size_t minSize) {
     m_globalIBO->ensureSize(minSize);

@@ -32,6 +32,7 @@ struct Quad;
 
 class Scene;
 
+struct SDL_Window;
 struct Vec2i;
 struct TEXFBO;
 
@@ -54,6 +55,8 @@ public:
     Scene &getScreen() const;
 
     void setScreen(std::unique_ptr<Scene> &&screen);
+
+    SDL_Window *getSdlWindow() const;
 
     /* Returns global quad IBO, and ensures it has indices
 	 * for at least minSize quads */
@@ -87,4 +90,6 @@ private:
     std::unique_ptr<ITexPool> m_texPool;
     std::unique_ptr<ShaderSet> m_shaderSet;
     std::unique_ptr<Scene> m_screen;
+
+    std::unique_ptr<SDL_Window, void (*)(SDL_Window *)> m_sdlWindow;
 };
