@@ -21,7 +21,6 @@
 
 #include "binding-util.h"
 #include "exception.h"
-#include "AudioManager.h"
 #include "sharedstate.h"
 
 #define DEF_PLAY_STOP_POS(entity) \

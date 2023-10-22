@@ -3,7 +3,6 @@
 //
 
 #include "ThreadManager.h"
-#include "DisplayManager.h"
 
 #include <eventthread.h>
 
@@ -15,7 +14,6 @@
 #include "filesystem.h"
 #include "ConfigManager.h"
 #include "win-consoleutils.h"
-#include "AudioManager.h"
 #include "system.h"
 #include "gl-fun.h"
 #include "debugwriter.h"
@@ -37,9 +35,6 @@
 #ifndef MKXPZ_BUILD_XCODE
 
 #include "icon.png.xxd"
-#include "FontManager.h"
-#include "InputManager.h"
-#include "TimeManager.h"
 #include "sharedstate.h"
 
 
@@ -70,17 +65,28 @@ static SDL_GLContext initGL(SDL_Window *win, Config &conf,
 
 static void printGLInfo();
 
+static void rgssThreadError(RGSSThreadData *rtData, const std::string &msg);
+
 static inline const char *glGetStringInt(GLenum name) {
     return (const char *) gl.GetString(name);
 }
 
-ThreadManager::ThreadManager() = default;
+std::unique_ptr<ThreadManager> g_instance;
+
+ThreadManager::ThreadManager() : alcCtx(nullptr, &alcDestroyContext) {
+
+}
 
 ThreadManager::~ThreadManager() = default;
 
 ThreadManager &ThreadManager::getInstance() {
-    static ThreadManager threadManager;
-    return threadManager;
+    if (g_instance == nullptr)
+        g_instance = std::unique_ptr<ThreadManager>(new ThreadManager());
+    return *g_instance;
+}
+
+void ThreadManager::killThreadManager() {
+    g_instance = nullptr;
 }
 
 bool ThreadManager::init() {
@@ -318,6 +324,42 @@ bool ThreadManager::isInitialized() {
     return m_initialized;
 }
 
+bool ThreadManager::startRgssThread() {
+#ifdef MKXPZ_INIT_GL_LATER
+    threadData->glContext =
+      initGL(threadData->window, threadData->config, threadData);
+  if (!threadData->glContext)
+    return 0;
+#else
+    SDL_GL_MakeCurrent(m_threadData->window.get(), m_threadData->glContext);
+#endif
+
+    /* Setup AL context */
+    alcCtx = std::unique_ptr<ALCcontext, void(*)(ALCcontext*)>(alcCreateContext(m_threadData->alcDev.get(), 0), &alcDestroyContext);
+
+    if (!alcCtx) {
+        rgssThreadError(m_threadData.get(), "Error creating OpenAL context");
+        return false;
+    }
+
+    alcMakeContextCurrent(alcCtx.get());
+
+    try {
+        m_sharedState = std::unique_ptr<SharedState>(SharedState::initInstance(m_threadData));
+    } catch (const Exception &exc) {
+        rgssThreadError(m_threadData.get(), exc.msg);
+        alcCtx = nullptr;
+
+        return false;
+    }
+
+    return true;
+}
+
+SharedState *ThreadManager::getSharedState() const {
+    return m_sharedState.get();
+}
+
 static void showInitError(const std::string &msg) {
     Debug() << msg;
     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "mkxp-z", msg.c_str(), 0);
@@ -423,4 +465,10 @@ static void printGLInfo() {
     Debug() << "GL Renderer  :" << renderer;
     Debug() << "GL Version   :" << version;
     Debug() << "GLSL Version :" << glGetStringInt(GL_SHADING_LANGUAGE_VERSION);
+}
+
+static void rgssThreadError(RGSSThreadData *rtData, const std::string &msg) {
+    rtData->rgssErrorMsg = msg;
+    rtData->ethread->requestTerminate();
+    rtData->rqTermAck.set();
 }

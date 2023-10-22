@@ -35,8 +35,6 @@
 #include "etc-internal.h"
 #include "util.h"
 
-#include "InputManager.h"
-
 #include <algorithm>
 #include <assert.h>
 

@@ -55,7 +55,6 @@
 #include "blurH.vert.xxd"
 #include "blurV.vert.xxd"
 #include "tilemapvx.vert.xxd"
-#include "DisplayManager.h"
 
 #endif
 

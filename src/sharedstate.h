@@ -27,8 +27,9 @@
 #include "IInput.h"
 #include "IAudio.h"
 #include "AbstractEventThread.h"
+#include "ThreadManager.h"
 
-#define shState SharedState::instance
+#define shState ThreadManager::getInstance().getSharedState()
 #define glState shState->_glState()
 
 // Quick hack to get the RGSS Version fixed on compile time
@@ -136,14 +137,11 @@ struct SharedState {
 
 	void checkReset();
 
-    static std::unique_ptr<SharedState> instance;
     static int rgssVersion;
 
     /* This function will throw an Exception instance
      * on initialization error */
-    static void initInstance(std::shared_ptr<RGSSThreadData> threadData);
-
-    static void finiInstance();
+    static std::unique_ptr<SharedState> initInstance(std::shared_ptr<RGSSThreadData> threadData);
 
 private:
     SharedState(std::shared_ptr<RGSSThreadData> threadData);

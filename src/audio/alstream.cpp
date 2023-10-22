@@ -31,7 +31,6 @@
 #include "sdl-util.h"
 #include "debugwriter.h"
 #include "ConfigManager.h"
-#include "AudioManager.h"
 
 #include <SDL_mutex.h>
 #include <SDL_thread.h>

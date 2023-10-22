@@ -22,7 +22,6 @@
 #include <SDL_joystick.h>
 #include <string>
 
-#include "InputManager.h"
 #include "eventthread.h"
 #include "ThreadManager.h"
 

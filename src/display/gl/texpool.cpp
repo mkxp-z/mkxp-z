@@ -25,7 +25,6 @@
 #include "glstate.h"
 #include "boost-hash.h"
 #include "debugwriter.h"
-#include "DisplayManager.h"
 
 #include <list>
 #include <utility>

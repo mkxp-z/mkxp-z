@@ -23,7 +23,6 @@
 #define GRAPHICS_H
 
 #include "IGraphics.h"
-#include "DisplayManager.h"
 
 #include <memory>
 

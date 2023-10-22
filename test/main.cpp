@@ -16,6 +16,7 @@ int main(int argc, char **argv) {
     initBindings();
 
     rb_eval_string("MKXP_Z.init_game_state");
+    rb_eval_string("MKXP_Z.kill_game_state");
 
     return 0;
 }

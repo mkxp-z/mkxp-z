@@ -28,7 +28,6 @@
 #include "sharedstate.h"
 #include "global-ibo.h"
 #include "shader.h"
-#include "DisplayManager.h"
 
 #include <vector>
 #include <stdint.h>

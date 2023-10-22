@@ -46,8 +46,6 @@
 #include "sprite.h"
 #include "gamelauncher.h"
 #include "ConfigManager.h"
-#include "InputManager.h"
-#include "TimeManager.h"
 #include "ThreadManager.h"
 
 #include <SDL.h>

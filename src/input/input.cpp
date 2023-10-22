@@ -26,7 +26,6 @@
 #include "input/keybindings.h"
 #include "util/exception.h"
 #include "util/util.h"
-#include "TimeManager.h"
 #include "ThreadManager.h"
 
 #include <SDL_scancode.h>

@@ -21,7 +21,6 @@
 
 #include "scene.h"
 #include "sharedstate.h"
-#include "TimeManager.h"
 
 Scene::Scene()
 {}

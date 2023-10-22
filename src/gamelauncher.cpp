@@ -97,8 +97,8 @@ static void printGLInfo() {
 static SDL_GLContext initGL(SDL_Window *win, Config &conf,
                             RGSSThreadData *threadData);
 
-int rgssThreadFun(void *userdata) {
-    RGSSThreadData *threadData = static_cast<RGSSThreadData *>(userdata);
+bool startRgssThread(std::shared_ptr<RGSSThreadData> threadData) {
+    RGSSThreadData *threadData = static_cast<RGSSThreadData *>(threadData);
 
 #ifdef MKXPZ_INIT_GL_LATER
     threadData->glContext =

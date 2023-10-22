@@ -3240,7 +3240,7 @@ private:
                     auto duration = duration_cast<milliseconds>(current - start);
                     auto timeout = keep_alive_timeout_sec * 1000;
                     if (duration.count() > timeout) { return false; }
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    SDL_Delay(1);
                 } else {
                     return true;
                 }
@@ -6595,7 +6595,7 @@ inline std::string SHA_512(const std::string &s) {
                     if (errno == EMFILE) {
                         // The per-process limit of open file descriptors has been reached.
                         // Try to accept new connections after a short sleep.
-                        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                        SDL_Delay(1);
                         continue;
                     } else if (errno == EINTR || errno == EAGAIN) {
                         continue;
@@ -8600,7 +8600,7 @@ inline ssize_t SSLSocketStream::read(char *ptr, size_t size) {
         if (SSL_pending(ssl_) > 0) {
           return SSL_read(ssl_, ptr, static_cast<int>(size));
         } else if (is_readable()) {
-          std::this_thread::sleep_for(std::chrono::milliseconds(1));
+          SDL_Delay(1);
           ret = SSL_read(ssl_, ptr, static_cast<int>(size));
           if (ret >= 0) { return ret; }
           err = SSL_get_error(ssl_, ret);
@@ -8631,7 +8631,7 @@ inline ssize_t SSLSocketStream::write(const char *ptr, size_t size) {
       while (--n >= 0 && err == SSL_ERROR_WANT_WRITE) {
 #endif
         if (is_writable()) {
-          std::this_thread::sleep_for(std::chrono::milliseconds(1));
+          SDL_Delay(1);
           ret = SSL_write(ssl_, ptr, static_cast<int>(handle_size));
           if (ret >= 0) { return ret; }
           err = SSL_get_error(ssl_, ret);

@@ -27,7 +27,6 @@
 #include "config.h"
 #include "gamelauncher.h"
 #include "ConfigManager.h"
-#include "DisplayManager.h"
 
 namespace GLMeta
 {

@@ -27,6 +27,7 @@
 #include "boost-hash.h"
 #include "util.h"
 #include "ConfigManager.h"
+#include "config.h"
 
 #include <string>
 #include <utility>
@@ -40,8 +41,6 @@
 #ifndef MKXPZ_BUILD_XCODE
 #ifndef MKXPZ_CJK_FONT
 #include "liberation.ttf.xxd"
-#include "gamelauncher.h"
-#include "FontManager.h"
 
 #else
 #include "wqymicrohei.ttf.xxd"

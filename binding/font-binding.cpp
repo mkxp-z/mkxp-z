@@ -25,7 +25,6 @@
 #include "font.h"
 #include "sharedstate.h"
 #include "ConfigManager.h"
-#include "FontManager.h"
 
 #include <string.h>
 

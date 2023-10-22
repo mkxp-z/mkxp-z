@@ -44,7 +44,6 @@
 #include <string>
 #include <chrono>
 
-std::unique_ptr<SharedState> SharedState::instance;
 int SharedState::rgssVersion = 0;
 static std::unique_ptr<GlobalIBO> _globalIBO;
 
@@ -170,7 +169,7 @@ struct SharedStatePrivate {
 	}
 };
 
-void SharedState::initInstance(std::shared_ptr<RGSSThreadData> threadData) {
+std::unique_ptr<SharedState> SharedState::initInstance(std::shared_ptr<RGSSThreadData> threadData) {
     /* This section is tricky because of dependencies:
      * SharedState depends on GlobalIBO existing,
      * Font depends on SharedState existing */
@@ -180,31 +179,23 @@ void SharedState::initInstance(std::shared_ptr<RGSSThreadData> threadData) {
     _globalIBO = std::make_unique<GlobalIBO>();
     _globalIBO->ensureSize(1);
 
-    SharedState::instance = nullptr;
+    std::unique_ptr<SharedState> ret;
     std::unique_ptr<Font> defaultFont;
 
     try {
-        SharedState::instance = std::unique_ptr<SharedState>(new SharedState(threadData));
-        Font::initDefaults(instance->p->fontState);
+        ret = std::unique_ptr<SharedState>(new SharedState(threadData));
+        Font::initDefaults(ret->p->fontState);
         defaultFont = std::make_unique<Font>();
     }
     catch (const Exception &exc) {
         _globalIBO = nullptr;
-        SharedState::instance = nullptr;
+        ret = nullptr;
 
         throw exc;
     }
 
-    SharedState::instance->p->defaultFont = std::move(defaultFont);
-}
-
-void SharedState::finiInstance()
-{
-    SharedState::instance->p->defaultFont = nullptr;
-
-    SharedState::instance = nullptr;
-
-    _globalIBO = nullptr;
+    ret->p->defaultFont = std::move(defaultFont);
+    return ret;
 }
 
 void SharedState::setScreen(std::shared_ptr<Scene> screen) {
@@ -384,4 +375,6 @@ SharedState::SharedState(std::shared_ptr<RGSSThreadData> threadData) : p(
     p->screen = p->graphics->getScreen();
 }
 
-SharedState::~SharedState() = default;
+SharedState::~SharedState() {
+    _globalIBO = nullptr;
+}

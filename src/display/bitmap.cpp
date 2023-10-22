@@ -52,8 +52,6 @@
 #include "sigslot/signal.hpp"
 #include "gamelauncher.h"
 #include "ConfigManager.h"
-#include "TimeManager.h"
-#include "FontManager.h"
 
 #include <math.h>
 #include <algorithm>

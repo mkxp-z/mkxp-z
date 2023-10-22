@@ -55,12 +55,8 @@ extern "C" {
 #ifdef __WIN32__
 
 #include "binding-mri-win32.h"
-#include "gamelauncher.h"
 #include "singletons/ConfigManager.h"
 #include "ThreadManager.h"
-#include "TimeManager.h"
-#include "AudioManager.h"
-#include "FontManager.h"
 
 #endif
 
@@ -216,7 +212,8 @@ RUBY_FUNC_EXPORTED void initBindings(void) {
     }
 
     // TODO: Change this to actually get the name of the exe
-    ConfigManager::getInstance().initConfig("Ruby.exe", launchArgs);
+    auto &cm =  ConfigManager::getInstance();
+    cm.initConfig("Ruby.exe", launchArgs);
 
     tableBindingInit();
     etcBindingInit();
@@ -330,14 +327,14 @@ static_assert(false, "Invalid RGSS Version");
     /* Load global constants */
     rb_gv_set("MKXP", Qtrue);
 
-    VALUE debug = rb_bool_new(shState->config()->editor.debug);
+    VALUE debug = rb_bool_new(cm.getConfig()->editor.debug);
 #if RGSS_VERSION == 1
     rb_gv_set("DEBUG", debug);
 #elif RGSS_VERSION >= 2
     rb_gv_set("TEST", debug);
 #endif
 
-    rb_gv_set("BTEST", rb_bool_new(shState->config()->editor.battleTest));
+    rb_gv_set("BTEST", rb_bool_new(cm.getConfig()->editor.battleTest));
 
 #ifdef MKXPZ_BUILD_XCODE
     std::string version = std::string(MKXPZ_VERSION "/") + getPlistValue("GIT_COMMIT_HASH");
@@ -360,7 +357,7 @@ static_assert(false, "Invalid RGSS Version");
     // Set $stdout and its ilk accordingly on Windows
     // I regret teaching you that word
 #ifdef __WIN32__
-    if (shState->config()->winConsole)
+    if (cm.getConfig()->winConsole)
         configureWindowsStreams();
 #endif
 }

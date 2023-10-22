@@ -29,7 +29,6 @@
 
 #include <assert.h>
 #include "sigslot/signal.hpp"
-#include "DisplayManager.h"
 
 class Disposable
 {

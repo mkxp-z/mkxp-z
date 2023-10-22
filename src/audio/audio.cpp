@@ -30,7 +30,6 @@
 #include "exception.h"
 #include "ConfigManager.h"
 #include "ISyncPoint.h"
-#include "AudioManager.h"
 
 #include <string>
 #include <vector>
@@ -281,7 +280,7 @@ struct AudioPrivate {
 			}
 			}
 
-			SDL_Delay(AUDIO_SLEEP);
+            SDL_Delay(AUDIO_SLEEP);
 		}
 	}
 };
