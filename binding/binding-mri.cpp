@@ -774,6 +774,7 @@ void saveUserSettings(json5pp::value &settings) {
     rb_funcall(f, rb_intern("close"), 0);
 }
 
+/*
 RB_METHOD(mkxpGetJSONSetting) {
     RB_UNUSED_PARAM;
 
@@ -812,6 +813,7 @@ RB_METHOD(mkxpGetAllJSONSettings) {
 
     return json2rb(CONFIG.raw);
 }
+ */
 
 static VALUE rgssMainCb(VALUE block) {
     rb_funcall2(block, rb_intern("call"), 0, 0);
