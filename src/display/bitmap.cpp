@@ -2124,6 +2124,8 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
     
     int alignY = rect.y + (rect.h - rawTxtSurfH) / 2;
     
+    alignY = std::max(alignY, rect.y);
+    
     float squeeze = (float) rect.w / txtSurf->w;
     
     if (squeeze > 1)
