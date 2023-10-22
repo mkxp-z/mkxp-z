@@ -2126,10 +2126,12 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
     
     alignY = std::max(alignY, rect.y);
     
+    /* FIXME: RGSS begins squeezing the text before it fills the rect.
+     * While this is extremely undesirable, a number of games will understandably
+     * have made the rects bigger to compensate, so we should probably match it */
     float squeeze = (float) rect.w / txtSurf->w;
     
-    if (squeeze > 1)
-        squeeze = 1;
+    squeeze = clamp(squeeze, 0.5f, 1.0f);
     
     IntRect destRect(alignX, alignY, 0, 0);
     destRect.w = std::min(rect.w, (int)(txtSurf->w * squeeze));
