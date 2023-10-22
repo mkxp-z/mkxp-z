@@ -130,7 +130,13 @@ public:
 private:
     explicit Input(const RGSSThreadData &rtData);
 
+    ~Input() override;
+
     friend struct SharedStatePrivate;
+
+    friend class InputManager;
+
+    friend std::unique_ptr<Input>::deleter_type;
 
     std::unique_ptr<InputPrivate> p;
 };

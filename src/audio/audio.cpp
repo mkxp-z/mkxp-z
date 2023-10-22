@@ -30,6 +30,7 @@
 #include "exception.h"
 #include "ConfigManager.h"
 #include "ISyncPoint.h"
+#include "AudioManager.h"
 
 #include <string>
 #include <vector>
@@ -45,7 +46,7 @@ struct AudioPrivate {
 
 	SoundEmitter se;
 
-    ISyncPoint &syncPoint;
+    std::shared_ptr<ISyncPoint> syncPoint;
     
     float volumeRatio;
 
@@ -72,11 +73,11 @@ struct AudioPrivate {
 	AudioPrivate(RGSSThreadData &rtData)
 	    : bgs(ALStream::Looped, "bgs"),
           me(ALStream::NotLooped, "me"),
-          se(rtData.config),
-          syncPoint(*rtData.syncPoint),
+          se(*rtData.config),
+          syncPoint(rtData.syncPoint),
           volumeRatio(1)
 	{
-        for (int i = 0; i < rtData.config.BGM.trackCount; i++) {
+        for (int i = 0; i < rtData.config->BGM.trackCount; i++) {
             std::string id = std::string("bgm" + std::to_string(i));
             bgmTracks.push_back(new AudioStream(ALStream::Looped, id.c_str()));
         }
@@ -109,7 +110,7 @@ struct AudioPrivate {
 
 		while (true)
 		{
-			syncPoint.passSecondarySync();
+            syncPoint->passSecondarySync();
 
 			if (meWatch.termReq)
 				return;
@@ -289,6 +290,7 @@ Audio::Audio(RGSSThreadData &rtData)
         : p(std::make_unique<AudioPrivate>(rtData))
 {}
 
+Audio::~Audio() = default;
 
 void Audio::bgmPlay(const char *filename,
                     int volume,
@@ -404,7 +406,7 @@ void Audio::seStop()
 }
 
 void Audio::setupMidi() {
-    MIDI_STATE.initIfNeeded(CONFIG);
+    shState->midiState().initIfNeeded(*shState->config());
 }
 
 float Audio::bgmPos(int track)

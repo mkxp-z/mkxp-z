@@ -29,6 +29,7 @@
 #include "debugwriter.h"
 #include "fluid-fun.h"
 #include "ConfigManager.h"
+#include "AudioManager.h"
 
 #include <SDL_rwops.h>
 
@@ -642,7 +643,7 @@ struct MidiSource : ALDataSource, MidiReadHandler
 			throw;
 		}
 
-        synth = MIDI_STATE.allocateSynth();
+        synth = shState->midiState().allocateSynth();
 
 		uint64_t longest = 0;
 
@@ -693,7 +694,7 @@ struct MidiSource : ALDataSource, MidiReadHandler
 	}
 
 	~MidiSource() {
-        MIDI_STATE.releaseSynth(synth);
+        shState->midiState().releaseSynth(synth);
     }
 
 

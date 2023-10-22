@@ -353,7 +353,8 @@ bool GameLauncher::showWindow(const std::string &windowName) {
     if (m_config->winResizable)
         winFlags |= SDL_WINDOW_RESIZABLE;
     if (m_config->fullscreen)
-        winFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+        winFlags |= SDL_WINDOW_FULLshState->screen()
+    _DESKTOP;
 
 #ifdef GLES2_HEADER
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);

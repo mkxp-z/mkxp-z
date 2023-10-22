@@ -79,7 +79,7 @@ struct Quad
 	{
 		GLMeta::vaoFillInVertexData<Vertex>(vao);
         vao.vbo = vbo;
-        vao.ibo = DISPLAY_MANAGER.globalIBO().ibo;
+        vao.ibo = shState->globalIBO().ibo;
 
 		GLMeta::vaoInit(vao, true);
 		VBO::allocEmpty(sizeof(Vertex[4]), GL_DYNAMIC_DRAW);

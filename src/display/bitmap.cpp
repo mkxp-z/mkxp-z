@@ -53,6 +53,7 @@
 #include "gamelauncher.h"
 #include "ConfigManager.h"
 #include "TimeManager.h"
+#include "FontManager.h"
 
 #include <math.h>
 #include <algorithm>
@@ -205,12 +206,12 @@ struct BitmapPrivate
             if (needsReset) {
                 lastFrame = currentFrameI();
                 playTime = 0;
-                startTime = TIME_MANAGER.runTime();
+                startTime = shState->runTime();
                 needsReset = false;
                 return;
             }
 
-            playTime = TIME_MANAGER.runTime() - startTime;
+            playTime = shState->runTime() - startTime;
             return;
         }
     } animation;
@@ -258,9 +259,9 @@ struct BitmapPrivate
         animation.fps = 0;
         animation.lastFrame = 0;
 
-        prepareCon = DISPLAY_MANAGER.prepareDraw.connect(&BitmapPrivate::prepare, this);
+        prepareCon = shState->prepareDraw.connect(&BitmapPrivate::prepare, this);
 
-        font = &CONFIG_MANAGER.defaultFont();
+        font = &shState->defaultFont();
         pixman_region_init(&tainted);
     }
     
@@ -347,33 +348,33 @@ struct BitmapPrivate
     }
     
     void pushSetViewport(ShaderBase &shader) const {
-        GL_STATE.viewport.pushSet(IntRect(0, 0, gl.width, gl.height));
+        shState->_glState().viewport.pushSet(IntRect(0, 0, gl.width, gl.height));
         shader.applyViewportProj();
     }
     
     void popViewport() const {
-        GL_STATE.viewport.pop();
+        shState->_glState().viewport.pop();
     }
     
     void blitQuad(Quad &quad) {
-        GL_STATE.blend.pushSet(false);
+        shState->_glState().blend.pushSet(false);
         quad.draw();
-        GL_STATE.blend.pop();
+        shState->_glState().blend.pop();
     }
     
     void fillRect(const IntRect &rect,
                   const Vec4 &color) {
         bindFBO();
 
-        GL_STATE.scissorTest.pushSet(true);
-        GL_STATE.scissorBox.pushSet(normalizedRect(rect));
-        GL_STATE.clearColor.pushSet(color);
+        shState->_glState().scissorTest.pushSet(true);
+        shState->_glState().scissorBox.pushSet(normalizedRect(rect));
+        shState->_glState().clearColor.pushSet(color);
 
         FBO::clear();
 
-        GL_STATE.clearColor.pop();
-        GL_STATE.scissorBox.pop();
-        GL_STATE.scissorTest.pop();
+        shState->_glState().clearColor.pop();
+        shState->_glState().scissorBox.pop();
+        shState->_glState().scissorTest.pop();
     }
     
     static void ensureFormat(SDL_Surface *&surf, Uint32 format)
@@ -465,16 +466,14 @@ struct BitmapOpenHandler : FileSystem::OpenHandler
     }
 };
 
-Bitmap::Bitmap(const char *filename)
-{
+Bitmap::Bitmap(const char *filename) {
     BitmapOpenHandler handler;
-    FILESYSTEM.openRead(handler, filename);
-    
+    shState->filesystem()->openRead(handler, filename);
+
     if (!handler.error.empty()) {
         // Not loaded with SDL, but I want it to be caught with the same exception type
         throw Exception(Exception::SDLError, "Error loading image '%s': %s", filename, handler.error.c_str());
-    }
-    else if (!handler.gif && !handler.surface) {
+    } else if (!handler.gif && !handler.surface) {
         throw Exception(Exception::SDLError, "Error loading image '%s': %s",
                         filename, SDL_GetError());
     }
@@ -482,17 +481,17 @@ Bitmap::Bitmap(const char *filename)
     if (handler.gif) {
         p = new BitmapPrivate(this);
 
-        if (handler.gif->width >= (uint32_t) GL_STATE.caps.maxTexSize ||
-            handler.gif->height > (uint32_t) GL_STATE.caps.maxTexSize) {
+        if (handler.gif->width >= (uint32_t) shState->_glState().caps.maxTexSize ||
+            handler.gif->height > (uint32_t) shState->_glState().caps.maxTexSize) {
             throw new Exception(Exception::MKXPError, "Animation too large (%ix%i, max %ix%i)",
-                                handler.gif->width, handler.gif->height, GL_STATE.caps.maxTexSize,
-                                GL_STATE.caps.maxTexSize);
+                                handler.gif->width, handler.gif->height, shState->_glState().caps.maxTexSize,
+                                shState->_glState().caps.maxTexSize);
         }
-        
+
         if (handler.gif->frame_count == 1) {
             TEXFBO texfbo;
             try {
-                texfbo = TEX_POOL.request(handler.gif->width, handler.gif->height);
+                texfbo = shState->texPool().request(handler.gif->width, handler.gif->height);
             }
             catch (const Exception &e)
             {
@@ -520,7 +519,7 @@ Bitmap::Bitmap(const char *filename)
         
         // Guess framerate based on the first frame's delay
         p->animation.fps = 1 / ((float)handler.gif->frames[handler.gif->decoded_frame].frame_delay / 100);
-        if (p->animation.fps < 0) p->animation.fps = GRAPHICS.getFrameRate();
+        if (p->animation.fps < 0) p->animation.fps = shState->graphics().getFrameRate();
         
         // Loop gif (Either it's looping or it's not, at the moment)
         p->animation.loop = handler.gif->loop_count >= 0;
@@ -535,7 +534,7 @@ Bitmap::Bitmap(const char *filename)
                 int status = gif_decode_frame(handler.gif, i);
                 if (status != GIF_OK && status != GIF_WORKING) {
                     for (TEXFBO &frame: p->animation.frames)
-                        TEX_POOL.release(frame);
+                        shState->texPool().release(frame);
                     
                     gif_finalise(handler.gif);
                     delete handler.gif;
@@ -548,12 +547,12 @@ Bitmap::Bitmap(const char *filename)
             
             TEXFBO texfbo;
             try {
-                texfbo = TEX_POOL.request(p->animation.width, p->animation.height);
+                texfbo = shState->texPool().request(p->animation.width, p->animation.height);
             }
             catch (const Exception &e)
             {
                 for (TEXFBO &frame: p->animation.frames)
-                    TEX_POOL.release(frame);
+                    shState->texPool().release(frame);
                 
                 gif_finalise(handler.gif);
                 delete handler.gif;
@@ -579,7 +578,7 @@ Bitmap::Bitmap(const char *filename)
     
     p->ensureFormat(imgSurf, SDL_PIXELFORMAT_ABGR8888);
 
-    if (imgSurf->w > GL_STATE.caps.maxTexSize || imgSurf->h > GL_STATE.caps.maxTexSize) {
+    if (imgSurf->w > shState->_glState().caps.maxTexSize || imgSurf->h > shState->_glState().caps.maxTexSize) {
         /* Mega surface */
         p = new BitmapPrivate(this);
         p->megaSurface = imgSurf;
@@ -587,10 +586,9 @@ Bitmap::Bitmap(const char *filename)
     } else {
         /* Regular surface */
         TEXFBO tex;
-        
-        try
-        {
-            tex = TEX_POOL.request(imgSurf->w, imgSurf->h);
+
+        try {
+            tex = shState->texPool().request(imgSurf->w, imgSurf->h);
         }
         catch (const Exception &e)
         {
@@ -615,7 +613,7 @@ Bitmap::Bitmap(int width, int height)
     if (width <= 0 || height <= 0)
         throw Exception(Exception::RGSSError, "failed to create bitmap");
 
-    TEXFBO tex = TEX_POOL.request(width, height);
+    TEXFBO tex = shState->texPool().request(width, height);
     
     p = new BitmapPrivate(this);
     p->gl = tex;
@@ -637,16 +635,15 @@ Bitmap::Bitmap(void *pixeldata, int width, int height)
     
     memcpy(surface->pixels, pixeldata, width*height*(p->format->BitsPerPixel/8));
 
-    if (surface->w > GL_STATE.caps.maxTexSize || surface->h > GL_STATE.caps.maxTexSize) {
+    if (surface->w > shState->_glState().caps.maxTexSize || surface->h > shState->_glState().caps.maxTexSize) {
         p = new BitmapPrivate(this);
         p->megaSurface = surface;
         SDL_SetSurfaceBlendMode(p->megaSurface, SDL_BLENDMODE_NONE);
     } else {
         TEXFBO tex;
 
-        try
-        {
-            tex = TEX_POOL.request(surface->w, surface->h);
+        try {
+            tex = shState->texPool().request(surface->w, surface->h);
         }
         catch (const Exception &e)
         {
@@ -677,7 +674,7 @@ Bitmap::Bitmap(const Bitmap &other, int frame)
     
     // TODO: Clean me up
     if (!other.isAnimated() || frame >= -1) {
-        p->gl = TEX_POOL.request(other.width(), other.height());
+        p->gl = shState->texPool().request(other.width(), other.height());
         
         GLMeta::blitBegin(p->gl);
         // Blit just the current frame of the other animated bitmap
@@ -704,10 +701,10 @@ Bitmap::Bitmap(const Bitmap &other, int frame)
         for (TEXFBO &sourceframe : other.getFrames()) {
             TEXFBO newframe;
             try {
-                newframe = TEX_POOL.request(p->animation.width, p->animation.height);
+                newframe = shState->texPool().request(p->animation.width, p->animation.height);
             } catch(const Exception &e) {
                 for (TEXFBO &f: p->animation.frames)
-                    TEX_POOL.release(f);
+                    shState->texPool().release(f);
                 throw e;
             }
             
@@ -816,18 +813,18 @@ void Bitmap::stretchBlt(const IntRect &destRect,
         return;
     
     SDL_Surface *srcSurf = source.megaSurface();
-    
-    if (srcSurf && CONFIG.subImageFix) {
+
+    if (srcSurf && shState->config()->subImageFix) {
         /* Blit from software surface, for broken GL drivers */
         Vec2i gpTexSize;
-        DISPLAY_MANAGER.ensureTexSize(sourceRect.w, sourceRect.h, gpTexSize);
-        DISPLAY_MANAGER.bindTex();
+        shState->ensureTexSize(sourceRect.w, sourceRect.h, gpTexSize);
+        shState->bindTex();
 
         GLMeta::subRectImageUpload(srcSurf->w, sourceRect.x, sourceRect.y, 0, 0,
                                    sourceRect.w, sourceRect.h, srcSurf, GL_RGBA);
         GLMeta::subRectImageEnd();
 
-        SimpleShader &shader = SHADERS.simple;
+        SimpleShader &shader = shState->shaders().simple;
         shader.bind();
         shader.setTranslation(Vec2i());
         shader.setTexSize(gpTexSize);
@@ -835,7 +832,7 @@ void Bitmap::stretchBlt(const IntRect &destRect,
         p->pushSetViewport(shader);
         p->bindFBO();
 
-        Quad &quad = DISPLAY_MANAGER.gpQuad();
+        Quad &quad = shState->gpQuad();
         quad.setTexRect(FloatRect(0, 0, sourceRect.w, sourceRect.h));
         quad.setPosRect(destRect);
         
@@ -907,7 +904,7 @@ void Bitmap::stretchBlt(const IntRect &destRect,
         /* Fragment pipeline */
         float normOpacity = (float) opacity / 255.0f;
 
-        TEXFBO &gpTex = DISPLAY_MANAGER.gpTexFBO(destRect.w, destRect.h);
+        TEXFBO &gpTex = shState->gpTexFBO(destRect.w, destRect.h);
         
         GLMeta::blitBegin(gpTex);
         GLMeta::blitSource(getGLTypes());
@@ -919,13 +916,13 @@ void Bitmap::stretchBlt(const IntRect &destRect,
                              ((float) source.width() / sourceRect.w) * ((float) destRect.w / gpTex.width),
                              ((float) source.height() / sourceRect.h) * ((float) destRect.h / gpTex.height));
 
-        BltShader &shader = SHADERS.blt;
+        BltShader &shader = shState->shaders().blt;
         shader.bind();
         shader.setDestination(gpTex.tex);
         shader.setSubRect(bltSubRect);
         shader.setOpacity(normOpacity);
 
-        Quad &quad = DISPLAY_MANAGER.gpQuad();
+        Quad &quad = shState->gpQuad();
         quad.setTexPosRect(sourceRect, destRect);
         quad.setColor(Vec4(1, 1, 1, normOpacity));
         
@@ -985,11 +982,11 @@ void Bitmap::gradientFillRect(const IntRect &rect,
     GUARD_MEGA;
     GUARD_ANIMATED;
 
-    SimpleColorShader &shader = SHADERS.simpleColor;
+    SimpleColorShader &shader = shState->shaders().simpleColor;
     shader.bind();
     shader.setTranslation(Vec2i());
 
-    Quad &quad = DISPLAY_MANAGER.gpQuad();
+    Quad &quad = shState->gpQuad();
     
     if (vertical)
     {
@@ -1044,18 +1041,18 @@ void Bitmap::blur()
     GUARD_MEGA;
     GUARD_ANIMATED;
 
-    Quad &quad = DISPLAY_MANAGER.gpQuad();
+    Quad &quad = shState->gpQuad();
     FloatRect rect(0, 0, width(), height());
     quad.setTexPosRect(rect, rect);
 
-    TEXFBO auxTex = TEX_POOL.request(width(), height());
+    TEXFBO auxTex = shState->texPool().request(width(), height());
 
-    BlurShader &shader = SHADERS.blur;
+    BlurShader &shader = shState->shaders().blur;
     BlurShader::HPass &pass1 = shader.pass1;
     BlurShader::VPass &pass2 = shader.pass2;
 
-    GL_STATE.blend.pushSet(false);
-    GL_STATE.viewport.pushSet(IntRect(0, 0, width(), height()));
+    shState->_glState().blend.pushSet(false);
+    shState->_glState().viewport.pushSet(IntRect(0, 0, width(), height()));
 
     TEX::bind(p->gl.tex);
     FBO::bind(auxTex.fbo);
@@ -1075,10 +1072,10 @@ void Bitmap::blur()
 
     quad.draw();
 
-    GL_STATE.viewport.pop();
-    GL_STATE.blend.pop();
+    shState->_glState().viewport.pop();
+    shState->_glState().blend.pop();
 
-    TEX_POOL.release(auxTex);
+    shState->texPool().release(auxTex);
 
     p->onModified();
 }
@@ -1138,20 +1135,20 @@ void Bitmap::radialBlur(int angle, int divisions)
 
     qArray.commit();
 
-    TEXFBO newTex = TEX_POOL.request(_width, _height);
+    TEXFBO newTex = shState->texPool().request(_width, _height);
 
     FBO::bind(newTex.fbo);
 
-    GL_STATE.clearColor.pushSet(Vec4());
+    shState->_glState().clearColor.pushSet(Vec4());
     FBO::clear();
 
     Transform trans;
     trans.setOrigin(Vec2(_width / 2.0f, _height / 2.0f));
     trans.setPosition(Vec2(_width / 2.0f, _height / 2.0f));
 
-    GL_STATE.blendMode.pushSet(BlendAddition);
+    shState->_glState().blendMode.pushSet(BlendAddition);
 
-    SimpleMatrixShader &shader = SHADERS.simpleMatrix;
+    SimpleMatrixShader &shader = shState->shaders().simpleMatrix;
     shader.bind();
 
     p->bindTexture(shader);
@@ -1169,10 +1166,10 @@ void Bitmap::radialBlur(int angle, int divisions)
 
     TEX::setSmooth(false);
 
-    GL_STATE.blendMode.pop();
-    GL_STATE.clearColor.pop();
+    shState->_glState().blendMode.pop();
+    shState->_glState().clearColor.pop();
 
-    TEX_POOL.release(p->gl);
+    shState->texPool().release(p->gl);
     p->gl = newTex;
 
     p->onModified();
@@ -1186,11 +1183,11 @@ void Bitmap::clear() {
 
     p->bindFBO();
 
-    GL_STATE.clearColor.pushSet(Vec4());
+    shState->_glState().clearColor.pushSet(Vec4());
 
     FBO::clear();
 
-    GL_STATE.clearColor.pop();
+    shState->_glState().clearColor.pop();
 
     p->clearTaintedArea();
 
@@ -1220,11 +1217,11 @@ Color Bitmap::getPixel(int x, int y) const
 
         FBO::bind(p->gl.fbo);
 
-        GL_STATE.viewport.pushSet(IntRect(0, 0, width(), height()));
+        shState->_glState().viewport.pushSet(IntRect(0, 0, width(), height()));
 
         gl.ReadPixels(0, 0, width(), height(), GL_RGBA, GL_UNSIGNED_BYTE, p->surface->pixels);
 
-        GL_STATE.viewport.pop();
+        shState->_glState().viewport.pop();
     }
     
     uint32_t pixel = getPixelAt(p->surface, p->format, x, y);
@@ -1339,8 +1336,8 @@ void Bitmap::saveToFile(const char *filename)
             filetype = 2;
         }
     }
-    
-    std::string fn_normalized = FILESYSTEM.normalize(filename, 1, 1);
+
+    std::string fn_normalized = shState->filesystem()->normalize(filename, 1, 1);
     int rc;
     switch (filetype) {
         case 2:
@@ -1370,15 +1367,15 @@ void Bitmap::hueChange(int hue)
     if ((hue % 360) == 0)
         return;
 
-    TEXFBO newTex = TEX_POOL.request(width(), height());
+    TEXFBO newTex = shState->texPool().request(width(), height());
     
     FloatRect texRect(rect());
 
-    Quad &quad = DISPLAY_MANAGER.gpQuad();
+    Quad &quad = shState->gpQuad();
     quad.setTexPosRect(texRect, texRect);
     quad.setColor(Vec4(1, 1, 1, 1));
 
-    HueShader &shader = SHADERS.hue;
+    HueShader &shader = shState->shaders().hue;
     shader.bind();
     /* Shader expects normalized value */
     shader.setHueAdjust(wrapRange(hue, 0, 359) / 360.0f);
@@ -1393,7 +1390,7 @@ void Bitmap::hueChange(int hue)
 
     TEX::unbind();
 
-    TEX_POOL.release(p->gl);
+    shState->texPool().release(p->gl);
     p->gl = newTex;
 
     p->onModified();
@@ -1602,12 +1599,12 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
     FloatRect posRect(alignX, alignY, txtSurf->w * squeeze, txtSurf->h);
 
     Vec2i gpTexSize;
-    DISPLAY_MANAGER.ensureTexSize(txtSurf->w, txtSurf->h, gpTexSize);
+    shState->ensureTexSize(txtSurf->w, txtSurf->h, gpTexSize);
 
     bool fastBlit = !p->touchesTaintedArea(posRect) && txtAlpha == 1.0f;
 
     if (fastBlit) {
-        if (squeeze == 1.0f && !CONFIG.subImageFix) {
+        if (squeeze == 1.0f && !shState->config()->subImageFix) {
             /* Even faster: upload directly to bitmap texture.
              * We have to make sure the posRect lies within the texture
              * boundaries or texSubImage will generate errors.
@@ -1667,7 +1664,7 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
         else
         {
             /* Squeezing involved: need to use intermediary TexFBO */
-            TEXFBO &gpTF = DISPLAY_MANAGER.gpTexFBO(txtSurf->w, txtSurf->h);
+            TEXFBO &gpTF = shState->gpTexFBO(txtSurf->w, txtSurf->h);
             
             TEX::bind(gpTF.tex);
             TEX::uploadSubImage(0, 0, txtSurf->w, txtSurf->h, txtSurf->pixels, GL_RGBA);
@@ -1683,7 +1680,7 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
     {
         /* Aquire a partial copy of the destination
          * buffer we're about to render to */
-        TEXFBO &gpTex2 = DISPLAY_MANAGER.gpTexFBO(posRect.w, posRect.h);
+        TEXFBO &gpTex2 = shState->gpTexFBO(posRect.w, posRect.h);
         
         GLMeta::blitBegin(gpTex2);
         GLMeta::blitSource(p->gl);
@@ -1694,7 +1691,7 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
                           (float) (gpTexSize.x * squeeze) / gpTex2.width,
                           (float) gpTexSize.y / gpTex2.height);
 
-        BltShader &shader = SHADERS.blt;
+        BltShader &shader = shState->shaders().blt;
         shader.bind();
         shader.setTexSize(gpTexSize);
         shader.setSource();
@@ -1702,11 +1699,11 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
         shader.setSubRect(bltRect);
         shader.setOpacity(txtAlpha);
 
-        DISPLAY_MANAGER.bindTex();
+        shState->bindTex();
         TEX::uploadSubImage(0, 0, txtSurf->w, txtSurf->h, txtSurf->pixels, GL_RGBA);
         TEX::setSmooth(true);
 
-        Quad &quad = DISPLAY_MANAGER.gpQuad();
+        Quad &quad = shState->gpQuad();
         quad.setTexRect(FloatRect(0, 0, txtSurf->w, txtSurf->h));
         quad.setPosRect(posRect);
 
@@ -1924,7 +1921,7 @@ int Bitmap::addFrame(Bitmap &source, int position)
         throw Exception(Exception::MKXPError, "Animations with varying dimensions are not supported (%ix%i vs %ix%i)",
                         source.width(), source.height(), width(), height());
 
-    TEXFBO newframe = TEX_POOL.request(source.width(), source.height());
+    TEXFBO newframe = shState->texPool().request(source.width(), source.height());
     
     // Convert the bitmap into an animated bitmap if it isn't already one
     if (!p->animation.enabled) {
@@ -1936,7 +1933,7 @@ int Bitmap::addFrame(Bitmap &source, int position)
         p->animation.startTime = 0;
         
         if (p->animation.fps <= 0)
-            p->animation.fps = GRAPHICS.getFrameRate();
+            p->animation.fps = shState->graphics().getFrameRate();
         
         p->animation.frames.push_back(p->gl);
         
@@ -1979,7 +1976,7 @@ void Bitmap::removeFrame(int position) {
 
     int pos = (position < 0) ? (int) p->animation.frames.size() - 1 : clamp(position, 0,
                                                                             (int) (p->animation.frames.size() - 1));
-    TEX_POOL.release(p->animation.frames[pos]);
+    shState->texPool().release(p->animation.frames[pos]);
     p->animation.frames.erase(p->animation.frames.begin() + pos);
 
     // Change the animated bitmap back to a normal one if there's only one frame left
@@ -2089,7 +2086,7 @@ void Bitmap::taintArea(const IntRect &rect)
 }
 
 int Bitmap::maxSize(){
-    return GL_STATE.caps.maxTexSize;
+    return shState->_glState().caps.maxTexSize;
 }
 
 // This might look ridiculous, but apparently, it is possible
@@ -2118,9 +2115,9 @@ void Bitmap::releaseResources()
         p->animation.enabled = false;
         p->animation.playing = false;
         for (TEXFBO &tex: p->animation.frames)
-            TEX_POOL.release(tex);
+            shState->texPool().release(tex);
     } else
-        TEX_POOL.release(p->gl);
+        shState->texPool().release(p->gl);
     
     delete p;
 }

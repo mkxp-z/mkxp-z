@@ -105,7 +105,7 @@ typedef NSMutableArray<NSNumber*> BindingIndexArray;
 }
 
 - (IBAction)acceptButton:(NSButton *)sender {
-    RGSS_THREAD_DATA.bindingUpdateMsg.post(*binds);
+    shState->rtData()->bindingUpdateMsg.post(*binds);
     storeBindings(*binds, CONFIG);
     [self closeWindow];
 }
@@ -264,7 +264,7 @@ s.d.ca.dir = (axis.value >= 0) ? AxisDir::Positive : AxisDir::Negative;
     nsbinds = [NSMutableDictionary new];
     bindingNames = [NSMutableDictionary new];
 
-    RGSSThreadData &data = RGSS_THREAD_DATA;
+    RGSSThreadData &data = *shState->rtData();
     
 #define SET_BINDING(code) bindingNames[@(Input::code)] = @(#code)
 #define SET_BINDING_CUSTOM(code, value) bindingNames[@(Input::code)] = @(value)

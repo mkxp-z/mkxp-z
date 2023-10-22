@@ -232,7 +232,7 @@ struct ALStreamOpenHandler : FileSystem::OpenHandler
 			}
 
 			if (!strcmp(sig, "MThd")) {
-                MIDI_STATE.initIfNeeded(CONFIG);
+                shState->midiState().initIfNeeded(*shState->config());
 
                 if (HAVE_FLUID) {
                     source = createMidiSource(*srcOps, looped);
@@ -254,20 +254,18 @@ struct ALStreamOpenHandler : FileSystem::OpenHandler
 	}
 };
 
-void ALStream::openSource(const std::string &filename)
-{
-	ALStreamOpenHandler handler(srcOps, looped);
-	FILESYSTEM.openRead(handler, filename.c_str());
-	source = handler.source;
-	needsRewind.clear();
+void ALStream::openSource(const std::string &filename) {
+    ALStreamOpenHandler handler(srcOps, looped);
+    shState->filesystem()->openRead(handler, filename.c_str());
+    source = handler.source;
+    needsRewind.clear();
 
-	if (!source)
-	{
-		char buf[512];
-		snprintf(buf, sizeof(buf), "Unable to decode audio stream: %s: %s",
-		         filename.c_str(), handler.errorMsg.c_str());
+    if (!source) {
+        char buf[512];
+        snprintf(buf, sizeof(buf), "Unable to decode audio stream: %s: %s",
+                 filename.c_str(), handler.errorMsg.c_str());
 
-		Debug() << buf;
+        Debug() << buf;
 	}
 }
 
@@ -405,7 +403,7 @@ void ALStream::streamData()
 	/* Wait for buffers to be consumed, then
 	 * refill and queue them up again */
 	while (true) {
-        SYNC_POINT.passSecondarySync();
+        shState->rtData()->syncPoint->passSecondarySync();
 
         ALint procBufs = AL::Source::getProcBufferCount(alSrc);
 
@@ -415,7 +413,7 @@ void ALStream::streamData()
 
             AL::Buffer::ID buf = AL::Source::unqueueBuffer(alSrc);
 
-			/* If something went wrong, try again later */
+            /* If something went wrong, try again later */
 			if (buf == AL::Buffer::ID(0))
 				break;
 

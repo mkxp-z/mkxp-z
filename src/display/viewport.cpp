@@ -100,24 +100,24 @@ struct ViewportPrivate
 };
 
 Viewport::Viewport(int x, int y, int width, int height)
-        : SceneElement(SCREEN),
+        : SceneElement(*shState->screen()),
           sceneLink(this)
 {
 	initViewport(x, y, width, height);
 }
 
 Viewport::Viewport(Rect *rect)
-        : SceneElement(SCREEN),
+        : SceneElement(*shState->screen()),
           sceneLink(this)
 {
 	initViewport(rect->x, rect->y, rect->width, rect->height);
 }
 
 Viewport::Viewport()
-        : SceneElement(SCREEN),
+        : SceneElement(*shState->screen()),
           sceneLink(this)
 {
-    const auto &graphics = GRAPHICS;
+    const auto &graphics = shState->graphics();
 	initViewport(0, 0, graphics.width(), graphics.height());
 }
 
@@ -193,8 +193,8 @@ void Viewport::composite() {
         return;
 
     /* Setup scissor */
-    GL_STATE.scissorTest.pushSet(true);
-    GL_STATE.scissorBox.pushSet(p->rect->toIntRect());
+    shState->_glState().scissorTest.pushSet(true);
+    shState->_glState().scissorBox.pushSet(p->rect->toIntRect());
 
     Scene::composite();
 
@@ -204,8 +204,8 @@ void Viewport::composite() {
         scene->requestViewportRender
                 (p->color->norm, flashColor, p->tone->norm);
 
-    GL_STATE.scissorBox.pop();
-    GL_STATE.scissorTest.pop();
+    shState->_glState().scissorBox.pop();
+    shState->_glState().scissorTest.pop();
 }
 
 /* SceneElement */
@@ -229,7 +229,7 @@ void Viewport::releaseResources()
 
 
 ViewportElement::ViewportElement(Viewport *viewport, int z, int spriteY)
-        : SceneElement(viewport ? *viewport : SCREEN, z, spriteY),
+        : SceneElement(viewport ? *viewport : *shState->screen(), z, spriteY),
           m_viewport(viewport)
 {}
 
@@ -241,7 +241,7 @@ Viewport *ViewportElement::getViewport() const
 void ViewportElement::setViewport(Viewport *viewport)
 {
     m_viewport = viewport;
-    setScene(viewport ? *viewport : SCREEN);
+    setScene(viewport ? *viewport : *shState->screen());
     onViewportChange();
 	onGeometryChange(scene->getGeometry());
 }

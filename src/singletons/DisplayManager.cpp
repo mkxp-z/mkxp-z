@@ -3,6 +3,7 @@
 //
 
 #include "DisplayManager.h"
+#include "eventthread.h"
 
 #include <SDL.h>
 
@@ -10,8 +11,12 @@
 #include <graphics.h>
 #include <shader.h>
 #include <scene.h>
+#include <texpool.h>
 
 #include "quad.h"
+#include "config.h"
+#include "ThreadManager.h"
+#include "ConfigManager.h"
 
 struct DisplayManagerPrivate {
     TEX::ID globalTex;
@@ -26,7 +31,7 @@ struct DisplayManagerPrivate {
     Quad gpQuad;
 };
 
-DisplayManager::DisplayManager() : m_sdlWindow(nullptr, &SDL_DestroyWindow) {
+DisplayManager::DisplayManager() : m_window(nullptr, &SDL_DestroyWindow) {
     // TODO: Initialize the definite instances of the classes
 }
 
@@ -35,6 +40,25 @@ DisplayManager::~DisplayManager() = default;
 DisplayManager &DisplayManager::getInstance() {
     static DisplayManager displayManager;
     return displayManager;
+}
+
+bool DisplayManager::init() {
+    if (!shState->isInitialized())
+        return false;
+    m_glState = std::make_unique<GLState>(*shState->config());
+    m_texPool = std::make_unique<TexPool>();
+    m_shaderSet = std::make_unique<ShaderSet>();
+
+    /* Shaders have been compiled in ShaderSet's constructor */
+    if (gl.ReleaseShaderCompiler)
+        gl.ReleaseShaderCompiler();
+
+    m_screen = std::make_unique<Scene>();
+    m_globalIBO = std::make_unique<GlobalIBO>();
+    m_globalIBO->ensureSize(1);
+
+    m_graphics = std::unique_ptr<Graphics>(new Graphics(&*shState->rtData()));
+    return true;
 }
 
 IGraphics &DisplayManager::getGraphics() {
@@ -54,9 +78,20 @@ ShaderSet &DisplayManager::getShaderSet() const {
 }
 
 SDL_Window *DisplayManager::getSdlWindow() const {
-    return m_sdlWindow.get();
+    return m_window.get();
 }
 
+void DisplayManager::setSdlWindow(SdlWindowPtr &&window) {
+    m_window = std::move(window);
+}
+
+Scene &DisplayManager::getScreen() const {
+    return *m_screen;
+}
+
+void DisplayManager::setScreen(std::unique_ptr<Scene> &&screen) {
+    m_screen = std::move(screen);
+}
 
 void DisplayManager::ensureQuadIBO(size_t minSize) {
     m_globalIBO->ensureSize(minSize);
@@ -139,10 +174,4 @@ void DisplayManager::releaseAtlasTex(TEXFBO &tex) {
     m_private->atlasTex = tex;
 }
 
-Scene &DisplayManager::getScreen() const {
-    return *m_screen;
-}
 
-void DisplayManager::setScreen(std::unique_ptr<Scene> &&screen) {
-    m_screen = std::move(screen);
-}

@@ -60,6 +60,7 @@ extern "C" {
 #include "ThreadManager.h"
 #include "TimeManager.h"
 #include "AudioManager.h"
+#include "FontManager.h"
 
 #endif
 
@@ -115,6 +116,8 @@ void CUSLBindingInit();
 #endif
 
 void httpBindingInit();
+
+void mkxpzBindingInit();
 
 RB_METHOD(mkxpDelta);
 
@@ -247,6 +250,8 @@ RUBY_FUNC_EXPORTED void initBindings(void) {
 
     //httpBindingInit();
 
+    mkxpzBindingInit();
+
 #if RGSS_VERSION >= 3
     _rb_define_module_function(rb_mKernel, "rgss_main", mriRgssMain);
     _rb_define_module_function(rb_mKernel, "rgss_stop", mriRgssStop);
@@ -325,14 +330,14 @@ static_assert(false, "Invalid RGSS Version");
     /* Load global constants */
     rb_gv_set("MKXP", Qtrue);
 
-    VALUE debug = rb_bool_new(CONFIG.editor.debug);
+    VALUE debug = rb_bool_new(shState->config()->editor.debug);
 #if RGSS_VERSION == 1
     rb_gv_set("DEBUG", debug);
 #elif RGSS_VERSION >= 2
     rb_gv_set("TEST", debug);
 #endif
 
-    rb_gv_set("BTEST", rb_bool_new(CONFIG.editor.battleTest));
+    rb_gv_set("BTEST", rb_bool_new(shState->config()->editor.battleTest));
 
 #ifdef MKXPZ_BUILD_XCODE
     std::string version = std::string(MKXPZ_VERSION "/") + getPlistValue("GIT_COMMIT_HASH");
@@ -355,14 +360,14 @@ static_assert(false, "Invalid RGSS Version");
     // Set $stdout and its ilk accordingly on Windows
     // I regret teaching you that word
 #ifdef __WIN32__
-    if (CONFIG.winConsole)
+    if (shState->config()->winConsole)
         configureWindowsStreams();
 #endif
 }
 }
 
 static void showMsg(const std::string &msg) {
-    EVENT_THREAD.showMessageBox(msg.c_str());
+    shState->eThread().showMessageBox(msg.c_str());
 }
 
 static void printP(int argc, VALUE *argv, const char *convMethod,
@@ -400,16 +405,16 @@ RB_METHOD(mriP) {
 
 RB_METHOD(mkxpDelta) {
     RB_UNUSED_PARAM;
-    return rb_float_new(TIME_MANAGER.runTime());
+    return rb_float_new(shState->runTime());
 }
 
 RB_METHOD(mkxpDataDirectory) {
     RB_UNUSED_PARAM;
 
-    const std::string &path = CONFIG.customDataPath;
+    const std::string &path = shState->config()->customDataPath;
     const char *s = path.empty() ? "." : path.c_str();
 
-    std::string s_nml = FILESYSTEM.normalize(s, 1, 1);
+    std::string s_nml = shState->filesystem()->normalize(s, 1, 1);
     VALUE ret = rb_utf8_str_new_cstr(s_nml.c_str());
 
     return ret;
@@ -422,7 +427,7 @@ RB_METHOD(mkxpSetTitle) {
     rb_scan_args(argc, argv, "1", &s);
     SafeStringValue(s);
 
-    EVENT_THREAD.requestWindowRename(RSTRING_PTR(s));
+    shState->eThread().requestWindowRename(RSTRING_PTR(s));
     return s;
 }
 
@@ -431,7 +436,7 @@ RB_METHOD(mkxpGetTitle) {
 
     rb_check_argc(argc, 0);
 
-    return rb_utf8_str_new_cstr(SDL_GetWindowTitle(DISPLAY_MANAGER.getSdlWindow()));
+    return rb_utf8_str_new_cstr(SDL_GetWindowTitle(shState->sdlWindow().get()));
 }
 
 RB_METHOD(mkxpDesensitize) {
@@ -442,7 +447,7 @@ RB_METHOD(mkxpDesensitize) {
     SafeStringValue(filename);
 
     return rb_utf8_str_new_cstr(
-            FILESYSTEM.desensitize(RSTRING_PTR(filename)));
+            shState->filesystem()->desensitize(RSTRING_PTR(filename)));
 }
 
 RB_METHOD(mkxpPuts) {
@@ -552,7 +557,7 @@ RB_METHOD(mkxpUserName) {
 RB_METHOD(mkxpGameTitle) {
     RB_UNUSED_PARAM;
 
-    return rb_utf8_str_new_cstr(CONFIG.game.title.c_str());
+    return rb_utf8_str_new_cstr(shState->config()->game.title.c_str());
 }
 
 RB_METHOD(mkxpPowerState) {
@@ -578,7 +583,7 @@ RB_METHOD(mkxpPowerState) {
 RB_METHOD(mkxpSettingsMenu) {
     RB_UNUSED_PARAM;
 
-    EVENT_THREAD.requestSettingsMenu();
+    shState->eThread().requestSettingsMenu();
 
     return Qnil;
 }
@@ -598,7 +603,7 @@ RB_METHOD(mkxpSystemMemory) {
 RB_METHOD(mkxpReloadPathCache) {
     RB_UNUSED_PARAM;
 
-    FILESYSTEM.reloadPathCache();
+    shState->filesystem()->reloadPathCache();
     return Qnil;
 }
 
@@ -617,7 +622,7 @@ RB_METHOD(mkxpAddPath) {
         if (reload != Qnil)
             rb_bool_arg(reload, &rl);
 
-        FILESYSTEM.addPath(RSTRING_PTR(path), mp, rl);
+        shState->filesystem()->addPath(RSTRING_PTR(path), mp, rl);
     } catch (Exception &e) {
         raiseRbExc(e);
     }
@@ -636,7 +641,7 @@ RB_METHOD(mkxpRemovePath) {
         if (reload != Qnil)
             rb_bool_arg(reload, &rl);
 
-        FILESYSTEM.removePath(RSTRING_PTR(path), rl);
+        shState->filesystem()->removePath(RSTRING_PTR(path), rl);
     } catch (Exception &e) {
         raiseRbExc(e);
     }
@@ -650,7 +655,7 @@ RB_METHOD(mkxpFileExists) {
     rb_scan_args(argc, argv, "1", &path);
     SafeStringValue(path);
 
-    if (FILESYSTEM.exists(RSTRING_PTR(path)))
+    if (shState->filesystem()->exists(RSTRING_PTR(path)))
         return Qtrue;
     return Qfalse;
 }
@@ -663,7 +668,7 @@ RB_METHOD(mkxpSetDefaultFontFamily) {
     SafeStringValue(familyV);
 
     std::string family(RSTRING_PTR(familyV));
-    FONT_STATE.setDefaultFontFamily(family);
+    shState->fontState().setDefaultFontFamily(family);
 
     return Qnil;
 }
@@ -751,7 +756,7 @@ RB_METHOD(mkxpLaunch) {
 
 json5pp::value loadUserSettings() {
     json5pp::value ret;
-    VALUE cpath = rb_utf8_str_new_cstr(CONFIG.userConfPath.c_str());
+    VALUE cpath = rb_utf8_str_new_cstr(shState->config()->userConfPath.c_str());
 
     if (rb_funcall(rb_cFile, rb_intern("exists?"), 1, cpath) == Qtrue) {
         VALUE f = rb_funcall(rb_cFile, rb_intern("open"), 2, cpath, rb_str_new("r", 1));
@@ -767,7 +772,7 @@ json5pp::value loadUserSettings() {
 }
 
 void saveUserSettings(json5pp::value &settings) {
-    VALUE cpath = rb_utf8_str_new_cstr(CONFIG.userConfPath.c_str());
+    VALUE cpath = rb_utf8_str_new_cstr(shState->config()->userConfPath.c_str());
     VALUE f = rb_funcall(rb_cFile, rb_intern("open"), 2, cpath, rb_str_new("w", 1));
     rb_funcall(f, rb_intern("write"), 1,
                rb_utf8_str_new_cstr(settings.stringify5(json5pp::rule::space_indent<>()).c_str()));
@@ -786,7 +791,7 @@ RB_METHOD(mkxpGetJSONSetting) {
     auto &s = settings.as_object();
 
     if (s[RSTRING_PTR(sname)].is_null()) {
-        return json2rb(CONFIG.raw.as_object()[RSTRING_PTR(sname)]);
+        return json2rb(shState->config()->raw.as_object()[RSTRING_PTR(sname)]);
     }
 
     return json2rb(s[RSTRING_PTR(sname)]);
@@ -811,7 +816,7 @@ RB_METHOD(mkxpSetJSONSetting) {
 RB_METHOD(mkxpGetAllJSONSettings) {
     RB_UNUSED_PARAM;
 
-    return json2rb(CONFIG.raw);
+    return json2rb(shState->config()->raw);
 }
  */
 
@@ -829,11 +834,11 @@ static VALUE rgssMainRescue(VALUE arg, VALUE exc) {
 }
 
 static void processReset() {
-    GRAPHICS.reset();
-    AUDIO.reset();
+    shState->graphics().reset();
+    shState->audio().reset();
 
-    RGSS_THREAD_DATA.rqReset.clear();
-    GRAPHICS.repaintWait(RGSS_THREAD_DATA.rqResetFinish, false);
+    shState->rtData()->rqReset.clear();
+    shState->graphics().repaintWait(shState->rtData()->rqResetFinish, false);
 }
 
 RB_METHOD(mriRgssMain) {
@@ -866,7 +871,7 @@ RB_METHOD(mriRgssStop) {
     RB_UNUSED_PARAM;
 
     while (true)
-        GRAPHICS.update();
+        shState->graphics().update();
 
     return Qnil;
 }
@@ -946,7 +951,7 @@ bool evalScript(VALUE string, const char *filename) {
 #define SCRIPT_SECTION_FMT (rgssVer >= 3 ? "{%04ld}" : "Section%03ld")
 
 static void runRMXPScripts(BacktraceData &btData) {
-    const Config &conf = RGSS_THREAD_DATA.config;
+    const Config &conf = *shState->rtData()->config;
     const std::string &scriptPack = conf.game.scripts;
 
     if (scriptPack.empty()) {
@@ -954,7 +959,7 @@ static void runRMXPScripts(BacktraceData &btData) {
         return;
     }
 
-    if (!FILESYSTEM.exists(scriptPack.c_str())) {
+    if (!shState->filesystem()->exists(scriptPack.c_str())) {
         showMsg("Unable to load scripts from '" + scriptPack + "'");
         return;
     }

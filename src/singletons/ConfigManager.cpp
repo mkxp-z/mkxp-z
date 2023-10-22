@@ -5,9 +5,7 @@
 #include "ConfigManager.h"
 
 #include "config.h"
-#include "font.h"
 #include "filesystem.h"
-#include "sharedmidistate.h"
 
 ConfigManager::ConfigManager() = default;
 ConfigManager::~ConfigManager() = default;
@@ -18,30 +16,15 @@ ConfigManager &ConfigManager::getInstance() {
 }
 
 void ConfigManager::initConfig(const std::string &appName, const std::vector<std::string> &args) {
-    m_config = std::make_unique<Config>();
-    m_fontState = std::make_unique<SharedFontState>(*m_config);
-    m_defaultFont = std::make_unique<Font>();
-    m_fileSystem = std::make_unique<FileSystem>(appName.data(), m_config->allowSymlinks);
-    m_midiState = std::make_unique<SharedMidiState>(*m_config);
+    m_config = std::make_shared<Config>();
+    m_filesystem = std::make_shared<FileSystem>(appName.data(), m_config->allowSymlinks);
     m_config->read(args);
 }
 
-Config &ConfigManager::getConfig() {
-    return *m_config;
+std::shared_ptr<Config> ConfigManager::getConfig() {
+    return m_config;
 }
 
-Font &ConfigManager::defaultFont() const {
-    return *m_defaultFont;
-}
-
-SharedFontState &ConfigManager::getFontState() {
-    return *m_fontState;
-}
-
-FileSystem &ConfigManager::getFileSystem() {
-    return *m_fileSystem;
-}
-
-SharedMidiState &ConfigManager::getMidiState() {
-    return *m_midiState;
+std::shared_ptr<FileSystem> ConfigManager::getfilesystem() {
+    return m_filesystem;
 }

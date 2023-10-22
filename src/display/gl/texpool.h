@@ -23,22 +23,26 @@
 #define TEXPOOL_H
 
 #include "gl-util.h"
+#include "ITexPool.h"
+
+#include <memory>
 
 struct TexPoolPrivate;
 
-class TexPool
-{
+class TexPool : public ITexPool {
 public:
-	TexPool(uint32_t maxMemSize = 20000000 /* 20 MB */);
-	~TexPool();
+    explicit TexPool(uint32_t maxMemSize = 20000000 /* 20 MB */);
 
-	TEXFBO request(int width, int height);
-	void release(TEXFBO &obj);
+    ~TexPool() override;
 
-	void disable();
+    TEXFBO request(int width, int height) override;
+
+    void release(TEXFBO &obj) override;
+
+    void disable() override;
 
 private:
-	TexPoolPrivate *p;
+    std::unique_ptr<TexPoolPrivate> p;
 };
 
 #endif // TEXPOOL_H

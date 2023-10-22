@@ -6,7 +6,9 @@
 
 #include <memory>
 
+/*
 #define TIME_MANAGER TimeManager::getInstance()
+ */
 
 class TimeManagerPrivate;
 

@@ -105,7 +105,7 @@ json::value readConfFile(const char *path) {
     
     try {
         std::string cfg = mkxp_fs::contentsOfFileAsString(path);
-        ret = json::parse5(Encoding::convertString(cfg));
+        ret = json::parse5(cfg);
     }
     catch (const std::exception &e) {
         Debug() << "Failed to parse" << path << ":" << e.what();
@@ -372,17 +372,36 @@ void Config::readGameINI() {
     catch (const Exception &e) {
         Debug() << iniFileName + ": Could not determine encoding of Game.Title";
     }
-    
+
     if (game.title.empty() || !convSuccess)
         game.title = "mkxp-z";
-    
+
     if (dataPathOrg.empty())
         dataPathOrg = ".";
-    
+
     if (dataPathApp.empty())
         dataPathApp = game.title;
-    
+
     customDataPath = mkxp_fs::normalizePath(prefPath(dataPathOrg.c_str(), dataPathApp.c_str()).c_str(), 0, 1);
-    
+
+    if (rgssVersion == 0) {
+        /* Try to guess RGSS version based on Data/Scripts extension */
+        rgssVersion = 1;
+
+        if (!game.scripts.empty()) {
+            const char *p = &game.scripts[game.scripts.size()];
+            const char *head = &game.scripts[0];
+
+            while (--p != head)
+                if (*p == '.')
+                    break;
+
+            if (!strcmp(p, ".rvdata"))
+                rgssVersion = 2;
+            else if (!strcmp(p, ".rvdata2"))
+                rgssVersion = 3;
+        }
+    }
+
     setupScreenSize(*this);
 }

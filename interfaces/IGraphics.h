@@ -6,6 +6,8 @@
 
 #include "util.h"
 
+#include <memory>
+
 class Scene;
 
 class Bitmap;
@@ -97,7 +99,7 @@ public:
     virtual double averageFrameRate() = 0;
 
     /* <internal> */
-    virtual Scene *getScreen() const = 0;
+    virtual std::shared_ptr<Scene> getScreen() const = 0;
 
     /* Repaint screen with static image until exitCond
      * is set. Observes reset flag on top of shutdown

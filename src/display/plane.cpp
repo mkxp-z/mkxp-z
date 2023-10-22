@@ -74,7 +74,7 @@ struct PlanePrivate
 	      zoomX(1), zoomY(1),
 	      quadSourceDirty(false)
 	{
-        prepareCon = DISPLAY_MANAGER.prepareDraw.connect
+        prepareCon = shState->prepareDraw.connect
                 (&PlanePrivate::prepare, this);
 
 		qArray.resize(1);
@@ -263,7 +263,7 @@ void Plane::draw()
 
 	if (p->color->hasEffect() || p->tone->hasEffect() || p->opacity != 255)
 	{
-        PlaneShader &shader = SHADERS.plane;
+        PlaneShader &shader = shState->shaders().plane;
 
 		shader.bind();
 		shader.applyViewportProj();
@@ -273,9 +273,8 @@ void Plane::draw()
 		shader.setOpacity(p->opacity.norm);
 
 		base = &shader;
-	}
-	else {
-        SimpleShader &shader = SHADERS.simple;
+	} else {
+        SimpleShader &shader = shState->shaders().simple;
 
         shader.bind();
         shader.applyViewportProj();
@@ -284,7 +283,7 @@ void Plane::draw()
         base = &shader;
     }
 
-    GL_STATE.blendMode.pushSet(p->blendType);
+    shState->_glState().blendMode.pushSet(p->blendType);
 
     p->bitmap->bindTex(*base);
 
@@ -296,7 +295,7 @@ void Plane::draw()
     if (gl.npot_repeat)
         TEX::setRepeat(false);
 
-    GL_STATE.blendMode.pop();
+    shState->_glState().blendMode.pop();
 }
 
 void Plane::onGeometryChange(const Scene::Geometry &geo)

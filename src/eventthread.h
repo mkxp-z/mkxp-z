@@ -32,6 +32,8 @@
 #include "keybindings.h"
 #include "ISyncPoint.h"
 #include "AbstractEventThread.h"
+#include "SDL_Instance.h"
+#include "filesystem.h"
 
 struct RGSSThreadData;
 typedef struct MKXPZ_ALCDEVICE ALCdevice;
@@ -40,7 +42,7 @@ union SDL_Event;
 
 class EventThread : public AbstractEventThread {
 public:
-    void lockText(bool lock) override;
+	void lockText(bool lock) override;
 
 
     static bool allocUserEvents();
@@ -215,48 +217,55 @@ struct RGSSThreadData
 	/* Set when F12 is released */
 	AtomicFlag rqResetFinish;
 
-    // Set when window is being adjusted (resize, reposition)
-    AtomicFlag rqWindowAdjust;
+	// Set when window is being adjusted (resize, reposition)
+	AtomicFlag rqWindowAdjust;
 
-	EventThread *ethread;
+	std::shared_ptr<AbstractEventThread> ethread;
 	UnidirMessage<Vec2i> windowSizeMsg;
-    UnidirMessage<Vec2i> drawableSizeMsg;
-    UnidirMessage<BDescVec> bindingUpdateMsg;
-    std::unique_ptr<ISyncPoint> syncPoint;
+	UnidirMessage<Vec2i> drawableSizeMsg;
+	UnidirMessage<BDescVec> bindingUpdateMsg;
+	std::shared_ptr<ISyncPoint> syncPoint;
+	std::shared_ptr<SDL_Instance> sdlInstance;
 
 	const char *argv0;
 
-	SDL_Window *window;
-	ALCdevice *alcDev;
+	std::shared_ptr<SDL_Window> window;
+	std::shared_ptr<ALCdevice> alcDev;
 
-    SDL_GLContext glContext;
+	SDL_GLContext glContext;
 
 	Vec2 sizeResoRatio;
 	Vec2i screenOffset;
-    int scale;
+	int scale;
 	const int refreshRate;
 
-	Config config;
+	std::shared_ptr<Config> config;
+	std::shared_ptr<FileSystem> filesystem;
 
 	std::string rgssErrorMsg;
 
-	RGSSThreadData(EventThread *ethread,
-	               const char *argv0,
-	               SDL_Window *window,
-	               ALCdevice *alcDev,
-	               int refreshRate,
-                   int scalingFactor,
-	               const Config& newconf,
-                   SDL_GLContext ctx)
-	    : ethread(ethread),
-	      argv0(argv0),
-	      window(window),
-	      alcDev(alcDev),
-	      sizeResoRatio(1, 1),
-	      refreshRate(refreshRate),
-          scale(scalingFactor),
-	      config(newconf),
-          glContext(ctx)
+	RGSSThreadData(std::shared_ptr<AbstractEventThread> ethread,
+				   const char *argv0,
+				   std::shared_ptr<SDL_Window> window,
+				   std::shared_ptr<ALCdevice> alcDev,
+				   int refreshRate,
+				   int scalingFactor,
+				   std::shared_ptr<Config> newconf,
+				   std::shared_ptr<FileSystem> fs,
+				   std::shared_ptr<SDL_Instance> sdl,
+				   SDL_GLContext ctx)
+			: ethread(ethread),
+			  argv0(argv0),
+			  window(window),
+			  alcDev(alcDev),
+			  syncPoint(std::make_shared<SyncPoint>()),
+			  sdlInstance(sdl),
+			  sizeResoRatio(1, 1),
+			  refreshRate(refreshRate),
+			  scale(scalingFactor),
+			  config(newconf),
+			  filesystem(fs),
+			  glContext(ctx)
 	{}
 };
 

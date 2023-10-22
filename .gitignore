@@ -78,3 +78,4 @@ cmake-build-release/
 cmake/conan/
 cmake-build-debug/
 ext/
+cmake-build-relwithdebinfo/

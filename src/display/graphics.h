@@ -103,7 +103,7 @@ public:
     double averageFrameRate() override;
 
     /* <internal> */
-    Scene *getScreen() const override;
+    std::shared_ptr<Scene> getScreen() const override;
 
     /* Repaint screen with static image until exitCond
      * is set. Observes reset flag on top of shutdown
@@ -118,6 +118,8 @@ public:
 private:
     explicit Graphics(RGSSThreadData *data);
 
+    ~Graphics() override;
+
 protected:
     void addDisposable(Disposable *) override;
 
@@ -130,10 +132,12 @@ private:
 
     friend class DisplayManager;
 
+    friend std::unique_ptr<Graphics>::deleter_type;
+
     std::unique_ptr<GraphicsPrivate> p;
 };
 
-#define GFX_LOCK GRAPHICS.lock()
-#define GFX_UNLOCK GRAPHICS.unlock()
+#define GFX_LOCK shState->graphics().lock()
+#define GFX_UNLOCK shState->graphics().unlock()
 
 #endif // GRAPHICS_H

@@ -32,7 +32,7 @@ private:
     SDL_Instance();
 
 public:
-    static std::unique_ptr<SDL_Instance> create(Uint32 flags);
+    static std::shared_ptr<SDL_Instance> create(Uint32 flags);
 
     bool initIMG(int flags);
     bool initTTF();

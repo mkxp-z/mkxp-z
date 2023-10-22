@@ -14,5 +14,8 @@ int main(int argc, char **argv) {
     ruby_init();
 
     initBindings();
+
+    rb_eval_string("MKXP_Z.init_game_state");
+
     return 0;
 }

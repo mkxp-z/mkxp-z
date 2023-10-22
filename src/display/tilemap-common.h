@@ -118,7 +118,7 @@ struct FlashMap
 	      allocQuads(0)
 	{
         vao.vbo = VBO::gen();
-        vao.ibo = DISPLAY_MANAGER.globalIBO().ibo;
+        vao.ibo = shState->globalIBO().ibo;
         GLMeta::vaoFillInVertexData<CVertex>(vao);
 
 		GLMeta::vaoInit(vao);
@@ -175,9 +175,9 @@ struct FlashMap
             return;
 
         GLMeta::vaoBind(vao);
-        GL_STATE.blendMode.pushSet(BlendAddition);
+        shState->_glState().blendMode.pushSet(BlendAddition);
 
-        FlashMapShader &shader = SHADERS.flashMap;
+        FlashMapShader &shader = shState->shaders().flashMap;
         shader.bind();
         shader.applyViewportProj();
         shader.setAlpha(alpha);
@@ -185,7 +185,7 @@ struct FlashMap
 
         gl.DrawElements(GL_TRIANGLES, count * 6, _GL_INDEX_TYPE, 0);
 
-        GL_STATE.blendMode.pop();
+        shState->_glState().blendMode.pop();
 
         GLMeta::vaoUnbind(vao);
     }
@@ -249,7 +249,7 @@ private:
 
 		VBO::bind(vao.vbo);
 
-		if (quadCount() > allocQuads) {
+        if (quadCount() > allocQuads) {
             allocQuads = quadCount();
             VBO::allocEmpty(sizeof(CVertex) * vertices.size());
         }
@@ -259,7 +259,7 @@ private:
         VBO::unbind();
 
         /* Ensure global IBO size */
-        DISPLAY_MANAGER.ensureQuadIBO(quadCount());
+        shState->ensureQuadIBO(quadCount());
     }
 
 	bool dirty;

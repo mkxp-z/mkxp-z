@@ -22,6 +22,7 @@
 #include "binding-util.h"
 #include "exception.h"
 #include "AudioManager.h"
+#include "sharedstate.h"
 
 #define DEF_PLAY_STOP_POS(entity) \
     RB_METHOD(audio_##entity##Play) \
@@ -32,19 +33,19 @@
         int pitch = 100; \
         double pos = 0.0; \
         rb_get_args(argc, argv, "z|iif", &filename, &volume, &pitch, &pos RB_ARG_END); \
-        GUARD_EXC( AUDIO.entity##Play(filename, volume, pitch, pos); ) \
+        GUARD_EXC( shState->audio().entity##Play(filename, volume, pitch, pos); ) \
         return Qnil; \
     } \
     RB_METHOD(audio_##entity##Stop) \
     { \
         RB_UNUSED_PARAM; \
-        AUDIO.entity##Stop(); \
+        shState->audio().entity##Stop(); \
         return Qnil; \
     } \
     RB_METHOD(audio_##entity##Pos) \
     { \
         RB_UNUSED_PARAM; \
-        return rb_float_new(AUDIO.entity##Pos()); \
+        return rb_float_new(shState->audio().entity##Pos()); \
     }
 
 #define DEF_PLAY_STOP(entity) \
@@ -55,13 +56,13 @@
         int volume = 100; \
         int pitch = 100; \
         rb_get_args(argc, argv, "z|ii", &filename, &volume, &pitch RB_ARG_END); \
-        GUARD_EXC( AUDIO.entity##Play(filename, volume, pitch); ) \
+        GUARD_EXC( shState->audio().entity##Play(filename, volume, pitch); ) \
         return Qnil; \
     } \
     RB_METHOD(audio_##entity##Stop) \
     { \
         RB_UNUSED_PARAM; \
-        AUDIO.entity##Stop(); \
+        shState->audio().entity##Stop(); \
         return Qnil; \
     }
 
@@ -71,7 +72,7 @@ RB_METHOD(audio_##entity##Fade) \
     RB_UNUSED_PARAM; \
     int time; \
     rb_get_args(argc, argv, "i", &time RB_ARG_END); \
-    AUDIO.entity##Fade(time); \
+    shState->audio().entity##Fade(time); \
     return Qnil; \
 }
 
@@ -79,7 +80,7 @@ RB_METHOD(audio_##entity##Fade) \
     RB_METHOD(audio_##entity##Pos) \
     { \
         RB_UNUSED_PARAM; \
-        return rb_float_new(AUDIO.entity##Pos()); \
+        return rb_float_new(shState->audio().entity##Pos()); \
     }
 
 // DEF_PLAY_STOP_POS( bgm )
@@ -95,7 +96,7 @@ RB_METHOD(audio_bgmPlay)
     double pos = 0.0;
     VALUE track = Qnil;
     rb_get_args(argc, argv, "z|iifo", &filename, &volume, &pitch, &pos, &track RB_ARG_END);
-    GUARD_EXC(AUDIO.bgmPlay(filename, volume, pitch, pos, MAYBE_NIL_TRACK(track));)
+    GUARD_EXC(shState->audio().bgmPlay(filename, volume, pitch, pos, MAYBE_NIL_TRACK(track));)
     return Qnil;
 }
 
@@ -103,7 +104,7 @@ RB_METHOD(audio_bgmStop) {
     RB_UNUSED_PARAM;
     VALUE track = Qnil;
     rb_get_args(argc, argv, "|o", &track RB_ARG_END);
-    AUDIO.bgmStop(MAYBE_NIL_TRACK(track));
+    shState->audio().bgmStop(MAYBE_NIL_TRACK(track));
     return Qnil;
 }
 
@@ -112,7 +113,7 @@ RB_METHOD(audio_bgmPos)
     RB_UNUSED_PARAM;
     VALUE track = Qnil;
     rb_get_args(argc, argv, "|o", &track RB_ARG_END);
-    return rb_float_new(AUDIO.bgmPos(MAYBE_NIL_TRACK(track)));
+    return rb_float_new(shState->audio().bgmPos(MAYBE_NIL_TRACK(track)));
 }
 
 RB_METHOD(audio_bgmGetVolume)
@@ -121,7 +122,7 @@ RB_METHOD(audio_bgmGetVolume)
     VALUE track = Qnil;
     rb_get_args(argc, argv, "|o", &track RB_ARG_END);
     int ret = 0;
-    GUARD_EXC(ret = AUDIO.bgmGetVolume(MAYBE_NIL_TRACK(track));)
+    GUARD_EXC(ret = shState->audio().bgmGetVolume(MAYBE_NIL_TRACK(track));)
     return rb_fix_new(ret);
 }
 
@@ -131,7 +132,7 @@ RB_METHOD(audio_bgmSetVolume)
     int volume;
     VALUE track = Qnil;
     rb_get_args(argc, argv, "i|o", &volume, &track RB_ARG_END);
-    GUARD_EXC(AUDIO.bgmSetVolume(volume, MAYBE_NIL_TRACK(track));)
+    GUARD_EXC(shState->audio().bgmSetVolume(volume, MAYBE_NIL_TRACK(track));)
     return Qnil;
 }
 
@@ -145,7 +146,7 @@ RB_METHOD(audio_bgmFade) {
     int time;
     VALUE track = Qnil;
     rb_get_args(argc, argv, "i|o", &time, &track RB_ARG_END);
-    AUDIO.bgmFade(time, MAYBE_NIL_TRACK(track));
+    shState->audio().bgmFade(time, MAYBE_NIL_TRACK(track));
     return Qnil;
 }
 
@@ -157,7 +158,7 @@ DEF_PLAY_STOP( se )
 RB_METHOD(audioSetupMidi) {
     RB_UNUSED_PARAM;
 
-    AUDIO.setupMidi();
+    shState->audio().setupMidi();
 
     return Qnil;
 }
@@ -165,7 +166,7 @@ RB_METHOD(audioSetupMidi) {
 RB_METHOD(audioReset) {
     RB_UNUSED_PARAM;
 
-    AUDIO.reset();
+    shState->audio().reset();
 
     return Qnil;
 }

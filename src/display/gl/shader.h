@@ -81,7 +81,7 @@ public:
 	/* Stack is not used (only 'set()') */
 	GLProjMat projMat;
 
-	/* Retrieves the current GL_STATE.viewport size,
+	/* Retrieves the current shState->_glState().viewport size,
 	 * calculates the corresponding ortho projection matrix
 	 * and loads it into the shaders uniform */
 	void applyViewportProj();

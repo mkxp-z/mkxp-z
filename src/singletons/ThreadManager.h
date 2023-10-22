@@ -7,9 +7,18 @@
 
 #include <memory>
 
+/*
 #define THREAD_MANAGER ThreadManager::getInstance()
-#define RGSS_THREAD_DATA ThreadManager::getInstance().getThreadData()
-#define EVENT_THREAD ThreadManager::getInstance().getEventThread()
+#define *shState->rtData() ThreadManager::getInstance().getThreadData()
+#define shState->eThread() ThreadManager::getInstance().getEventThread()
+ */
+
+class SDL_Instance;
+
+#if defined(__WIN32__)
+struct WSAData;
+#endif
+
 
 class ThreadManager {
     ThreadManager();
@@ -19,19 +28,19 @@ class ThreadManager {
 public:
     static ThreadManager &getInstance();
 
-    RGSSThreadData &getThreadData() const;
+    bool init();
 
-    AbstractEventThread &getEventThread() const;
-
-    /* Checks EventThread's shutdown request flag and if set,
-	 * requests the binding to terminate. In this case, this
-	 * function will most likely not return */
-    void checkShutdown();
-
-    void checkReset();
+    bool isInitialized();
 
 private:
-    std::unique_ptr<RGSSThreadData> m_threadData;
 
-    std::unique_ptr<AbstractEventThread> m_eventThread;
+    bool m_initialized = false;
+    std::shared_ptr<RGSSThreadData> m_threadData;
+    std::shared_ptr<SDL_Instance> m_sdl;
+
+    std::shared_ptr<AbstractEventThread> m_eventThread;
+
+#if defined(__WIN32__)
+    std::unique_ptr<WSAData> wsadata;
+#endif
 };

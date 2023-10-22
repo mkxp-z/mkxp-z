@@ -88,7 +88,12 @@ public:
 private:
     explicit Audio(RGSSThreadData &rtData);
 
+    ~Audio() override;
+
+    friend class AudioManager;
+
     friend struct SharedStatePrivate;
+    friend std::unique_ptr<Audio>::deleter_type;
 
     std::unique_ptr<AudioPrivate> p;
 };

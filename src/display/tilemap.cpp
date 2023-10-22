@@ -374,7 +374,7 @@ struct TilemapPrivate
 
 		GLMeta::vaoFillInVertexData<SVertex>(tiles.vao);
         tiles.vao.vbo = tiles.vbo;
-        tiles.vao.ibo = DISPLAY_MANAGER.globalIBO().ibo;
+        tiles.vao.ibo = shState->globalIBO().ibo;
 
 		GLMeta::vaoInit(tiles.vao);
 
@@ -383,7 +383,7 @@ struct TilemapPrivate
 		for (size_t i = 0; i < zlayersMax; ++i)
 			elem.zlayers[i] = new ZLayer(this, viewport);
 
-        prepareCon = DISPLAY_MANAGER.prepareDraw.connect
+        prepareCon = shState->prepareDraw.connect
                 (&TilemapPrivate::prepare, this);
 
 		updateFlashMapViewport();
@@ -395,7 +395,7 @@ struct TilemapPrivate
         for (size_t i = 0; i < zlayersMax; ++i)
             delete elem.zlayers[i];
 
-        DISPLAY_MANAGER.releaseAtlasTex(atlas.gl);
+        shState->releaseAtlasTex(atlas.gl);
 
         /* Destroy tile buffers */
         GLMeta::vaoFini(tiles.vao);
@@ -405,7 +405,7 @@ struct TilemapPrivate
         tilesetCon.disconnect();
         for (int i = 0; i < autotileCount; ++i) {
             autotilesCon[i].disconnect();
-			autotilesDispCon[i].disconnect();
+            autotilesDispCon[i].disconnect();
 		}
 		mapDataCon.disconnect();
 		prioritiesCon.disconnect();
@@ -429,7 +429,7 @@ struct TilemapPrivate
 		int tsH = tileset->height();
 		atlas.efTilesetH = tsH - (tsH % 32);
 
-        atlas.size = TileAtlas::minSize(atlas.efTilesetH, GL_STATE.caps.maxTexSize);
+        atlas.size = TileAtlas::minSize(atlas.efTilesetH, shState->_glState().caps.maxTexSize);
 
 		if (atlas.size.x < 0)
 			throw Exception(Exception::MKXPError,
@@ -511,8 +511,8 @@ struct TilemapPrivate
         updateAtlasInfo();
 
         /* Aquire atlas tex */
-        DISPLAY_MANAGER.releaseAtlasTex(atlas.gl);
-        DISPLAY_MANAGER.requestAtlasTex(atlas.size.x, atlas.size.y, atlas.gl);
+        shState->releaseAtlasTex(atlas.gl);
+        shState->requestAtlasTex(atlas.size.x, atlas.size.y, atlas.gl);
 
         atlasDirty = true;
     }
@@ -526,13 +526,13 @@ struct TilemapPrivate
 
         /* Clear atlas */
         FBO::bind(atlas.gl.fbo);
-        GL_STATE.clearColor.pushSet(Vec4());
-        GL_STATE.scissorTest.pushSet(false);
+        shState->_glState().clearColor.pushSet(Vec4());
+        shState->_glState().scissorTest.pushSet(false);
 
         FBO::clear();
 
-        GL_STATE.scissorTest.pop();
-        GL_STATE.clearColor.pop();
+        shState->_glState().scissorTest.pop();
+        shState->_glState().clearColor.pop();
 
         GLMeta::blitBegin(atlas.gl);
 
@@ -542,7 +542,7 @@ struct TilemapPrivate
             Bitmap *autotile = autotiles[atInd];
             autotile->ensureNonAnimated();
 
-			int atW = autotile->width();
+            int atW = autotile->width();
 			int atH = autotile->height();
 			int blitW = std::min(atW, atAreaW);
 			int blitH = std::min(atH, autotileH);
@@ -582,25 +582,25 @@ struct TilemapPrivate
 			/* Mega surface tileset */
 			SDL_Surface *tsSurf = tileset->megaSurface();
 
-			if (CONFIG.subImageFix) {
+            if (shState->config()->subImageFix) {
                 /* Implementation for broken GL drivers */
                 FBO::bind(atlas.gl.fbo);
-                GL_STATE.blend.pushSet(false);
-                GL_STATE.viewport.pushSet(IntRect(0, 0, atlas.size.x, atlas.size.y));
+                shState->_glState().blend.pushSet(false);
+                shState->_glState().viewport.pushSet(IntRect(0, 0, atlas.size.x, atlas.size.y));
 
-                SimpleShader &shader = SHADERS.simple;
+                SimpleShader &shader = shState->shaders().simple;
                 shader.bind();
                 shader.applyViewportProj();
                 shader.setTranslation(Vec2i());
 
-                Quad &quad = DISPLAY_MANAGER.gpQuad();
+                Quad &quad = shState->gpQuad();
 
                 for (size_t i = 0; i < blits.size(); ++i) {
                     const TileAtlas::Blit &blitOp = blits[i];
 
                     Vec2i texSize;
-                    DISPLAY_MANAGER.ensureTexSize(tsLaneW, blitOp.h, texSize);
-                    DISPLAY_MANAGER.bindTex();
+                    shState->ensureTexSize(tsLaneW, blitOp.h, texSize);
+                    shState->bindTex();
                     GLMeta::subRectImageUpload(tsSurf->w, blitOp.src.x, blitOp.src.y,
                                                0, 0, tsLaneW, blitOp.h, tsSurf, GL_RGBA);
 
@@ -612,8 +612,8 @@ struct TilemapPrivate
                 }
 
                 GLMeta::subRectImageEnd();
-                GL_STATE.viewport.pop();
-                GL_STATE.blend.pop();
+                shState->_glState().viewport.pop();
+                shState->_glState().blend.pop();
             }
 			else
 			{
@@ -842,14 +842,14 @@ struct TilemapPrivate
         VBO::unbind();
 
         /* Ensure global IBO size */
-        DISPLAY_MANAGER.ensureQuadIBO(quadCount);
+        shState->ensureQuadIBO(quadCount);
     }
 
 	void bindShader(ShaderBase *&shaderVar)
 	{
 		if (tiles.animated || color->hasEffect() || tone->hasEffect() || opacity != 255)
 		{
-            TilemapShader &tilemapShader = SHADERS.tilemap;
+            TilemapShader &tilemapShader = shState->shaders().tilemap;
 			tilemapShader.bind();
 			tilemapShader.applyViewportProj();
 			tilemapShader.setTone(tone->norm);
@@ -861,7 +861,7 @@ struct TilemapPrivate
 		}
 		else
 		{
-            shaderVar = &SHADERS.simple;
+            shaderVar = &shState->shaders().simple;
             shaderVar->bind();
 		}
 
@@ -1068,7 +1068,7 @@ void GroundLayer::draw()
     p->bindShader(shader);
     p->bindAtlas(*shader);
 
-    GL_STATE.blendMode.pushSet(p->blendType);
+    shState->_glState().blendMode.pushSet(p->blendType);
 
     GLMeta::vaoBind(p->tiles.vao);
 
@@ -1079,7 +1079,7 @@ void GroundLayer::draw()
 
     p->flashMap.draw(flashAlpha[p->flashAlphaIdx] / 255.f, p->dispPos);
 
-    GL_STATE.blendMode.pop();
+    shState->_glState().blendMode.pop();
 }
 
 void GroundLayer::drawInt()
@@ -1121,7 +1121,7 @@ void ZLayer::draw() {
     p->bindShader(shader);
     p->bindAtlas(*shader);
 
-    GL_STATE.blendMode.pushSet(p->blendType);
+    shState->_glState().blendMode.pushSet(p->blendType);
 
     GLMeta::vaoBind(p->tiles.vao);
 
@@ -1130,7 +1130,7 @@ void ZLayer::draw() {
 
     GLMeta::vaoUnbind(p->tiles.vao);
 
-    GL_STATE.blendMode.pop();
+    shState->_glState().blendMode.pop();
 }
 
 void ZLayer::drawInt()

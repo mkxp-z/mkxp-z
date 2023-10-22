@@ -35,6 +35,7 @@
 
 #include "sharedstate.h"
 #include "graphics.h"
+#include "ThreadManager.h"
 
 #ifndef MKXPZ_BUILD_XCODE
 #include "settingsmenu.h"
@@ -109,10 +110,10 @@ static uint32_t usrIdStart;
 bool EventThread::allocUserEvents()
 {
     usrIdStart = SDL_RegisterEvents(EVENT_COUNT);
-    
+
     if (usrIdStart == (uint32_t) -1)
         return false;
-    
+
     return true;
 }
 
@@ -132,28 +133,28 @@ EventThread::~EventThread()
 void EventThread::process(RGSSThreadData &rtData)
 {
     SDL_Event event;
-    SDL_Window *win = rtData.window;
+    SDL_Window *win = rtData.window.get();
     UnidirMessage<Vec2i> &windowSizeMsg = rtData.windowSizeMsg;
     UnidirMessage<Vec2i> &drawableSizeMsg = rtData.drawableSizeMsg;
-    
-    initALCFunctions(rtData.alcDev);
-    
+
+    initALCFunctions(rtData.alcDev.get());
+
     // XXX this function breaks input focus on OSX
 #ifndef __APPLE__
     SDL_SetEventFilter(eventFilter, &rtData);
 #endif
-    
-    fullscreen = rtData.config.fullscreen;
-    int toggleFSMod = rtData.config.anyAltToggleFS ? KMOD_ALT : KMOD_LALT;
-    
-    if (rtData.config.printFPS)
+
+    fullscreen = rtData.config->fullscreen;
+    int toggleFSMod = rtData.config->anyAltToggleFS ? KMOD_ALT : KMOD_LALT;
+
+    if (rtData.config->printFPS)
         fps.sendUpdates.set();
-    
+
     bool displayingFPS = false;
-    
+
     bool cursorInWindow = false;
     /* Will be updated eventually */
-    SDL_Rect gameScreen = { 0, 0, 0, 0 };
+    SDL_Rect gameScreen = {0, 0, 0, 0};
     
     /* SDL doesn't send an initial FOCUS_GAINED event */
     bool windowFocused = true;
@@ -319,16 +320,14 @@ void EventThread::process(RGSSThreadData &rtData)
                     
                     break;
                 }
-                
-                if (event.key.keysym.scancode == SDL_SCANCODE_F1 && rtData.config.enableSettings)
-                {
+
+                if (event.key.keysym.scancode == SDL_SCANCODE_F1 && rtData.config->enableSettings) {
 #ifndef MKXPZ_BUILD_XCODE
-                    if (!sMenu)
-                    {
+                    if (!sMenu) {
                         sMenu = new SettingsMenu(rtData);
                         updateCursorState(false, gameScreen);
                     }
-                    
+
                     sMenu->raise();
 #else
                     openSettingsWindow();
@@ -346,21 +345,21 @@ void EventThread::process(RGSSThreadData &rtData)
                     else
                     {
                         displayingFPS = false;
-                        
-                        if (!rtData.config.printFPS)
+
+                        if (!rtData.config->printFPS)
                             fps.sendUpdates.clear();
                         
                         if (fullscreen)
                         {
                             /* Prevent fullscreen flicker */
-                            strncpy(pendingTitle, rtData.config.windowTitle.c_str(),
+                            strncpy(pendingTitle, rtData.config->windowTitle.c_str(),
                                     sizeof(pendingTitle));
                             havePendingTitle = true;
                             
                             break;
                         }
-                        
-                        SDL_SetWindowTitle(win, rtData.config.windowTitle.c_str());
+
+                        SDL_SetWindowTitle(win, rtData.config->windowTitle.c_str());
                     }
                     
                     break;
@@ -368,7 +367,7 @@ void EventThread::process(RGSSThreadData &rtData)
                 
                 if (event.key.keysym.scancode == SDL_SCANCODE_F12)
                 {
-                    if (!rtData.config.enableReset)
+                    if (!rtData.config->enableReset)
                         break;
                     
                     if (resetting)
@@ -386,7 +385,7 @@ void EventThread::process(RGSSThreadData &rtData)
             case SDL_KEYUP :
                 if (event.key.keysym.scancode == SDL_SCANCODE_F12)
                 {
-                    if (!rtData.config.enableReset)
+                    if (!rtData.config->enableReset)
                         break;
                     
                     resetting = false;
@@ -471,7 +470,7 @@ void EventThread::process(RGSSThreadData &rtData)
                         SDL_SetWindowPosition(win, event.window.data1, event.window.data2);
                         rtData.rqWindowAdjust.clear();
                         break;
-                        
+
                     case REQUEST_WINCENTER :
                         rc = SDL_GetDesktopDisplayMode(SDL_GetWindowDisplayIndex(win), &dm);
                         if (!rc)
@@ -480,15 +479,14 @@ void EventThread::process(RGSSThreadData &rtData)
                                                   (dm.h / 2) - (winH / 2));
                         rtData.rqWindowAdjust.clear();
                         break;
-                        
+
                     case REQUEST_WINRENAME :
-                        rtData.config.windowTitle = (const char*)event.user.data1;
-                        SDL_SetWindowTitle(win, rtData.config.windowTitle.c_str());
+                        rtData.config->windowTitle = (const char *) event.user.data1;
+                        SDL_SetWindowTitle(win, rtData.config->windowTitle.c_str());
                         break;
-                        
+
                     case REQUEST_TEXTMODE :
-                        if (event.user.code)
-                        {
+                        if (event.user.code) {
                             SDL_StartTextInput();
                             lockText(true);
                             textInputBuffer.clear();
@@ -510,11 +508,11 @@ void EventThread::process(RGSSThreadData &rtData)
                         std::string message = copyWithNewlines((const char*) event.user.data1,
                                                                70);
                         SDL_ShowSimpleMessageBox(event.user.code,
-                                                 rtData.config.windowTitle.c_str(),
+                                                 rtData.config->windowTitle.c_str(),
                                                  message.c_str(), win);
 #else
                         SDL_ShowSimpleMessageBox(event.user.code,
-                                                 rtData.config.windowTitle.c_str(),
+                                                 rtData.config->windowTitle.c_str(),
                                                  (const char*)event.user.data1, win);
 #endif
                         free(event.user.data1);
@@ -541,14 +539,14 @@ void EventThread::process(RGSSThreadData &rtData)
                         break;
                         
                     case UPDATE_FPS :
-                        if (rtData.config.printFPS)
+                        if (rtData.config->printFPS)
                             Debug() << "FPS:" << event.user.code;
                         
                         if (!fps.sendUpdates)
                             break;
-                        
+
                         snprintf(buffer, sizeof(buffer), "%s - %d FPS",
-                                 rtData.config.windowTitle.c_str(), event.user.code);
+                                 rtData.config->windowTitle.c_str(), event.user.code);
                         
                         /* Updating the window title in fullscreen
                          * mode seems to cause flickering */
@@ -579,7 +577,7 @@ void EventThread::process(RGSSThreadData &rtData)
     }
     
     /* Just in case */
-    rtData.syncPoint.resumeThreads();
+    rtData.syncPoint->resumeThreads();
     
     if (SDL_GameControllerGetAttached(ctrl))
         SDL_GameControllerClose(ctrl);
@@ -599,9 +597,9 @@ int EventThread::eventFilter(void *data, SDL_Event *event)
             Debug() << "SDL_APP_WILLENTERBACKGROUND";
             
             if (HAVE_ALC_DEVICE_PAUSE)
-                alc.DevicePause(rtData.alcDev);
-            
-            rtData.syncPoint.haltThreads();
+                alc.DevicePause(rtData.alcDev.get());
+
+            rtData.syncPoint->haltThreads();
             
             return 0;
             
@@ -617,9 +615,9 @@ int EventThread::eventFilter(void *data, SDL_Event *event)
             Debug() << "SDL_APP_DIDENTERFOREGROUND";
             
             if (HAVE_ALC_DEVICE_PAUSE)
-                alc.DeviceResume(rtData.alcDev);
-            
-            rtData.syncPoint.resumeThreads();
+                alc.DeviceResume(rtData.alcDev.get());
+
+            rtData.syncPoint->resumeThreads();
             
             return 0;
             
@@ -697,9 +695,8 @@ void EventThread::requestFullscreenMode(bool mode)
     SDL_PushEvent(&event);
 }
 
-void EventThread::requestWindowResize(int width, int height)
-{
-    RGSS_THREAD_DATA.rqWindowAdjust.set();
+void EventThread::requestWindowResize(int width, int height) {
+    shState->rtData()->rqWindowAdjust.set();
     SDL_Event event;
     event.type = usrIdStart + REQUEST_WINRESIZE;
     event.window.data1 = width;
@@ -707,9 +704,8 @@ void EventThread::requestWindowResize(int width, int height)
     SDL_PushEvent(&event);
 }
 
-void EventThread::requestWindowReposition(int x, int y)
-{
-    RGSS_THREAD_DATA.rqWindowAdjust.set();
+void EventThread::requestWindowReposition(int x, int y) {
+    shState->rtData()->rqWindowAdjust.set();
     SDL_Event event;
     event.type = usrIdStart + REQUEST_WINREPOSITION;
     event.window.data1 = x;
@@ -717,9 +713,8 @@ void EventThread::requestWindowReposition(int x, int y)
     SDL_PushEvent(&event);
 }
 
-void EventThread::requestWindowCenter()
-{
-    RGSS_THREAD_DATA.rqWindowAdjust.set();
+void EventThread::requestWindowCenter() {
+    shState->rtData()->rqWindowAdjust.set();
     SDL_Event event;
     event.type = usrIdStart + REQUEST_WINCENTER;
     SDL_PushEvent(&event);
@@ -762,17 +757,17 @@ void EventThread::showMessageBox(const char *body, int flags)
     
     // mkxp has already been asked to quit.
     // Don't break things if the window wants to close
-    if (RGSS_THREAD_DATA.rqTerm)
+    if (shState->rtData()->rqTerm)
         return;
-    
+
     SDL_Event event;
     event.user.code = flags;
     event.user.data1 = strdup(body);
     event.type = usrIdStart + REQUEST_MESSAGEBOX;
     SDL_PushEvent(&event);
-    
+
     /* Keep repainting screen while box is open */
-    GRAPHICS.repaintWait(msgBoxDone);
+    shState->graphics().repaintWait(msgBoxDone);
     /* Prevent endless loops */
     resetInputStates();
 }
@@ -800,7 +795,7 @@ SDL_GameController *EventThread::controller() const
 void EventThread::notifyFrame()
 {
 #ifdef MKXPZ_BUILD_XCODE
-    uint32_t frames = round(GRAPHICS.averageFrameRate());
+    uint32_t frames = round(shState->graphics().averageFrameRate());
     updateTouchBarFPSDisplay(frames);
 #endif
     if (!fps.sendUpdates)
@@ -810,7 +805,7 @@ void EventThread::notifyFrame()
 #ifdef MKXPZ_BUILD_XCODE
     event.user.code = frames;
 #else
-    event.user.code = round(GRAPHICS.averageFrameRate());
+    event.user.code = round(shState->graphics().averageFrameRate());
 #endif
     event.user.type = usrIdStart + UPDATE_FPS;
     SDL_PushEvent(&event);

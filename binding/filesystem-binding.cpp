@@ -57,7 +57,7 @@ static VALUE fileIntForPath(const char *path, bool rubyExc) {
     SDL_RWops *ops = SDL_AllocRW();
     
     try {
-        FILESYSTEM.openReadRaw(*ops, path);
+        shState->filesystem()->openReadRaw(*ops, path);
     } catch (const Exception &e) {
         SDL_FreeRW(ops);
         

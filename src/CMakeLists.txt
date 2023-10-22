@@ -4,9 +4,9 @@ target_sources(mkxp_z PUBLIC
         #main.cpp
         #gamelauncher.cpp
         config.cpp
-        #eventthread.cpp
-        #settingsmenu.cpp
-        #sharedstate.cpp
+        eventthread.cpp
+        settingsmenu.cpp
+        sharedstate.cpp
 
         audio/alstream.cpp
         audio/audio.cpp
@@ -65,12 +65,8 @@ target_sources(mkxp_z PUBLIC
         #net/LUrlParser.cpp
         #net/net.cpp
 
-        singletons/AudioManager.cpp
         singletons/ConfigManager.cpp
-        singletons/DisplayManager.cpp
-        singletons/InputManager.cpp
         singletons/ThreadManager.cpp
-        singletons/TimeManager.cpp
 
         system/systemImpl.cpp)
 
@@ -128,3 +124,6 @@ if (WITH_OPEN_SSL)
             MKXPZ_SSL
             )
 endif ()
+
+
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/mkxpz_global.h DESTINATION ${CMAKE_SOURCE_DIR}/../ext/mkxp_z/include)

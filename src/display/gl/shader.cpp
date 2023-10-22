@@ -123,12 +123,12 @@ Shader::~Shader()
 }
 
 void Shader::bind() {
-    GL_STATE.program.set(program);
+    shState->_glState().program.set(program);
 }
 
 void Shader::unbind() {
     gl.ActiveTexture(GL_TEXTURE0);
-    GL_STATE.program.set(0);
+    shState->_glState().program.set(0);
 }
 
 #ifdef MKXPZ_BUILD_XCODE
@@ -293,7 +293,7 @@ void ShaderBase::init()
 
 void ShaderBase::applyViewportProj()
 {
-    const IntRect &vp = GL_STATE.viewport.get();
+    const IntRect &vp = shState->_glState().viewport.get();
 	projMat.set(Vec2i(vp.w, vp.h));
 }
 

@@ -105,7 +105,7 @@ void Scene::composite()
 
 SceneElement::SceneElement(Scene &scene, int z, int spriteY)
     : link(this),
-      creationStamp(TIME_MANAGER.genTimeStamp()),
+      creationStamp(shState->genTimeStamp()),
       z(z),
       visible(true),
       scene(&scene),

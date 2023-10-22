@@ -8,7 +8,10 @@
 
 #include <memory>
 
-#define GAME_INPUT InputManager::getInstance().getInput()
+/*
+#define INPUT_MANAGER InputManager::getInstance()
+#define shState->input() InputManager::getInstance().getInput()
+*/
 
 class InputManager {
     InputManager();
@@ -17,6 +20,8 @@ class InputManager {
 
 public:
     static InputManager &getInstance();
+
+    bool init();
 
     IInput &getInput() const;
 

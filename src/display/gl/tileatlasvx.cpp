@@ -275,9 +275,9 @@ void build(TEXFBO &tf, Bitmap *bitmaps[BM_COUNT])
 
     GLMeta::blitBegin(tf);
 
-    GL_STATE.clearColor.pushSet(Vec4());
+    shState->_glState().clearColor.pushSet(Vec4());
     FBO::clear();
-    GL_STATE.clearColor.pop();
+    shState->_glState().clearColor.pop();
 
 #if RGSS_VERSION >= 3
     SDL_Surface *shadow = createShadowSet();

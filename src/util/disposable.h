@@ -37,11 +37,11 @@ public:
 	Disposable()
 	    : disposed(false),
 	      link(this) {
-        GRAPHICS.addDisposable(this);
+        shState->graphics().addDisposable(this);
     }
 
 	virtual ~Disposable() {
-        GRAPHICS.remDisposable(this);
+        shState->graphics().remDisposable(this);
     }
 
 	void dispose()

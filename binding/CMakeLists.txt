@@ -2,6 +2,7 @@ project(MKXPZ_Bindings)
 
 target_sources(mkxp_z PUBLIC
         binding-mri.cpp
+        mkxpz-binding.cpp
         binding-util.cpp
         table-binding.cpp
         etc-binding.cpp
@@ -39,3 +40,5 @@ target_compile_definitions(mkxp_z PUBLIC
         MKXPZ_ALCDEVICE=ALCdevice
         RGSS_VERSION=${RGSS_VERSION}
         )
+
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/binding-mri.h DESTINATION ${CMAKE_SOURCE_DIR}/../ext/mkxp_z/include)

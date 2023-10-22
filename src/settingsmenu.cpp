@@ -35,6 +35,8 @@
 #include "etc-internal.h"
 #include "util.h"
 
+#include "InputManager.h"
+
 #include <algorithm>
 #include <assert.h>
 
@@ -104,12 +106,12 @@ std::string sourceDescString(const SourceDesc &src)
 			return str;
 	}
 	case CButton:
-		snprintf(buf, sizeof(buf), "%s", INPUT.getButtonName(src.d.cb));
+        snprintf(buf, sizeof(buf), "%s", shState->input().getButtonName(src.d.cb));
 		return buf;
 
 	case CAxis:
         snprintf(buf, sizeof(buf), "%s%c",
-                 INPUT.getAxisName(src.d.ca.axis), src.d.ca.dir == Negative ? '-' : '+');
+                 shState->input().getAxisName(src.d.ca.axis), src.d.ca.dir == Negative ? '-' : '+');
 		return buf;
 	}
 
@@ -668,8 +670,8 @@ struct SettingsMenuPrivate
 
 	void onResetToDefault()
 	{
-		setupBindingData(genDefaultBindings(rtData.config));
-		updateDuplicateStatus();
+        setupBindingData(genDefaultBindings(*rtData.config));
+        updateDuplicateStatus();
 		redraw();
 	}
 
@@ -683,7 +685,7 @@ struct SettingsMenuPrivate
 		rtData.bindingUpdateMsg.post(binds);
 
 		/* Store the key bindings to disk as well to prevent config loss */
-		storeBindings(binds, rtData.config);
+        storeBindings(binds, *rtData.config);
 
 		destroyReq = true;
 	}
@@ -913,7 +915,7 @@ SettingsMenu::SettingsMenu(RGSSThreadData &rtData)
 {
     // Set names to be shown in the menu
     {
-#define SET_BUTTON_NAME(n, b) vButtons[n].str = rtData.config.kbActionNames.b.c_str();
+#define SET_BUTTON_NAME(n, b) vButtons[n].str = rtData.config->kbActionNames.b.c_str();
         SET_BUTTON_NAME(2, l);
         SET_BUTTON_NAME(5, r);
         SET_BUTTON_NAME(6, a);

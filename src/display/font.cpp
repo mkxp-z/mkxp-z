@@ -41,6 +41,7 @@
 #ifndef MKXPZ_CJK_FONT
 #include "liberation.ttf.xxd"
 #include "gamelauncher.h"
+#include "FontManager.h"
 
 #else
 #include "wqymicrohei.ttf.xxd"
@@ -193,16 +194,15 @@ _TTF_Font *SharedFontState::getFont(std::string family,
 		/* Built-in font */
 		ops = openBundledFont();
 	}
-	else
-	{
-		/* Use 'other' path as alternative in case
-		 * we have no 'regular' styled font asset */
-		const char *path = !req.regular.empty()
-		                 ? req.regular.c_str() : req.other.c_str();
+	else {
+        /* Use 'other' path as alternative in case
+         * we have no 'regular' styled font asset */
+        const char *path = !req.regular.empty()
+                           ? req.regular.c_str() : req.other.c_str();
 
-		ops = SDL_AllocRW();
-		FILESYSTEM.openReadRaw(*ops, path, true);
-	}
+        ops = SDL_AllocRW();
+        shState->filesystem()->openReadRaw(*ops, path, true);
+    }
 
 	// FIXME 0.9 is guesswork at this point
 //	float gamma = (96.0/45.0)*(5.0/14.0)*(size-5);
@@ -363,7 +363,7 @@ bool Font::doesExist(const char *name)
 	if (!name)
 		return false;
 
-	return FONT_STATE.fontPresent(name);
+    return shState->fontState().fontPresent(name);
 }
 
 Font::Font(const std::vector<std::string> *names,
@@ -394,11 +394,10 @@ const Font &Font::operator=(const Font &o)
 	return o;
 }
 
-void Font::setName(const std::vector<std::string> &names)
-{
-	pickExistingFontName(names, p->name, FONT_STATE);
-    p->isSolid = strcmp(p->name.c_str(), "") && CONFIG.fontIsSolid(p->name.c_str());
-	p->sdlFont = 0;
+void Font::setName(const std::vector<std::string> &names) {
+    pickExistingFontName(names, p->name, shState->fontState());
+    p->isSolid = strcmp(p->name.c_str(), "") && shState->config()->fontIsSolid(p->name.c_str());
+    p->sdlFont = 0;
 }
 
 void Font::setSize(int value)
@@ -493,8 +492,8 @@ void Font::initDefaults(const SharedFontState &sfs)
 _TTF_Font *Font::getSdlFont()
 {
 	if (!p->sdlFont)
-		p->sdlFont = FONT_STATE.getFont(p->name.c_str(),
-		                                          p->size);
+        p->sdlFont = shState->fontState().getFont(p->name.c_str(),
+                                                  p->size);
 
 	int style = TTF_STYLE_NORMAL;
 

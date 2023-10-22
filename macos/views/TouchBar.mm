@@ -163,7 +163,7 @@ MKXPZTouchBar *_sharedTouchBar;
 }
 
 -(void)openSettingsMenu {
-    EVENT_THREAD.requestSettingsMenu();
+    shState->eThread().requestSettingsMenu();
 }
 
 @end

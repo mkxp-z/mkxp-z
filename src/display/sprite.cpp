@@ -119,7 +119,7 @@ struct SpritePrivate
         
         updateSrcRectCon();
 
-        prepareCon = DISPLAY_MANAGER.prepareDraw.connect
+        prepareCon = shState->prepareDraw.connect
                 (&SpritePrivate::prepare, this);
         
         patternScroll = Vec2(0,0);
@@ -593,7 +593,7 @@ void Sprite::draw()
     
     if (renderEffect)
     {
-        SpriteShader &shader = SHADERS.sprite;
+        SpriteShader &shader = shState->shaders().sprite;
         
         shader.bind();
         shader.applyViewportProj();
@@ -630,7 +630,7 @@ void Sprite::draw()
     }
     else if (p->opacity != 255)
     {
-        AlphaSpriteShader &shader = SHADERS.alphaSprite;
+        AlphaSpriteShader &shader = shState->shaders().alphaSprite;
         shader.bind();
         
         shader.setSpriteMat(p->trans.getMatrix());
@@ -638,7 +638,7 @@ void Sprite::draw()
         shader.applyViewportProj();
         base = &shader;
     } else {
-        SimpleSpriteShader &shader = SHADERS.simpleSprite;
+        SimpleSpriteShader &shader = shState->shaders().simpleSprite;
         shader.bind();
 
         shader.setSpriteMat(p->trans.getMatrix());
@@ -646,7 +646,7 @@ void Sprite::draw()
         base = &shader;
     }
 
-    GL_STATE.blendMode.pushSet(p->blendType);
+    shState->_glState().blendMode.pushSet(p->blendType);
 
     p->bitmap->bindTex(*base);
 
@@ -655,7 +655,7 @@ void Sprite::draw()
     else
         p->quad.draw();
 
-    GL_STATE.blendMode.pop();
+    shState->_glState().blendMode.pop();
 }
 
 void Sprite::onGeometryChange(const Scene::Geometry &geo)

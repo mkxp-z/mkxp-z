@@ -80,27 +80,21 @@ struct TexPoolPrivate
 	{}
 };
 
-TexPool::TexPool(uint32_t maxMemSize)
+TexPool::TexPool(uint32_t maxMemSize) : p(std::make_unique<TexPoolPrivate>(maxMemSize))
 {
-	p = new TexPoolPrivate(maxMemSize);
 }
 
 TexPool::~TexPool()
 {
-	std::list<TEXFBO>::iterator iter;
-
-	for (iter = p->priorityQueue.begin();
-	     iter != p->priorityQueue.end();
-	     ++iter)
-	{
-		TEXFBO obj = *iter;
-		TEXFBO::fini(obj);
-		--p->objCount;
-	}
+    for (auto iter = p->priorityQueue.begin();
+         iter != p->priorityQueue.end();
+         ++iter) {
+        TEXFBO obj = *iter;
+        TEXFBO::fini(obj);
+        --p->objCount;
+    }
 
 	assert(p->objCount == 0);
-
-	delete p;
 }
 
 TEXFBO TexPool::request(int width, int height)
@@ -109,25 +103,23 @@ TEXFBO TexPool::request(int width, int height)
 	Size size(width, height);
 
 	/* See if we can statisfy request from cache */
-	CNodeList &bucket = p->poolHash[size];
 
-	if (!bucket.empty())
-	{
-		/* Found one! */
-		cnode = bucket.back();
-		bucket.pop_back();
+    if (CNodeList &bucket = p->poolHash[size]; !bucket.empty()) {
+        /* Found one! */
+        cnode = bucket.back();
+        bucket.pop_back();
 
-		p->priorityQueue.erase(cnode.prioIter);
+        p->priorityQueue.erase(cnode.prioIter);
 
-		p->memSize -= byteCount(size);
-		--p->objCount;
+        p->memSize -= byteCount(size);
+        --p->objCount;
 
 //		Debug() << "TexPool: <?+> (" << width << height << ")";
 
 		return cnode.obj;
 	}
 
-	int maxSize = GL_STATE.caps.maxTexSize;
+    int maxSize = shState->_glState().caps.maxTexSize;
 	if (width > maxSize || height > maxSize)
 		throw Exception(Exception::MKXPError,
 		                "Texture dimensions [%d, %d] exceed hardware capabilities",

@@ -757,7 +757,7 @@ struct InputPrivate
         /* Main thread should have these posted by now */
         checkBindingChange(rtData);
         
-        int fps = rtData.config.fixedFramerate;
+        int fps = rtData.config->fixedFramerate;
         if (!fps) fps = (rgssVer >= 2) ? 60 : 40;
         recalcRepeatTime(fps);
         
@@ -1052,7 +1052,7 @@ struct InputPrivate
     void updateRaw()
     {
 
-        memcpy(rawStates, EVENT_THREAD.keyStates, SDL_NUM_SCANCODES);
+        memcpy(rawStates, shState->eThread().keyStates, SDL_NUM_SCANCODES);
         
         for (int i = 0; i < SDL_NUM_SCANCODES; i++)
         {
@@ -1065,7 +1065,7 @@ struct InputPrivate
                 else
                 {
                     rawRepeatCount = 0;
-                    rawRepeatTime = TIME_MANAGER.runTime();
+                    rawRepeatTime = shState->runTime();
                     rawRepeating = i;
                 }
                 
@@ -1080,9 +1080,9 @@ struct InputPrivate
     void updateControllerRaw()
     {
         for (int i = 0; i < SDL_CONTROLLER_AXIS_MAX; i++)
-            axisStateArray[i] = EVENT_THREAD.controllerState.axes[i];
+            axisStateArray[i] = shState->eThread().controllerState.axes[i];
 
-        memcpy(rawButtonStates, EVENT_THREAD.controllerState.buttons, SDL_CONTROLLER_BUTTON_MAX);
+        memcpy(rawButtonStates, shState->eThread().controllerState.buttons, SDL_CONTROLLER_BUTTON_MAX);
         
         for (int i = 0; i < SDL_CONTROLLER_BUTTON_MAX; i++)
         {
@@ -1093,7 +1093,7 @@ struct InputPrivate
                 else
                 {
                     buttonRepeatCount = 0;
-                    buttonRepeatTime = TIME_MANAGER.runTime();
+                    buttonRepeatTime = shState->runTime();
                     buttonRepeating = i;
                 }
                 
@@ -1188,12 +1188,13 @@ struct InputPrivate
 
 
 Input::Input(const RGSSThreadData &rtData) :
-        p(std::make_unique<InputPrivate>(rtData))
-{
+        p(std::make_unique<InputPrivate>(rtData)) {
 }
 
+Input::~Input() = default;
+
 double Input::getDelta() {
-    return TIME_MANAGER.runTime() - p->last_update;
+    return shState->runTime() - p->last_update;
 }
 
 void Input::recalcRepeat(unsigned int fps) {
@@ -1201,8 +1202,8 @@ void Input::recalcRepeat(unsigned int fps) {
 }
 
 void Input::update() {
-    THREAD_MANAGER.checkShutdown();
-    p->checkBindingChange(RGSS_THREAD_DATA);
+    shState->checkShutdown();
+    p->checkBindingChange(*shState->rtData());
 
     p->swapBuffers();
     p->clearBuffer();
@@ -1217,18 +1218,18 @@ void Input::update() {
     p->updateControllerRaw();
 
     // Record mouse positions
-    p->mousePos[0] = EVENT_THREAD.mouseState.x;
-    p->mousePos[1] = EVENT_THREAD.mouseState.y;
-    p->mouseInWindow = EVENT_THREAD.mouseState.inWindow;
+    p->mousePos[0] = shState->eThread().mouseState.x;
+    p->mousePos[1] = shState->eThread().mouseState.y;
+    p->mouseInWindow = shState->eThread().mouseState.inWindow;
 
 
     /* Check for new repeating key */
     if (repeatCand != None && repeatCand != p->repeating) {
         p->repeating = repeatCand;
         p->repeatCount = 0;
-        p->repeatTime = TIME_MANAGER.runTime();
+        p->repeatTime = shState->runTime();
         p->getState(repeatCand).repeated = true;
-        
+
         p->last_update = p->repeatTime;
         return;
     }
@@ -1248,7 +1249,7 @@ void Input::update() {
         bool repeated = p->repeatCount >= p->repeatStart && ((p->repeatCount+1) % p->repeatDelay) == 0;
         p->getState(p->repeating).repeated |= repeated;
 
-        p->last_update = TIME_MANAGER.runTime();
+        p->last_update = shState->runTime();
         return;
     }
     
@@ -1257,7 +1258,7 @@ void Input::update() {
     /* Fetch new cumulative scroll distance and reset counter */
     p->vScrollDistance = SDL_AtomicSet(&EventThread::verticalScrollDistance, 0);
 
-    p->last_update = TIME_MANAGER.runTime();
+    p->last_update = shState->runTime();
 }
 
 std::vector<std::string> Input::getBindings(ButtonCode code) {
@@ -1310,7 +1311,7 @@ double Input::repeatTime(int button) {
     if (button != p->repeating)
         return 0;
 
-    return TIME_MANAGER.runTime() - p->repeatTime;
+    return shState->runTime() - p->repeatTime;
 }
 
 bool Input::isPressedEx(int code, bool isVKey)
@@ -1382,14 +1383,14 @@ double Input::repeatTimeEx(int code, bool isVKey) {
     if (c != p->rawRepeating)
         return 0;
 
-    return TIME_MANAGER.runTime() - p->rawRepeatTime;
+    return shState->runTime() - p->rawRepeatTime;
 }
 
 double Input::controllerRepeatTimeEx(int button) {
     if (button != p->buttonRepeating)
         return 0;
 
-    return TIME_MANAGER.runTime() - p->buttonRepeatTime;
+    return shState->runTime() - p->buttonRepeatTime;
 }
 
 uint8_t *Input::rawKeyStates(){
@@ -1439,14 +1440,14 @@ int Input::dir8Value()
 
 int Input::mouseX()
 {
-    RGSSThreadData &rtData = RGSS_THREAD_DATA;
+    RGSSThreadData &rtData = *shState->rtData();
     
     return (p->mousePos[0] - rtData.screenOffset.x) * rtData.sizeResoRatio.x;
 }
 
 int Input::mouseY()
 {
-    RGSSThreadData &rtData = RGSS_THREAD_DATA;
+    RGSSThreadData &rtData = *shState->rtData();
     
     return (p->mousePos[1] - rtData.screenOffset.y) * rtData.sizeResoRatio.y;
 }
@@ -1458,13 +1459,13 @@ int Input::scrollV()
 
 bool Input::getControllerConnected()
 {
-    return EVENT_THREAD.getControllerConnected();
+    return shState->eThread().getControllerConnected();
 }
 
 const char *Input::getControllerName()
 {
     return (getControllerConnected()) ?
-           SDL_GameControllerName(EVENT_THREAD.controller()) :
+           SDL_GameControllerName(shState->eThread().controller()) :
            0;
 }
 
@@ -1473,7 +1474,7 @@ int Input::getControllerPowerLevel()
     if (!getControllerConnected())
         return SDL_JOYSTICK_POWER_UNKNOWN;
 
-    SDL_Joystick *js = SDL_GameControllerGetJoystick(EVENT_THREAD.controller());
+    SDL_Joystick *js = SDL_GameControllerGetJoystick(shState->eThread().controller());
     return SDL_JoystickCurrentPowerLevel(js);
 }
 
@@ -1483,16 +1484,16 @@ bool Input::getTextInputMode()
 }
 
 void Input::setTextInputMode(bool mode) {
-    EVENT_THREAD.requestTextInputMode(mode);
+    shState->eThread().requestTextInputMode(mode);
 }
 
 const char *Input::getText()
 {
-    return EVENT_THREAD.textInputBuffer.c_str();
+    return shState->eThread().textInputBuffer.c_str();
 }
 
 void Input::clearText() {
-    EVENT_THREAD.textInputBuffer.clear();
+    shState->eThread().textInputBuffer.clear();
 }
 
 char *Input::getClipboardText()

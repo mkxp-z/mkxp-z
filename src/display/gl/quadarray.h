@@ -52,7 +52,7 @@ struct QuadArray
 
 		GLMeta::vaoFillInVertexData<VertexType>(vao);
         vao.vbo = vbo;
-        vao.ibo = DISPLAY_MANAGER.globalIBO().ibo;
+        vao.ibo = shState->globalIBO().ibo;
 
 		GLMeta::vaoInit(vao);
 	}
@@ -89,7 +89,7 @@ struct QuadArray
             VBO::uploadData(size, dataPtr(vertices), GL_DYNAMIC_DRAW);
             vboSize = size;
 
-            DISPLAY_MANAGER.ensureQuadIBO(quadCount);
+            shState->ensureQuadIBO(quadCount);
         }
 		else
 		{

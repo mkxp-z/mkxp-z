@@ -273,12 +273,12 @@ struct WindowPrivate
 		cursorVert.count = 9;
 		pauseAniVert.count = 1;
 
-        prepareCon = DISPLAY_MANAGER.prepareDraw.connect
+        prepareCon = shState->prepareDraw.connect
                 (&WindowPrivate::prepare, this);
 	}
 
 	~WindowPrivate() {
-        TEX_POOL.release(baseTex);
+        shState->texPool().release(baseTex);
         cursorRectCon.disconnect();
         prepareCon.disconnect();
     }
@@ -395,7 +395,7 @@ struct WindowPrivate
 		if (size.x > baseTex.width)
 		{
 			newW = findNextPow2(size.x);
-			resizeNeeded = true;
+            resizeNeeded = true;
         }
         if (size.y > baseTex.height) {
             newH = findNextPow2(size.y);
@@ -405,8 +405,8 @@ struct WindowPrivate
         if (!resizeNeeded)
             return;
 
-        TEX_POOL.release(baseTex);
-        baseTex = TEX_POOL.request(newW, newH);
+        shState->texPool().release(baseTex);
+        baseTex = shState->texPool().request(newW, newH);
 
         baseTexDirty = true;
     }
@@ -418,10 +418,10 @@ struct WindowPrivate
         TEX::unbind();
 
         FBO::bind(baseTex.fbo);
-        GL_STATE.viewport.pushSet(IntRect(0, 0, baseTex.width, baseTex.height));
-        GL_STATE.clearColor.pushSet(Vec4());
+        shState->_glState().viewport.pushSet(IntRect(0, 0, baseTex.width, baseTex.height));
+        shState->_glState().clearColor.pushSet(Vec4());
 
-        SimpleAlphaShader &shader = SHADERS.simpleAlpha;
+        SimpleAlphaShader &shader = shState->shaders().simpleAlpha;
         shader.bind();
         shader.applyViewportProj();
         shader.setTranslation(Vec2i());
@@ -436,19 +436,19 @@ struct WindowPrivate
         /* We need to blit the background without blending,
          * because we want to retain its correct alpha value.
          * Otherwise it would be mutliplied by the backgrounds 0 alpha */
-        GL_STATE.blend.pushSet(false);
+        shState->_glState().blend.pushSet(false);
 
         baseQuadArray.draw(0, backgroundVert.count);
 
         /* Now draw the rest (ie. the frame) with blending */
-        GL_STATE.blend.pop();
-        GL_STATE.blendMode.pushSet(BlendNormal);
+        shState->_glState().blend.pop();
+        shState->_glState().blendMode.pushSet(BlendNormal);
 
         baseQuadArray.draw(backgroundVert.count, baseQuadArray.count() - backgroundVert.count);
 
-        GL_STATE.clearColor.pop();
-        GL_STATE.blendMode.pop();
-        GL_STATE.viewport.pop();
+        shState->_glState().clearColor.pop();
+        shState->_glState().blendMode.pop();
+        shState->_glState().viewport.pop();
         TEX::setSmooth(false);
     }
 
@@ -553,7 +553,7 @@ struct WindowPrivate
 		if (size == Vec2i(0, 0))
 			return;
 
-        SimpleAlphaShader &shader = SHADERS.simpleAlpha;
+        SimpleAlphaShader &shader = shState->shaders().simpleAlpha;
 		shader.bind();
 		shader.applyViewportProj();
 		shader.setTranslation(position + sceneOffset);
@@ -597,11 +597,11 @@ struct WindowPrivate
         const IntRect windowRect(efPos, size);
         const IntRect contentsRect(efPos + Vec2i(16), size - Vec2i(32));
 
-        GL_STATE.scissorTest.pushSet(true);
-        GL_STATE.scissorBox.push();
-        GL_STATE.scissorBox.setIntersect(windowRect);
+        shState->_glState().scissorTest.pushSet(true);
+        shState->_glState().scissorBox.push();
+        shState->_glState().scissorBox.setIntersect(windowRect);
 
-        SimpleAlphaShader &shader = SHADERS.simpleAlpha;
+        SimpleAlphaShader &shader = shState->shaders().simpleAlpha;
         shader.bind();
         shader.applyViewportProj();
 
@@ -609,7 +609,7 @@ struct WindowPrivate
             shader.setTranslation(efPos);
 
             /* Draw arrows / cursors */
-			windowskin->bindTex(shader);
+            windowskin->bindTex(shader);
 			TEX::setSmooth(true);
 
 			controlsQuadArray.draw(0, controlsQuadCount);
@@ -617,9 +617,9 @@ struct WindowPrivate
 			TEX::setSmooth(false);
 		}
 
-		if (!nullOrDisposed(contents)) {
+        if (!nullOrDisposed(contents)) {
             /* Draw contents bitmap */
-            GL_STATE.scissorBox.setIntersect(contentsRect);
+            shState->_glState().scissorBox.setIntersect(contentsRect);
 
             shader.setTranslation(efPos + (Vec2i(16) - contentsOffset));
 
@@ -627,8 +627,8 @@ struct WindowPrivate
             contentsQuad.draw();
         }
 
-        GL_STATE.scissorBox.pop();
-        GL_STATE.scissorTest.pop();
+        shState->_glState().scissorBox.pop();
+        shState->_glState().scissorTest.pop();
     }
 
 	void updateControls()

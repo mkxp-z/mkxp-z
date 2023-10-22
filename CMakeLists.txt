@@ -45,13 +45,14 @@ target_compile_definitions(mkxp_z PUBLIC
         MKXPZ_GIT_HASH="63465f13b5f82b1e5b9f80d1b17972bfe747db20"
         )
 
+set(CMAKE_SHARED_LINKER_FLAGS -static)
+
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     add_subdirectory(windows)
 endif()
 
 
 install(TARGETS mkxp_z RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/../ext/mkxp_z/bin ARCHIVE DESTINATION ${CMAKE_SOURCE_DIR}/../ext/mkxp_z/lib)
-install(FILES binding/binding-mri.h DESTINATION ${CMAKE_SOURCE_DIR}/../ext/mkxp_z/include)
 
 set(CMAKE_CXX_COMPILER)
 
