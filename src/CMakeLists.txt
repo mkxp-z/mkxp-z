@@ -118,3 +118,13 @@ target_compile_definitions(mkxp_z PUBLIC
         SDL_MAIN_HANDLED
         MKXPZ_ALCDEVICE=ALCdevice
         )
+
+option(WITH_OPEN_SSL "Use OpenSSL to enable HTTPS" ON)
+if (WITH_OPEN_SSL)
+    find_package(OpenSSL REQUIRED)
+    target_link_libraries(mkxp_z PUBLIC
+            OpenSSL::OpenSSL)
+    target_compile_definitions(mkxp_z PUBLIC
+            MKXPZ_SSL
+            )
+endif ()

@@ -79,7 +79,8 @@ add_library(minimal_example SHARED binding/binding-util.cpp binding/etc-binding.
         src/audio/audio.cpp binding/audio-binding.cpp src/audio/alstream.cpp src/audio/audiostream.cpp
         src/audio/fluid-fun.cpp src/audio/midisource.cpp src/audio/sdlsoundsource.cpp src/audio/soundemitter.cpp
         src/audio/vorbissource.cpp src/singletons/AudioManager.cpp src/input/input.cpp src/input/keybindings.cpp
-        binding/input-binding.cpp src/singletons/InputManager.cpp src/singletons/ThreadManager.cpp interfaces/AbstractEventThread.cpp)
+        binding/input-binding.cpp src/singletons/InputManager.cpp src/singletons/ThreadManager.cpp
+        interfaces/AbstractEventThread.cpp src/net/LUrlParser.cpp src/net/net.cpp) # binding/http-binding.cpp)
 
 message("Includes: ${ALL_INCLUDES}")
 target_include_directories(minimal_example PUBLIC ${ALL_INCLUDES})
@@ -99,7 +100,10 @@ target_link_libraries(minimal_example PUBLIC
         #theora::theora
         pixman-1
         MKXPZ_Assets
-        MKXPZ_Shaders)
+        MKXPZ_Shaders
+        wsock32
+        Ws2_32
+        )
 
 target_compile_definitions(minimal_example PUBLIC
         RGSS_VERSION=1

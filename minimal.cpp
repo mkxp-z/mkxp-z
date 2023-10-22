@@ -33,6 +33,8 @@ void graphicsBindingInit();
 
 void fileIntBindingInit();
 
+void httpBindingInit();
+
 MKXPZ_EXPORT void initBindings() {
     tableBindingInit();
     etcBindingInit();
@@ -46,4 +48,5 @@ MKXPZ_EXPORT void initBindings() {
     planeBindingInit();
     audioBindingInit();
     inputBindingInit();
+    //httpBindingInit();
 }
