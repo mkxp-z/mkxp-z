@@ -271,23 +271,23 @@ static void doBlit(Bitmap *bm, const IntRect &src, const Vec2i &dst)
 
 void build(TEXFBO &tf, Bitmap *bitmaps[BM_COUNT])
 {
-	assert(tf.width == ATLASVX_W && tf.height == ATLASVX_H);
+    assert(tf.width == ATLASVX_W && tf.height == ATLASVX_H);
 
-	GLMeta::blitBegin(tf);
+    GLMeta::blitBegin(tf);
 
-	glState.clearColor.pushSet(Vec4());
-	FBO::clear();
-	glState.clearColor.pop();
+    GL_STATE.clearColor.pushSet(Vec4());
+    FBO::clear();
+    GL_STATE.clearColor.pop();
 
-	#if RGSS_VERSION >= 3
-		SDL_Surface *shadow = createShadowSet();
-		TEX::bind(tf.tex);
-		TEX::uploadSubImage(shadowArea.x*32, shadowArea.y*32,
-							shadow->w, shadow->h, shadow->pixels, GL_RGBA);
-		SDL_FreeSurface(shadow);
+#if RGSS_VERSION >= 3
+    SDL_Surface *shadow = createShadowSet();
+    TEX::bind(tf.tex);
+    TEX::uploadSubImage(shadowArea.x*32, shadowArea.y*32,
+                        shadow->w, shadow->h, shadow->pixels, GL_RGBA);
+    SDL_FreeSurface(shadow);
 #endif
 
-	Bitmap *bm;
+    Bitmap *bm;
 #define EXEC_BLITS(part) \
 	if (!nullOrDisposed(bm = bitmaps[BM_##part])) \
 	{ \

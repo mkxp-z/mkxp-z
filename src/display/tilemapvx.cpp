@@ -128,39 +128,37 @@ struct TilemapVXPrivate : public ViewportElement, TileAtlasVX::Reader
 	      mapViewportDirty(false),
 	      above(this, viewport)
 	{
-		memset(bitmaps, 0, sizeof(bitmaps));
+        memset(bitmaps, 0, sizeof(bitmaps));
 
-		shState->requestAtlasTex(ATLASVX_W, ATLASVX_H, atlas);
+        DISPLAY_MANAGER.requestAtlasTex(ATLASVX_W, ATLASVX_H, atlas);
 
-		vbo = VBO::gen();
+        vbo = VBO::gen();
 
-		GLMeta::vaoFillInVertexData<SVertex>(vao);
-		vao.vbo = vbo;
-		vao.ibo = shState->globalIBO().ibo;
-		GLMeta::vaoInit(vao);
+        GLMeta::vaoFillInVertexData<SVertex>(vao);
+        vao.vbo = vbo;
+        vao.ibo = DISPLAY_MANAGER.globalIBO().ibo;
+        GLMeta::vaoInit(vao);
 
-		onGeometryChange(scene->getGeometry());
+        onGeometryChange(scene->getGeometry());
 
-		prepareCon = shState->prepareDraw.connect
-			(&TilemapVXPrivate::prepare, this);
+        prepareCon = DISPLAY_MANAGER.prepareDraw.connect
+                (&TilemapVXPrivate::prepare, this);
 	}
 
-	virtual ~TilemapVXPrivate()
-	{
-		GLMeta::vaoFini(vao);
-		VBO::del(vbo);
+	virtual ~TilemapVXPrivate() {
+        GLMeta::vaoFini(vao);
+        VBO::del(vbo);
 
-		shState->releaseAtlasTex(atlas);
+        DISPLAY_MANAGER.releaseAtlasTex(atlas);
 
-		prepareCon.disconnect();
+        prepareCon.disconnect();
 
-		mapDataCon.disconnect();
-		flagsCon.disconnect();
+        mapDataCon.disconnect();
+        flagsCon.disconnect();
 
-		for (size_t i = 0; i < BM_COUNT; ++i)
-		{
-			bmChangedCons[i].disconnect();
-			bmDisposedCons[i].disconnect();
+        for (size_t i = 0; i < BM_COUNT; ++i) {
+            bmChangedCons[i].disconnect();
+            bmDisposedCons[i].disconnect();
 		}
 	}
 
@@ -228,19 +226,18 @@ struct TilemapVXPrivate : public ViewportElement, TileAtlasVX::Reader
 
 		VBO::bind(vbo);
 
-		if (totalQuads > allocQuads)
-		{
-			VBO::allocEmpty(quadBytes(totalQuads), GL_DYNAMIC_DRAW);
-			allocQuads = totalQuads;
-		}
+		if (totalQuads > allocQuads) {
+            VBO::allocEmpty(quadBytes(totalQuads), GL_DYNAMIC_DRAW);
+            allocQuads = totalQuads;
+        }
 
-		VBO::uploadSubData(0, quadBytes(groundQuads), dataPtr(groundVert));
-		VBO::uploadSubData(quadBytes(groundQuads), quadBytes(aboveQuads), dataPtr(aboveVert));
+        VBO::uploadSubData(0, quadBytes(groundQuads), dataPtr(groundVert));
+        VBO::uploadSubData(quadBytes(groundQuads), quadBytes(aboveQuads), dataPtr(aboveVert));
 
-		VBO::unbind();
+        VBO::unbind();
 
-		shState->ensureQuadIBO(totalQuads);
-	}
+        DISPLAY_MANAGER.ensureQuadIBO(totalQuads);
+    }
 
 	void prepare()
 	{
@@ -293,7 +290,7 @@ struct TilemapVXPrivate : public ViewportElement, TileAtlasVX::Reader
 		if (!nullOrDisposed(bitmaps[BM_A1]))
 		{
 			/* Animated tileset */
-			TilemapVXShader &tmShader = shState->shaders().tilemapVX;
+            TilemapVXShader &tmShader = SHADERS.tilemapVX;
 			tmShader.bind();
 			tmShader.setAniOffset(aniOffset);
 
@@ -302,8 +299,8 @@ struct TilemapVXPrivate : public ViewportElement, TileAtlasVX::Reader
 		else
 		{
 			/* Static tileset */
-			shader = &shState->shaders().simple;
-			shader->bind();
+            shader = &SHADERS.simple;
+            shader->bind();
 		}
 
 		shader->setTexSize(Vec2i(atlas.width, atlas.height));
@@ -323,7 +320,7 @@ struct TilemapVXPrivate : public ViewportElement, TileAtlasVX::Reader
 		if (aboveQuads == 0)
 			return;
 
-		SimpleShader &shader = shState->shaders().simple;
+        SimpleShader &shader = SHADERS.simple;
 		shader.bind();
 		shader.setTexSize(Vec2i(atlas.width, atlas.height));
 		shader.applyViewportProj();

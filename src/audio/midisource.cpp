@@ -28,6 +28,7 @@
 #include "util.h"
 #include "debugwriter.h"
 #include "fluid-fun.h"
+#include "ConfigManager.h"
 
 #include <SDL_rwops.h>
 
@@ -641,7 +642,7 @@ struct MidiSource : ALDataSource, MidiReadHandler
 			throw;
 		}
 
-		synth = shState->midiState().allocateSynth();
+        synth = MIDI_STATE.allocateSynth();
 
 		uint64_t longest = 0;
 
@@ -691,10 +692,9 @@ struct MidiSource : ALDataSource, MidiReadHandler
 		// instead of having to constantly iterate through all of them
 	}
 
-	~MidiSource()
-	{
-		shState->midiState().releaseSynth(synth);
-	}
+	~MidiSource() {
+        MIDI_STATE.releaseSynth(synth);
+    }
 
 
 	void updatePlaybackSpeed(uint32_t bpm)

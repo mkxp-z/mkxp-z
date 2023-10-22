@@ -104,12 +104,12 @@ std::string sourceDescString(const SourceDesc &src)
 			return str;
 	}
 	case CButton:
-		snprintf(buf, sizeof(buf), "%s", shState->input().getButtonName(src.d.cb));
+		snprintf(buf, sizeof(buf), "%s", INPUT.getButtonName(src.d.cb));
 		return buf;
 
 	case CAxis:
-		snprintf(buf, sizeof(buf), "%s%c",
-		         shState->input().getAxisName(src.d.ca.axis), src.d.ca.dir == Negative ? '-' : '+');
+        snprintf(buf, sizeof(buf), "%s%c",
+                 INPUT.getAxisName(src.d.ca.axis), src.d.ca.dir == Negative ? '-' : '+');
 		return buf;
 	}
 

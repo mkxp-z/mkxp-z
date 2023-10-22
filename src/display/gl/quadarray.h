@@ -28,6 +28,7 @@
 #include "sharedstate.h"
 #include "global-ibo.h"
 #include "shader.h"
+#include "DisplayManager.h"
 
 #include <vector>
 #include <stdint.h>
@@ -50,8 +51,8 @@ struct QuadArray
 		vbo = VBO::gen();
 
 		GLMeta::vaoFillInVertexData<VertexType>(vao);
-		vao.vbo = vbo;
-		vao.ibo = shState->globalIBO().ibo;
+        vao.vbo = vbo;
+        vao.ibo = DISPLAY_MANAGER.globalIBO().ibo;
 
 		GLMeta::vaoInit(vao);
 	}
@@ -82,15 +83,14 @@ struct QuadArray
 
 		GLsizeiptr size = vertices.size() * sizeof(VertexType);
 
-		if (size > vboSize)
-		{
-			/* New data exceeds already allocated size.
-			 * Reallocate VBO. */
-			VBO::uploadData(size, dataPtr(vertices), GL_DYNAMIC_DRAW);
-			vboSize = size;
+		if (size > vboSize) {
+            /* New data exceeds already allocated size.
+             * Reallocate VBO. */
+            VBO::uploadData(size, dataPtr(vertices), GL_DYNAMIC_DRAW);
+            vboSize = size;
 
-			shState->ensureQuadIBO(quadCount);
-		}
+            DISPLAY_MANAGER.ensureQuadIBO(quadCount);
+        }
 		else
 		{
 			/* New data fits in allocated size */

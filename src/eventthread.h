@@ -22,12 +22,6 @@
 #ifndef EVENTTHREAD_H
 #define EVENTTHREAD_H
 
-#include <SDL_scancode.h>
-#include <SDL_mouse.h>
-#include <SDL_mutex.h>
-#include <SDL_atomic.h>
-#include <SDL_gamecontroller.h>
-
 #include <string>
 
 #include <stdint.h>
@@ -36,86 +30,63 @@
 #include "etc-internal.h"
 #include "sdl-util.h"
 #include "keybindings.h"
+#include "ISyncPoint.h"
+#include "AbstractEventThread.h"
 
 struct RGSSThreadData;
 typedef struct MKXPZ_ALCDEVICE ALCdevice;
 struct SDL_Window;
 union SDL_Event;
 
-#define MAX_FINGERS 4
-
-class EventThread
-{
+class EventThread : public AbstractEventThread {
 public:
-    
-    struct ControllerState {
-        int axes[SDL_CONTROLLER_AXIS_MAX];
-        bool buttons[SDL_CONTROLLER_BUTTON_MAX];
-    };
+    void lockText(bool lock) override;
 
-	struct MouseState
-	{
-		int x, y;
-		bool inWindow;
-		bool buttons[32];
-	};
 
-	struct FingerState
-	{
-		bool down;
-		int x, y;
-	};
+    static bool allocUserEvents();
 
-	struct TouchState
-	{
-		FingerState fingers[MAX_FINGERS];
-	};
+    EventThread();
 
-	static uint8_t keyStates[SDL_NUM_SCANCODES];
-    static ControllerState controllerState;
-	static MouseState mouseState;
-	static TouchState touchState;
-    static SDL_atomic_t verticalScrollDistance;
-    
-    std::string textInputBuffer;
-    void lockText(bool lock);
-    
+    ~EventThread() override;
 
-	static bool allocUserEvents();
+    void process(RGSSThreadData &rtData) override;
 
-	EventThread();
-    ~EventThread();
+    void cleanup() override;
 
-	void process(RGSSThreadData &rtData);
-	void cleanup();
+    /* Called from RGSS thread */
+    void requestFullscreenMode(bool mode) override;
 
-	/* Called from RGSS thread */
-	void requestFullscreenMode(bool mode);
-	void requestWindowResize(int width, int height);
-    void requestWindowReposition(int x, int y);
-    void requestWindowCenter();
-    void requestWindowRename(const char *title);
-	void requestShowCursor(bool mode);
-    
-    void requestTextInputMode(bool mode);
-    
-    void requestSettingsMenu();
+    void requestWindowResize(int width, int height) override;
 
-	void requestTerminate();
+    void requestWindowReposition(int x, int y) override;
 
-	bool getFullscreen() const;
-	bool getShowCursor() const;
-    bool getControllerConnected() const;
-    
-    SDL_GameController *controller() const;
+    void requestWindowCenter() override;
 
-	void showMessageBox(const char *body, int flags = 0);
+    void requestWindowRename(const char *title) override;
 
-	/* RGSS thread calls this once per frame */
-	void notifyFrame();
+    void requestShowCursor(bool mode) override;
 
-	/* Called on game screen (size / offset) changes */
-	void notifyGameScreenChange(const SDL_Rect &screen);
+    void requestTextInputMode(bool mode) override;
+
+    void requestSettingsMenu() override;
+
+    void requestTerminate() override;
+
+    bool getFullscreen() const override;
+
+    bool getShowCursor() const override;
+
+    bool getControllerConnected() const override;
+
+    SDL_GameController *controller() const override;
+
+    void showMessageBox(const char *body, int flags) override;
+
+    /* RGSS thread calls this once per frame */
+    void notifyFrame() override;
+
+    /* Called on game screen (size / offset) changes */
+    void notifyGameScreenChange(const SDL_Rect &screen) override;
 
 private:
 	static int eventFilter(void *, SDL_Event*);
@@ -196,24 +167,25 @@ private:
 	T current;
 };
 
-struct SyncPoint
-{
-	/* Used by eventFilter to control sleep/wakeup */
-	void haltThreads();
-	void resumeThreads();
+struct SyncPoint : public ISyncPoint {
+    /* Used by eventFilter to control sleep/wakeup */
+    void haltThreads() override;
 
-	/* Used by RGSS thread */
-	bool mainSyncLocked();
-	void waitMainSync();
+    void resumeThreads() override;
 
-	/* Used by secondary (audio) threads */
-	void passSecondarySync();
+    /* Used by RGSS thread */
+    bool mainSyncLocked() override;
+
+    void waitMainSync() override;
+
+    /* Used by secondary (audio) threads */
+    void passSecondarySync() override;
 
 private:
-	struct Util
-	{
-		Util();
-		~Util();
+    struct Util {
+        Util();
+
+        ~Util();
 
 		void lock();
 		void unlock(bool multi);
@@ -242,21 +214,21 @@ struct RGSSThreadData
 
 	/* Set when F12 is released */
 	AtomicFlag rqResetFinish;
-    
+
     // Set when window is being adjusted (resize, reposition)
     AtomicFlag rqWindowAdjust;
 
 	EventThread *ethread;
 	UnidirMessage<Vec2i> windowSizeMsg;
     UnidirMessage<Vec2i> drawableSizeMsg;
-	UnidirMessage<BDescVec> bindingUpdateMsg;
-	SyncPoint syncPoint;
+    UnidirMessage<BDescVec> bindingUpdateMsg;
+    std::unique_ptr<ISyncPoint> syncPoint;
 
 	const char *argv0;
 
 	SDL_Window *window;
 	ALCdevice *alcDev;
-    
+
     SDL_GLContext glContext;
 
 	Vec2 sizeResoRatio;

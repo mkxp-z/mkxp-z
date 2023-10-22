@@ -83,12 +83,6 @@ initALCFunctions(ALCdevice *alcDev)
 
 #define HAVE_ALC_DEVICE_PAUSE alc.DevicePause
 
-uint8_t EventThread::keyStates[];
-EventThread::ControllerState EventThread::controllerState;
-EventThread::MouseState EventThread::mouseState;
-EventThread::TouchState EventThread::touchState;
-SDL_atomic_t EventThread::verticalScrollDistance;
-
 /* User event codes */
 enum
 {
@@ -705,7 +699,7 @@ void EventThread::requestFullscreenMode(bool mode)
 
 void EventThread::requestWindowResize(int width, int height)
 {
-    shState->rtData().rqWindowAdjust.set();
+    RGSS_THREAD_DATA.rqWindowAdjust.set();
     SDL_Event event;
     event.type = usrIdStart + REQUEST_WINRESIZE;
     event.window.data1 = width;
@@ -715,7 +709,7 @@ void EventThread::requestWindowResize(int width, int height)
 
 void EventThread::requestWindowReposition(int x, int y)
 {
-    shState->rtData().rqWindowAdjust.set();
+    RGSS_THREAD_DATA.rqWindowAdjust.set();
     SDL_Event event;
     event.type = usrIdStart + REQUEST_WINREPOSITION;
     event.window.data1 = x;
@@ -725,7 +719,7 @@ void EventThread::requestWindowReposition(int x, int y)
 
 void EventThread::requestWindowCenter()
 {
-    shState->rtData().rqWindowAdjust.set();
+    RGSS_THREAD_DATA.rqWindowAdjust.set();
     SDL_Event event;
     event.type = usrIdStart + REQUEST_WINCENTER;
     SDL_PushEvent(&event);
@@ -768,7 +762,7 @@ void EventThread::showMessageBox(const char *body, int flags)
     
     // mkxp has already been asked to quit.
     // Don't break things if the window wants to close
-    if (shState->rtData().rqTerm)
+    if (RGSS_THREAD_DATA.rqTerm)
         return;
     
     SDL_Event event;
@@ -778,7 +772,7 @@ void EventThread::showMessageBox(const char *body, int flags)
     SDL_PushEvent(&event);
     
     /* Keep repainting screen while box is open */
-    shState->graphics().repaintWait(msgBoxDone);
+    GRAPHICS.repaintWait(msgBoxDone);
     /* Prevent endless loops */
     resetInputStates();
 }
@@ -806,7 +800,7 @@ SDL_GameController *EventThread::controller() const
 void EventThread::notifyFrame()
 {
 #ifdef MKXPZ_BUILD_XCODE
-    uint32_t frames = round(shState->graphics().averageFrameRate());
+    uint32_t frames = round(GRAPHICS.averageFrameRate());
     updateTouchBarFPSDisplay(frames);
 #endif
     if (!fps.sendUpdates)
@@ -816,7 +810,7 @@ void EventThread::notifyFrame()
 #ifdef MKXPZ_BUILD_XCODE
     event.user.code = frames;
 #else
-    event.user.code = round(shState->graphics().averageFrameRate());
+    event.user.code = round(GRAPHICS.averageFrameRate());
 #endif
     event.user.type = usrIdStart + UPDATE_FPS;
     SDL_PushEvent(&event);

@@ -357,7 +357,7 @@ static_assert(false, "Invalid RGSS Version");
 }
 
 static void showMsg(const std::string &msg) {
-    shState->eThread().showMessageBox(msg.c_str());
+    EVENT_THREAD.showMessageBox(msg.c_str());
 }
 
 static void printP(int argc, VALUE *argv, const char *convMethod,
@@ -395,7 +395,7 @@ RB_METHOD(mriP) {
 
 RB_METHOD(mkxpDelta) {
     RB_UNUSED_PARAM;
-    return rb_float_new(shState->runTime());
+    return rb_float_new(TIME_MANAGER.runTime());
 }
 
 RB_METHOD(mkxpDataDirectory) {
@@ -417,7 +417,7 @@ RB_METHOD(mkxpSetTitle) {
     rb_scan_args(argc, argv, "1", &s);
     SafeStringValue(s);
 
-    shState->eThread().requestWindowRename(RSTRING_PTR(s));
+    EVENT_THREAD.requestWindowRename(RSTRING_PTR(s));
     return s;
 }
 
@@ -573,7 +573,7 @@ RB_METHOD(mkxpPowerState) {
 RB_METHOD(mkxpSettingsMenu) {
     RB_UNUSED_PARAM;
 
-    shState->eThread().requestSettingsMenu();
+    EVENT_THREAD.requestSettingsMenu();
 
     return Qnil;
 }
@@ -822,11 +822,11 @@ static VALUE rgssMainRescue(VALUE arg, VALUE exc) {
 }
 
 static void processReset() {
-    shState->graphics().reset();
-    shState->audio().reset();
+    GRAPHICS.reset();
+    AUDIO.reset();
 
-    shState->rtData().rqReset.clear();
-    shState->graphics().repaintWait(shState->rtData().rqResetFinish, false);
+    RGSS_THREAD_DATA.rqReset.clear();
+    GRAPHICS.repaintWait(RGSS_THREAD_DATA.rqResetFinish, false);
 }
 
 RB_METHOD(mriRgssMain) {
@@ -859,7 +859,7 @@ RB_METHOD(mriRgssStop) {
     RB_UNUSED_PARAM;
 
     while (true)
-        shState->graphics().update();
+        GRAPHICS.update();
 
     return Qnil;
 }
@@ -939,7 +939,7 @@ bool evalScript(VALUE string, const char *filename) {
 #define SCRIPT_SECTION_FMT (rgssVer >= 3 ? "{%04ld}" : "Section%03ld")
 
 static void runRMXPScripts(BacktraceData &btData) {
-    const Config &conf = shState->rtData().config;
+    const Config &conf = RGSS_THREAD_DATA.config;
     const std::string &scriptPack = conf.game.scripts;
 
     if (scriptPack.empty()) {

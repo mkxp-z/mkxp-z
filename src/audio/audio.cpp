@@ -28,6 +28,8 @@
 #include "eventthread.h"
 #include "sdl-util.h"
 #include "exception.h"
+#include "ConfigManager.h"
+#include "ISyncPoint.h"
 
 #include <string>
 #include <vector>
@@ -35,8 +37,7 @@
 #include <SDL_thread.h>
 #include <SDL_timer.h>
 
-struct AudioPrivate
-{
+struct AudioPrivate {
     
     std::vector<AudioStream*> bgmTracks;
 	AudioStream bgs;
@@ -44,7 +45,7 @@ struct AudioPrivate
 
 	SoundEmitter se;
 
-	SyncPoint &syncPoint;
+    ISyncPoint &syncPoint;
     
     float volumeRatio;
 
@@ -70,9 +71,9 @@ struct AudioPrivate
 
 	AudioPrivate(RGSSThreadData &rtData)
 	    : bgs(ALStream::Looped, "bgs"),
-	      me(ALStream::NotLooped, "me"),
-	      se(rtData.config),
-	      syncPoint(rtData.syncPoint),
+          me(ALStream::NotLooped, "me"),
+          se(rtData.config),
+          syncPoint(*rtData.syncPoint),
           volumeRatio(1)
 	{
         for (int i = 0; i < rtData.config.BGM.trackCount; i++) {
@@ -285,7 +286,7 @@ struct AudioPrivate
 };
 
 Audio::Audio(RGSSThreadData &rtData)
-	: p(new AudioPrivate(rtData))
+        : p(std::make_unique<AudioPrivate>(rtData))
 {}
 
 
@@ -402,9 +403,8 @@ void Audio::seStop()
 	p->se.stop();
 }
 
-void Audio::setupMidi()
-{
-	shState->midiState().initIfNeeded(shState->config());
+void Audio::setupMidi() {
+    MIDI_STATE.initIfNeeded(CONFIG);
 }
 
 float Audio::bgmPos(int track)
@@ -427,5 +427,3 @@ void Audio::reset()
 	p->me.stop();
 	p->se.stop();
 }
-
-Audio::~Audio() { delete p; }

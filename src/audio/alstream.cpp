@@ -31,6 +31,7 @@
 #include "sdl-util.h"
 #include "debugwriter.h"
 #include "ConfigManager.h"
+#include "AudioManager.h"
 
 #include <SDL_mutex.h>
 #include <SDL_thread.h>
@@ -230,16 +231,14 @@ struct ALStreamOpenHandler : FileSystem::OpenHandler
 				return true;
 			}
 
-			if (!strcmp(sig, "MThd"))
-			{
-				shState->midiState().initIfNeeded(shState->config());
+			if (!strcmp(sig, "MThd")) {
+                MIDI_STATE.initIfNeeded(CONFIG);
 
-				if (HAVE_FLUID)
-				{
-					source = createMidiSource(*srcOps, looped);
-					return true;
-				}
-			}
+                if (HAVE_FLUID) {
+                    source = createMidiSource(*srcOps, looped);
+                    return true;
+                }
+            }
 
 			source = createSDLSource(*srcOps, ext, STREAM_BUF_SIZE, looped);
 		}
@@ -405,18 +404,16 @@ void ALStream::streamData()
 
 	/* Wait for buffers to be consumed, then
 	 * refill and queue them up again */
-	while (true)
-	{
-		shState->rtData().syncPoint.passSecondarySync();
+	while (true) {
+        SYNC_POINT.passSecondarySync();
 
-		ALint procBufs = AL::Source::getProcBufferCount(alSrc);
+        ALint procBufs = AL::Source::getProcBufferCount(alSrc);
 
-		while (procBufs--)
-		{
-			if (threadTermReq)
-				break;
+        while (procBufs--) {
+            if (threadTermReq)
+                break;
 
-			AL::Buffer::ID buf = AL::Source::unqueueBuffer(alSrc);
+            AL::Buffer::ID buf = AL::Source::unqueueBuffer(alSrc);
 
 			/* If something went wrong, try again later */
 			if (buf == AL::Buffer::ID(0))

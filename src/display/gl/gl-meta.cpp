@@ -27,6 +27,7 @@
 #include "config.h"
 #include "gamelauncher.h"
 #include "ConfigManager.h"
+#include "DisplayManager.h"
 
 namespace GLMeta
 {
@@ -142,22 +143,19 @@ static void _blitBegin(FBO::ID fbo, const Vec2i &size)
 	{
 		gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo.gl);
 	}
-	else
-	{
-		FBO::bind(fbo);
-		glState.viewport.pushSet(IntRect(0, 0, size.x, size.y));
+	else {
+        FBO::bind(fbo);
+        GL_STATE.viewport.pushSet(IntRect(0, 0, size.x, size.y));
 
-		if (CONFIG.lanczos3Scaling)
+        if (CONFIG.lanczos3Scaling) {
+            Lanczos3Shader &shader = SHADERS.lanczos3;
+            shader.bind();
+            shader.applyViewportProj();
+            shader.setTranslation(Vec2i());
+            shader.setTexSize(Vec2i(size.x, size.y));
+        } else
 		{
-			Lanczos3Shader &shader = shState->shaders().lanczos3;
-			shader.bind();
-			shader.applyViewportProj();
-			shader.setTranslation(Vec2i());
-			shader.setTexSize(Vec2i(size.x, size.y));
-		}
-		else
-		{
-			SimpleShader &shader = shState->shaders().simple;
+            SimpleShader &shader = SHADERS.simple;
 			shader.bind();
 			shader.applyViewportProj();
 			shader.setTranslation(Vec2i());
@@ -186,13 +184,13 @@ void blitSource(TEXFBO &source)
 	{
 		if (CONFIG.lanczos3Scaling)
 		{
-			Lanczos3Shader &shader = shState->shaders().lanczos3;
+            Lanczos3Shader &shader = SHADERS.lanczos3;
 			shader.bind();
 			shader.setTexSize(Vec2i(source.width, source.height));
 		}
 		else
 		{
-			SimpleShader &shader = shState->shaders().simple;
+            SimpleShader &shader = SHADERS.simple;
 			shader.bind();
 			shader.setTexSize(Vec2i(source.width, source.height));
 		}
@@ -213,26 +211,25 @@ void blitRectangle(const IntRect &src, const IntRect &dst, bool smooth)
 		                   dst.x, dst.y, dst.x+dst.w, dst.y+dst.h,
 		                   GL_COLOR_BUFFER_BIT, smooth ? GL_LINEAR : GL_NEAREST);
 	}
-	else
-	{
-		if (smooth)
-			TEX::setSmooth(true);
+	else {
+        if (smooth)
+            TEX::setSmooth(true);
 
-		glState.blend.pushSet(false);
-		Quad &quad = shState->gpQuad();
-		quad.setTexPosRect(src, dst);
-		quad.draw();
-		glState.blend.pop();
+        GL_STATE.blend.pushSet(false);
+        Quad &quad = DISPLAY_MANAGER.gpQuad();
+        quad.setTexPosRect(src, dst);
+        quad.draw();
+        GL_STATE.blend.pop();
 
-		if (smooth)
-			TEX::setSmooth(false);
-	}
+        if (smooth)
+            TEX::setSmooth(false);
+    }
 }
 
 void blitEnd()
 {
-	if (!HAVE_NATIVE_BLIT)
-		glState.viewport.pop();
+    if (!HAVE_NATIVE_BLIT)
+        GL_STATE.viewport.pop();
 }
 
 }

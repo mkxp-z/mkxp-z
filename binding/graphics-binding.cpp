@@ -32,7 +32,7 @@
 RB_METHOD(graphicsDelta) {
     RB_UNUSED_PARAM;
     GFX_LOCK;
-    VALUE ret = rb_float_new(shState->graphics().getDelta());
+    VALUE ret = rb_float_new(GRAPHICS.getDelta());
     GFX_UNLOCK;
     return ret;
 }
@@ -43,12 +43,12 @@ RB_METHOD(graphicsUpdate)
 #if RAPI_MAJOR >= 2
     rb_thread_call_without_gvl([](void*) -> void* {
         GFX_LOCK;
-        shState->graphics().update();
+        GRAPHICS.update();
         GFX_UNLOCK;
         return 0;
     }, 0, 0, 0);
 #else
-    shState->graphics().update();
+    GRAPHICS.update();
 #endif
     return Qnil;
 }
@@ -57,7 +57,7 @@ RB_METHOD(graphicsAverageFrameRate)
 {
     RB_UNUSED_PARAM;
     GFX_LOCK;
-    VALUE ret = rb_float_new(shState->graphics().averageFrameRate());
+    VALUE ret = rb_float_new(GRAPHICS.averageFrameRate());
     GFX_UNLOCK;
     return ret;
 }
@@ -67,7 +67,7 @@ RB_METHOD(graphicsFreeze)
     RB_UNUSED_PARAM;
     
     GFX_LOCK;
-    shState->graphics().freeze();
+    GRAPHICS.freeze();
     GFX_UNLOCK;
     
     return Qnil;
@@ -82,8 +82,8 @@ RB_METHOD(graphicsTransition)
     int vague = 40;
     
     rb_get_args(argc, argv, "|izi", &duration, &filename, &vague RB_ARG_END);
-    
-    GFX_GUARD_EXC( shState->graphics().transition(duration, filename, vague); )
+
+    GFX_GUARD_EXC(GRAPHICS.transition(duration, filename, vague);)
     
     return Qnil;
 }
@@ -93,7 +93,7 @@ RB_METHOD(graphicsFrameReset)
     RB_UNUSED_PARAM;
     
     GFX_LOCK;
-    shState->graphics().frameReset();
+    GRAPHICS.frameReset();
     GFX_UNLOCK;
     
     return Qnil;
@@ -103,7 +103,7 @@ RB_METHOD(graphicsFrameReset)
 RB_METHOD(graphics##Get##PropName) \
 { \
 RB_UNUSED_PARAM; \
-return rb_fix_new(shState->graphics().get##PropName()); \
+return rb_fix_new(GRAPHICS.get##PropName()); \
 } \
 RB_METHOD(graphics##Set##PropName) \
 { \
@@ -111,7 +111,7 @@ RB_UNUSED_PARAM; \
 int value; \
 rb_get_args(argc, argv, "i", &value RB_ARG_END); \
 GFX_LOCK; \
-shState->graphics().set##PropName(value); \
+GRAPHICS.set##PropName(value); \
 GFX_UNLOCK; \
 return rb_fix_new(value); \
 }
@@ -120,7 +120,7 @@ return rb_fix_new(value); \
 RB_METHOD(graphics##Get##PropName) \
 { \
 RB_UNUSED_PARAM; \
-return rb_bool_new(shState->graphics().get##PropName()); \
+return rb_bool_new(GRAPHICS.get##PropName()); \
 } \
 RB_METHOD(graphics##Set##PropName) \
 { \
@@ -128,7 +128,7 @@ RB_UNUSED_PARAM; \
 bool value; \
 rb_get_args(argc, argv, "b", &value RB_ARG_END); \
 GFX_LOCK; \
-shState->graphics().set##PropName(value); \
+GRAPHICS.set##PropName(value); \
 GFX_UNLOCK; \
 return rb_bool_new(value); \
 }
@@ -137,7 +137,7 @@ return rb_bool_new(value); \
 RB_METHOD(graphics##Get##PropName) \
 { \
 RB_UNUSED_PARAM; \
-return rb_float_new(shState->graphics().get##PropName()); \
+return rb_float_new(GRAPHICS.get##PropName()); \
 } \
 RB_METHOD(graphics##Set##PropName) \
 { \
@@ -145,7 +145,7 @@ RB_UNUSED_PARAM; \
 double value; \
 rb_get_args(argc, argv, "f", &value RB_ARG_END); \
 GFX_LOCK; \
-shState->graphics().set##PropName(value); \
+GRAPHICS.set##PropName(value); \
 GFX_UNLOCK; \
 return rb_float_new(value); \
 }
@@ -153,29 +153,29 @@ return rb_float_new(value); \
 RB_METHOD(graphicsWidth)
 {
     RB_UNUSED_PARAM;
-    
-    return rb_fix_new(shState->graphics().width());
+
+    return rb_fix_new(GRAPHICS.width());
 }
 
 RB_METHOD(graphicsHeight)
 {
     RB_UNUSED_PARAM;
-    
-    return rb_fix_new(shState->graphics().height());
+
+    return rb_fix_new(GRAPHICS.height());
 }
 
 RB_METHOD(graphicsDisplayWidth)
 {
     RB_UNUSED_PARAM;
-    
-    return rb_fix_new(shState->graphics().displayWidth());
+
+    return rb_fix_new(GRAPHICS.displayWidth());
 }
 
 RB_METHOD(graphicsDisplayHeight)
 {
     RB_UNUSED_PARAM;
-    
-    return rb_fix_new(shState->graphics().displayHeight());
+
+    return rb_fix_new(GRAPHICS.displayHeight());
 }
 
 RB_METHOD(graphicsWait)
@@ -187,12 +187,12 @@ RB_METHOD(graphicsWait)
 #if RAPI_MAJOR >= 2
     rb_thread_call_without_gvl([](void* d) -> void* {
         GFX_LOCK;
-        shState->graphics().wait(*(int*)d);
+        GRAPHICS.wait(*(int *) d);
         GFX_UNLOCK;
         return 0;
     }, (int*)&duration, 0, 0);
 #else
-    shState->graphics().wait(duration);
+    GRAPHICS.wait(duration);
 #endif
     return Qnil;
 }
@@ -205,7 +205,7 @@ RB_METHOD(graphicsFadeout)
     rb_get_args(argc, argv, "i", &duration RB_ARG_END);
     
     GFX_LOCK;
-    shState->graphics().fadeout(duration);
+    GRAPHICS.fadeout(duration);
     GFX_UNLOCK;
     
     return Qnil;
@@ -219,7 +219,7 @@ RB_METHOD(graphicsFadein)
     rb_get_args(argc, argv, "i", &duration RB_ARG_END);
     
     GFX_LOCK;
-    shState->graphics().fadein(duration);
+    GRAPHICS.fadein(duration);
     GFX_UNLOCK;
     
     return Qnil;
@@ -227,17 +227,16 @@ RB_METHOD(graphicsFadein)
 
 void bitmapInitProps(Bitmap *b, VALUE self);
 
-RB_METHOD(graphicsSnapToBitmap)
-{
+RB_METHOD(graphicsSnapToBitmap) {
     RB_UNUSED_PARAM;
-    
+
     Bitmap *result = 0;
-    
-    GFX_GUARD_EXC( result = shState->graphics().snapToBitmap(); );
-    
+
+    GFX_GUARD_EXC(result = GRAPHICS.snapToBitmap(););
+
     VALUE obj = wrapObject(result, BitmapType);
     bitmapInitProps(result, obj);
-    
+
     return obj;
 }
 
@@ -249,7 +248,7 @@ RB_METHOD(graphicsResizeScreen)
     rb_get_args(argc, argv, "ii", &width, &height RB_ARG_END);
     
     GFX_LOCK;
-    shState->graphics().resizeScreen(width, height);
+    GRAPHICS.resizeScreen(width, height);
     GFX_UNLOCK;
     
     return Qnil;
@@ -265,7 +264,7 @@ RB_METHOD(graphicsResizeWindow)
     
     
     GFX_LOCK;
-    shState->graphics().resizeWindow(width, height, center);
+    GRAPHICS.resizeWindow(width, height, center);
     GFX_UNLOCK;
     
     return Qnil;
@@ -276,7 +275,7 @@ RB_METHOD(graphicsReset)
     RB_UNUSED_PARAM;
     
     GFX_LOCK;
-    shState->graphics().reset();
+    GRAPHICS.reset();
     GFX_UNLOCK;
     
     return Qnil;
@@ -285,8 +284,8 @@ RB_METHOD(graphicsReset)
 RB_METHOD(graphicsCenter)
 {
     RB_UNUSED_PARAM;
-    
-    shState->graphics().center();
+
+    GRAPHICS.center();
     return Qnil;
 }
 
@@ -299,11 +298,11 @@ typedef struct {
 void *playMovieInternal(void *args) {
     PlayMovieArgs *a = (PlayMovieArgs*)args;
     GFX_GUARD_EXC(
-                  shState->graphics().playMovie(a->filename, a->volume, a->skippable);
+            GRAPHICS.playMovie(a->filename, a->volume, a->skippable);
                   
                   // Signals for shutdown or reset only make playMovie quit early,
                   // so check again
-                  shState->graphics().update();
+            GRAPHICS.update();
                   );
     return 0;
 }
@@ -334,9 +333,8 @@ RB_METHOD(graphicsPlayMovie)
     return Qnil;
 }
 
-void graphicsScreenshotInternal(const char *filename)
-{
-    GFX_GUARD_EXC(shState->graphics().screenshot(filename););
+void graphicsScreenshotInternal(const char *filename) {
+    GFX_GUARD_EXC(GRAPHICS.screenshot(filename););
 }
 
 RB_METHOD(graphicsScreenshot)

@@ -22,8 +22,9 @@
 #include <SDL_joystick.h>
 #include <string>
 
-
+#include "InputManager.h"
 #include "eventthread.h"
+#include "ThreadManager.h"
 
 #include "binding-util.h"
 #include "util/exception.h"
@@ -33,15 +34,15 @@
 
 RB_METHOD(inputDelta) {
     RB_UNUSED_PARAM;
-    
-    return rb_float_new(shState->input().getDelta());
+
+    return rb_float_new(GAME_INPUT.getDelta());
 }
 
 RB_METHOD(inputUpdate) {
     RB_UNUSED_PARAM;
-    
-    shState->input().update();
-    
+
+    GAME_INPUT.update();
+
     return Qnil;
 }
 
@@ -103,8 +104,8 @@ RB_METHOD(inputPress) {
     rb_scan_args(argc, argv, "1", &button);
     
     int num = getButtonArg(&button);
-    
-    return rb_bool_new(shState->input().isPressed(num));
+
+    return rb_bool_new(GAME_INPUT.isPressed(num));
 }
 
 RB_METHOD(inputTrigger) {
@@ -116,8 +117,8 @@ RB_METHOD(inputTrigger) {
     rb_scan_args(argc, argv, "1", &button);
     
     int num = getButtonArg(&button);
-    
-    return rb_bool_new(shState->input().isTriggered(num));
+
+    return rb_bool_new(GAME_INPUT.isTriggered(num));
 }
 
 RB_METHOD(inputRepeat) {
@@ -129,8 +130,8 @@ RB_METHOD(inputRepeat) {
     rb_scan_args(argc, argv, "1", &button);
     
     int num = getButtonArg(&button);
-    
-    return rb_bool_new(shState->input().isRepeated(num));
+
+    return rb_bool_new(GAME_INPUT.isRepeated(num));
 }
 
 RB_METHOD(inputRelease) {
@@ -142,8 +143,8 @@ RB_METHOD(inputRelease) {
     rb_scan_args(argc, argv, "1", &button);
     
     int num = getButtonArg(&button);
-    
-    return rb_bool_new(shState->input().isReleased(num));
+
+    return rb_bool_new(GAME_INPUT.isReleased(num));
 }
 
 RB_METHOD(inputCount) {
@@ -155,8 +156,8 @@ RB_METHOD(inputCount) {
     rb_scan_args(argc, argv, "1", &button);
     
     int num = getButtonArg(&button);
-    
-    return UINT2NUM(shState->input().count(num));
+
+    return UINT2NUM(GAME_INPUT.count(num));
 }
 
 RB_METHOD(inputRepeatTime) {
@@ -168,8 +169,8 @@ RB_METHOD(inputRepeatTime) {
     rb_scan_args(argc, argv, "1", &button);
     
     int num = getButtonArg(&button);
-    
-    return rb_float_new(shState->input().repeatTime(num));
+
+    return rb_float_new(GAME_INPUT.repeatTime(num));
 }
 
 RB_METHOD(inputPressEx) {
@@ -180,10 +181,10 @@ RB_METHOD(inputPressEx) {
     
     if (SYMBOL_P(button)) {
         int num = getScancodeArg(&button);
-        return rb_bool_new(shState->input().isPressedEx(num, 0));
+        return rb_bool_new(GAME_INPUT.isPressedEx(num, 0));
     }
-    
-    return rb_bool_new(shState->input().isPressedEx(NUM2INT(button), 1));
+
+    return rb_bool_new(GAME_INPUT.isPressedEx(NUM2INT(button), 1));
 }
 
 RB_METHOD(inputTriggerEx) {
@@ -194,10 +195,10 @@ RB_METHOD(inputTriggerEx) {
     
     if (SYMBOL_P(button)) {
         int num = getScancodeArg(&button);
-        return rb_bool_new(shState->input().isTriggeredEx(num, 0));
+        return rb_bool_new(GAME_INPUT.isTriggeredEx(num, 0));
     }
-    
-    return rb_bool_new(shState->input().isTriggeredEx(NUM2INT(button), 1));
+
+    return rb_bool_new(GAME_INPUT.isTriggeredEx(NUM2INT(button), 1));
 }
 
 RB_METHOD(inputRepeatEx) {
@@ -208,10 +209,10 @@ RB_METHOD(inputRepeatEx) {
     
     if (SYMBOL_P(button)) {
         int num = getScancodeArg(&button);
-        return rb_bool_new(shState->input().isRepeatedEx(num, 0));
+        return rb_bool_new(GAME_INPUT.isRepeatedEx(num, 0));
     }
-    
-    return rb_bool_new(shState->input().isRepeatedEx(NUM2INT(button), 1));
+
+    return rb_bool_new(GAME_INPUT.isRepeatedEx(NUM2INT(button), 1));
 }
 
 RB_METHOD(inputReleaseEx) {
@@ -222,10 +223,10 @@ RB_METHOD(inputReleaseEx) {
     
     if (SYMBOL_P(button)) {
         int num = getScancodeArg(&button);
-        return rb_bool_new(shState->input().isReleasedEx(num, 0));
+        return rb_bool_new(GAME_INPUT.isReleasedEx(num, 0));
     }
-    
-    return rb_bool_new(shState->input().isReleasedEx(NUM2INT(button), 1));
+
+    return rb_bool_new(GAME_INPUT.isReleasedEx(NUM2INT(button), 1));
 }
 
 RB_METHOD(inputCountEx) {
@@ -236,10 +237,10 @@ RB_METHOD(inputCountEx) {
     
     if (SYMBOL_P(button)) {
         int num = getScancodeArg(&button);
-        return UINT2NUM(shState->input().repeatcount(num, 0));
+        return UINT2NUM(GAME_INPUT.repeatcount(num, 0));
     }
-    
-    return UINT2NUM(shState->input().repeatcount(NUM2INT(button), 1));
+
+    return UINT2NUM(GAME_INPUT.repeatcount(NUM2INT(button), 1));
 }
 
 RB_METHOD(inputRepeatTimeEx) {
@@ -250,47 +251,47 @@ RB_METHOD(inputRepeatTimeEx) {
     
     if (SYMBOL_P(button)) {
         int num = getScancodeArg(&button);
-        return rb_float_new(shState->input().repeatTimeEx(num, 0));
+        return rb_float_new(GAME_INPUT.repeatTimeEx(num, 0));
     }
-    
-    return rb_float_new(shState->input().repeatTimeEx(NUM2INT(button), 1));
+
+    return rb_float_new(GAME_INPUT.repeatTimeEx(NUM2INT(button), 1));
 }
 
 RB_METHOD(inputDir4) {
     RB_UNUSED_PARAM;
-    
-    return rb_fix_new(shState->input().dir4Value());
+
+    return rb_fix_new(GAME_INPUT.dir4Value());
 }
 
 RB_METHOD(inputDir8) {
     RB_UNUSED_PARAM;
-    
-    return rb_fix_new(shState->input().dir8Value());
+
+    return rb_fix_new(GAME_INPUT.dir8Value());
 }
 
 /* Non-standard extensions */
 RB_METHOD(inputMouseX) {
     RB_UNUSED_PARAM;
-    
-    return rb_fix_new(shState->input().mouseX());
+
+    return rb_fix_new(GAME_INPUT.mouseX());
 }
 
 RB_METHOD(inputMouseY) {
     RB_UNUSED_PARAM;
-    
-    return rb_fix_new(shState->input().mouseY());
+
+    return rb_fix_new(GAME_INPUT.mouseY());
 }
 
 RB_METHOD(inputScrollV) {
     RB_UNUSED_PARAM;
-    
-    return rb_fix_new(shState->input().scrollV());
+
+    return rb_fix_new(GAME_INPUT.scrollV());
 }
 
 RB_METHOD(inputMouseInWindow) {
     RB_UNUSED_PARAM;
-    
-    return rb_bool_new(shState->input().mouseInWindow());
+
+    return rb_bool_new(GAME_INPUT.mouseInWindow());
 }
 
 RB_METHOD(inputRawKeyStates) {
@@ -298,9 +299,9 @@ RB_METHOD(inputRawKeyStates) {
     
     VALUE ret = rb_ary_new();
 
-    uint8_t *states = shState->input().rawKeyStates();
-    
-    for (unsigned int i = 0; i < shState->input().rawKeyStatesLength(); i++)
+    uint8_t *states = GAME_INPUT.rawKeyStates();
+
+    for (unsigned int i = 0; i < GAME_INPUT.rawKeyStatesLength(); i++)
         rb_ary_push(ret, rb_bool_new(states[i]));
     
     return ret;
@@ -314,35 +315,35 @@ break;
 
 RB_METHOD(inputControllerConnected) {
     RB_UNUSED_PARAM;
-    
-    return rb_bool_new(shState->input().getControllerConnected());
+
+    return rb_bool_new(GAME_INPUT.getControllerConnected());
 }
 
 RB_METHOD(inputControllerName) {
     RB_UNUSED_PARAM;
-    
-    if (!shState->input().getControllerConnected())
+
+    if (!GAME_INPUT.getControllerConnected())
         return rb_utf8_str_new_cstr("");
-    
-    return rb_utf8_str_new_cstr(shState->input().getControllerName());
+
+    return rb_utf8_str_new_cstr(GAME_INPUT.getControllerName());
 }
 
 RB_METHOD(inputControllerPowerLevel) {
     RB_UNUSED_PARAM;
     
     VALUE ret;
-    
-    if (!shState->input().getControllerConnected())
+
+    if (!GAME_INPUT.getControllerConnected())
         ret = M_SYMBOL("UNKNOWN");
-    
-    switch (shState->input().getControllerPowerLevel()) {
-            POWERCASE(ret, MAX);
-            POWERCASE(ret, WIRED);
-            POWERCASE(ret, FULL);
-            POWERCASE(ret, MEDIUM);
-            POWERCASE(ret, LOW);
-            POWERCASE(ret, EMPTY);
-            
+
+    switch (GAME_INPUT.getControllerPowerLevel()) {
+        POWERCASE(ret, MAX);
+        POWERCASE(ret, WIRED);
+        POWERCASE(ret, FULL);
+        POWERCASE(ret, MEDIUM);
+        POWERCASE(ret, LOW);
+        POWERCASE(ret, EMPTY);
+
         default:
             ret = M_SYMBOL("UNKNOWN");
             break;
@@ -355,11 +356,11 @@ RB_METHOD(inputControllerPowerLevel) {
 RB_METHOD(inputControllerGet##n##Axis) {\
 RB_UNUSED_PARAM;\
 VALUE ret = rb_ary_new(); \
-if (!shState->eThread().getControllerConnected()) {\
+if (!EVENT_THREAD.getControllerConnected()) {\
 rb_ary_push(ret, rb_float_new(0)); rb_ary_push(ret, rb_float_new(0)); \
 }\
-rb_ary_push(ret, rb_float_new(shState->input().getControllerAxisValue(SDL_CONTROLLER_AXIS_##ax1) / 32767.0)); \
-rb_ary_push(ret, rb_float_new(shState->input().getControllerAxisValue(SDL_CONTROLLER_AXIS_##ax2) / 32767.0)); \
+rb_ary_push(ret, rb_float_new(GAME_INPUT.getControllerAxisValue(SDL_CONTROLLER_AXIS_##ax1) / 32767.0)); \
+rb_ary_push(ret, rb_float_new(GAME_INPUT.getControllerAxisValue(SDL_CONTROLLER_AXIS_##ax2) / 32767.0)); \
 return ret; \
 }
 
@@ -378,10 +379,10 @@ RB_METHOD(inputControllerPressEx) {
     
     if (SYMBOL_P(button)) {
         int num = getControllerButtonArg(&button);
-        return rb_bool_new(shState->input().controllerIsPressedEx(num));
+        return rb_bool_new(GAME_INPUT.controllerIsPressedEx(num));
     }
-    
-    return rb_bool_new(shState->input().controllerIsPressedEx(NUM2INT(button)));
+
+    return rb_bool_new(GAME_INPUT.controllerIsPressedEx(NUM2INT(button)));
 }
 
 RB_METHOD(inputControllerTriggerEx) {
@@ -392,10 +393,10 @@ RB_METHOD(inputControllerTriggerEx) {
     
     if (SYMBOL_P(button)) {
         int num = getControllerButtonArg(&button);
-        return rb_bool_new(shState->input().controllerIsTriggeredEx(num));
+        return rb_bool_new(GAME_INPUT.controllerIsTriggeredEx(num));
     }
-    
-    return rb_bool_new(shState->input().controllerIsTriggeredEx(NUM2INT(button)));
+
+    return rb_bool_new(GAME_INPUT.controllerIsTriggeredEx(NUM2INT(button)));
 }
 
 RB_METHOD(inputControllerRepeatEx) {
@@ -406,10 +407,10 @@ RB_METHOD(inputControllerRepeatEx) {
     
     if (SYMBOL_P(button)) {
         int num = getControllerButtonArg(&button);
-        return rb_bool_new(shState->input().controllerIsRepeatedEx(num));
+        return rb_bool_new(GAME_INPUT.controllerIsRepeatedEx(num));
     }
-    
-    return rb_bool_new(shState->input().controllerIsRepeatedEx(NUM2INT(button)));
+
+    return rb_bool_new(GAME_INPUT.controllerIsRepeatedEx(NUM2INT(button)));
 }
 
 RB_METHOD(inputControllerReleaseEx) {
@@ -420,10 +421,10 @@ RB_METHOD(inputControllerReleaseEx) {
     
     if (SYMBOL_P(button)) {
         int num = getControllerButtonArg(&button);
-        return rb_bool_new(shState->input().controllerIsReleasedEx(num));
+        return rb_bool_new(GAME_INPUT.controllerIsReleasedEx(num));
     }
-    
-    return rb_bool_new(shState->input().controllerIsReleasedEx(NUM2INT(button)));
+
+    return rb_bool_new(GAME_INPUT.controllerIsReleasedEx(NUM2INT(button)));
 }
 
 RB_METHOD(inputControllerCountEx) {
@@ -434,10 +435,10 @@ RB_METHOD(inputControllerCountEx) {
     
     if (SYMBOL_P(button)) {
         int num = getControllerButtonArg(&button);
-        return rb_bool_new(shState->input().controllerRepeatcount(num));
+        return rb_bool_new(GAME_INPUT.controllerRepeatcount(num));
     }
-    
-    return rb_bool_new(shState->input().controllerRepeatcount(NUM2INT(button)));
+
+    return rb_bool_new(GAME_INPUT.controllerRepeatcount(NUM2INT(button)));
 }
 
 RB_METHOD(inputControllerRepeatTimeEx) {
@@ -448,19 +449,19 @@ RB_METHOD(inputControllerRepeatTimeEx) {
     
     if (SYMBOL_P(button)) {
         int num = getControllerButtonArg(&button);
-        return rb_float_new(shState->input().controllerRepeatTimeEx(num));
+        return rb_float_new(GAME_INPUT.controllerRepeatTimeEx(num));
     }
-    
-    return rb_float_new(shState->input().controllerRepeatTimeEx(NUM2INT(button)));
+
+    return rb_float_new(GAME_INPUT.controllerRepeatTimeEx(NUM2INT(button)));
 }
 
 RB_METHOD(inputControllerRawButtonStates) {
     RB_UNUSED_PARAM;
-    
+
     VALUE ret = rb_ary_new();
-    uint8_t *states = shState->input().rawButtonStates();
-    
-    for (unsigned int i = 0; i < shState->input().rawButtonStatesLength(); i++)
+    uint8_t *states = GAME_INPUT.rawButtonStates();
+
+    for (unsigned int i = 0; i < GAME_INPUT.rawButtonStatesLength(); i++)
         rb_ary_push(ret, rb_bool_new(states[i]));
     
     return ret;
@@ -468,11 +469,11 @@ RB_METHOD(inputControllerRawButtonStates) {
 
 RB_METHOD(inputControllerRawAxes) {
     RB_UNUSED_PARAM;
-    
+
     VALUE ret = rb_ary_new();
-    int16_t *states = shState->input().rawAxes();
-    
-    for (unsigned int i = 0; i < shState->input().rawAxesLength(); i++)
+    int16_t *states = GAME_INPUT.rawAxes();
+
+    for (unsigned int i = 0; i < GAME_INPUT.rawAxesLength(); i++)
         rb_ary_push(ret, rb_float_new(states[i] / 32767.0));
     
     return ret;
@@ -480,27 +481,27 @@ RB_METHOD(inputControllerRawAxes) {
 
 RB_METHOD(inputGetMode) {
     RB_UNUSED_PARAM;
-    
-    return rb_bool_new(shState->input().getTextInputMode());
+
+    return rb_bool_new(GAME_INPUT.getTextInputMode());
 }
 
 RB_METHOD(inputSetMode) {
     RB_UNUSED_PARAM;
-    
+
     bool mode;
     rb_get_args(argc, argv, "b", &mode RB_ARG_END);
-    
-    shState->input().setTextInputMode(mode);
-    
+
+    GAME_INPUT.setTextInputMode(mode);
+
     return mode;
 }
 
 RB_METHOD(inputGets) {
     RB_UNUSED_PARAM;
-    shState->eThread().lockText(true);
-    VALUE ret = rb_utf8_str_new_cstr(shState->input().getText());
-    shState->input().clearText();
-    shState->eThread().lockText(false);
+    EVENT_THREAD.lockText(true);
+    VALUE ret = rb_utf8_str_new_cstr(GAME_INPUT.getText());
+    GAME_INPUT.clearText();
+    EVENT_THREAD.lockText(false);
     return ret;
 }
 
@@ -508,7 +509,7 @@ RB_METHOD(inputGetClipboard) {
     RB_UNUSED_PARAM;
     VALUE ret;
     try {
-        ret = rb_utf8_str_new_cstr(shState->input().getClipboardText());
+        ret = rb_utf8_str_new_cstr(GAME_INPUT.getClipboardText());
     } catch (const Exception &e) {
         raiseRbExc(e);
     }
@@ -524,7 +525,7 @@ RB_METHOD(inputSetClipboard) {
     SafeStringValue(str);
     
     try {
-        shState->input().setClipboardText(RSTRING_PTR(str));
+        GAME_INPUT.setClipboardText(RSTRING_PTR(str));
     } catch (const Exception &e) {
         raiseRbExc(e);
     }

@@ -100,24 +100,24 @@ struct ViewportPrivate
 };
 
 Viewport::Viewport(int x, int y, int width, int height)
-    : SceneElement(*shState->screen()),
-      sceneLink(this)
+        : SceneElement(SCREEN),
+          sceneLink(this)
 {
 	initViewport(x, y, width, height);
 }
 
 Viewport::Viewport(Rect *rect)
-    : SceneElement(*shState->screen()),
-      sceneLink(this)
+        : SceneElement(SCREEN),
+          sceneLink(this)
 {
 	initViewport(rect->x, rect->y, rect->width, rect->height);
 }
 
 Viewport::Viewport()
-    : SceneElement(*shState->screen()),
-      sceneLink(this)
+        : SceneElement(SCREEN),
+          sceneLink(this)
 {
-	const Graphics &graphics = shState->graphics();
+    const auto &graphics = GRAPHICS;
 	initViewport(0, 0, graphics.width(), graphics.height());
 }
 
@@ -183,30 +183,29 @@ void Viewport::initDynAttribs()
 }
 
 /* Scene */
-void Viewport::composite()
-{
-	if (emptyFlashFlag)
-		return;
+void Viewport::composite() {
+    if (emptyFlashFlag)
+        return;
 
-	bool renderEffect = p->needsEffectRender(flashing);
+    bool renderEffect = p->needsEffectRender(flashing);
 
-	if (elements.getSize() == 0 && !renderEffect)
-		return;
+    if (elements.getSize() == 0 && !renderEffect)
+        return;
 
-	/* Setup scissor */
-	glState.scissorTest.pushSet(true);
-	glState.scissorBox.pushSet(p->rect->toIntRect());
+    /* Setup scissor */
+    GL_STATE.scissorTest.pushSet(true);
+    GL_STATE.scissorBox.pushSet(p->rect->toIntRect());
 
-	Scene::composite();
+    Scene::composite();
 
-	/* If any effects are visible, request parent Scene to
-	 * render them. */
-	if (renderEffect)
-		scene->requestViewportRender
-		        (p->color->norm, flashColor, p->tone->norm);
+    /* If any effects are visible, request parent Scene to
+     * render them. */
+    if (renderEffect)
+        scene->requestViewportRender
+                (p->color->norm, flashColor, p->tone->norm);
 
-	glState.scissorBox.pop();
-	glState.scissorTest.pop();
+    GL_STATE.scissorBox.pop();
+    GL_STATE.scissorTest.pop();
 }
 
 /* SceneElement */
@@ -230,8 +229,8 @@ void Viewport::releaseResources()
 
 
 ViewportElement::ViewportElement(Viewport *viewport, int z, int spriteY)
-    : SceneElement(viewport ? *viewport : *shState->screen(), z, spriteY),
-      m_viewport(viewport)
+        : SceneElement(viewport ? *viewport : SCREEN, z, spriteY),
+          m_viewport(viewport)
 {}
 
 Viewport *ViewportElement::getViewport() const
@@ -241,8 +240,8 @@ Viewport *ViewportElement::getViewport() const
 
 void ViewportElement::setViewport(Viewport *viewport)
 {
-	m_viewport = viewport;
-	setScene(viewport ? *viewport : *shState->screen());
-	onViewportChange();
+    m_viewport = viewport;
+    setScene(viewport ? *viewport : SCREEN);
+    onViewportChange();
 	onGeometryChange(scene->getGeometry());
 }

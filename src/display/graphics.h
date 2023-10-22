@@ -22,91 +22,115 @@
 #ifndef GRAPHICS_H
 #define GRAPHICS_H
 
-#include "util.h"
+#include "IGraphics.h"
 
-class Scene;
-class Bitmap;
-class Disposable;
-struct RGSSThreadData;
-struct GraphicsPrivate;
-struct AtomicFlag;
-struct THEORAPLAY_VideoFrame;
-struct Movie;
+#include <memory>
 
-class Graphics
-{
+class Graphics : public IGraphics {
 public:
-    double getDelta();
-    double lastUpdate();
-    
-	void update(bool checkForShutdown = true);
-	void freeze();
-	void transition(int duration = 8,
-	                const char *filename = "",
-	                int vague = 40);
-	void frameReset();
+    double getDelta() override;
 
-	DECL_ATTR( FrameRate,  int )
-	DECL_ATTR( FrameCount, int )
-	DECL_ATTR( Brightness, int )
+    double lastUpdate() override;
 
-	void wait(int duration);
-	void fadeout(int duration);
-	void fadein(int duration);
+    void update(bool checkForShutdown) override;
 
-	Bitmap *snapToBitmap();
+    void freeze() override;
 
-	int width() const;
-	int height() const;
-    int displayWidth() const;
-    int displayHeight() const;
-	void resizeScreen(int width, int height);
-    void resizeWindow(int width, int height, bool center=false);
-	void drawMovieFrame(const THEORAPLAY_VideoFrame* video, Bitmap *videoBitmap);
-	bool updateMovieInput(Movie *movie);
-	void playMovie(const char *filename, int volume, bool skippable);
-	void screenshot(const char *filename);
+    void transition(int duration, const char *filename, int vague) override;
 
-	void reset();
-    void center();
+    void frameReset() override;
+
+    DECL_ATTR_OVRD(FrameRate, int)
+
+    DECL_ATTR_OVRD(FrameCount, int)
+
+    DECL_ATTR_OVRD(Brightness, int)
+
+    void wait(int duration) override;
+
+    void fadeout(int duration) override;
+
+    void fadein(int duration) override;
+
+    Bitmap *snapToBitmap() override;
+
+    int width() const override;
+
+    int height() const override;
+
+    int displayWidth() const override;
+
+    int displayHeight() const override;
+
+    void resizeScreen(int width, int height) override;
+
+    void resizeWindow(int width, int height, bool center = false) override;
+
+    void drawMovieFrame(const THEORAPLAY_VideoFrame *video, Bitmap *videoBitmap) override;
+
+    bool updateMovieInput(Movie *movie) override;
+
+    void playMovie(const char *filename, int volume, bool skippable) override;
+
+    void screenshot(const char *filename) override;
+
+    void reset() override;
+
+    void center() override;
 
     /* Non-standard extension */
-    DECL_ATTR( Fullscreen, bool )
-    DECL_ATTR( ShowCursor, bool )
-    DECL_ATTR( Scale,    double )
-    DECL_ATTR( Frameskip, bool )
-    DECL_ATTR( FixedAspectRatio, bool )
-    DECL_ATTR( SmoothScaling, bool )
-    DECL_ATTR( IntegerScaling, bool )
-    DECL_ATTR( LastMileScaling, bool )
-    DECL_ATTR( Threadsafe, bool )
-    double averageFrameRate();
+    DECL_ATTR_OVRD(Fullscreen, bool)
 
-	/* <internal> */
-	Scene *getScreen() const;
-	/* Repaint screen with static image until exitCond
-	 * is set. Observes reset flag on top of shutdown
-	 * if "checkReset" */
-	void repaintWait(const AtomicFlag &exitCond,
-	                 bool checkReset = true);
-    
-    void lock(bool force = false);
-    void unlock(bool force = false);
+    DECL_ATTR_OVRD(ShowCursor, bool)
+
+    DECL_ATTR_OVRD(Scale, double)
+
+    DECL_ATTR_OVRD(Frameskip, bool)
+
+    DECL_ATTR_OVRD(FixedAspectRatio, bool)
+
+    DECL_ATTR_OVRD(SmoothScaling, bool)
+
+    DECL_ATTR_OVRD(IntegerScaling, bool)
+
+    DECL_ATTR_OVRD(LastMileScaling, bool)
+
+    DECL_ATTR_OVRD(Threadsafe, bool)
+
+    double averageFrameRate() override;
+
+    /* <internal> */
+    Scene *getScreen() const override;
+
+    /* Repaint screen with static image until exitCond
+     * is set. Observes reset flag on top of shutdown
+     * if "checkReset" */
+    void repaintWait(const AtomicFlag &exitCond,
+                     bool checkReset = true) override;
+
+    void lock(bool force = false) override;
+
+    void unlock(bool force = false) override;
 
 private:
-	Graphics(RGSSThreadData *data);
-	~Graphics();
+    explicit Graphics(RGSSThreadData *data);
 
-	void addDisposable(Disposable *);
-	void remDisposable(Disposable *);
+protected:
+    void addDisposable(Disposable *) override;
 
-	friend struct SharedStatePrivate;
-	friend class Disposable;
+    void remDisposable(Disposable *) override;
 
-	GraphicsPrivate *p;
+private:
+    friend struct SharedStatePrivate;
+
+    friend class Disposable;
+
+    friend class DisplayManager;
+
+    std::unique_ptr<GraphicsPrivate> p;
 };
 
-#define GFX_LOCK shState->graphics().lock()
-#define GFX_UNLOCK shState->graphics().unlock()
+#define GFX_LOCK GRAPHICS.lock()
+#define GFX_UNLOCK GRAPHICS.unlock()
 
 #endif // GRAPHICS_H

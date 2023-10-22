@@ -66,7 +66,20 @@ get_target_property(ALL_INCLUDES mkxp_z INCLUDE_DIRECTORIES)
 
 add_library(minimal_example SHARED binding/binding-util.cpp binding/etc-binding.cpp src/etc/etc.cpp src/etc/table.cpp minimal.cpp
         src/crypto/rgssad.cpp src/filesystem/filesystemImpl.cpp src/util/iniconfig.cpp src/config.cpp
-        src/singletons/ConfigManager.cpp binding/font-binding.cpp src/display/font.cpp  src/filesystem/filesystem.cpp)
+        src/singletons/ConfigManager.cpp binding/font-binding.cpp src/display/font.cpp src/filesystem/filesystem.cpp
+        binding/filesystem-binding.cpp src/display/bitmap.cpp binding/bitmap-binding.cpp src/singletons/DisplayManager.cpp
+        src/display/gl/gl-meta.cpp src/display/gl/shader.cpp src/display/libnsgif/libnsgif.c src/singletons/TimeManager.cpp
+        src/display/gl/vertex.cpp src/display/libnsgif/lzw.c src/display/gl/gl-debug.cpp src/display/gl/gl-fun.cpp
+        src/display/gl/glstate.cpp src/system/systemImpl.cpp src/display/sprite.cpp binding/sprite-binding.cpp
+        src/display/viewport.cpp binding/viewport-binding.cpp src/display/gl/scene.cpp src/display/window.cpp
+        src/display/windowvx.cpp binding/window-binding.cpp binding/windowvx-binding.cpp src/display/gl/tilequad.cpp
+        src/display/autotiles.cpp src/display/autotilesvx.cpp src/display/tilemap.cpp src/display/tilemapvx.cpp
+        binding/tilemap-binding.cpp binding/tilemapvx-binding.cpp src/display/gl/tileatlas.cpp
+        src/display/gl/tileatlasvx.cpp binding/table-binding.cpp src/display/plane.cpp binding/plane-binding.cpp
+        src/audio/audio.cpp binding/audio-binding.cpp src/audio/alstream.cpp src/audio/audiostream.cpp
+        src/audio/fluid-fun.cpp src/audio/midisource.cpp src/audio/sdlsoundsource.cpp src/audio/soundemitter.cpp
+        src/audio/vorbissource.cpp src/singletons/AudioManager.cpp src/input/input.cpp src/input/keybindings.cpp
+        binding/input-binding.cpp src/singletons/InputManager.cpp src/singletons/ThreadManager.cpp interfaces/AbstractEventThread.cpp)
 
 message("Includes: ${ALL_INCLUDES}")
 target_include_directories(minimal_example PUBLIC ${ALL_INCLUDES})
@@ -78,13 +91,13 @@ target_link_libraries(minimal_example PUBLIC
         SDL2_image::SDL2_image
         SDL2_ttf::SDL2_ttf
         SDL2_sound::SDL2_sound-static
-        #Ogg::Ogg
+        Ogg::Ogg
         physfs::physfs
         OpenAL::OpenAL
-        #Vorbis::Vorbis
+        Vorbis::Vorbis
         uchardet::uchardet
         #theora::theora
-        #pixman-1
+        pixman-1
         MKXPZ_Assets
         MKXPZ_Shaders)
 

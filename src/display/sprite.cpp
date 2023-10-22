@@ -118,9 +118,9 @@ struct SpritePrivate
         sceneRect.x = sceneRect.y = 0;
         
         updateSrcRectCon();
-        
-        prepareCon = shState->prepareDraw.connect
-        (&SpritePrivate::prepare, this);
+
+        prepareCon = DISPLAY_MANAGER.prepareDraw.connect
+                (&SpritePrivate::prepare, this);
         
         patternScroll = Vec2(0,0);
         patternZoom = Vec2(1, 1);
@@ -593,7 +593,7 @@ void Sprite::draw()
     
     if (renderEffect)
     {
-        SpriteShader &shader = shState->shaders().sprite;
+        SpriteShader &shader = SHADERS.sprite;
         
         shader.bind();
         shader.applyViewportProj();
@@ -630,34 +630,32 @@ void Sprite::draw()
     }
     else if (p->opacity != 255)
     {
-        AlphaSpriteShader &shader = shState->shaders().alphaSprite;
+        AlphaSpriteShader &shader = SHADERS.alphaSprite;
         shader.bind();
         
         shader.setSpriteMat(p->trans.getMatrix());
         shader.setAlpha(p->opacity.norm);
         shader.applyViewportProj();
         base = &shader;
-    }
-    else
-    {
-        SimpleSpriteShader &shader = shState->shaders().simpleSprite;
+    } else {
+        SimpleSpriteShader &shader = SHADERS.simpleSprite;
         shader.bind();
-        
+
         shader.setSpriteMat(p->trans.getMatrix());
         shader.applyViewportProj();
         base = &shader;
     }
-    
-    glState.blendMode.pushSet(p->blendType);
-    
+
+    GL_STATE.blendMode.pushSet(p->blendType);
+
     p->bitmap->bindTex(*base);
-    
+
     if (p->wave.active)
         p->wave.qArray.draw();
     else
         p->quad.draw();
-    
-    glState.blendMode.pop();
+
+    GL_STATE.blendMode.pop();
 }
 
 void Sprite::onGeometryChange(const Scene::Geometry &geo)

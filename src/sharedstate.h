@@ -22,7 +22,6 @@
 #ifndef SHAREDSTATE_H
 #define SHAREDSTATE_H
 
-//#include "ISharedState.h"
 #include "sigslot/signal.hpp"
 
 #define shState SharedState::instance

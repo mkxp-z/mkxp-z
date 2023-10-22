@@ -105,8 +105,8 @@ typedef NSMutableArray<NSNumber*> BindingIndexArray;
 }
 
 - (IBAction)acceptButton:(NSButton *)sender {
-    shState->rtData().bindingUpdateMsg.post(*binds);
-    storeBindings(*binds, shState->config());
+    RGSS_THREAD_DATA.bindingUpdateMsg.post(*binds);
+    storeBindings(*binds, CONFIG);
     [self closeWindow];
 }
 - (IBAction)cancelButton:(NSButton *)sender {
@@ -114,7 +114,7 @@ typedef NSMutableArray<NSNumber*> BindingIndexArray;
 }
 - (IBAction)resetBindings:(NSButton *)sender {
     binds->clear();
-    BDescVec tmp = genDefaultBindings(shState->config());
+    BDescVec tmp = genDefaultBindings(CONFIG);
     binds->assign(tmp.begin(), tmp.end());
     
     [self setNotListening:false];
@@ -251,9 +251,9 @@ s.d.ca.dir = (axis.value >= 0) ? AxisDir::Positive : AxisDir::Negative;
             return @(SDL_GetScancodeName(desc.d.scan));
         case CAxis:
             return [NSString stringWithFormat:@"%s%s",
-                    shState->input().getAxisName(desc.d.ca.axis), desc.d.ca.dir == Negative ? "-" : "+"];
+                                              INPUT.getAxisName(desc.d.ca.axis), desc.d.ca.dir == Negative ? "-" : "+"];
         case CButton:
-            return @(shState->input().getButtonName(desc.d.cb));
+            return @(INPUT.getButtonName(desc.d.cb));
         default:
             return @"Invalid";
     }
@@ -263,8 +263,8 @@ s.d.ca.dir = (axis.value >= 0) ? AxisDir::Positive : AxisDir::Negative;
     binds = new BDescVec;
     nsbinds = [NSMutableDictionary new];
     bindingNames = [NSMutableDictionary new];
-    
-    RGSSThreadData &data = shState->rtData();
+
+    RGSSThreadData &data = RGSS_THREAD_DATA;
     
 #define SET_BINDING(code) bindingNames[@(Input::code)] = @(#code)
 #define SET_BINDING_CUSTOM(code, value) bindingNames[@(Input::code)] = @(value)

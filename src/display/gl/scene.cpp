@@ -21,6 +21,7 @@
 
 #include "scene.h"
 #include "sharedstate.h"
+#include "TimeManager.h"
 
 Scene::Scene()
 {}
@@ -104,7 +105,7 @@ void Scene::composite()
 
 SceneElement::SceneElement(Scene &scene, int z, int spriteY)
     : link(this),
-      creationStamp(shState->genTimeStamp()),
+      creationStamp(TIME_MANAGER.genTimeStamp()),
       z(z),
       visible(true),
       scene(&scene),

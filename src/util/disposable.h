@@ -29,21 +29,20 @@
 
 #include <assert.h>
 #include "sigslot/signal.hpp"
+#include "DisplayManager.h"
 
 class Disposable
 {
 public:
 	Disposable()
 	    : disposed(false),
-	      link(this)
-	{
-		shState->graphics().addDisposable(this);
-	}
+	      link(this) {
+        GRAPHICS.addDisposable(this);
+    }
 
-	virtual ~Disposable()
-	{
-		shState->graphics().remDisposable(this);
-	}
+	virtual ~Disposable() {
+        GRAPHICS.remDisposable(this);
+    }
 
 	void dispose()
 	{

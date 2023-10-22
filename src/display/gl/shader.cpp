@@ -55,6 +55,8 @@
 #include "blurH.vert.xxd"
 #include "blurV.vert.xxd"
 #include "tilemapvx.vert.xxd"
+#include "DisplayManager.h"
+
 #endif
 
 #ifdef MKXPZ_BUILD_XCODE
@@ -120,15 +122,13 @@ Shader::~Shader()
 	gl.DeleteShader(fragShader);
 }
 
-void Shader::bind()
-{
-	glState.program.set(program);
+void Shader::bind() {
+    GL_STATE.program.set(program);
 }
 
-void Shader::unbind()
-{
-	gl.ActiveTexture(GL_TEXTURE0);
-	glState.program.set(0);
+void Shader::unbind() {
+    gl.ActiveTexture(GL_TEXTURE0);
+    GL_STATE.program.set(0);
 }
 
 #ifdef MKXPZ_BUILD_XCODE
@@ -293,7 +293,7 @@ void ShaderBase::init()
 
 void ShaderBase::applyViewportProj()
 {
-	const IntRect &vp = glState.viewport.get();
+    const IntRect &vp = GL_STATE.viewport.get();
 	projMat.set(Vec2i(vp.w, vp.h));
 }
 

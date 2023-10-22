@@ -22,6 +22,9 @@
 #ifndef AUDIO_H
 #define AUDIO_H
 
+#include "IAudio.h"
+#include <memory>
+
 /* Concerning the 'pos' parameter:
  *   RGSS3 actually doesn't specify a format for this,
  *   it's only implied that it is a numerical value
@@ -35,50 +38,59 @@
 struct AudioPrivate;
 struct RGSSThreadData;
 
-class Audio
-{
+class Audio : public IAudio {
 public:
-	void bgmPlay(const char *filename,
-	             int volume = 100,
-	             int pitch = 100,
-	             float pos = 0,
-                 int track = -127);
-	void bgmStop(int track = -127);
-	void bgmFade(int time, int track = -127);
-    int bgmGetVolume(int track = -127);
-    void bgmSetVolume(int volume = 100, int track = -127);
+    void bgmPlay(const char *filename,
+                 int volume,
+                 int pitch,
+                 float pos,
+                 int track) override;
 
-	void bgsPlay(const char *filename,
-	             int volume = 100,
-	             int pitch = 100,
-	             float pos = 0);
-	void bgsStop();
-	void bgsFade(int time);
+    void bgmStop(int track) override;
 
-	void mePlay(const char *filename,
-	            int volume = 100,
-	            int pitch = 100);
-	void meStop();
-	void meFade(int time);
+    void bgmFade(int time, int track) override;
 
-	void sePlay(const char *filename,
-	            int volume = 100,
-	            int pitch = 100);
-	void seStop();
+    int bgmGetVolume(int track) override;
 
-	void setupMidi();
-	float bgmPos(int track = 0);
-	float bgsPos();
+    void bgmSetVolume(int volume, int track) override;
 
-	void reset();
+    void bgsPlay(const char *filename,
+                 int volume,
+                 int pitch,
+                 float pos) override;
+
+    void bgsStop() override;
+
+    void bgsFade(int time) override;
+
+    void mePlay(const char *filename,
+                int volume,
+                int pitch) override;
+
+    void meStop() override;
+
+    void meFade(int time) override;
+
+    void sePlay(const char *filename,
+                int volume,
+                int pitch) override;
+
+    void seStop() override;
+
+    void setupMidi() override;
+
+    float bgmPos(int track) override;
+
+    float bgsPos() override;
+
+    void reset() override;
 
 private:
-	Audio(RGSSThreadData &rtData);
-	~Audio();
+    explicit Audio(RGSSThreadData &rtData);
 
-	friend struct SharedStatePrivate;
+    friend struct SharedStatePrivate;
 
-	AudioPrivate *p;
+    std::unique_ptr<AudioPrivate> p;
 };
 
 #endif // AUDIO_H

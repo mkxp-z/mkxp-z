@@ -65,7 +65,12 @@ target_sources(mkxp_z PUBLIC
         net/LUrlParser.cpp
         net/net.cpp
 
+        singletons/AudioManager.cpp
         singletons/ConfigManager.cpp
+        singletons/DisplayManager.cpp
+        singletons/InputManager.h
+        singletons/ThreadManager.cpp
+        singletons/TimeManager.cpp
 
         system/systemImpl.cpp)
 

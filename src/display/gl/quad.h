@@ -28,6 +28,7 @@
 #include "sharedstate.h"
 #include "global-ibo.h"
 #include "shader.h"
+#include "DisplayManager.h"
 
 struct Quad
 {
@@ -77,8 +78,8 @@ struct Quad
 	      vboDirty(true)
 	{
 		GLMeta::vaoFillInVertexData<Vertex>(vao);
-		vao.vbo = vbo;
-		vao.ibo = shState->globalIBO().ibo;
+        vao.vbo = vbo;
+        vao.ibo = DISPLAY_MANAGER.globalIBO().ibo;
 
 		GLMeta::vaoInit(vao, true);
 		VBO::allocEmpty(sizeof(Vertex[4]), GL_DYNAMIC_DRAW);

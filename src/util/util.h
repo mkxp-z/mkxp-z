@@ -118,23 +118,26 @@ inline C *dataPtr(std::vector<C> &v)
 
 #define elementsN(obj) const size_t obj##N = ARRAY_SIZE(obj)
 
-#define DECL_ATTR_DETAILED(name, type, keyword1, keyword2) \
-	keyword1 type get##name() keyword2; \
-	keyword1 void set##name(type value);
+#define DECL_ATTR_DETAILED(name, type, keyword1, keyword2, keyword3) \
+    keyword1 type get##name() keyword2 keyword3; \
+    keyword1 void set##name(type value) keyword3;
 
-#define DECL_ATTR(name, type) DECL_ATTR_DETAILED(name, type, , const)
-#define DECL_ATTR_VIRT(name, type) DECL_ATTR_DETAILED(name, type, virtual, const)
-#define DECL_ATTR_STATIC(name, type) DECL_ATTR_DETAILED(name, type, static, )
+#define DECL_ATTR(name, type) DECL_ATTR_DETAILED(name, type, , const, )
+#define DECL_ATTR_VIRT(name, type) DECL_ATTR_DETAILED(name, type, virtual, const, )
+#define DECL_ATTR_PURE(name, type) DECL_ATTR_DETAILED(name, type, virtual, const, = 0)
+#define DECL_ATTR_OVRD(name, type) DECL_ATTR_DETAILED(name, type, , const, override)
+#define DECL_ATTR_FINAL(name, type) DECL_ATTR_DETAILED(name, type, , const, final)
+#define DECL_ATTR_STATIC(name, type) DECL_ATTR_DETAILED(name, type, static, , )
 #define DECL_ATTR_INLINE(name, type, loc) \
-	type get##name() const { return loc; } \
-	void set##name(type value) { loc = value; }
+    type get##name() const { return loc; } \
+    void set##name(type value) { loc = value; }
 
 #define DEF_ATTR_RD_SIMPLE_DETAILED(klass, name, type, location, keyword1) \
-	type klass :: get##name() keyword1 \
-	{ \
-		guardDisposed(); \
-		return location; \
-	}
+    type klass :: get##name() keyword1 \
+    { \
+        guardDisposed(); \
+        return location; \
+    }
 
 #define DEF_ATTR_SIMPLE_DETAILED(klass, name, type, location, keyword1) \
 	DEF_ATTR_RD_SIMPLE_DETAILED(klass, name, type, location, keyword1) \
