@@ -91,23 +91,25 @@ target_include_directories(mkxp_z PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/util/sdl
         ${CMAKE_CURRENT_SOURCE_DIR}/util/sigslot
         ${CMAKE_CURRENT_SOURCE_DIR}/util/sigslot/adapter
-        ${Ruby_INCLUDE_DIRS}
-        ${uchardet_INCLUDE_DIRS}/uchardet
+        ${EXTERNAL_INCLUDES}
+        ${PIXMAN_INCLUDE_DIRS}
         )
 
 target_link_libraries(mkxp_z PUBLIC
-        ${Ruby_LIBRARY}
         SDL2::SDL2
         SDL2_image::SDL2_image
         SDL2_ttf::SDL2_ttf
-        SDL2_sound::SDL2_sound-static
-        Ogg::Ogg
-        physfs::physfs
+        SDL2_sound::SDL2_sound
+        Ogg::ogg
+        ${PHYSFS_LIBRARY}
         OpenAL::OpenAL
-        Vorbis::Vorbis
-        uchardet::uchardet
-        theora::theora
+        Vorbis::vorbisfile
+        uchardet::libuchardet
+        THEORA::THEORA
+        Iconv::Iconv
         pixman-1
+        ${NATIVE_DEPS}
+        ${EXTERNAL_LIBS}
         )
 
 target_compile_definitions(mkxp_z PUBLIC

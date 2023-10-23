@@ -117,7 +117,8 @@ endif
 global_args += '-DMKXPZ_INIT_GL_LATER'
 
 subdir('src')
-#subdir('binding')
+subdir('binding')
+subdir('interfaces')
 subdir('shader')
 subdir('assets')
 

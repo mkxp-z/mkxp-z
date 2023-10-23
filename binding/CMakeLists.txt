@@ -31,7 +31,6 @@ target_include_directories(mkxp_z PUBLIC
 
 target_link_libraries(mkxp_z PUBLIC
         ${Ruby_LIBRARY}
-        SDL2::SDL2
         )
 
 set(RGSS_VERSION 1 CACHE STRING "The version of RGSS to build" FORCE)

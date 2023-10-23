@@ -78,7 +78,6 @@ global_include_dirs += include_directories('.',
     'filesystem', 'filesystem/ghc',
     'input',
     'net',
-    'interfaces',
     'singletons',
     'system',
     'util', 'util/sigslot', 'util/sigslot/adapter', 'util/sdl'
@@ -155,7 +154,6 @@ main_source = files(
 
     'singletons/ConfigManager.cpp',
     'singletons/ThreadManager.cpp',
-    'interfaces/AbstractEventThread.cpp',
     
     'etc/etc.cpp',
     'etc/table.cpp',
