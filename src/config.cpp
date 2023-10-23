@@ -340,20 +340,18 @@ bool Config::fontIsSolid(const char *fontName) const {
 
 void Config::readGameINI() {
     std::string iniFileName(execName + ".ini");
-    std::ifstream iniFile(iniFileName);
-    //SDLRWStream iniFile(iniFileName.c_str(), "r");
+    SDLRWStream iniFile(iniFileName.c_str(), "r");
 
     bool convSuccess = false;
     if (iniFile)
     {
         INIConfiguration ic;
-        if (ic.load(iniFile))
-        {
+        if (ic.load(iniFile.stream())) {
             GUARD(game.title = ic.getStringProperty("Game", "Title"););
             GUARD(game.scripts = ic.getStringProperty("Game", "Scripts"););
-            
+
             strReplace(game.scripts, '\\', '/');
-            
+
             if (game.title.empty()) {
                 Debug() << iniFileName + ": Could not find Game.Title";
             }

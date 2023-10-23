@@ -62,8 +62,8 @@ target_sources(mkxp_z PUBLIC
         input/input.cpp
         input/keybindings.cpp
 
-        #net/LUrlParser.cpp
-        #net/net.cpp
+        net/LUrlParser.cpp
+        net/net.cpp
 
         singletons/ConfigManager.cpp
         singletons/ThreadManager.cpp

@@ -244,7 +244,7 @@ RUBY_FUNC_EXPORTED void initBindings(void) {
     CUSLBindingInit();
 #endif
     
-    //httpBindingInit();
+    httpBindingInit();
 
     mkxpzBindingInit();
     
@@ -315,12 +315,10 @@ RUBY_FUNC_EXPORTED void initBindings(void) {
     _rb_define_method(rb_cString, "to_utf8", mkxpStringToUTF8);
     _rb_define_method(rb_cString, "to_utf8!", mkxpStringToUTF8Bang);
 
-    /*
     VALUE cmod = rb_define_module("CFG");
     _rb_define_module_function(cmod, "[]", mkxpGetJSONSetting);
     _rb_define_module_function(cmod, "[]=", mkxpSetJSONSetting);
     _rb_define_module_function(cmod, "to_hash", mkxpGetAllJSONSettings);
-     */
 
     /* Load global constants */
     rb_gv_set("MKXP", Qtrue);
@@ -773,7 +771,6 @@ void saveUserSettings(json5pp::value &settings) {
     rb_funcall(f, rb_intern("close"), 0);
 }
 
-/*
 RB_METHOD(mkxpGetJSONSetting) {
     RB_UNUSED_PARAM;
 
@@ -812,7 +809,6 @@ RB_METHOD(mkxpGetAllJSONSettings) {
 
     return json2rb(shState->config()->raw);
 }
- */
 
 static VALUE rgssMainCb(VALUE block) {
     rb_funcall2(block, rb_intern("call"), 0, 0);
