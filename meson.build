@@ -26,6 +26,7 @@ win64 = (sizeof['void*'] != sizeof['long'])
 global_args += '-DMKXPZ_BUILD_MESON'
 global_args += '-DMKXPZ_VERSION="@0@"'.format(meson.project_version())
 global_args += '-DMKXPZ_GIT_HASH="@0@"'.format(git_hash)
+global_args += '-DRGSS_VERSION=1'
 global_args += '-DHAVE_NANOSLEEP'
 # ====================
 # Ext libs
@@ -182,7 +183,7 @@ if steamworks == true
         install: (host_system != 'windows'))
 endif
 
-static_library(exe_name,
+shared_library(exe_name,
     sources: global_sources,
     dependencies: global_dependencies,
     include_directories: global_include_dirs,
@@ -191,6 +192,5 @@ static_library(exe_name,
     cpp_args: global_args,
     objc_args: global_args,
     objcpp_args: global_args,
-    win_subsystem: 'windows',
     install: (host_system != 'windows')
 )

@@ -326,10 +326,10 @@ bool ThreadManager::isInitialized() {
 
 bool ThreadManager::startRgssThread() {
 #ifdef MKXPZ_INIT_GL_LATER
-    threadData->glContext =
-      initGL(threadData->window, threadData->config, threadData);
-  if (!threadData->glContext)
-    return 0;
+    m_threadData->glContext =
+      initGL(m_threadData->window.get(), *m_threadData->config, m_threadData.get());
+  if (!m_threadData->glContext)
+    return false;
 #else
     SDL_GL_MakeCurrent(m_threadData->window.get(), m_threadData->glContext);
 #endif
