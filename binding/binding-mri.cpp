@@ -331,7 +331,7 @@ RUBY_FUNC_EXPORTED void initBindings(void) {
     else if (rgssVer >= 2)
         rb_gv_set("TEST", debug);
     
-    rb_gv_set("BTEST", rb_bool_new(shState->config().editor.battleTest));
+    rb_gv_set("BTEST", rb_bool_new(shState->config()->editor.battleTest));
     
 #ifdef MKXPZ_BUILD_XCODE
     std::string version = std::string(MKXPZ_VERSION "/") + getPlistValue("GIT_COMMIT_HASH");
