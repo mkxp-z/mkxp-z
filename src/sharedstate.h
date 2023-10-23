@@ -31,9 +31,7 @@
 
 #define shState ThreadManager::getInstance().getSharedState()
 #define glState shState->_glState()
-
-// Quick hack to get the RGSS Version fixed on compile time
-#define rgssVer RGSS_VERSION //SharedState::rgssVersion
+#define rgssVer SharedState::rgssVersion
 
 struct SharedStatePrivate;
 struct RGSSThreadData;

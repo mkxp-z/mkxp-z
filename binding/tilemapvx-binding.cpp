@@ -157,11 +157,11 @@ void tilemapVXBindingInit() {
     INIT_PROP_BIND(TilemapVX, OX, "ox");
     INIT_PROP_BIND(TilemapVX, OY, "oy");
     
-    #if RGSS_VERSION == 3
+    if (rgssVer == 3) {
         INIT_PROP_BIND(TilemapVX, Flags, "flags");
-    #else
+    } else {
         INIT_PROP_BIND(TilemapVX, Flags, "passages");
-#endif
+    }
     
     klass = rb_define_class_under(klass, "BitmapArray", rb_cObject);
 #if RAPI_FULL > 187

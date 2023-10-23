@@ -84,9 +84,9 @@ RB_METHOD(viewportSpriteFinalize)
     
     rb_get_args(argc, argv, "o", &objectid RB_ARG_END);
     
-    #if RGSS_VERSION == 1
+    if (rgssVer == 1) {
         disposableForgetChild(self, objectid);
-#endif
+    }
     
     return Qnil;
 }

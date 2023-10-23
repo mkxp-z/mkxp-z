@@ -20,7 +20,7 @@ target_sources(mkxp_z PUBLIC
         filesystem-binding.cpp
         windowvx-binding.cpp
         tilemapvx-binding.cpp)
-#http-binding.cpp)
+        #http-binding.cpp)
 
 target_include_directories(mkxp_z PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
@@ -33,11 +33,9 @@ target_link_libraries(mkxp_z PUBLIC
         ${Ruby_LIBRARY}
         )
 
-set(RGSS_VERSION 1 CACHE STRING "The version of RGSS to build" FORCE)
 target_compile_definitions(mkxp_z PUBLIC
         SDL_MAIN_HANDLED
         MKXPZ_ALCDEVICE=ALCdevice
-        RGSS_VERSION=${RGSS_VERSION}
         )
 
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/binding-mri.h DESTINATION ${CMAKE_SOURCE_DIR}/../ext/mkxp_z/include)

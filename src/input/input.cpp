@@ -1240,7 +1240,7 @@ void Input::update() {
         
         /*
          bool repeated;
-         #if RGSS_VERSION >= 2
+         if (rgssVer >= 2)
          repeated = p->repeatCount >= 23 && ((p->repeatCount+1) % 6) == 0;
          else
          repeated = p->repeatCount >= 15 && ((p->repeatCount+1) % 4) == 0;

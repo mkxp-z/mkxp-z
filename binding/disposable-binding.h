@@ -134,9 +134,8 @@ RB_METHOD(disposableDispose)
 	if (d->isDisposed())
 		return Qnil;
 
-	#if RGSS_VERSION == 1
+	if (rgssVer == 1)
 		disposableDisposeChildren(self);
-#endif
 
     GFX_LOCK;
 	d->dispose();
@@ -166,9 +165,8 @@ static void disposableBindingInit(VALUE klass)
 
 	/* Make sure we always have access to the original method, even
 	 * if it is overridden by user scripts */
-	#if RGSS_VERSION == 1
+	if (rgssVer == 1)
 		rb_define_alias(klass, "_mkxp_dispose_alias", "dispose");
-#endif
 }
 
 template<class C>

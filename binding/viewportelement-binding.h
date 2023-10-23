@@ -56,11 +56,11 @@ RB_METHOD(viewportElementSetViewport)
 	if (!NIL_P(viewportObj))
 		viewport = getPrivateDataCheck<Viewport>(viewportObj, ViewportType);
     
-    #if RGSS_VERSION == 1
+    if (rgssVer == 1) {
         VALUE vp = viewportElementGetViewport<C>(0, 0, self);
         disposableRemoveChild(vp, self);
         disposableAddChild(viewportObj, self);
-#endif
+    }
 
 	GFX_GUARD_EXC( ve->setViewport(viewport); );
 
@@ -83,9 +83,8 @@ viewportElementInitialize(int argc, VALUE *argv, VALUE self)
 	{
 		viewport = getPrivateDataCheck<Viewport>(viewportObj, ViewportType);
 
-		#if RGSS_VERSION == 1
+		if (rgssVer == 1)
 			disposableAddChild(viewportObj, self);
-#endif
 	}
 
     GFX_LOCK;
@@ -107,7 +106,7 @@ viewportElementBindingInit(VALUE klass)
 
 	_rb_define_method(klass, "viewport", viewportElementGetViewport<C>);
 
-    //#if RGSS_VERSION >= 2
+    //if (rgssVer >= 2)
 	//{
 	_rb_define_method(klass, "viewport=", viewportElementSetViewport<C>);
 	//}

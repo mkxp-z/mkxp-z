@@ -77,19 +77,15 @@ ATTR_INT_RW(Rect, Width)
 ATTR_INT_RW(Rect, Height)
 
 #if RAPI_FULL > 187
-#if RGSS_VERSION >= 3
-#define RGSS3_CHECK if (!rb_typeddata_is_kind_of(otherObj, &Klass##Type))                    \
-        return Qfalse;
-#else
-#define RGSS3_CHECK
-#endif
 #define EQUAL_FUN(Klass)                                                       \
   RB_METHOD(Klass##Equal) {                                                    \
     Klass *p = getPrivateData<Klass>(self);                                    \
     VALUE otherObj;                                                            \
     Klass *other;                                                              \
     rb_get_args(argc, argv, "o", &otherObj RB_ARG_END);                        \
-    RGSS3_CHECK                                                                \
+    if (rgssVer >= 3)                                                          \
+      if (!rb_typeddata_is_kind_of(otherObj, &Klass##Type))                    \
+        return Qfalse;                                                         \
     other = getPrivateDataCheck<Klass>(otherObj, Klass##Type);                 \
     return rb_bool_new(*p == *other);                                          \
   }

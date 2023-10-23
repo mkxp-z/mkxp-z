@@ -49,13 +49,12 @@ static std::unique_ptr<GlobalIBO> _globalIBO;
 
 static const char *gameArchExt()
 {
-	#if RGSS_VERSION == 1
+	if (rgssVer == 1)
 		return ".rgssad";
-	#elif RGSS_VERSION == 2
+	else if (rgssVer == 2)
 		return ".rgss2a";
-	#elif RGSS_VERSION == 3
+	else if (rgssVer == 3)
 		return ".rgss3a";
-#endif
 
 	assert(!"unreachable");
 	return 0;
@@ -116,9 +115,9 @@ struct SharedStatePrivate {
 
         startupTime = std::chrono::steady_clock::now();
 
-        /* Shaders have been compiled in ShaderSet's constructor */
-        if (gl.ReleaseShaderCompiler)
-            gl.ReleaseShaderCompiler();
+		/* Shaders have been compiled in ShaderSet's constructor */
+		if (gl.ReleaseShaderCompiler)
+			gl.ReleaseShaderCompiler();
 
         std::string archPath = config->execName + gameArchExt();
 
@@ -139,27 +138,26 @@ struct SharedStatePrivate {
 
         filesystem->initFontSets(fontState);
 
-        globalTexW = 128;
-        globalTexH = 64;
+		globalTexW = 128;
+		globalTexH = 64;
 
-        globalTex = TEX::gen();
-        TEX::bind(globalTex);
-        TEX::setRepeat(false);
-        TEX::setSmooth(false);
-        TEX::allocEmpty(globalTexW, globalTexH);
-        globalTexDirty = false;
+		globalTex = TEX::gen();
+		TEX::bind(globalTex);
+		TEX::setRepeat(false);
+		TEX::setSmooth(false);
+		TEX::allocEmpty(globalTexW, globalTexH);
+		globalTexDirty = false;
 
-        TEXFBO::init(gpTexFBO);
-        /* Reuse starting values */
-        TEXFBO::allocEmpty(gpTexFBO, globalTexW, globalTexH);
-        TEXFBO::linkFBO(gpTexFBO);
+		TEXFBO::init(gpTexFBO);
+		/* Reuse starting values */
+		TEXFBO::allocEmpty(gpTexFBO, globalTexW, globalTexH);
+		TEXFBO::linkFBO(gpTexFBO);
 
-        /* RGSS3 games will call setup_midi, so there's
-         * no need to do it on startup */
-#if RGSS_VERSION <= 2
-        midiState.initIfNeeded(*threadData->config);
-#endif
-    }
+		/* RGSS3 games will call setup_midi, so there's
+		 * no need to do it on startup */
+		if (rgssVer <= 2)
+			midiState.initIfNeeded(*threadData->config);
+	}
 
 	~SharedStatePrivate()
 	{

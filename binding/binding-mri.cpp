@@ -53,12 +53,11 @@ extern "C" {
 #include "binding-mri.h"
 
 #ifdef __WIN32__
-
 #include "binding-mri-win32.h"
-#include "singletons/ConfigManager.h"
-#include "ThreadManager.h"
-
 #endif
+
+#include "ConfigManager.h"
+#include "ThreadManager.h"
 
 #include <assert.h>
 #include <string>
@@ -222,15 +221,15 @@ RUBY_FUNC_EXPORTED void initBindings(void) {
     spriteBindingInit();
     viewportBindingInit();
     planeBindingInit();
-
-#if RGSS_VERSION == 1
-    windowBindingInit();
-    tilemapBindingInit();
-#else
-    windowVXBindingInit();
-    tilemapVXBindingInit();
-#endif
-
+    
+    if (rgssVer == 1) {
+        windowBindingInit();
+        tilemapBindingInit();
+    } else {
+        windowVXBindingInit();
+        tilemapVXBindingInit();
+    }
+    
     inputBindingInit();
     audioBindingInit();
     graphicsBindingInit();
@@ -244,38 +243,37 @@ RUBY_FUNC_EXPORTED void initBindings(void) {
 #ifdef MKXPZ_STEAM
     CUSLBindingInit();
 #endif
-
+    
     //httpBindingInit();
 
     mkxpzBindingInit();
+    
+    if (rgssVer >= 3) {
+        _rb_define_module_function(rb_mKernel, "rgss_main", mriRgssMain);
+        _rb_define_module_function(rb_mKernel, "rgss_stop", mriRgssStop);
 
-#if RGSS_VERSION >= 3
-    _rb_define_module_function(rb_mKernel, "rgss_main", mriRgssMain);
-    _rb_define_module_function(rb_mKernel, "rgss_stop", mriRgssStop);
+        _rb_define_module_function(rb_mKernel, "msgbox", mriPrint);
+        _rb_define_module_function(rb_mKernel, "msgbox_p", mriP);
 
-    _rb_define_module_function(rb_mKernel, "msgbox", mriPrint);
-    _rb_define_module_function(rb_mKernel, "msgbox_p", mriP);
+        rb_define_global_const("RGSS_VERSION", rb_utf8_str_new_cstr("3.0.1"));
+    } else {
+        _rb_define_module_function(rb_mKernel, "print", mriPrint);
+        _rb_define_module_function(rb_mKernel, "p", mriP);
 
-    rb_define_global_const("RGSS_VERSION", rb_utf8_str_new_cstr("3.0.1"));
-#else
-    _rb_define_module_function(rb_mKernel, "print", mriPrint);
-    _rb_define_module_function(rb_mKernel, "p", mriP);
+        rb_define_alias(rb_singleton_class(rb_mKernel), "_mkxp_kernel_caller_alias",
+                        "caller");
+        _rb_define_module_function(rb_mKernel, "caller", _kernelCaller);
+    }
 
-    rb_define_alias(rb_singleton_class(rb_mKernel), "_mkxp_kernel_caller_alias",
-                    "caller");
-    _rb_define_module_function(rb_mKernel, "caller", _kernelCaller);
-#endif
-
-#if RGSS_VERSION == 1
-    rb_eval_string(module_rpg1);
-#elif RGSS_VERSION == 2
-    rb_eval_string(module_rpg2);
-#elif RGSS_VERSION == 3
-    rb_eval_string(module_rpg3);
-#else
-static_assert(false, "Invalid RGSS Version");
-#endif
-
+    if (rgssVer == 1)
+        rb_eval_string(module_rpg1);
+    else if (rgssVer == 2)
+        rb_eval_string(module_rpg2);
+    else if (rgssVer == 3)
+        rb_eval_string(module_rpg3);
+    else
+        assert(!"unreachable");
+    
     VALUE mod = rb_define_module("System");
     _rb_define_module_function(mod, "delta", mkxpDelta);
     _rb_define_module_function(mod, "uptime", mkxpDelta);
@@ -326,16 +324,15 @@ static_assert(false, "Invalid RGSS Version");
 
     /* Load global constants */
     rb_gv_set("MKXP", Qtrue);
-
-    VALUE debug = rb_bool_new(cm.getConfig()->editor.debug);
-#if RGSS_VERSION == 1
-    rb_gv_set("DEBUG", debug);
-#elif RGSS_VERSION >= 2
-    rb_gv_set("TEST", debug);
-#endif
-
-    rb_gv_set("BTEST", rb_bool_new(cm.getConfig()->editor.battleTest));
-
+    
+    VALUE debug = rb_bool_new(shState->config()->editor.debug);
+    if (rgssVer == 1)
+        rb_gv_set("DEBUG", debug);
+    else if (rgssVer >= 2)
+        rb_gv_set("TEST", debug);
+    
+    rb_gv_set("BTEST", rb_bool_new(shState->config().editor.battleTest));
+    
 #ifdef MKXPZ_BUILD_XCODE
     std::string version = std::string(MKXPZ_VERSION "/") + getPlistValue("GIT_COMMIT_HASH");
     VALUE vers = rb_utf8_str_new_cstr(version.c_str());
