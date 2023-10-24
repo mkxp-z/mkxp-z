@@ -34,6 +34,7 @@
 #include "AbstractEventThread.h"
 #include "SDL_Instance.h"
 #include "filesystem.h"
+#include "debugwriter.h"
 
 struct RGSSThreadData;
 typedef struct MKXPZ_ALCDEVICE ALCdevice;
@@ -218,55 +219,49 @@ struct RGSSThreadData
 	AtomicFlag rqResetFinish;
 
 	// Set when window is being adjusted (resize, reposition)
-	AtomicFlag rqWindowAdjust;
+    AtomicFlag rqWindowAdjust;
 
-	std::shared_ptr<AbstractEventThread> ethread;
-	UnidirMessage<Vec2i> windowSizeMsg;
-	UnidirMessage<Vec2i> drawableSizeMsg;
-	UnidirMessage<BDescVec> bindingUpdateMsg;
-	std::shared_ptr<ISyncPoint> syncPoint;
-	std::shared_ptr<SDL_Instance> sdlInstance;
+    std::shared_ptr<AbstractEventThread> ethread;
+    UnidirMessage<Vec2i> windowSizeMsg;
+    UnidirMessage<Vec2i> drawableSizeMsg;
+    UnidirMessage<BDescVec> bindingUpdateMsg;
+    std::shared_ptr<ISyncPoint> syncPoint;
 
-	const char *argv0;
+    const char *argv0;
 
-	std::shared_ptr<SDL_Window> window;
-	std::shared_ptr<ALCdevice> alcDev;
+    SDL_Window *window;
+    ALCdevice *alcDev;
 
-	SDL_GLContext glContext;
+    SDL_GLContext glContext;
 
-	Vec2 sizeResoRatio;
-	Vec2i screenOffset;
-	int scale;
-	const int refreshRate;
+    Vec2 sizeResoRatio;
+    Vec2i screenOffset;
+    int scale;
+    const int refreshRate;
 
-	std::shared_ptr<Config> config;
-	std::shared_ptr<FileSystem> filesystem;
+    std::shared_ptr<Config> config;
+    std::shared_ptr<FileSystem> filesystem;
 
-	std::string rgssErrorMsg;
+    std::string rgssErrorMsg;
 
-	RGSSThreadData(std::shared_ptr<AbstractEventThread> ethread,
-				   const char *argv0,
-				   std::shared_ptr<SDL_Window> window,
-				   std::shared_ptr<ALCdevice> alcDev,
-				   int refreshRate,
-				   int scalingFactor,
-				   std::shared_ptr<Config> newconf,
-				   std::shared_ptr<FileSystem> fs,
-				   std::shared_ptr<SDL_Instance> sdl,
-				   SDL_GLContext ctx)
-			: ethread(ethread),
-			  argv0(argv0),
-			  window(window),
-			  alcDev(alcDev),
-			  syncPoint(std::make_shared<SyncPoint>()),
-			  sdlInstance(sdl),
-			  sizeResoRatio(1, 1),
-			  refreshRate(refreshRate),
-			  scale(scalingFactor),
-			  config(newconf),
-			  filesystem(fs),
-			  glContext(ctx)
-	{}
+    RGSSThreadData(std::shared_ptr<AbstractEventThread> ethread, const char *argv0, SDL_Window *window,
+                   ALCdevice *alcDev, int refreshRate, int scalingFactor,
+                   std::shared_ptr<Config> newconf, std::shared_ptr<FileSystem> fs, SDL_GLContext ctx)
+            : ethread(ethread),
+              argv0(argv0),
+              window(window),
+              alcDev(alcDev),
+              syncPoint(std::make_shared<SyncPoint>()),
+              sizeResoRatio(1, 1),
+              refreshRate(refreshRate),
+              scale(scalingFactor),
+              config(newconf),
+              filesystem(fs),
+              glContext(ctx) {}
+
+    ~RGSSThreadData() {
+        Debug() << "RGSS Thread Data terminating!";
+    }
 };
 
 #endif // EVENTTHREAD_H

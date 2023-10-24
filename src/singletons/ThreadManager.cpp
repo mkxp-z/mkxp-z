@@ -71,25 +71,41 @@ static inline const char *glGetStringInt(GLenum name) {
     return (const char *) gl.GetString(name);
 }
 
-std::unique_ptr<ThreadManager> g_instance;
+static int eventThreadFun(void *userData);
 
-ThreadManager::ThreadManager() : alcCtx(nullptr, &alcDestroyContext) {
+static void destroyEventLoop(SDL_Thread *th);
+
+ThreadManager::ThreadManager() : m_window(nullptr, &SDL_DestroyWindow), alcDev(nullptr, &alcCloseDevice),
+                                 alcCtx(nullptr, &alcDestroyContext) {
 
 }
 
-ThreadManager::~ThreadManager() = default;
+ThreadManager::~ThreadManager() {
+    if (m_eventLoop != nullptr) {
+        SDL_Event e;
+        e.type = SDL_QUIT;
+        SDL_PushEvent(&e);
+        SDL_WaitThread(m_eventLoop, nullptr);
+    }
+
+#ifdef MKXPZ_STEAM
+    STEAMSHIM_deinit();
+#endif
+
+    m_eventThread->cleanup();
+}
+
+std::unique_ptr<ThreadManager> ThreadManager::s_instance(new ThreadManager());
 
 ThreadManager &ThreadManager::getInstance() {
-    if (g_instance == nullptr)
-        g_instance = std::unique_ptr<ThreadManager>(new ThreadManager());
-    return *g_instance;
+    return *s_instance;
 }
 
-void ThreadManager::killThreadManager() {
-    g_instance = nullptr;
+void ThreadManager::killInstance() {
+    s_instance = nullptr;
 }
 
-bool ThreadManager::init() {
+bool ThreadManager::init(bool windowVisible) {
     if (m_initialized)
         return true;
 
@@ -203,6 +219,9 @@ bool ThreadManager::init() {
     if (config->fullscreen)
         winFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 
+    if (!windowVisible)
+        winFlags |= SDL_WINDOW_HIDDEN;
+
 #ifdef GLES2_HEADER
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
@@ -216,12 +235,13 @@ bool ThreadManager::init() {
 #endif
 #endif
 
-    auto window = std::shared_ptr<SDL_Window>(SDL_CreateWindow(config->windowTitle.c_str(), SDL_WINDOWPOS_UNDEFINED,
-                                                               SDL_WINDOWPOS_UNDEFINED, config->defScreenW,
-                                                               config->defScreenH, winFlags), &SDL_DestroyWindow);
+    m_window.reset(SDL_CreateWindow(config->windowTitle.c_str(), SDL_WINDOWPOS_UNDEFINED,
+                                    SDL_WINDOWPOS_UNDEFINED, config->defScreenW,
+                                    config->defScreenH, winFlags));
 
-    if (!window) {
+    if (!m_window) {
         showInitError(std::string("Error creating window: ") + SDL_GetError());
+        m_sdl = nullptr;
 
 #ifdef MKXPZ_STEAM
         STEAMSHIM_deinit();
@@ -268,11 +288,11 @@ bool ThreadManager::init() {
 #else
     (void) setupWindowIcon;
 #endif
-    std::shared_ptr<ALCdevice> alcDev(alcOpenDevice(nullptr), &alcCloseDevice);
+    alcDev.reset(alcOpenDevice(nullptr));
 
     if (!alcDev) {
         showInitError("Could not detect an available audio device.");
-        window = nullptr;
+        m_window = nullptr;
         m_sdl = nullptr;
 
 #ifdef MKXPZ_STEAM
@@ -291,21 +311,22 @@ bool ThreadManager::init() {
     m_eventThread = std::make_shared<EventThread>();
 
 #ifndef MKXPZ_INIT_GL_LATER
-    SDL_GLContext glCtx = initGL(window.get(), *config, 0);
+    SDL_GLContext glCtx = initGL(m_window.get(), *config, 0);
 #else
     SDL_GLContext glCtx = NULL;
 #endif
 
-    m_threadData = std::make_shared<RGSSThreadData>(m_eventThread, config->windowTitle.c_str(), window, alcDev,
+    m_threadData = std::make_shared<RGSSThreadData>(m_eventThread, config->windowTitle.c_str(), m_window.get(),
+                                                    alcDev.get(),
                                                     mode.refresh_rate,
                                                     mkxp_sys::getScalingFactor(), config,
-                                                    ConfigManager::getInstance().getfilesystem(), m_sdl, glCtx);
+                                                    ConfigManager::getInstance().getfilesystem(), glCtx);
 
     int winW, winH, drwW, drwH;
-    SDL_GetWindowSize(window.get(), &winW, &winH);
+    SDL_GetWindowSize(m_window.get(), &winW, &winH);
     m_threadData->windowSizeMsg.post(Vec2i(winW, winH));
 
-    SDL_GL_GetDrawableSize(window.get(), &drwW, &drwH);
+    SDL_GL_GetDrawableSize(m_window.get(), &drwW, &drwH);
     m_threadData->drawableSizeMsg.post(Vec2i(drwW, drwH));
 
     /* Load and post key bindings */
@@ -320,10 +341,6 @@ bool ThreadManager::init() {
     return true;
 }
 
-bool ThreadManager::isInitialized() {
-    return m_initialized;
-}
-
 bool ThreadManager::startRgssThread() {
 #ifdef MKXPZ_INIT_GL_LATER
     m_threadData->glContext =
@@ -331,11 +348,12 @@ bool ThreadManager::startRgssThread() {
   if (!m_threadData->glContext)
     return false;
 #else
-    SDL_GL_MakeCurrent(m_threadData->window.get(), m_threadData->glContext);
+    SDL_GL_MakeCurrent(m_threadData->window, m_threadData->glContext);
 #endif
 
     /* Setup AL context */
-    alcCtx = std::unique_ptr<ALCcontext, void(*)(ALCcontext*)>(alcCreateContext(m_threadData->alcDev.get(), 0), &alcDestroyContext);
+    alcCtx = std::unique_ptr<ALCcontext, void (*)(ALCcontext *)>(alcCreateContext(m_threadData->alcDev, 0),
+                                                                 &alcDestroyContext);
 
     if (!alcCtx) {
         rgssThreadError(m_threadData.get(), "Error creating OpenAL context");
@@ -345,7 +363,7 @@ bool ThreadManager::startRgssThread() {
     alcMakeContextCurrent(alcCtx.get());
 
     try {
-        m_sharedState = std::unique_ptr<SharedState>(SharedState::initInstance(m_threadData));
+        m_sharedState = SharedState::initInstance(m_threadData);
     } catch (const Exception &exc) {
         rgssThreadError(m_threadData.get(), exc.msg);
         alcCtx = nullptr;
@@ -356,8 +374,19 @@ bool ThreadManager::startRgssThread() {
     return true;
 }
 
-SharedState *ThreadManager::getSharedState() const {
-    return m_sharedState.get();
+const std::shared_ptr<SharedState> &ThreadManager::getSharedState() const {
+    return m_sharedState;
+}
+
+bool ThreadManager::startEventLoop() {
+    if (m_eventLoop != nullptr) {
+        Debug() << "The event loop is already running!";
+        return true;
+    }
+
+    // Start the event thread and have it run until the program terminates
+    m_eventLoop = SDL_CreateThread(eventThreadFun, "eventLoop", &m_threadData);
+    return true;
 }
 
 static void showInitError(const std::string &msg) {
@@ -471,4 +500,15 @@ static void rgssThreadError(RGSSThreadData *rtData, const std::string &msg) {
     rtData->rgssErrorMsg = msg;
     rtData->ethread->requestTerminate();
     rtData->rqTermAck.set();
+}
+
+static int eventThreadFun(void *userData) {
+    auto threadData = *static_cast<std::shared_ptr<RGSSThreadData> *>(userData);
+    threadData->ethread->process(*threadData);
+    threadData->rqTerm.set();
+    return 0;
+}
+
+static void destroyEventLoop(SDL_Thread *th) {
+    SDL_WaitThread(th, nullptr);
 }

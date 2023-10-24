@@ -133,11 +133,11 @@ EventThread::~EventThread()
 void EventThread::process(RGSSThreadData &rtData)
 {
     SDL_Event event;
-    SDL_Window *win = rtData.window.get();
+    SDL_Window *win = rtData.window;
     UnidirMessage<Vec2i> &windowSizeMsg = rtData.windowSizeMsg;
     UnidirMessage<Vec2i> &drawableSizeMsg = rtData.drawableSizeMsg;
 
-    initALCFunctions(rtData.alcDev.get());
+    initALCFunctions(rtData.alcDev);
 
     // XXX this function breaks input focus on OSX
 #ifndef __APPLE__
@@ -199,7 +199,8 @@ void EventThread::process(RGSSThreadData &rtData)
     // Will always be 0
     void *sMenu = 0;
 #endif
-    
+
+
     while (true)
     {
         if (!SDL_WaitEvent(&event))
@@ -597,7 +598,7 @@ int EventThread::eventFilter(void *data, SDL_Event *event)
             Debug() << "SDL_APP_WILLENTERBACKGROUND";
             
             if (HAVE_ALC_DEVICE_PAUSE)
-                alc.DevicePause(rtData.alcDev.get());
+                alc.DevicePause(rtData.alcDev);
 
             rtData.syncPoint->haltThreads();
             
@@ -615,7 +616,7 @@ int EventThread::eventFilter(void *data, SDL_Event *event)
             Debug() << "SDL_APP_DIDENTERFOREGROUND";
             
             if (HAVE_ALC_DEVICE_PAUSE)
-                alc.DeviceResume(rtData.alcDev.get());
+                alc.DeviceResume(rtData.alcDev);
 
             rtData.syncPoint->resumeThreads();
             

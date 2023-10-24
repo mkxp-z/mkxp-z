@@ -10,6 +10,9 @@
 #if defined(MKXPZ_SSL)
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 #endif
+
+#include <SDL.h>
+
 #include "httplib.h"
 
 #include "util/exception.h"
@@ -17,8 +20,8 @@
 #include "LUrlParser.h"
 #include "net.h"
 
-const char* httpErrorNames[] = {
-    "Success",
+const char *httpErrorNames[] = {
+        "Success",
     "Unknown",
     "Connection",
     "Bind IP Address",

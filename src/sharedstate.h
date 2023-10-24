@@ -71,7 +71,7 @@ struct SharedState {
 
     void setBindingData(void *data);
 
-    std::shared_ptr<SDL_Window> sdlWindow() const;
+    SDL_Window *sdlWindow() const;
 
     std::shared_ptr<Scene> screen() const;
 
@@ -139,14 +139,17 @@ struct SharedState {
 
     /* This function will throw an Exception instance
      * on initialization error */
-    static std::unique_ptr<SharedState> initInstance(std::shared_ptr<RGSSThreadData> threadData);
+    static std::shared_ptr<SharedState> initInstance(std::shared_ptr<RGSSThreadData> threadData);
 
 private:
     SharedState(std::shared_ptr<RGSSThreadData> threadData);
 
+public:
     ~SharedState();
 
+private:
     friend std::unique_ptr<SharedState>::deleter_type;
+    friend std::default_delete<SharedState>;
 
     std::unique_ptr<SharedStatePrivate> p;
 };

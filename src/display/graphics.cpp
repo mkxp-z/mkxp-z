@@ -993,7 +993,7 @@ struct GraphicsPrivate {
     
     void swapGLBuffer() {
         fpsLimiter.delay();
-        SDL_GL_SwapWindow(threadData->window.get());
+        SDL_GL_SwapWindow(threadData->window);
         
         ++frameCount;
         
@@ -1096,9 +1096,9 @@ struct GraphicsPrivate {
         /* Releasing the GL context before sleeping and making it
          * current again on wakeup seems to avoid the context loss
          * when the app moves into the background on Android */
-        SDL_GL_MakeCurrent(threadData->window.get(), 0);
+        SDL_GL_MakeCurrent(threadData->window, 0);
         threadData->syncPoint->waitMainSync();
-        SDL_GL_MakeCurrent(threadData->window.get(), glCtx);
+        SDL_GL_MakeCurrent(threadData->window, glCtx);
         
         fpsLimiter.resetFrameAdjust();
     }
@@ -1118,7 +1118,7 @@ struct GraphicsPrivate {
         if (!(force || multithreadedMode)) return;
 
         SDL_LockMutex(glResourceLock);
-        SDL_GL_MakeCurrent(threadData->window.get(), threadData->glContext);
+        SDL_GL_MakeCurrent(threadData->window, threadData->glContext);
     }
     
     void releaseLock(bool force = false) {
@@ -1405,13 +1405,13 @@ int Graphics::height() const { return p->scRes.y; }
 
 int Graphics::displayWidth() const {
     SDL_DisplayMode dm{};
-    SDL_GetCurrentDisplayMode(SDL_GetWindowDisplayIndex(shState->sdlWindow().get()), &dm);
+    SDL_GetCurrentDisplayMode(SDL_GetWindowDisplayIndex(shState->sdlWindow()), &dm);
     return dm.w / p->backingScaleFactor;
 }
 
 int Graphics::displayHeight() const {
     SDL_DisplayMode dm{};
-    SDL_GetCurrentDisplayMode(SDL_GetWindowDisplayIndex(shState->sdlWindow().get()), &dm);
+    SDL_GetCurrentDisplayMode(SDL_GetWindowDisplayIndex(shState->sdlWindow()), &dm);
     return dm.h / p->backingScaleFactor;
 }
 
@@ -1662,7 +1662,7 @@ void Graphics::repaintWait(const AtomicFlag &exitCond, bool checkReset) {
 
         FBO::clear();
         p->metaBlitBufferFlippedScaled();
-        SDL_GL_SwapWindow(p->threadData->window.get());
+        SDL_GL_SwapWindow(p->threadData->window);
         p->fpsLimiter.delay();
 
         p->threadData->ethread->notifyFrame();
