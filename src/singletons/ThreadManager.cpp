@@ -105,7 +105,7 @@ void ThreadManager::killInstance() {
     s_instance = nullptr;
 }
 
-bool ThreadManager::init() {
+bool ThreadManager::init(bool windowVisible) {
     if (m_initialized)
         return true;
 
@@ -218,6 +218,9 @@ bool ThreadManager::init() {
         winFlags |= SDL_WINDOW_RESIZABLE;
     if (config->fullscreen)
         winFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+
+    if (!windowVisible)
+        winFlags |= SDL_WINDOW_HIDDEN;
 
 #ifdef GLES2_HEADER
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);

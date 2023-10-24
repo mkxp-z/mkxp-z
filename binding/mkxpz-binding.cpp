@@ -15,10 +15,19 @@
 #include "ConfigManager.h"
 
 RB_METHOD(initGameState) {
-    RB_UNUSED_PARAM
+    RB_UNUSED_PARAM;
+
+    VALUE visible;
+    rb_scan_args(argc, argv, "01", &visible);
+
+    if (NIL_P(visible))
+        visible = Qtrue;
+
+    bool windowVisible;
+    rb_bool_arg(visible, &windowVisible);
 
     auto &tm = ThreadManager::getInstance();
-    tm.init();
+    tm.init(windowVisible);
     tm.startRgssThread();
 
     return Qnil;

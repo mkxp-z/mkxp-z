@@ -33,7 +33,7 @@ public:
 
     static void killInstance();
 
-    bool init();
+    bool init(bool windowVisible = true);
 
     bool startRgssThread();
 
