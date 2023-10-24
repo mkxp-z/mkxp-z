@@ -25,8 +25,6 @@ RB_METHOD(initGameState) {
 }
 
 void killGameState(VALUE arg) {
-    Debug() << "MKXP-Z Shutting Down!!!!";
-    // TODO: If this gets called we should use this to kill the game window
     ThreadManager::killInstance();
     ConfigManager::killInstance();
 }
