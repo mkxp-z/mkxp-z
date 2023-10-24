@@ -6,9 +6,9 @@
 SDL_Instance::SDL_Instance() : m_core(new SDL_Core()) {
 }
 
-std::shared_ptr<SDL_Instance> SDL_Instance::create(Uint32 flags) {
+std::unique_ptr<SDL_Instance> SDL_Instance::create(Uint32 flags) {
     if (SDL_Init(flags) >= 0)
-        return std::shared_ptr<SDL_Instance>(new SDL_Instance());
+        return std::unique_ptr<SDL_Instance>(new SDL_Instance());
     else
         return nullptr;
 }

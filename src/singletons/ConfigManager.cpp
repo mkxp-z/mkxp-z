@@ -8,11 +8,17 @@
 #include "filesystem.h"
 
 ConfigManager::ConfigManager() = default;
+
 ConfigManager::~ConfigManager() = default;
 
+std::unique_ptr<ConfigManager> ConfigManager::s_instance(new ConfigManager());
+
 ConfigManager &ConfigManager::getInstance() {
-    static ConfigManager configManager;
-    return configManager;
+    return *s_instance;
+}
+
+void ConfigManager::killInstance() {
+    s_instance = nullptr;
 }
 
 void ConfigManager::initConfig(const std::string &appName, const std::vector<std::string> &args) {

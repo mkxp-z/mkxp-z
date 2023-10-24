@@ -36,11 +36,12 @@ public:
 	Disposable()
 	    : disposed(false),
 	      link(this) {
-        shState->graphics().addDisposable(this);
+        sharedState = shState;
+        sharedState->graphics().addDisposable(this);
     }
 
 	virtual ~Disposable() {
-        shState->graphics().remDisposable(this);
+        sharedState->graphics().remDisposable(this);
     }
 
 	void dispose()
@@ -75,7 +76,8 @@ private:
 	friend class Graphics;
 
 	bool disposed;
-	IntruListLink<Disposable> link;
+    IntruListLink<Disposable> link;
+    std::shared_ptr<SharedState> sharedState;
 };
 
 template<class C>

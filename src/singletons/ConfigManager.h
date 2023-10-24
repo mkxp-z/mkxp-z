@@ -25,6 +25,8 @@ class ConfigManager {
 public:
     static ConfigManager &getInstance();
 
+    static void killInstance();
+
     void initConfig(const std::string &appName, const std::vector<std::string> &args);
 
     std::shared_ptr<Config> getConfig();
@@ -32,6 +34,10 @@ public:
     std::shared_ptr<FileSystem> getfilesystem();
 
 private:
+    friend std::unique_ptr<ConfigManager>::deleter_type;
+
+    static std::unique_ptr<ConfigManager> s_instance;
+
     std::shared_ptr<Config> m_config;
     std::shared_ptr<FileSystem> m_filesystem;
 };

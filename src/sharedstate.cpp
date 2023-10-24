@@ -61,7 +61,7 @@ static const char *gameArchExt()
 }
 
 struct SharedStatePrivate {
-    std::shared_ptr<SDL_Window> sdlWindow;
+    SDL_Window *sdlWindow;
     std::shared_ptr<Scene> screen;
 
     std::shared_ptr<FileSystem> filesystem;
@@ -167,7 +167,7 @@ struct SharedStatePrivate {
 	}
 };
 
-std::unique_ptr<SharedState> SharedState::initInstance(std::shared_ptr<RGSSThreadData> threadData) {
+std::shared_ptr<SharedState> SharedState::initInstance(std::shared_ptr<RGSSThreadData> threadData) {
     /* This section is tricky because of dependencies:
      * SharedState depends on GlobalIBO existing,
      * Font depends on SharedState existing */
@@ -177,11 +177,11 @@ std::unique_ptr<SharedState> SharedState::initInstance(std::shared_ptr<RGSSThrea
     _globalIBO = std::make_unique<GlobalIBO>();
     _globalIBO->ensureSize(1);
 
-    std::unique_ptr<SharedState> ret;
+    std::shared_ptr<SharedState> ret;
     std::unique_ptr<Font> defaultFont;
 
     try {
-        ret = std::unique_ptr<SharedState>(new SharedState(threadData));
+        ret.reset(new SharedState(threadData));
         Font::initDefaults(ret->p->fontState);
         defaultFont = std::make_unique<Font>();
     }
@@ -212,7 +212,7 @@ void SharedState::setScreen(std::shared_ptr<Scene> screen) {
         return *p->lower;\
         }
 
-GSATT(std::shared_ptr<SDL_Window>, sdlWindow)
+GSATT(SDL_Window*, sdlWindow)
 
 GSATT(std::shared_ptr<Scene>, screen)
 
