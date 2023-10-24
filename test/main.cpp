@@ -17,9 +17,7 @@ int main(int argc, char **argv) {
     initBindings();
 
     rb_eval_string("MKXP_Z.init_game_state");
-    SDL_Event e;
-    e.type = SDL_QUIT;
-    SDL_PushEvent(&e);
+    ruby_stop(0);
 
     return 0;
 }

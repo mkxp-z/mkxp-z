@@ -199,7 +199,8 @@ void EventThread::process(RGSSThreadData &rtData)
     // Will always be 0
     void *sMenu = 0;
 #endif
-    
+
+
     while (true)
     {
         if (!SDL_WaitEvent(&event))

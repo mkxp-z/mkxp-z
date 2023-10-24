@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.24)
 
 project(mkxp_z VERSION 2.4.2 LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/cmake)
 

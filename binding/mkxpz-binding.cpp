@@ -24,6 +24,15 @@ RB_METHOD(initGameState) {
     return Qnil;
 }
 
+RB_METHOD(startEventLoop) {
+    RB_UNUSED_PARAM
+
+    auto &tm = ThreadManager::getInstance();
+    tm.startEventLoop();
+
+    return Qnil;
+}
+
 void killGameState(VALUE arg) {
     ThreadManager::killInstance();
     ConfigManager::killInstance();
@@ -32,6 +41,7 @@ void killGameState(VALUE arg) {
 void mkxpzBindingInit() {
     auto mkxpzModule = rb_define_module("MKXP_Z");
     _rb_define_module_function(mkxpzModule, "init_game_state", initGameState);
+    _rb_define_module_function(mkxpzModule, "start_event_loop", startEventLoop);
 
     rb_set_end_proc(killGameState, 0);
 }

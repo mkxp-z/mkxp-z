@@ -81,10 +81,12 @@ ThreadManager::ThreadManager() : m_window(nullptr, &SDL_DestroyWindow), alcDev(n
 }
 
 ThreadManager::~ThreadManager() {
-    SDL_Event e;
-    e.type = SDL_QUIT;
-    SDL_PushEvent(&e);
-    SDL_WaitThread(m_eventLoop, nullptr);
+    if (m_eventLoop != nullptr) {
+        SDL_Event e;
+        e.type = SDL_QUIT;
+        SDL_PushEvent(&e);
+        SDL_WaitThread(m_eventLoop, nullptr);
+    }
 
 #ifdef MKXPZ_STEAM
     STEAMSHIM_deinit();
@@ -332,9 +334,6 @@ bool ThreadManager::init() {
     initTouchBar(win, conf);
 #endif
 
-    // Start the event thread and have it run until the program terminates
-    m_eventLoop = SDL_CreateThread(eventThreadFun, "eventLoop", &m_threadData);
-
     m_initialized = true;
     return true;
 }
@@ -372,8 +371,19 @@ bool ThreadManager::startRgssThread() {
     return true;
 }
 
-const std::shared_ptr<SharedState> & ThreadManager::getSharedState() const {
+const std::shared_ptr<SharedState> &ThreadManager::getSharedState() const {
     return m_sharedState;
+}
+
+bool ThreadManager::startEventLoop() {
+    if (m_eventLoop != nullptr) {
+        Debug() << "The event loop is already running!";
+        return true;
+    }
+
+    // Start the event thread and have it run until the program terminates
+    m_eventLoop = SDL_CreateThread(eventThreadFun, "eventLoop", &m_threadData);
+    return true;
 }
 
 static void showInitError(const std::string &msg) {

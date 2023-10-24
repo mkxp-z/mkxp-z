@@ -37,6 +37,8 @@ public:
 
     bool startRgssThread();
 
+    bool startEventLoop();
+
     const std::shared_ptr<SharedState> &getSharedState() const;
 
 private:
