@@ -1,0 +1,10 @@
+module MkxpZ
+  VERSION: String
+  @@launch_args: Array[String]
+  def self.get_lauch_args: -> Array[String]
+  def self.set_launch_args: (*String) -> void
+
+  def self.init_game_state: (?visible: bool) -> void
+  def self.start_event_loop: () -> void
+  # See the writing guide of rbs: https://github.com/ruby/rbs#guides
+end

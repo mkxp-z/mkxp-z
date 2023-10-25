@@ -39,7 +39,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 endif()
 
 
-install(TARGETS mkxp_z RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/../ext/mkxp_z/bin ARCHIVE DESTINATION ${CMAKE_SOURCE_DIR}/../ext/mkxp_z/lib)
+install(TARGETS mkxp_z RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/ext/mkxp_z/bin ARCHIVE DESTINATION ${CMAKE_SOURCE_DIR}/../ext/mkxp_z/lib)
 
 set(CMAKE_CXX_COMPILER)
 
