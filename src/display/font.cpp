@@ -158,9 +158,9 @@ void SharedFontState::initFontSetCB(SDL_RWops &ops,
 
 	FontSet &set = p->sets[family];
 
-	if (style == "Regular")
+	if (style == "Regular" && set.regular.empty())
 		set.regular = filename;
-	else
+	else if (style != "Regular" && set.other.empty())
 		set.other = filename;
 }
 
