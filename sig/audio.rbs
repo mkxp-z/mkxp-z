@@ -1,0 +1,22 @@
+module Audio
+  def self.setup_midi: -> void
+
+  def self.bgm_play: (String filename,  Integer | nil ?volume, Integer | nil ?pitch, Integer | nil ?pos) -> void
+  def self.bgm_stop: -> void
+  def self.bgm_fade: (Integer time) -> void
+  def self.bgm_pos: -> Integer
+  def self.bgm_volume: (Integer | nil ?track) -> Integer
+  def self.bgm_set_volume: (Integer vol, Integer | nil ?track) -> void
+
+  def self.bgs_play: (String filename, Integer | nil ?volume, Integer | nil ?pitch, Integer | nil ?pos) -> void
+  def self.bgs_fade: (Integer time) -> void
+  def self.bgs_pos: -> Integer
+
+  def self.me_play: (String filename, Integer | nil ?volume, Integer | nil ?pitch) -> void
+  def self.me_stop: -> void
+  def self.me_fade: (Integer time) -> void
+
+  def self.se_play: (String filename, Integer | nil ?volume, Integer | nil ?pitch) -> void
+  def self.se_stop: -> void
+end
+
