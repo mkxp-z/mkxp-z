@@ -14,8 +14,8 @@ BINDIR := $(BUILD_PREFIX)/bin
 INCLUDEDIR := $(BUILD_PREFIX)/include
 DOWNLOADS := ${PWD}/downloads/$(ARCH)
 NPROC := $(shell nproc)
-CFLAGS := -I$(INCLUDEDIR) -O3
-LDFLAGS := -L$(LIBDIR)
+CFLAGS := -I$(INCLUDEDIR) -Ofast
+LDFLAGS := -L$(LIBDIR) -Wl,-Ofast,-flto=full
 CC      := gcc
 PKG_CONFIG_LIBDIR := $(BUILD_PREFIX)/lib/pkgconfig
 GIT := git
@@ -309,8 +309,8 @@ $(BINDIR)/$(RB_PREFIX)-ruby310.dll: $(DOWNLOADS)/ruby/Makefile
 $(DOWNLOADS)/ruby/Makefile: $(DOWNLOADS)/ruby/configure
 	cd $(DOWNLOADS)/ruby; \
 	export $(CONFIGURE_ENV); \
-	export CFLAGS="-flto $$CFLAGS"; \
-	export LDFLAGS="-flto $$LDFLAGS"; \
+	export CFLAGS="$$CFLAGS"; \
+	export LDFLAGS="$$LDFLAGS"; \
 	./configure $(CONFIGURE_ARGS) $(RUBY_CONFIGURE_ARGS) $(RUBY_FLAGS)
 
 $(DOWNLOADS)/ruby/configure: $(DOWNLOADS)/ruby/configure.ac

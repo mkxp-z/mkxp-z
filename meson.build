@@ -113,7 +113,7 @@ if get_option('static_executable') == true
     build_static = true
 endif
 
-global_args += '-DMKXPZ_INIT_GL_LATER'
+global_args += '-DMKXPZ_INIT_GL_LATER -Ofast'
 
 subdir('src')
 subdir('binding')
