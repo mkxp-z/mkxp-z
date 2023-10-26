@@ -2015,6 +2015,11 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
     GUARD_MEGA;
     GUARD_ANIMATED;
     
+    // RGSS doesn't let you draw text backwards
+    if (rect.w <= 0 || rect.h <= 0 || rect.x >= width() || rect.y >= height() ||
+        rect.w < -rect.x || rect.h < -rect.y)
+        return;
+    
     if (hasHires()) {
         Font &loresFont = getFont();
         Font &hiresFont = p->selfHires->getFont();
