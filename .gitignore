@@ -77,5 +77,8 @@ DerivedData/
 cmake-build-release/
 cmake/conan/
 cmake-build-debug/
-ext/
 cmake-build-relwithdebinfo/
+/lib/mkxp_z/mkxp_z.so
+ext/mkxp_z/bin
+ext/mkxp_z/include
+ext/mkxp_z/lib
