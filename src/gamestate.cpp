@@ -297,6 +297,10 @@ void GameState::initGameState(std::string_view windowName, bool showWindow) {
     if (conf->fullscreen)
       winFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 
+    if (!showWindow)
+        winFlags |= SDL_WINDOW_HIDDEN;
+
+
 #ifdef GLES2_HEADER
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
