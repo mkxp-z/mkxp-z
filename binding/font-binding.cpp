@@ -24,7 +24,6 @@
 #include "exception.h"
 #include "font.h"
 #include "sharedstate.h"
-#include "ConfigManager.h"
 
 #include <string.h>
 
@@ -207,8 +206,8 @@ RB_METHOD(FontSetDefaultName) {
   std::vector<std::string> namesObj;
   collectStrings(argv[0], namesObj);
 
-    Font::setDefaultName(namesObj, shState->fontState());
-    rb_iv_set(self, "default_name", argv[0]);
+  Font::setDefaultName(namesObj, shState->fontState());
+  rb_iv_set(self, "default_name", argv[0]);
 
   return argv[0];
 }

@@ -263,21 +263,22 @@ struct WindowVXPrivate
 			ctrlVertDirty = true;
 		}
 
-        prepareCon = shState->prepareDraw.connect
-                (&WindowVXPrivate::prepare, this);
+		prepareCon = shState->prepareDraw.connect
+			(&WindowVXPrivate::prepare, this);
 
 		refreshCursorRectCon();
 		refreshToneCon();
 		updateBaseQuad();
 	}
 
-	~WindowVXPrivate() {
-        shState->texPool().release(base.tex);
+	~WindowVXPrivate()
+	{
+		shState->texPool().release(base.tex);
 
-        cursorRectCon.disconnect();
-        toneCon.disconnect();
-        prepareCon.disconnect();
-    }
+		cursorRectCon.disconnect();
+		toneCon.disconnect();
+		prepareCon.disconnect();
+	}
 
 	void invalidateCursorVert()
 	{
@@ -303,25 +304,27 @@ struct WindowVXPrivate
 			(&WindowVXPrivate::invalidateBaseTex, this);
 	}
 
-	void updateBaseTexSize() {
-        if (base.tex.width >= geo.w && base.tex.height >= geo.h)
-            return;
+	void updateBaseTexSize()
+	{
+		if (base.tex.width >= geo.w && base.tex.height >= geo.h)
+			return;
 
-        if (base.tex.tex != TEX::ID(0)) {
-            TEX::bind(base.tex.tex);
-            TEX::setSmooth(false); // XXX make pool set this up at alloc time
-        }
+		if (base.tex.tex != TEX::ID(0))
+		{
+			TEX::bind(base.tex.tex);
+			TEX::setSmooth(false); // XXX make pool set this up at alloc time
+		}
 
-        shState->texPool().release(base.tex);
-        TEXFBO::clear(base.tex);
+		shState->texPool().release(base.tex);
+		TEXFBO::clear(base.tex);
 
-        if (geo.w == 0 || geo.h == 0)
-            return;
+		if (geo.w == 0 || geo.h == 0)
+			return;
 
-        base.tex = shState->texPool().request(geo.w, geo.h);
-        TEX::bind(base.tex.tex);
-        TEX::setSmooth(true);
-    }
+		base.tex = shState->texPool().request(geo.w, geo.h);
+		TEX::bind(base.tex.tex);
+		TEX::setSmooth(true);
+	}
 
 	void rebuildBaseVert()
 	{
@@ -402,76 +405,79 @@ struct WindowVXPrivate
 		base.vert.commit();
 	}
 
-	void redrawBaseTex() {
-        if (nullOrDisposed(windowskin))
-            return;
+	void redrawBaseTex()
+	{
+		if (nullOrDisposed(windowskin))
+			return;
 
-        if (base.tex.tex == TEX::ID(0))
-            return;
+		if (base.tex.tex == TEX::ID(0))
+			return;
 
-        FBO::bind(base.tex.fbo);
+		FBO::bind(base.tex.fbo);
 
-        /* Clear texture */
-        shState->_glState().clearColor.pushSet(Vec4());
-        FBO::clear();
-        shState->_glState().clearColor.pop();
+		/* Clear texture */
+		glState.clearColor.pushSet(Vec4());
+		FBO::clear();
+		glState.clearColor.pop();
 
-        shState->_glState().viewport.pushSet(IntRect(0, 0, base.tex.width, base.tex.height));
-        shState->_glState().blend.pushSet(false);
+		glState.viewport.pushSet(IntRect(0, 0, base.tex.width, base.tex.height));
+		glState.blend.pushSet(false);
 
-        ShaderBase *shader;
+		ShaderBase *shader;
 
-        if (backOpacity < 255 || tone->hasEffect()) {
-            PlaneShader &planeShader = shState->shaders().plane;
-            planeShader.bind();
+		if (backOpacity < 255 || tone->hasEffect())
+		{
+			PlaneShader &planeShader = shState->shaders().plane;
+			planeShader.bind();
 
-            planeShader.setColor(Vec4());
-            planeShader.setFlash(Vec4());
-            planeShader.setTone(tone->norm);
+			planeShader.setColor(Vec4());
+			planeShader.setFlash(Vec4());
+			planeShader.setTone(tone->norm);
 			planeShader.setOpacity(backOpacity.norm);
 
 			shader = &planeShader;
 		}
 		else
 		{
-            shader = &shState->shaders().simple;
-            shader->bind();
+			shader = &shState->shaders().simple;
+			shader->bind();
 		}
 
-        windowskin->bindTex(*shader);
-        TEX::setSmooth(true);
+		windowskin->bindTex(*shader);
+		TEX::setSmooth(true);
 
-        shader->setTranslation(Vec2i());
-        shader->applyViewportProj();
+		shader->setTranslation(Vec2i());
+		shader->applyViewportProj();
 
-        /* Draw stretched layer */
-        base.vert.draw(0, 1);
+		/* Draw stretched layer */
+		base.vert.draw(0, 1);
 
-        shState->_glState().blend.set(true);
-        shState->_glState().blendMode.pushSet(BlendKeepDestAlpha);
+		glState.blend.set(true);
+		glState.blendMode.pushSet(BlendKeepDestAlpha);
 
-        /* Draw tiled layer */
-        base.vert.draw(1, base.bgTileQuads);
+		/* Draw tiled layer */
+		base.vert.draw(1, base.bgTileQuads);
 
-        shState->_glState().blendMode.set(BlendNormal);
+		glState.blendMode.set(BlendNormal);
 
-        /* If we used plane shader before, switch to simple */
-        if (shader != &shState->shaders().simple) {
-            shader = &shState->shaders().simple;
-            shader->bind();
-            shader->setTranslation(Vec2i());
-            shader->applyViewportProj();
-            windowskin->bindTex(*shader);
-        }
+		/* If we used plane shader before, switch to simple */
+		if (shader != &shState->shaders().simple)
+		{
+			shader = &shState->shaders().simple;
+			shader->bind();
+			shader->setTranslation(Vec2i());
+			shader->applyViewportProj();
+			windowskin->bindTex(*shader);
+		}
 
-        base.vert.draw(1 + base.bgTileQuads, base.borderQuads);
+		base.vert.draw(1+base.bgTileQuads, base.borderQuads);
 
-        TEX::setSmooth(false);
+		TEX::setSmooth(false);
 
-        shState->_glState().blendMode.pop();
-        shState->_glState().blend.pop();
-        shState->_glState().viewport.pop();
-    }
+		glState.blendMode.pop();
+		glState.blend.pop();
+		glState.viewport.pop();
+	}
 
 	void updateBaseQuad()
 	{
@@ -726,7 +732,7 @@ struct WindowVXPrivate
 
 		Vec2i trans = geo.pos() + sceneOffset;
 
-        SimpleAlphaShader &shader = shState->shaders().simpleAlpha;
+		SimpleAlphaShader &shader = shState->shaders().simpleAlpha;
 		shader.bind();
 		shader.applyViewportProj();
 
@@ -753,26 +759,28 @@ struct WindowVXPrivate
 
 		bool drawCursor = cursorVert.count() > 0 && windowskinValid;
 
-		if (drawCursor || contentsValid) {
-            /* Translate cliprect from local into screen space */
-            IntRect clip = clipRect;
-            clip.setPos(clip.pos() + trans);
+		if (drawCursor || contentsValid)
+		{
+			/* Translate cliprect from local into screen space */
+			IntRect clip = clipRect;
+			clip.setPos(clip.pos() + trans);
 
-            shState->_glState().scissorBox.push();
-            shState->_glState().scissorTest.pushSet(true);
+			glState.scissorBox.push();
+			glState.scissorTest.pushSet(true);
 
 			if (rgssVer >= 3)
 				glState.scissorBox.setIntersect(clip);
 			else
 				glState.scissorBox.setIntersect(IntRect(trans, geo.size()));
 
-            IntRect pad = padRect;
-            pad.setPos(pad.pos() + trans);
+			IntRect pad = padRect;
+			pad.setPos(pad.pos() + trans);
 
-            if (drawCursor) {
-                Vec2i contTrans = pad.pos();
-                contTrans.x += cursorRect->x;
-                contTrans.y += cursorRect->y;
+			if (drawCursor)
+			{
+				Vec2i contTrans = pad.pos();
+				contTrans.x += cursorRect->x;
+				contTrans.y += cursorRect->y;
 
 				if (rgssVer >= 3)
 					contTrans -= contentsOff;
@@ -789,18 +797,18 @@ struct WindowVXPrivate
 				if (rgssVer <= 2)
 					glState.scissorBox.setIntersect(clip);
 
-                Vec2i contTrans = pad.pos();
-                contTrans -= contentsOff;
-                shader.setTranslation(contTrans);
+				Vec2i contTrans = pad.pos();
+				contTrans -= contentsOff;
+				shader.setTranslation(contTrans);
 
-                TEX::setSmooth(false); // XXX
-                contents->bindTex(shader);
-                contentsQuad.draw();
-            }
+				TEX::setSmooth(false); // XXX
+				contents->bindTex(shader);
+				contentsQuad.draw();
+			}
 
-            shState->_glState().scissorBox.pop();
-            shState->_glState().scissorTest.pop();
-        }
+			glState.scissorBox.pop();
+			glState.scissorTest.pop();
+		}
 
 		TEX::setSmooth(false); // XXX FIND out a way to eliminate
 	}

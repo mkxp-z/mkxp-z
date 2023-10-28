@@ -21,16 +21,16 @@ void ConfigManager::killInstance() {
     s_instance = nullptr;
 }
 
-void ConfigManager::initConfig(const std::string &appName, const std::vector<std::string> &args) {
+void ConfigManager::initConfig(const std::string &appName, int argc, char *argv[]) {
     m_config = std::make_shared<Config>();
     m_filesystem = std::make_shared<FileSystem>(appName.data(), m_config->allowSymlinks);
-    m_config->read(args);
+    m_config->read(argc, argv);
 }
 
 std::shared_ptr<Config> ConfigManager::getConfig() {
     return m_config;
 }
 
-std::shared_ptr<FileSystem> ConfigManager::getfilesystem() {
+std::shared_ptr<FileSystem> ConfigManager::getFilesystem() {
     return m_filesystem;
 }

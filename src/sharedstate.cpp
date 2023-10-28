@@ -37,15 +37,16 @@
 #include "binding.h"
 #include "exception.h"
 #include "sharedmidistate.h"
-#include "scene.h"
+#include "ConfigManager.h"
 
 #include <unistd.h>
 #include <stdio.h>
 #include <string>
 #include <chrono>
 
+SharedState *SharedState::instance = 0;
 int SharedState::rgssVersion = 0;
-static std::unique_ptr<GlobalIBO> _globalIBO;
+static GlobalIBO *_globalIBO = 0;
 
 static const char *gameArchExt()
 {
@@ -60,83 +61,88 @@ static const char *gameArchExt()
 	return 0;
 }
 
-struct SharedStatePrivate {
-    SDL_Window *sdlWindow;
-    std::shared_ptr<Scene> screen;
+struct SharedStatePrivate
+{
+	void *bindingData;
+	SDL_Window *sdlWindow;
+	Scene *screen;
 
-    std::shared_ptr<FileSystem> filesystem;
+	std::shared_ptr<FileSystem> fileSystem;
 
-    std::shared_ptr<AbstractEventThread> eThread;
-    std::shared_ptr<RGSSThreadData> rtData;
-    std::shared_ptr<Config> config;
+	EventThread &eThread;
+	RGSSThreadData &rtData;
+	Config &config;
 
-    SharedMidiState midiState;
+	SharedMidiState midiState;
 
-    std::unique_ptr<IGraphics> graphics;
-    std::unique_ptr<IInput> input;
-    std::unique_ptr<IAudio> audio;
+	Graphics graphics;
+	Input input;
+	Audio audio;
 
-    GLState _glState;
+	GLState _glState;
 
-    ShaderSet shaders;
+	ShaderSet shaders;
 
-    TexPool texPool;
+	TexPool texPool;
 
-    SharedFontState fontState;
-    std::unique_ptr<Font> defaultFont;
+	SharedFontState fontState;
+	Font *defaultFont;
 
 	TEX::ID globalTex;
 	int globalTexW, globalTexH;
 	bool globalTexDirty;
 
-    TEXFBO gpTexFBO;
+	TEXFBO gpTexFBO;
 
-    TEXFBO atlasTex;
+	TEXFBO atlasTex;
 
-    Quad gpQuad;
+	Quad gpQuad;
 
-    unsigned int stampCounter;
-
+	unsigned int stampCounter;
+    
     std::chrono::time_point<std::chrono::steady_clock> startupTime;
 
-    SharedStatePrivate(std::shared_ptr<RGSSThreadData> threadData)
-            : sdlWindow(threadData->window),
-              filesystem(threadData->filesystem),
-              eThread(threadData->ethread),
-              rtData(threadData),
-              config(threadData->config),
-              midiState(*threadData->config),
-              graphics(new Graphics(threadData.get())),
-              input(new Input(*threadData)),
-              audio(new Audio(*threadData)),
-              _glState(*threadData->config),
-              fontState(*threadData->config),
-              stampCounter(0) {
-
+	SharedStatePrivate(RGSSThreadData *threadData)
+	    : bindingData(0),
+	      sdlWindow(threadData->window),
+	      fileSystem(ConfigManager::getInstance().getFilesystem()),
+	      eThread(*threadData->ethread),
+	      rtData(*threadData),
+	      config(threadData->config),
+	      midiState(threadData->config),
+	      graphics(threadData),
+	      input(*threadData),
+	      audio(*threadData),
+	      _glState(threadData->config),
+	      fontState(threadData->config),
+	      stampCounter(0)
+	{
+        
         startupTime = std::chrono::steady_clock::now();
-
+        
 		/* Shaders have been compiled in ShaderSet's constructor */
 		if (gl.ReleaseShaderCompiler)
 			gl.ReleaseShaderCompiler();
 
-        std::string archPath = config->execName + gameArchExt();
+		std::string archPath = config.execName + gameArchExt();
 
-        /* Check if a game archive exists */
-        FILE *tmp = fopen(archPath.c_str(), "rb");
-        if (tmp) {
-            filesystem->addPath(archPath.c_str());
-            fclose(tmp);
-        }
+		/* Check if a game archive exists */
+		FILE *tmp = fopen(archPath.c_str(), "rb");
+		if (tmp)
+		{
+			fileSystem->addPath(archPath.c_str());
+			fclose(tmp);
+		}
 
-        filesystem->addPath(".");
+		fileSystem->addPath(".");
 
-        for (size_t i = 0; i < config->rtps.size(); ++i)
-            filesystem->addPath(config->rtps[i].c_str());
+		for (size_t i = 0; i < config.rtps.size(); ++i)
+			fileSystem->addPath(config.rtps[i].c_str());
 
-        if (config->pathCache)
-            filesystem->createPathCache();
+		if (config.pathCache)
+			fileSystem->createPathCache();
 
-        filesystem->initFontSets(fontState);
+		fileSystem->initFontSets(fontState);
 
 		globalTexW = 128;
 		globalTexH = 64;
@@ -156,7 +162,7 @@ struct SharedStatePrivate {
 		/* RGSS3 games will call setup_midi, so there's
 		 * no need to do it on startup */
 		if (rgssVer <= 2)
-			midiState.initIfNeeded(*threadData->config);
+			midiState.initIfNeeded(threadData->config);
 	}
 
 	~SharedStatePrivate()
@@ -167,83 +173,86 @@ struct SharedStatePrivate {
 	}
 };
 
-std::shared_ptr<SharedState> SharedState::initInstance(std::shared_ptr<RGSSThreadData> threadData) {
-    /* This section is tricky because of dependencies:
-     * SharedState depends on GlobalIBO existing,
-     * Font depends on SharedState existing */
+void SharedState::initInstance(RGSSThreadData *threadData)
+{
+	/* This section is tricky because of dependencies:
+	 * SharedState depends on GlobalIBO existing,
+	 * Font depends on SharedState existing */
 
-    rgssVersion = threadData->config->rgssVersion;
+	rgssVersion = threadData->config.rgssVersion;
+    
+	_globalIBO = new GlobalIBO();
+	_globalIBO->ensureSize(1);
 
-    _globalIBO = std::make_unique<GlobalIBO>();
-    _globalIBO->ensureSize(1);
+	SharedState::instance = 0;
+	Font *defaultFont = 0;
 
-    std::shared_ptr<SharedState> ret;
-    std::unique_ptr<Font> defaultFont;
+	try
+	{
+		SharedState::instance = new SharedState(threadData);
+		Font::initDefaults(instance->p->fontState);
+		defaultFont = new Font();
+	}
+	catch (const Exception &exc)
+	{
+		delete _globalIBO;
+		delete SharedState::instance;
+		delete defaultFont;
 
-    try {
-        ret.reset(new SharedState(threadData));
-        Font::initDefaults(ret->p->fontState);
-        defaultFont = std::make_unique<Font>();
-    }
-    catch (const Exception &exc) {
-        _globalIBO = nullptr;
-        ret = nullptr;
+		throw exc;
+	}
 
-        throw exc;
-    }
-
-    ret->p->defaultFont = std::move(defaultFont);
-    return ret;
+	SharedState::instance->p->defaultFont = defaultFont;
 }
 
-void SharedState::setScreen(std::shared_ptr<Scene> screen) {
-    p->screen = screen;
+void SharedState::finiInstance()
+{
+	delete SharedState::instance->p->defaultFont;
+
+	delete SharedState::instance;
+
+	delete _globalIBO;
+}
+
+void SharedState::setScreen(Scene &screen)
+{
+	p->screen = &screen;
 }
 
 #define GSATT(type, lower) \
-    type SharedState :: lower() const \
-    { \
-        return p->lower; \
-    }
+	type SharedState :: lower() const \
+	{ \
+		return p->lower; \
+	}
 
-#define GSREF(type, lower) \
-    type &SharedState :: lower() const \
-    { \
-        return *p->lower;\
-        }
-
+GSATT(void*, bindingData)
 GSATT(SDL_Window*, sdlWindow)
+GSATT(Scene*, screen)
+GSATT(EventThread&, eThread)
+GSATT(RGSSThreadData&, rtData)
+GSATT(Config&, config)
+GSATT(Graphics&, graphics)
+GSATT(Input&, input)
+GSATT(Audio&, audio)
+GSATT(GLState&, _glState)
+GSATT(ShaderSet&, shaders)
+GSATT(TexPool&, texPool)
+GSATT(Quad&, gpQuad)
+GSATT(SharedFontState&, fontState)
+GSATT(SharedMidiState&, midiState)
 
-GSATT(std::shared_ptr<Scene>, screen)
+FileSystem &SharedState::fileSystem() const {
+    return *p->fileSystem;
+}
 
-GSATT(std::shared_ptr<FileSystem>, filesystem)
+void SharedState::setBindingData(void *data)
+{
+	p->bindingData = data;
+}
 
-GSREF(AbstractEventThread, eThread)
-
-GSATT(std::shared_ptr<RGSSThreadData>, rtData)
-
-GSATT(std::shared_ptr<Config>, config)
-
-GSREF(IGraphics, graphics)
-
-GSREF(IInput, input)
-
-GSREF(IAudio, audio)
-
-GSATT(GLState &, _glState)
-
-GSATT(ShaderSet &, shaders)
-
-GSATT(TexPool &, texPool)
-
-GSATT(Quad &, gpQuad)
-
-GSATT(SharedFontState &, fontState)
-
-GSATT(SharedMidiState &, midiState)
-
-void SharedState::ensureQuadIBO(size_t minSize) {
-    _globalIBO->ensureSize(minSize);
+void SharedState::ensureQuadIBO(size_t minSize)
+{
+	_globalIBO->ensureSize(minSize);
 }
 
 GlobalIBO &SharedState::globalIBO()
@@ -336,19 +345,21 @@ void SharedState::releaseAtlasTex(TEXFBO &tex)
 
 void SharedState::checkShutdown()
 {
-    if (!p->rtData->rqTerm)
-        return;
+	if (!p->rtData.rqTerm)
+		return;
 
-    p->rtData->rqTermAck.set();
-    p->texPool.disable();
+	p->rtData.rqTermAck.set();
+	p->texPool.disable();
+	//scriptBinding->terminate();
 }
 
 void SharedState::checkReset()
 {
-    if (!p->rtData->rqReset)
-        return;
+	if (!p->rtData.rqReset)
+		return;
 
-    p->rtData->rqReset.clear();
+	p->rtData.rqReset.clear();
+	//scriptBinding->reset();
 }
 
 Font &SharedState::defaultFont() const
@@ -367,12 +378,13 @@ unsigned int SharedState::genTimeStamp()
 	return p->stampCounter++;
 }
 
-SharedState::SharedState(std::shared_ptr<RGSSThreadData> threadData) : p(
-        std::make_unique<SharedStatePrivate>(std::move(threadData)))
+SharedState::SharedState(RGSSThreadData *threadData)
 {
-    p->screen = p->graphics->getScreen();
+	p = new SharedStatePrivate(threadData);
+	p->screen = p->graphics.getScreen();
 }
 
-SharedState::~SharedState() {
-    _globalIBO = nullptr;
+SharedState::~SharedState()
+{
+	delete p;
 }

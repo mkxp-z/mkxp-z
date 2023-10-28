@@ -81,7 +81,7 @@ public:
 	/* Stack is not used (only 'set()') */
 	GLProjMat projMat;
 
-	/* Retrieves the current shState->_glState().viewport size,
+	/* Retrieves the current glState.viewport size,
 	 * calculates the corresponding ortho projection matrix
 	 * and loads it into the shaders uniform */
 	void applyViewportProj();
@@ -91,6 +91,7 @@ public:
 
 protected:
 	void init();
+	virtual bool framebufferScalingAllowed();
 
 	GLint u_texSizeInv, u_translation;
 };
@@ -225,6 +226,9 @@ public:
 	GrayShader();
 
 	void setGray(float value);
+
+protected:
+	virtual bool framebufferScalingAllowed();
 
 private:
 	GLint u_gray;

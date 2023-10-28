@@ -7,6 +7,7 @@
 
 #include <string>
 #include <iostream>
+#include <unistd.h>
 
 struct AtomicFlag
 {
@@ -99,7 +100,7 @@ template<size_t bufSize = 248, size_t pbSize = 8>
 class SDLRWBuf : public std::streambuf
 {
 public:
-    explicit SDLRWBuf(SDL_RWops *ops)
+	SDLRWBuf(SDL_RWops *ops)
 	    : ops(ops)
 	{
 		char *end = buf + bufSize + pbSize;
@@ -107,7 +108,7 @@ public:
 	}
 
 private:
-	int_type underflow() override
+	int_type underflow()
 	{
 		if (!ops)
 			return traits_type::eof();
@@ -153,9 +154,9 @@ public:
 			SDL_RWclose(ops);
 	}
 
-    explicit operator bool() const
+	operator bool() const
 	{
-		return ops != nullptr;
+		return ops != 0;
 	}
 
 	std::istream &stream()

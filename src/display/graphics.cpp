@@ -44,9 +44,6 @@
 #include "util.h"
 #include "input.h"
 #include "sprite.h"
-#include "gamelauncher.h"
-#include "ConfigManager.h"
-#include "ThreadManager.h"
 
 #include <SDL.h>
 #include <SDL_image.h>
@@ -321,12 +318,12 @@ struct Movie
         bool openedAudio = false;
         while (THEORAPLAY_isDecoding(decoder)) {
             // Check for reset/shutdown input
-            if (shState->graphics().updateMovieInput(this)) break;
+            if(shState->graphics().updateMovieInput(this)) break;
             
             // Check for attempted skip
             if (skippable) {
                 shState->input().update();
-                if (shState->input().isTriggered(Input::C) || shState->input().isTriggered(Input::B)) break;
+                if  (shState->input().isTriggered(Input::C) || shState->input().isTriggered(Input::B)) break;
             }
             
             const Uint32 now = SDL_GetTicks() - baseTicks;
@@ -405,13 +402,13 @@ struct Movie
             audioQueueHead = NULL;
             SDL_DestroyMutex(audioMutex);
             audioThreadTermReq.set();
+            if(audioThread) {
+                SDL_WaitThread(audioThread, 0);
+                audioThread = 0;
+            }
             alSourceStop(audioSource);
             alDeleteSources(1, &audioSource);
             alDeleteBuffers(STREAM_BUFS, alBuffers);
-        }
-        if(audioThread) {
-            SDL_WaitThread(audioThread, 0);
-            audioThread = 0;
         }
         if (video) THEORAPLAY_freeVideo(video);
         if (audio) THEORAPLAY_freeAudio(audio);
@@ -478,14 +475,14 @@ struct PingPong {
     }
     
     void clearBuffers() {
-        shState->_glState().clearColor.pushSet(Vec4(0, 0, 0, 1));
-
+        glState.clearColor.pushSet(Vec4(0, 0, 0, 1));
+        
         for (int i = 0; i < 2; ++i) {
             FBO::bind(rt[i].fbo);
             FBO::clear();
         }
-
-        shState->_glState().clearColor.pop();
+        
+        glState.clearColor.pop();
     }
     
 private:
@@ -504,17 +501,17 @@ public:
     void composite() {
         const int w = geometry.rect.w;
         const int h = geometry.rect.h;
-
+        
         shState->prepareDraw();
-
+        
         pp.startRender();
-
-        shState->_glState().viewport.set(IntRect(0, 0, w, h));
-
+        
+        glState.viewport.set(IntRect(0, 0, w, h));
+        
         FBO::clear();
-
+        
         Scene::composite();
-
+        
         if (brightEffect) {
             SimpleColorShader &shader = shState->shaders().simpleColor;
             shader.bind();
@@ -526,7 +523,7 @@ public:
     }
     
     void requestViewportRender(const Vec4 &c, const Vec4 &f, const Vec4 &t) {
-        const IntRect &viewpRect = shState->_glState().scissorBox.get();
+        const IntRect &viewpRect = glState.scissorBox.get();
         const IntRect &screenRect = geometry.rect;
         
         const bool toneRGBEffect = t.xyzNotNull();
@@ -541,32 +538,32 @@ public:
                 /* Scissor test _does_ affect FBO blit operations,
                  * and since we're inside the draw cycle, it will
                  * be turned on, so turn it off temporarily */
-                shState->_glState().scissorTest.pushSet(false);
-
+                glState.scissorTest.pushSet(false);
+                
                 GLMeta::blitBegin(pp.frontBuffer());
                 GLMeta::blitSource(pp.backBuffer());
                 GLMeta::blitRectangle(geometry.rect, Vec2i());
                 GLMeta::blitEnd();
-
-                shState->_glState().scissorTest.pop();
+                
+                glState.scissorTest.pop();
             }
-
+            
             GrayShader &shader = shState->shaders().gray;
             shader.bind();
             shader.setGray(t.w);
             shader.applyViewportProj();
             shader.setTexSize(screenRect.size());
-
+            
             TEX::bind(pp.backBuffer().tex);
-
-            shState->_glState().blend.pushSet(false);
+            
+            glState.blend.pushSet(false);
             screenQuad.draw();
-            shState->_glState().blend.pop();
+            glState.blend.pop();
         }
         
         if (!toneRGBEffect && !colorEffect && !flashEffect)
             return;
-
+        
         FlatColorShader &shader = shState->shaders().flatColor;
         shader.bind();
         shader.applyViewportProj();
@@ -612,18 +609,18 @@ public:
             gl.BlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO,
                                  GL_ONE);
         }
-
+        
         if (colorEffect) {
             shader.setColor(c);
             screenQuad.draw();
         }
-
+        
         if (flashEffect) {
             shader.setColor(f);
             screenQuad.draw();
         }
-
-        shState->_glState().blendMode.refresh();
+        
+        glState.blendMode.refresh();
     }
     
     void setBrightness(float norm) {
@@ -775,6 +772,7 @@ struct GraphicsPrivate {
      * RGSS renders at (settable with Graphics.resize_screen).
      * Can only be changed from within RGSS */
     Vec2i scRes;
+    Vec2i scResLores;
     
     /* Screen size, to which the rendered frames are scaled up.
      * This can be smaller than the window size when fixed aspect
@@ -791,8 +789,8 @@ struct GraphicsPrivate {
     // Scaling factor, used to display the screen properly
     // on Retina displays
     int scalingFactor;
-
-    std::shared_ptr<ScreenScene> screen;
+    
+    ScreenScene screen;
     RGSSThreadData *threadData;
     SDL_GLContext glCtx;
     
@@ -829,27 +827,27 @@ struct GraphicsPrivate {
     /* Global list of all live Disposables
      * (disposed on reset) */
     IntruList<Disposable> dispList;
-
+    
     GraphicsPrivate(RGSSThreadData *rtData)
-            : scRes(DEF_SCREEN_W, DEF_SCREEN_H), scSize(scRes),
-              winSize(rtData->config->defScreenW, rtData->config->defScreenH),
-              screen(std::make_shared<ScreenScene>(scRes.x, scRes.y)), threadData(rtData),
-              glCtx(SDL_GL_GetCurrentContext()), multithreadedMode(true),
-              frameRate(DEF_FRAMERATE), frameCount(0), brightness(255),
-              fpsLimiter(frameRate), useFrameSkip(rtData->config->frameSkip), frozen(false),
-              last_update(0), last_avg_update(0), backingScaleFactor(1), integerScaleFactor(0, 0),
-              integerScaleActive(rtData->config->integerScaling.active),
-              integerLastMileScaling(rtData->config->integerScaling.lastMileScaling) {
+    : scRes(DEF_SCREEN_W, DEF_SCREEN_H), scResLores(scRes), scSize(scRes),
+    winSize(rtData->config.defScreenW, rtData->config.defScreenH),
+    screen(scRes.x, scRes.y), threadData(rtData),
+    glCtx(SDL_GL_GetCurrentContext()), multithreadedMode(true),
+    frameRate(DEF_FRAMERATE), frameCount(0), brightness(255),
+    fpsLimiter(frameRate), useFrameSkip(rtData->config.frameSkip), frozen(false),
+    last_update(0), last_avg_update(0), backingScaleFactor(1), integerScaleFactor(0, 0),
+    integerScaleActive(rtData->config.integerScaling.active),
+    integerLastMileScaling(rtData->config.integerScaling.lastMileScaling) {
         avgFPSData = std::vector<double>();
         avgFPSLock = SDL_CreateMutex();
         glResourceLock = SDL_CreateMutex();
-
+        
         if (integerScaleActive) {
             integerScaleFactor = Vec2i(0, 0);
             rebuildIntegerScaleBuffer();
         }
-
-        recalculateScreenSize(rtData->config->fixedAspectRatio);
+        
+        recalculateScreenSize(rtData->config.fixedAspectRatio);
         updateScreenResoRatio(rtData);
         
         TEXFBO::init(frozenScene);
@@ -922,8 +920,9 @@ struct GraphicsPrivate {
     {
         Vec2i newScale(findHighestFittingScale(scRes.x, winSize.x),
                        findHighestFittingScale(scRes.y, winSize.y));
-
-        if (threadData->config->fixedAspectRatio) {
+        
+        if (threadData->config.fixedAspectRatio)
+        {
             /* Limit both factors to the smaller of the two */
             newScale.x = newScale.y = std::min(newScale.x, newScale.y);
         }
@@ -960,20 +959,20 @@ struct GraphicsPrivate {
             /* Query the actual size in pixels, not units */
             Vec2i drawableSize(winSize);
             threadData->drawableSizeMsg.poll(drawableSize);
-
+            
             backingScaleFactor = drawableSize.x / winSize.x;
             winSize = drawableSize;
-
+            
             /* Make sure integer buffers are rebuilt before screen offsets are
              * calculated so we have the final allocated buffer size ready */
             if (integerScaleActive && findHighestIntegerScale() && !skipIntScaleBuffer)
                 rebuildIntegerScaleBuffer();
-
+            
             /* some GL drivers change the viewport on window resize */
-            shState->_glState().viewport.refresh();
-            recalculateScreenSize(threadData->config->fixedAspectRatio);
+            glState.viewport.refresh();
+            recalculateScreenSize(threadData->config.fixedAspectRatio);
             updateScreenResoRatio(threadData);
-
+            
             SDL_Rect screen = {scOffset.x, scOffset.y, scSize.x, scSize.y};
             threadData->ethread->notifyGameScreenChange(screen);
         }
@@ -987,8 +986,8 @@ struct GraphicsPrivate {
     void shutdown() {
         threadData->rqTermAck.set();
         shState->texPool().disable();
-
-        //scriptBinding->terminate();
+        
+        scriptBinding->terminate();
     }
     
     void swapGLBuffer() {
@@ -1001,39 +1000,43 @@ struct GraphicsPrivate {
     }
     
     void compositeToBuffer(TEXFBO &buffer) {
-        screen->composite();
+        compositeToBufferScaled(buffer, scRes.x, scRes.y);
+    }
 
+    void compositeToBufferScaled(TEXFBO &buffer, int destWidth, int destHeight) {
+        screen.composite();
+        
         GLMeta::blitBegin(buffer);
-        GLMeta::blitSource(screen->getPP().frontBuffer());
-        GLMeta::blitRectangle(IntRect(0, 0, scRes.x, scRes.y), Vec2i());
+        GLMeta::blitSource(screen.getPP().frontBuffer());
+        GLMeta::blitRectangle(IntRect(0, 0, scRes.x, scRes.y), IntRect(0, 0, destWidth, destHeight));
         GLMeta::blitEnd();
     }
     
     void metaBlitBufferFlippedScaled() {
         metaBlitBufferFlippedScaled(scRes);
         GLMeta::blitRectangle(
-                IntRect(0, 0, scRes.x, scRes.y),
-                IntRect(scOffset.x,
-                        (scSize.y + scOffset.y),
-                        scSize.x,
-                        -scSize.y),
-                threadData->config->smoothScaling);
+                              IntRect(0, 0, scRes.x, scRes.y),
+                              IntRect(scOffset.x,
+                                      (scSize.y + scOffset.y),
+                                      scSize.x,
+                                      -scSize.y),
+                              threadData->config.smoothScaling);
     }
     
     void metaBlitBufferFlippedScaled(const Vec2i &sourceSize, bool forceNearestNeighbor=false) {
         GLMeta::blitRectangle(IntRect(0, 0, sourceSize.x, sourceSize.y),
-                              IntRect(scOffset.x, scSize.y + scOffset.y, scSize.x, -scSize.y),
-                              !forceNearestNeighbor && threadData->config->smoothScaling);
+                              IntRect(scOffset.x, scSize.y+scOffset.y, scSize.x, -scSize.y),
+                              !forceNearestNeighbor && threadData->config.smoothScaling);
     }
     
     void redrawScreen() {
-        screen->composite();
+        screen.composite();
         
         // maybe unspaghetti this later
         if (integerScaleStepApplicable() && !integerLastMileScaling)
         {
             GLMeta::blitBeginScreen(winSize);
-            GLMeta::blitSource(screen->getPP().frontBuffer());
+            GLMeta::blitSource(screen.getPP().frontBuffer());
             
             FBO::clear();
             metaBlitBufferFlippedScaled(scRes, true);
@@ -1047,7 +1050,7 @@ struct GraphicsPrivate {
         {
             assert(integerScaleBuffer.tex != TEX::ID(0));
             GLMeta::blitBegin(integerScaleBuffer);
-            GLMeta::blitSource(screen->getPP().frontBuffer());
+            GLMeta::blitSource(screen.getPP().frontBuffer());
             
             GLMeta::blitRectangle(IntRect(0, 0, scRes.x, scRes.y),
                                   IntRect(0, 0, integerScaleBuffer.width, integerScaleBuffer.height),
@@ -1057,7 +1060,7 @@ struct GraphicsPrivate {
         }
         
         GLMeta::blitBeginScreen(winSize);
-        //GLMeta::blitSource(screen->getPP().frontBuffer());
+        //GLMeta::blitSource(screen.getPP().frontBuffer());
         
         Vec2i sourceSize;
         
@@ -1068,7 +1071,7 @@ struct GraphicsPrivate {
         }
         else
         {
-            GLMeta::blitSource(screen->getPP().frontBuffer());
+            GLMeta::blitSource(screen.getPP().frontBuffer());
             sourceSize = scRes;
         }
         
@@ -1082,7 +1085,7 @@ struct GraphicsPrivate {
         SDL_LockMutex(avgFPSLock);
         if (avgFPSData.size() > 40)
             avgFPSData.erase(avgFPSData.begin());
-
+        
         double time = shState->runTime();
         avgFPSData.push_back(time - last_avg_update);
         last_avg_update = time;
@@ -1090,14 +1093,14 @@ struct GraphicsPrivate {
     }
     
     void checkSyncLock() {
-        if (!threadData->syncPoint->mainSyncLocked())
+        if (!threadData->syncPoint.mainSyncLocked())
             return;
         
         /* Releasing the GL context before sleeping and making it
          * current again on wakeup seems to avoid the context loss
          * when the app moves into the background on Android */
         SDL_GL_MakeCurrent(threadData->window, 0);
-        threadData->syncPoint->waitMainSync();
+        threadData->syncPoint.waitMainSync();
         SDL_GL_MakeCurrent(threadData->window, glCtx);
         
         fpsLimiter.resetFrameAdjust();
@@ -1116,7 +1119,7 @@ struct GraphicsPrivate {
     
     void setLock(bool force = false) {
         if (!(force || multithreadedMode)) return;
-
+        
         SDL_LockMutex(glResourceLock);
         SDL_GL_MakeCurrent(threadData->window, threadData->glContext);
     }
@@ -1128,18 +1131,19 @@ struct GraphicsPrivate {
     }
 };
 
-Graphics::Graphics(RGSSThreadData *data) : p(std::make_unique<GraphicsPrivate>(data)) {
-    if (data->config->syncToRefreshrate) {
+Graphics::Graphics(RGSSThreadData *data) {
+    p = new GraphicsPrivate(data);
+    if (data->config.syncToRefreshrate) {
         p->frameRate = data->refreshRate;
         p->fpsLimiter.disabled = true;
-    } else if (data->config->fixedFramerate > 0) {
-        p->fpsLimiter.setDesiredFPS(data->config->fixedFramerate);
-    } else if (data->config->fixedFramerate < 0) {
+    } else if (data->config.fixedFramerate > 0) {
+        p->fpsLimiter.setDesiredFPS(data->config.fixedFramerate);
+    } else if (data->config.fixedFramerate < 0) {
         p->fpsLimiter.disabled = true;
     }
 }
 
-Graphics::~Graphics() = default;
+Graphics::~Graphics() { delete p; }
 
 double Graphics::getDelta() {
     return shState->runTime() - p->last_update;
@@ -1212,23 +1216,26 @@ void Graphics::transition(int duration, const char *filename, int vague) {
     
     vague = clamp(vague, 1, 256);
     Bitmap *transMap = *filename ? new Bitmap(filename) : 0;
-
+    
     setBrightness(255);
-
+    
     /* Capture new scene */
-    p->screen->composite();
-
+    p->screen.composite();
+    
     /* The PP frontbuffer will hold the current scene after the
      * composition step. Since the backbuffer is unused during
      * the transition, we can reuse it as the target buffer for
      * the final rendered image. */
-    TEXFBO &currentScene = p->screen->getPP().frontBuffer();
-    TEXFBO &transBuffer = p->screen->getPP().backBuffer();
-
+    TEXFBO &currentScene = p->screen.getPP().frontBuffer();
+    TEXFBO &transBuffer = p->screen.getPP().backBuffer();
+    
     /* If no transition bitmap is provided,
      * we can use a simplified shader */
     TransShader &transShader = shState->shaders().trans;
     SimpleTransShader &simpleShader = shState->shaders().simpleTrans;
+    
+    // Handle high-res.
+    Vec2i transSize(p->scResLores.x, p->scResLores.y);
 
     if (transMap) {
         TransShader &shader = transShader;
@@ -1236,35 +1243,38 @@ void Graphics::transition(int duration, const char *filename, int vague) {
         shader.applyViewportProj();
         shader.setFrozenScene(p->frozenScene.tex);
         shader.setCurrentScene(currentScene.tex);
+        if (transMap->hasHires()) {
+            Debug() << "BUG: High-res Graphics transMap not implemented";
+        }
         shader.setTransMap(transMap->getGLTypes().tex);
         shader.setVague(vague / 256.0f);
-        shader.setTexSize(p->scRes);
+        shader.setTexSize(transSize);
     } else {
         SimpleTransShader &shader = simpleShader;
         shader.bind();
         shader.applyViewportProj();
         shader.setFrozenScene(p->frozenScene.tex);
         shader.setCurrentScene(currentScene.tex);
-        shader.setTexSize(p->scRes);
+        shader.setTexSize(transSize);
     }
-
-    shState->_glState().blend.pushSet(false);
-
+    
+    glState.blend.pushSet(false);
+    
     for (int i = 0; i < duration; ++i) {
         /* We need to clean up transMap properly before
          * a possible longjmp, so we manually test for
          * shutdown/reset here */
         if (p->threadData->rqTerm) {
-            shState->_glState().blend.pop();
+            glState.blend.pop();
             delete transMap;
             p->shutdown();
             return;
         }
         
         if (p->threadData->rqReset) {
-            shState->_glState().blend.pop();
+            glState.blend.pop();
             delete transMap;
-            //scriptBinding->reset();
+            scriptBinding->reset();
             return;
         }
         
@@ -1291,19 +1301,19 @@ void Graphics::transition(int duration, const char *filename, int vague) {
         /* Then blit it flipped and scaled to the screen */
         FBO::unbind();
         FBO::clear();
-
+        
         GLMeta::blitBeginScreen(Vec2i(p->winSize));
         GLMeta::blitSource(transBuffer);
         p->metaBlitBufferFlippedScaled();
         GLMeta::blitEnd();
-
+        
         p->swapGLBuffer();
     }
-
-    shState->_glState().blend.pop();
-
+    
+    glState.blend.pop();
+    
     delete transMap;
-
+    
     p->frozen = false;
 }
 
@@ -1317,11 +1327,11 @@ DEF_ATTR_SIMPLE(Graphics, FrameCount, int, p->frameCount)
 
 void Graphics::setFrameRate(int value) {
     p->frameRate = clamp(value, 10, 120);
-
-    if (p->threadData->config->syncToRefreshrate)
+    
+    if (p->threadData->config.syncToRefreshrate)
         return;
-
-    if (p->threadData->config->fixedFramerate > 0)
+    
+    if (p->threadData->config.fixedFramerate > 0)
         return;
     
     p->fpsLimiter.setDesiredFPS(p->frameRate);
@@ -1392,16 +1402,36 @@ void Graphics::fadein(int duration) {
 Bitmap *Graphics::snapToBitmap() {
     Bitmap *bitmap = new Bitmap(width(), height());
     
-    p->compositeToBuffer(bitmap->getGLTypes());
+    if (bitmap->hasHires()) {
+        p->compositeToBufferScaled(bitmap->getHires()->getGLTypes(), bitmap->getHires()->width(), bitmap->getHires()->height());
+    }
+
+    p->compositeToBufferScaled(bitmap->getGLTypes(), bitmap->width(), bitmap->height());
     
     /* Taint entire bitmap */
     bitmap->taintArea(IntRect(0, 0, width(), height()));
     return bitmap;
 }
 
-int Graphics::width() const { return p->scRes.x; }
+int Graphics::width() const { return p->scResLores.x; }
 
-int Graphics::height() const { return p->scRes.y; }
+int Graphics::height() const { return p->scResLores.y; }
+
+int Graphics::widthHires() const { return p->scRes.x; }
+
+int Graphics::heightHires() const { return p->scRes.y; }
+
+bool Graphics::isPingPongFramebufferActive() const {
+    return p->screen.getPP().frontBuffer().fbo == FBO::boundFramebufferID || p->screen.getPP().backBuffer().fbo == FBO::boundFramebufferID;
+}
+
+int Graphics::displayContentWidth() const {
+    return p->scSize.x;
+}
+
+int Graphics::displayContentHeight() const {
+    return p->scSize.y;
+}
 
 int Graphics::displayWidth() const {
     SDL_DisplayMode dm{};
@@ -1419,62 +1449,71 @@ void Graphics::resizeScreen(int width, int height) {
     p->threadData->rqWindowAdjust.wait();
     p->checkResize(true);
     
+    Vec2i sizeLores(width, height);
+
+    if (shState->config().enableHires) {
+        double framebufferScalingFactor = shState->config().framebufferScalingFactor;
+        width = (int)lround(framebufferScalingFactor * width);
+        height = (int)lround(framebufferScalingFactor * height);
+    }
+
     Vec2i size(width, height);
     
     if (p->scRes == size)
         return;
     
     p->scRes = size;
-
-    p->screen->setResolution(width, height);
-
+    p->scResLores = sizeLores;
+    
+    p->screen.setResolution(width, height);
+    
     if (p->integerScaleActive)
         p->rebuildIntegerScaleBuffer();
-
+    
     TEXFBO::allocEmpty(p->frozenScene, width, height);
-
+    
     FloatRect screenRect(0, 0, width, height);
     p->screenQuad.setTexPosRect(screenRect, screenRect);
-
-    shState->_glState().scissorBox.set(IntRect(0, 0, p->scRes.x, p->scRes.y));
-
+    
+    glState.scissorBox.set(IntRect(0, 0, p->scRes.x, p->scRes.y));
+    
     shState->eThread().requestWindowResize(width, height);
 }
 
 void Graphics::resizeWindow(int width, int height, bool center) {
     p->threadData->rqWindowAdjust.wait();
     p->checkResize();
-
+    
     if (width == p->winSize.x / p->backingScaleFactor &&
         height == p->winSize.y / p->backingScaleFactor)
-        return;
+            return;
 
     shState->eThread().requestWindowResize(width, height);
-
+    
     if (center)
         this->center();
 }
 
-void Graphics::drawMovieFrame(const THEORAPLAY_VideoFrame *video, Bitmap *videoBitmap) {
-    // TODO: This need an actual implementation
-}
-
 bool Graphics::updateMovieInput(Movie *movie) {
-    return p->threadData->rqTerm || p->threadData->rqReset;
+    return  p->threadData->rqTerm || p->threadData->rqReset;
 }
 
 void Graphics::playMovie(const char *filename, int volume_, bool skippable) {
+    if (shState->config().enableHires) {
+        Debug() << "BUG: High-res Graphics playMovie not implemented";
+    }
+
     Movie *movie = new Movie(skippable);
     MovieOpenHandler handler(movie->srcOps);
-    shState->filesystem()->openRead(handler, filename);
+    shState->fileSystem().openRead(handler, filename);
     float volume = volume_ * 0.01f;
-
-    if (movie->preparePlayback()) {
+    
+    if (movie->preparePlayback()) {        
         Sprite movieSprite;
-
+        
         // Currently this stretches to fit the screen. VX Ace behavior is to center it and let the edges run off
         movieSprite.setBitmap(movie->videoBitmap);
-        double ratio = std::min((double) width() / movie->video->width, (double) height() / movie->video->height);
+        double ratio = std::min((double)width() / movie->video->width, (double)height() / movie->video->height);
         movieSprite.setZoomX(ratio);
         movieSprite.setZoomY(ratio);
         movieSprite.setX((width() / 2) - (movie->video->width * ratio / 2));
@@ -1509,9 +1548,9 @@ void Graphics::setBrightness(int value) {
     
     if (p->brightness == value)
         return;
-
+    
     p->brightness = value;
-    p->screen->setBrightness(value / 255.0);
+    p->screen.setBrightness(value / 255.0);
 }
 
 void Graphics::reset() {
@@ -1528,7 +1567,7 @@ void Graphics::reset() {
     /* Reset attributes (frame count not included) */
     p->fpsLimiter.resetFrameAdjust();
     p->frozen = false;
-    p->screen->getPP().clearBuffers();
+    p->screen.getPP().clearBuffers();
     
     setFrameRate(DEF_FRAMERATE);
     setBrightness(255);
@@ -1562,25 +1601,27 @@ bool Graphics::getFixedAspectRatio() const
 {
     // It's a bit hacky to expose config values as a Graphics
     // attribute, but there's really no point in state duplication
-    return shState->config()->fixedAspectRatio;
+    return shState->config().fixedAspectRatio;
 }
 
-void Graphics::setFixedAspectRatio(bool value) {
-    shState->config()->fixedAspectRatio = value;
-    p->recalculateScreenSize(p->threadData->config->fixedAspectRatio);
+void Graphics::setFixedAspectRatio(bool value)
+{
+    shState->config().fixedAspectRatio = value;
+    p->recalculateScreenSize(p->threadData->config.fixedAspectRatio);
     p->findHighestIntegerScale();
-    p->recalculateScreenSize(p->threadData->config->fixedAspectRatio);
+    p->recalculateScreenSize(p->threadData->config.fixedAspectRatio);
     p->updateScreenResoRatio(p->threadData);
 }
 
 bool Graphics::getSmoothScaling() const
 {
     // Same deal as with fixed aspect ratio
-    return shState->config()->smoothScaling;
+    return shState->config().smoothScaling;
 }
 
-void Graphics::setSmoothScaling(bool value) {
-    shState->config()->smoothScaling = value;
+void Graphics::setSmoothScaling(bool value)
+{
+    shState->config().smoothScaling = value;
 }
 
 bool Graphics::getIntegerScaling() const
@@ -1593,8 +1634,8 @@ void Graphics::setIntegerScaling(bool value)
     p->integerScaleActive = value;
     p->findHighestIntegerScale();
     p->rebuildIntegerScaleBuffer();
-
-    p->recalculateScreenSize(p->threadData->config->fixedAspectRatio);
+    
+    p->recalculateScreenSize(p->threadData->config.fixedAspectRatio);
     p->updateScreenResoRatio(p->threadData);
 }
 
@@ -1606,7 +1647,7 @@ bool Graphics::getLastMileScaling() const
 void Graphics::setLastMileScaling(bool value)
 {
     p->integerLastMileScaling = value;
-    p->recalculateScreenSize(p->threadData->config->fixedAspectRatio);
+    p->recalculateScreenSize(p->threadData->config.fixedAspectRatio);
     p->updateScreenResoRatio(p->threadData);
 }
 
@@ -1629,13 +1670,13 @@ double Graphics::getScale() const {
 void Graphics::setScale(double factor) {
     p->threadData->rqWindowAdjust.wait();
     factor = clamp(factor, 0.5, 4.0);
-
+    
     if (factor == getScale())
         return;
-
+    
     int widthpx = p->scRes.x * factor;
     int heightpx = p->scRes.y * factor;
-
+    
     shState->eThread().requestWindowResize(widthpx, heightpx);
 }
 
@@ -1643,28 +1684,28 @@ bool Graphics::getFrameskip() const { return p->useFrameSkip; }
 
 void Graphics::setFrameskip(bool value) { p->useFrameSkip = value; }
 
-std::shared_ptr<Scene> Graphics::getScreen() const { return p->screen; }
+Scene *Graphics::getScreen() const { return &p->screen; }
 
 void Graphics::repaintWait(const AtomicFlag &exitCond, bool checkReset) {
     if (exitCond)
         return;
     
     /* Repaint the screen with the last good frame we drew */
-    TEXFBO &lastFrame = p->screen->getPP().frontBuffer();
+    TEXFBO &lastFrame = p->screen.getPP().frontBuffer();
     GLMeta::blitBeginScreen(p->winSize);
     GLMeta::blitSource(lastFrame);
     
     while (!exitCond) {
         shState->checkShutdown();
-
+        
         if (checkReset)
             shState->checkReset();
-
+        
         FBO::clear();
         p->metaBlitBufferFlippedScaled();
         SDL_GL_SwapWindow(p->threadData->window);
         p->fpsLimiter.delay();
-
+        
         p->threadData->ethread->notifyFrame();
     }
     
@@ -1683,4 +1724,4 @@ void Graphics::addDisposable(Disposable *d) { p->dispList.append(d->link); }
 
 void Graphics::remDisposable(Disposable *d) { p->dispList.remove(d->link); }
 
-#undef SCREEN_THREAD_LOCK
+#undef GRAPHICS_THREAD_LOCK

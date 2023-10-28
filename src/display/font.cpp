@@ -26,7 +26,6 @@
 #include "exception.h"
 #include "boost-hash.h"
 #include "util.h"
-#include "ConfigManager.h"
 #include "config.h"
 
 #include <string>
@@ -41,7 +40,6 @@
 #ifndef MKXPZ_BUILD_XCODE
 #ifndef MKXPZ_CJK_FONT
 #include "liberation.ttf.xxd"
-
 #else
 #include "wqymicrohei.ttf.xxd"
 #endif
@@ -193,15 +191,16 @@ _TTF_Font *SharedFontState::getFont(std::string family,
 		/* Built-in font */
 		ops = openBundledFont();
 	}
-	else {
-        /* Use 'other' path as alternative in case
-         * we have no 'regular' styled font asset */
-        const char *path = !req.regular.empty()
-                           ? req.regular.c_str() : req.other.c_str();
+	else
+	{
+		/* Use 'other' path as alternative in case
+		 * we have no 'regular' styled font asset */
+		const char *path = !req.regular.empty()
+		                 ? req.regular.c_str() : req.other.c_str();
 
-        ops = SDL_AllocRW();
-        shState->filesystem()->openReadRaw(*ops, path, true);
-    }
+		ops = SDL_AllocRW();
+		shState->fileSystem().openReadRaw(*ops, path, true);
+	}
 
 	// FIXME 0.9 is guesswork at this point
 //	float gamma = (96.0/45.0)*(5.0/14.0)*(size-5);
@@ -362,7 +361,7 @@ bool Font::doesExist(const char *name)
 	if (!name)
 		return false;
 
-    return shState->fontState().fontPresent(name);
+	return shState->fontState().fontPresent(name);
 }
 
 Font::Font(const std::vector<std::string> *names,
@@ -393,20 +392,24 @@ const Font &Font::operator=(const Font &o)
 	return o;
 }
 
-void Font::setName(const std::vector<std::string> &names) {
-    pickExistingFontName(names, p->name, shState->fontState());
-    p->isSolid = strcmp(p->name.c_str(), "") && shState->config()->fontIsSolid(p->name.c_str());
-    p->sdlFont = 0;
+void Font::setName(const std::vector<std::string> &names)
+{
+	pickExistingFontName(names, p->name, shState->fontState());
+    p->isSolid = strcmp(p->name.c_str(), "") && shState->config().fontIsSolid(p->name.c_str());
+	p->sdlFont = 0;
 }
 
-void Font::setSize(int value)
+void Font::setSize(int value, bool checkIllegal)
 {
 	if (p->size == value)
 		return;
 
 	/* Catch illegal values (according to RMXP) */
-	if (value < 6 || value > 96)
-		throw Exception(Exception::ArgumentError, "%s", "bad value for size");
+	if (value < 6 || value > 96) {
+		if (checkIllegal) {
+			throw Exception(Exception::ArgumentError, "%s", "bad value for size");
+		}
+	}
 
 	p->size = value;
 	p->sdlFont = 0;
@@ -489,8 +492,8 @@ void Font::initDefaults(const SharedFontState &sfs)
 _TTF_Font *Font::getSdlFont()
 {
 	if (!p->sdlFont)
-        p->sdlFont = shState->fontState().getFont(p->name.c_str(),
-                                                  p->size);
+		p->sdlFont = shState->fontState().getFont(p->name.c_str(),
+		                                          p->size);
 
 	int style = TTF_STYLE_NORMAL;
 

@@ -46,6 +46,8 @@
 
 #ifdef __WIN32__
 #include <direct.h>
+#include <filesystem>
+
 #endif
 
 struct SDLRWIoContext {
@@ -654,7 +656,6 @@ void FileSystem::openRead(OpenHandler &handler, const char *filename) {
 
 void FileSystem::openReadRaw(SDL_RWops &ops, const char *filename,
                              bool freeOnClose) {
-
   PHYSFS_File *handle = PHYSFS_openRead(normalize(filename, 0, 0).c_str());
 
   if (!handle)

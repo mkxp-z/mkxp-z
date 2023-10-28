@@ -42,6 +42,13 @@
     // "rgssVersion": 1,
 
 
+    // Continuously display average FPS in window title.
+    // This can always be toggled with F2 at runtime.
+    // (default: disabled)
+    //
+    // "displayFPS": false,
+
+
     // Continuously print average FPS to console.
     // This setting does not affect the window title
     // FPS display toggled via F2
@@ -82,6 +89,35 @@
     // (default: disabled)
     //
     // "lanczos3Scaling": false,
+
+
+    // Replace the game's Bitmap files with external high-res files
+    // provided in the "Hires" directory.
+    // (You'll also need to set the below Scaling Factors.)
+    // (default: disabled)
+    //
+    // "enableHires": false,
+
+
+    // Scaling factor for textures (e.g. Bitmaps)
+    // (higher values will look better if you use high-res textures)
+    // (default: 1.0)
+    //
+    // "textureScalingFactor": 4.0,
+
+
+    // Scaling factor for screen framebuffer
+    // (higher values will look better if you use high-res textures)
+    // (default: 1.0)
+    //
+    // "framebufferScalingFactor": 4.0,
+
+
+    // Scaling factor for tileset atlas
+    // (higher values will look better if you use high-res textures)
+    // (default: 1.0)
+    //
+    // "atlasScalingFactor": 4.0,
 
 
     // Sync screen redraws to the monitor refresh rate

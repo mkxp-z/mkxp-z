@@ -22,6 +22,12 @@
 #ifndef EVENTTHREAD_H
 #define EVENTTHREAD_H
 
+#include <SDL_scancode.h>
+#include <SDL_mouse.h>
+#include <SDL_mutex.h>
+#include <SDL_atomic.h>
+#include <SDL_gamecontroller.h>
+
 #include <string>
 
 #include <stdint.h>
@@ -30,66 +36,86 @@
 #include "etc-internal.h"
 #include "sdl-util.h"
 #include "keybindings.h"
-#include "ISyncPoint.h"
-#include "AbstractEventThread.h"
-#include "SDL_Instance.h"
-#include "filesystem.h"
-#include "debugwriter.h"
 
 struct RGSSThreadData;
 typedef struct MKXPZ_ALCDEVICE ALCdevice;
 struct SDL_Window;
 union SDL_Event;
 
-class EventThread : public AbstractEventThread {
+#define MAX_FINGERS 4
+
+class EventThread
+{
 public:
-	void lockText(bool lock) override;
+    
+    struct ControllerState {
+        int axes[SDL_CONTROLLER_AXIS_MAX];
+        bool buttons[SDL_CONTROLLER_BUTTON_MAX];
+    };
 
+	struct MouseState
+	{
+		int x, y;
+		bool inWindow;
+		bool buttons[32];
+	};
 
-    static bool allocUserEvents();
+	struct FingerState
+	{
+		bool down;
+		int x, y;
+	};
 
-    EventThread();
+	struct TouchState
+	{
+		FingerState fingers[MAX_FINGERS];
+	};
 
-    ~EventThread() override;
+	static uint8_t keyStates[SDL_NUM_SCANCODES];
+    static ControllerState controllerState;
+	static MouseState mouseState;
+	static TouchState touchState;
+    static SDL_atomic_t verticalScrollDistance;
+    
+    std::string textInputBuffer;
+    void lockText(bool lock);
+    
 
-    void process(RGSSThreadData &rtData) override;
+	static bool allocUserEvents();
 
-    void cleanup() override;
+	EventThread();
+    ~EventThread();
 
-    /* Called from RGSS thread */
-    void requestFullscreenMode(bool mode) override;
+	void process(RGSSThreadData &rtData);
+	void cleanup();
 
-    void requestWindowResize(int width, int height) override;
+	/* Called from RGSS thread */
+	void requestFullscreenMode(bool mode);
+	void requestWindowResize(int width, int height);
+    void requestWindowReposition(int x, int y);
+    void requestWindowCenter();
+    void requestWindowRename(const char *title);
+	void requestShowCursor(bool mode);
+    
+    void requestTextInputMode(bool mode);
+    
+    void requestSettingsMenu();
 
-    void requestWindowReposition(int x, int y) override;
+	void requestTerminate();
 
-    void requestWindowCenter() override;
+	bool getFullscreen() const;
+	bool getShowCursor() const;
+    bool getControllerConnected() const;
+    
+    SDL_GameController *controller() const;
 
-    void requestWindowRename(const char *title) override;
+	void showMessageBox(const char *body, int flags = 0);
 
-    void requestShowCursor(bool mode) override;
+	/* RGSS thread calls this once per frame */
+	void notifyFrame();
 
-    void requestTextInputMode(bool mode) override;
-
-    void requestSettingsMenu() override;
-
-    void requestTerminate() override;
-
-    bool getFullscreen() const override;
-
-    bool getShowCursor() const override;
-
-    bool getControllerConnected() const override;
-
-    SDL_GameController *controller() const override;
-
-    void showMessageBox(const char *body, int flags) override;
-
-    /* RGSS thread calls this once per frame */
-    void notifyFrame() override;
-
-    /* Called on game screen (size / offset) changes */
-    void notifyGameScreenChange(const SDL_Rect &screen) override;
+	/* Called on game screen (size / offset) changes */
+	void notifyGameScreenChange(const SDL_Rect &screen);
 
 private:
 	static int eventFilter(void *, SDL_Event*);
@@ -170,25 +196,24 @@ private:
 	T current;
 };
 
-struct SyncPoint : public ISyncPoint {
-    /* Used by eventFilter to control sleep/wakeup */
-    void haltThreads() override;
+struct SyncPoint
+{
+	/* Used by eventFilter to control sleep/wakeup */
+	void haltThreads();
+	void resumeThreads();
 
-    void resumeThreads() override;
+	/* Used by RGSS thread */
+	bool mainSyncLocked();
+	void waitMainSync();
 
-    /* Used by RGSS thread */
-    bool mainSyncLocked() override;
-
-    void waitMainSync() override;
-
-    /* Used by secondary (audio) threads */
-    void passSecondarySync() override;
+	/* Used by secondary (audio) threads */
+	void passSecondarySync();
 
 private:
-    struct Util {
-        Util();
-
-        ~Util();
+	struct Util
+	{
+		Util();
+		~Util();
 
 		void lock();
 		void unlock(bool multi);
@@ -217,51 +242,50 @@ struct RGSSThreadData
 
 	/* Set when F12 is released */
 	AtomicFlag rqResetFinish;
-
-	// Set when window is being adjusted (resize, reposition)
+    
+    // Set when window is being adjusted (resize, reposition)
     AtomicFlag rqWindowAdjust;
 
-    std::shared_ptr<AbstractEventThread> ethread;
-    UnidirMessage<Vec2i> windowSizeMsg;
+	EventThread *ethread;
+	UnidirMessage<Vec2i> windowSizeMsg;
     UnidirMessage<Vec2i> drawableSizeMsg;
-    UnidirMessage<BDescVec> bindingUpdateMsg;
-    std::shared_ptr<ISyncPoint> syncPoint;
+	UnidirMessage<BDescVec> bindingUpdateMsg;
+	SyncPoint syncPoint;
 
-    const char *argv0;
+	const char *argv0;
 
-    SDL_Window *window;
-    ALCdevice *alcDev;
-
+	SDL_Window *window;
+	ALCdevice *alcDev;
+    
     SDL_GLContext glContext;
 
-    Vec2 sizeResoRatio;
-    Vec2i screenOffset;
+	Vec2 sizeResoRatio;
+	Vec2i screenOffset;
     int scale;
-    const int refreshRate;
+	const int refreshRate;
 
-    std::shared_ptr<Config> config;
-    std::shared_ptr<FileSystem> filesystem;
+	Config config;
 
-    std::string rgssErrorMsg;
+	std::string rgssErrorMsg;
 
-    RGSSThreadData(std::shared_ptr<AbstractEventThread> ethread, const char *argv0, SDL_Window *window,
-                   ALCdevice *alcDev, int refreshRate, int scalingFactor,
-                   std::shared_ptr<Config> newconf, std::shared_ptr<FileSystem> fs, SDL_GLContext ctx)
-            : ethread(ethread),
-              argv0(argv0),
-              window(window),
-              alcDev(alcDev),
-              syncPoint(std::make_shared<SyncPoint>()),
-              sizeResoRatio(1, 1),
-              refreshRate(refreshRate),
-              scale(scalingFactor),
-              config(newconf),
-              filesystem(fs),
-              glContext(ctx) {}
-
-    ~RGSSThreadData() {
-        Debug() << "RGSS Thread Data terminating!";
-    }
+	RGSSThreadData(EventThread *ethread,
+	               const char *argv0,
+	               SDL_Window *window,
+	               ALCdevice *alcDev,
+	               int refreshRate,
+                   int scalingFactor,
+	               const Config& newconf,
+                   SDL_GLContext ctx)
+	    : ethread(ethread),
+	      argv0(argv0),
+	      window(window),
+	      alcDev(alcDev),
+	      sizeResoRatio(1, 1),
+	      refreshRate(refreshRate),
+          scale(scalingFactor),
+	      config(newconf),
+          glContext(ctx)
+	{}
 };
 
 #endif // EVENTTHREAD_H

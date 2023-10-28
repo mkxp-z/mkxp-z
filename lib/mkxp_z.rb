@@ -2,18 +2,9 @@
 
 require_relative "mkxp_z/version"
 
+$mkxpz_launch_args ||= []
+
 module MKXP_Z
-
-  @@launch_args = []
-  
-  def self.get_launch_args
-    @@launch_args
-  end
-
-  def self.set_launch_args(*args)
-    @@launch_args = args
-  end
-
   class Error < StandardError; end
 
 end

@@ -116,8 +116,8 @@ static void printGLInfo() {
 static SDL_GLContext initGL(SDL_Window *win, Config &conf,
                             RGSSThreadData *threadData);
 
-bool startRgssThread(std::shared_ptr<RGSSThreadData> threadData) {
-  RGSSThreadData *threadData = static_cast<RGSSThreadData *>(threadData);
+int rgssThreadFun(void *userdata) {
+  RGSSThreadData *threadData = static_cast<RGSSThreadData *>(userdata);
 
 #ifdef MKXPZ_INIT_GL_LATER
   threadData->glContext =
@@ -201,7 +201,7 @@ static void setupWindowIcon(const Config &conf, SDL_Window *win) {
   }
 }
 
-int main(int argc, char *argv[]) {
+void initGameState(int argc, char *argv[]) {
     SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
     SDL_SetHint(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, "0");
 
@@ -314,7 +314,7 @@ int main(int argc, char *argv[]) {
       snprintf(buf, sizeof(buf), "Error initializing winsock: %08X",
                WSAGetLastError());
       showInitError(
-              std::string(buf)); // Not an error worth ending the program over
+          std::string(buf)); // Not an error worth ending the program over
     }
 #endif
 
@@ -322,21 +322,20 @@ int main(int argc, char *argv[]) {
     Uint32 winFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_INPUT_FOCUS | SDL_WINDOW_ALLOW_HIGHDPI;
 
     if (conf.winResizable)
-        winFlags |= SDL_WINDOW_RESIZABLE;
+      winFlags |= SDL_WINDOW_RESIZABLE;
     if (conf.fullscreen)
-        winFlags |= SDL_WINDOW_FULLshState->screen()
-    _DESKTOP;
-
+      winFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+    
 #ifdef GLES2_HEADER
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
 
-      // LoadLibrary properly initializes EGL, it won't work otherwise.
-      // Doesn't completely do it though, needs a small patch to SDL
+    // LoadLibrary properly initializes EGL, it won't work otherwise.
+    // Doesn't completely do it though, needs a small patch to SDL
 #ifdef MKXPZ_BUILD_XCODE
-      SDL_setenv("ANGLE_DEFAULT_PLATFORM", (conf.preferMetalRenderer) ? "metal" : "opengl", true);
-      SDL_GL_LoadLibrary("@rpath/libEGL.dylib");
+    SDL_setenv("ANGLE_DEFAULT_PLATFORM", (conf.preferMetalRenderer) ? "metal" : "opengl", true);
+    SDL_GL_LoadLibrary("@rpath/libEGL.dylib");
 #endif
 #endif
     

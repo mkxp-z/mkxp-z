@@ -30,8 +30,6 @@
 #if RAPI_FULL > 187
 #include "ruby/encoding.h"
 #include "ruby/intern.h"
-#include "ConfigManager.h"
-
 #else
 #include "intern.h"
 #endif
@@ -57,7 +55,7 @@ static VALUE fileIntForPath(const char *path, bool rubyExc) {
     SDL_RWops *ops = SDL_AllocRW();
     
     try {
-        shState->filesystem()->openReadRaw(*ops, path);
+        shState->fileSystem().openReadRaw(*ops, path);
     } catch (const Exception &e) {
         SDL_FreeRW(ops);
         
@@ -185,6 +183,19 @@ kernelLoadDataInt(const char *filename, bool rubyExc, bool raw) {
     return result;
 }
 
+RB_METHOD(kernelAddSearchPath) {
+    RB_UNUSED_PARAM
+
+    VALUE path;
+    rb_scan_args(argc, argv, "1", &path);
+
+    auto pathString = rb_string_value_cstr(&path);
+
+    shState->fileSystem().addPath(pathString);
+
+    return Qnil;
+}
+
 RB_METHOD(kernelLoadData) {
     RB_UNUSED_PARAM;
     
@@ -286,7 +297,8 @@ void fileIntBindingInit() {
 #endif
     _rb_define_method(klass, "binmode", fileIntBinmode);
     _rb_define_method(klass, "close", fileIntClose);
-    
+
+    _rb_define_module_function(rb_mKernel, "add_search_path", kernelAddSearchPath);
     _rb_define_module_function(rb_mKernel, "load_data", kernelLoadData);
     _rb_define_module_function(rb_mKernel, "save_data", kernelSaveData);
     

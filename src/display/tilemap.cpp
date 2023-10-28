@@ -27,6 +27,7 @@
 
 #include "sharedstate.h"
 #include "config.h"
+#include "debugwriter.h"
 #include "glstate.h"
 #include "gl-util.h"
 #include "gl-meta.h"
@@ -40,8 +41,6 @@
 #include "tilemap-common.h"
 
 #include "sigslot/signal.hpp"
-#include "gamelauncher.h"
-#include "ConfigManager.h"
 
 #include <string.h>
 #include <stdint.h>
@@ -373,8 +372,8 @@ struct TilemapPrivate
 		tiles.vbo = VBO::gen();
 
 		GLMeta::vaoFillInVertexData<SVertex>(tiles.vao);
-        tiles.vao.vbo = tiles.vbo;
-        tiles.vao.ibo = shState->globalIBO().ibo;
+		tiles.vao.vbo = tiles.vbo;
+		tiles.vao.ibo = shState->globalIBO().ibo;
 
 		GLMeta::vaoInit(tiles.vao);
 
@@ -383,29 +382,31 @@ struct TilemapPrivate
 		for (size_t i = 0; i < zlayersMax; ++i)
 			elem.zlayers[i] = new ZLayer(this, viewport);
 
-        prepareCon = shState->prepareDraw.connect
-                (&TilemapPrivate::prepare, this);
+		prepareCon = shState->prepareDraw.connect
+		        (&TilemapPrivate::prepare, this);
 
 		updateFlashMapViewport();
 	}
 
-	~TilemapPrivate() {
-        /* Destroy elements */
-        delete elem.ground;
-        for (size_t i = 0; i < zlayersMax; ++i)
-            delete elem.zlayers[i];
+	~TilemapPrivate()
+	{
+		/* Destroy elements */
+		delete elem.ground;
+		for (size_t i = 0; i < zlayersMax; ++i)
+			delete elem.zlayers[i];
 
-        shState->releaseAtlasTex(atlas.gl);
+		shState->releaseAtlasTex(atlas.gl);
 
-        /* Destroy tile buffers */
-        GLMeta::vaoFini(tiles.vao);
-        VBO::del(tiles.vbo);
+		/* Destroy tile buffers */
+		GLMeta::vaoFini(tiles.vao);
+		VBO::del(tiles.vbo);
 
-        /* Disconnect signal handlers */
-        tilesetCon.disconnect();
-        for (int i = 0; i < autotileCount; ++i) {
-            autotilesCon[i].disconnect();
-            autotilesDispCon[i].disconnect();
+		/* Disconnect signal handlers */
+		tilesetCon.disconnect();
+		for (int i = 0; i < autotileCount; ++i)
+		{
+			autotilesCon[i].disconnect();
+			autotilesDispCon[i].disconnect();
 		}
 		mapDataCon.disconnect();
 		prioritiesCon.disconnect();
@@ -429,7 +430,7 @@ struct TilemapPrivate
 		int tsH = tileset->height();
 		atlas.efTilesetH = tsH - (tsH % 32);
 
-        atlas.size = TileAtlas::minSize(atlas.efTilesetH, shState->_glState().caps.maxTexSize);
+		atlas.size = TileAtlas::minSize(atlas.efTilesetH, glState.caps.maxTexSize);
 
 		if (atlas.size.x < 0)
 			throw Exception(Exception::MKXPError,
@@ -507,45 +508,52 @@ struct TilemapPrivate
 	}
 
 	/* Allocates correctly sized TexFBO for atlas */
-	void allocateAtlas() {
-        updateAtlasInfo();
+	void allocateAtlas()
+	{
+		updateAtlasInfo();
 
-        /* Aquire atlas tex */
-        shState->releaseAtlasTex(atlas.gl);
-        shState->requestAtlasTex(atlas.size.x, atlas.size.y, atlas.gl);
+		/* Aquire atlas tex */
+		shState->releaseAtlasTex(atlas.gl);
+		shState->requestAtlasTex(atlas.size.x, atlas.size.y, atlas.gl);
 
-        atlasDirty = true;
-    }
+		atlasDirty = true;
+	}
 
 	/* Assembles atlas from tileset and autotile bitmaps */
-	void buildAtlas() {
+	void buildAtlas()
+	{
         updateAutotileInfo();
         tileset->ensureNonAnimated();
 
-        TileAtlas::BlitVec blits = TileAtlas::calcBlits(atlas.efTilesetH, atlas.size);
+		TileAtlas::BlitVec blits = TileAtlas::calcBlits(atlas.efTilesetH, atlas.size);
 
-        /* Clear atlas */
-        FBO::bind(atlas.gl.fbo);
-        shState->_glState().clearColor.pushSet(Vec4());
-        shState->_glState().scissorTest.pushSet(false);
+		/* Clear atlas */
+		FBO::bind(atlas.gl.fbo);
+		glState.clearColor.pushSet(Vec4());
+		glState.scissorTest.pushSet(false);
 
-        FBO::clear();
+		FBO::clear();
 
-        shState->_glState().scissorTest.pop();
-        shState->_glState().clearColor.pop();
+		glState.scissorTest.pop();
+		glState.clearColor.pop();
 
-        GLMeta::blitBegin(atlas.gl);
+		GLMeta::blitBegin(atlas.gl);
 
-        /* Blit autotiles */
-        for (size_t i = 0; i < atlas.usableATs.size(); ++i) {
-            const uint8_t atInd = atlas.usableATs[i];
-            Bitmap *autotile = autotiles[atInd];
+		/* Blit autotiles */
+		for (size_t i = 0; i < atlas.usableATs.size(); ++i)
+		{
+			const uint8_t atInd = atlas.usableATs[i];
+			Bitmap *autotile = autotiles[atInd];
             autotile->ensureNonAnimated();
 
-            int atW = autotile->width();
+			int atW = autotile->width();
 			int atH = autotile->height();
 			int blitW = std::min(atW, atAreaW);
 			int blitH = std::min(atH, autotileH);
+
+			if (autotile->hasHires()) {
+				Debug() << "BUG: High-res Tilemap blit autotiles not implemented";
+			}
 
 			GLMeta::blitSource(autotile->getGLTypes());
 
@@ -582,39 +590,41 @@ struct TilemapPrivate
 			/* Mega surface tileset */
 			SDL_Surface *tsSurf = tileset->megaSurface();
 
-            if (shState->config()->subImageFix) {
-                /* Implementation for broken GL drivers */
-                FBO::bind(atlas.gl.fbo);
-                shState->_glState().blend.pushSet(false);
-                shState->_glState().viewport.pushSet(IntRect(0, 0, atlas.size.x, atlas.size.y));
+			if (shState->config().subImageFix)
+			{
+				/* Implementation for broken GL drivers */
+				FBO::bind(atlas.gl.fbo);
+				glState.blend.pushSet(false);
+				glState.viewport.pushSet(IntRect(0, 0, atlas.size.x, atlas.size.y));
 
-                SimpleShader &shader = shState->shaders().simple;
-                shader.bind();
-                shader.applyViewportProj();
-                shader.setTranslation(Vec2i());
+				SimpleShader &shader = shState->shaders().simple;
+				shader.bind();
+				shader.applyViewportProj();
+				shader.setTranslation(Vec2i());
 
-                Quad &quad = shState->gpQuad();
+				Quad &quad = shState->gpQuad();
 
-                for (size_t i = 0; i < blits.size(); ++i) {
-                    const TileAtlas::Blit &blitOp = blits[i];
+				for (size_t i = 0; i < blits.size(); ++i)
+				{
+					const TileAtlas::Blit &blitOp = blits[i];
 
-                    Vec2i texSize;
-                    shState->ensureTexSize(tsLaneW, blitOp.h, texSize);
-                    shState->bindTex();
-                    GLMeta::subRectImageUpload(tsSurf->w, blitOp.src.x, blitOp.src.y,
-                                               0, 0, tsLaneW, blitOp.h, tsSurf, GL_RGBA);
+					Vec2i texSize;
+					shState->ensureTexSize(tsLaneW, blitOp.h, texSize);
+					shState->bindTex();
+					GLMeta::subRectImageUpload(tsSurf->w, blitOp.src.x, blitOp.src.y,
+					                           0, 0, tsLaneW, blitOp.h, tsSurf, GL_RGBA);
 
-                    shader.setTexSize(texSize);
-                    quad.setTexRect(FloatRect(0, 0, tsLaneW, blitOp.h));
-                    quad.setPosRect(FloatRect(blitOp.dst.x, blitOp.dst.y, tsLaneW, blitOp.h));
+					shader.setTexSize(texSize);
+					quad.setTexRect(FloatRect(0, 0, tsLaneW, blitOp.h));
+					quad.setPosRect(FloatRect(blitOp.dst.x, blitOp.dst.y, tsLaneW, blitOp.h));
 
-                    quad.draw();
-                }
+					quad.draw();
+				}
 
-                GLMeta::subRectImageEnd();
-                shState->_glState().viewport.pop();
-                shState->_glState().blend.pop();
-            }
+				GLMeta::subRectImageEnd();
+				glState.viewport.pop();
+				glState.blend.pop();
+			}
 			else
 			{
 				/* Clean implementation */
@@ -634,6 +644,10 @@ struct TilemapPrivate
 		}
 		else
 		{
+			if (tileset->hasHires()) {
+				Debug() << "BUG: High-res Tilemap regular tileset not implemented";
+			}
+
 			/* Regular tileset */
 			GLMeta::blitBegin(atlas.gl);
 			GLMeta::blitSource(tileset->getGLTypes());
@@ -832,24 +846,24 @@ struct TilemapPrivate
 
 		for (size_t i = 0; i < zlayersMax; ++i)
 		{
-            if (zlayerVert[i].empty())
-                continue;
+			if (zlayerVert[i].empty())
+				continue;
 
-            VBO::uploadSubData(quadDataSize(zlayerBases[i]),
-                               quadDataSize(zlayerSize(i)), dataPtr(zlayerVert[i]));
-        }
+			VBO::uploadSubData(quadDataSize(zlayerBases[i]),
+			                   quadDataSize(zlayerSize(i)), dataPtr(zlayerVert[i]));
+		}
 
-        VBO::unbind();
+		VBO::unbind();
 
-        /* Ensure global IBO size */
-        shState->ensureQuadIBO(quadCount);
-    }
+		/* Ensure global IBO size */
+		shState->ensureQuadIBO(quadCount);
+	}
 
 	void bindShader(ShaderBase *&shaderVar)
 	{
 		if (tiles.animated || color->hasEffect() || tone->hasEffect() || opacity != 255)
 		{
-            TilemapShader &tilemapShader = shState->shaders().tilemap;
+			TilemapShader &tilemapShader = shState->shaders().tilemap;
 			tilemapShader.bind();
 			tilemapShader.applyViewportProj();
 			tilemapShader.setTone(tone->norm);
@@ -861,8 +875,8 @@ struct TilemapPrivate
 		}
 		else
 		{
-            shaderVar = &shState->shaders().simple;
-            shaderVar->bind();
+			shaderVar = &shState->shaders().simple;
+			shaderVar->bind();
 		}
 
 		shaderVar->applyViewportProj();
@@ -1058,28 +1072,28 @@ void GroundLayer::updateVboCount()
 void GroundLayer::draw()
 {
 	if (p->groundVert.size() == 0)
-        return;
+		return;
 
-    if (!p->opacity)
-        return;
+	if (!p->opacity)
+		return;
 
-    ShaderBase *shader;
+	ShaderBase *shader;
 
-    p->bindShader(shader);
-    p->bindAtlas(*shader);
+	p->bindShader(shader);
+	p->bindAtlas(*shader);
 
-    shState->_glState().blendMode.pushSet(p->blendType);
+	glState.blendMode.pushSet(p->blendType);
 
-    GLMeta::vaoBind(p->tiles.vao);
+	GLMeta::vaoBind(p->tiles.vao);
 
-    shader->setTranslation(p->dispPos);
-    drawInt();
+	shader->setTranslation(p->dispPos);
+	drawInt();
 
-    GLMeta::vaoUnbind(p->tiles.vao);
+	GLMeta::vaoUnbind(p->tiles.vao);
 
-    p->flashMap.draw(flashAlpha[p->flashAlphaIdx] / 255.f, p->dispPos);
+	p->flashMap.draw(flashAlpha[p->flashAlphaIdx] / 255.f, p->dispPos);
 
-    shState->_glState().blendMode.pop();
+	glState.blendMode.pop();
 }
 
 void GroundLayer::drawInt()
@@ -1112,25 +1126,26 @@ void ZLayer::setIndex(int value)
 	vboCount = p->zlayerSize(index) * 6;
 }
 
-void ZLayer::draw() {
-    if (batchedFlag)
-        return;
+void ZLayer::draw()
+{
+	if (batchedFlag)
+		return;
 
-    ShaderBase *shader;
+	ShaderBase *shader;
 
-    p->bindShader(shader);
-    p->bindAtlas(*shader);
+	p->bindShader(shader);
+	p->bindAtlas(*shader);
 
-    shState->_glState().blendMode.pushSet(p->blendType);
+	glState.blendMode.pushSet(p->blendType);
 
-    GLMeta::vaoBind(p->tiles.vao);
+	GLMeta::vaoBind(p->tiles.vao);
 
-    shader->setTranslation(p->dispPos);
-    drawInt();
+	shader->setTranslation(p->dispPos);
+	drawInt();
 
-    GLMeta::vaoUnbind(p->tiles.vao);
+	GLMeta::vaoUnbind(p->tiles.vao);
 
-    shState->_glState().blendMode.pop();
+	glState.blendMode.pop();
 }
 
 void ZLayer::drawInt()

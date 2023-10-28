@@ -49,6 +49,12 @@ void bitmapInitProps(Bitmap *b, VALUE self) {
     b->setInitFont(font);
     
     rb_iv_set(self, "font", fontObj);
+
+    // Leave property as default nil if hasHires() is false.
+    if (b->hasHires()) {
+        b->assumeRubyGC();
+        wrapProperty(self, b->getHires(), "hires", BitmapType);
+    }
 }
 
 RB_METHOD(bitmapInitialize) {
@@ -93,6 +99,8 @@ RB_METHOD(bitmapHeight) {
     
     return INT2FIX(value);
 }
+
+DEF_GFX_PROP_OBJ_REF(Bitmap, Bitmap, Hires, "hires")
 
 RB_METHOD(bitmapRect) {
     RB_UNUSED_PARAM;
@@ -741,6 +749,9 @@ void bitmapBindingInit() {
     
     _rb_define_method(klass, "width", bitmapWidth);
     _rb_define_method(klass, "height", bitmapHeight);
+
+    INIT_PROP_BIND(Bitmap, Hires, "hires");
+
     _rb_define_method(klass, "rect", bitmapRect);
     _rb_define_method(klass, "blt", bitmapBlt);
     _rb_define_method(klass, "stretch_blt", bitmapStretchBlt);

@@ -17,7 +17,6 @@ add_subdirectory(shader)
 add_library(mkxp_z SHARED)
 
 add_subdirectory(binding)
-add_subdirectory(interfaces)
 add_subdirectory(src)
 
 target_include_directories(${PROJECT_NAME} PUBLIC

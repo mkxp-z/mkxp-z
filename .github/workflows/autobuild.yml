@@ -69,14 +69,16 @@ jobs:
           mv ./3.1.0 ./stdlib
           cp ../mkxp-z.exe .
           cp ../../mkxp.json .
+          cp -r ../../scripts .
 
       - uses: actions/upload-artifact@v3
         with:
-          name: mkxp-z.windows.${{github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          name: mkxp-z.windows.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: |
             build/artifact/*.dll
             build/artifact/*.exe
             build/artifact/mkxp.json
+            build/artifact/scripts/
             build/artifact/stdlib/
 
   build-linux:
@@ -122,12 +124,13 @@ jobs:
           cp -r ../../linux/build-x86_64/lib/ruby/3.1.0 .
           mv ./3.1.0 ./stdlib
           cp ../../mkxp.json .
+          cp -r ../../scripts .
           cd ..
           zip -r local.zip local
 
       - uses: actions/upload-artifact@v3
         with:
-          name: mkxp-z.linux.${{github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          name: mkxp-z.linux.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: build/local.zip
 
   build-macos:
@@ -177,5 +180,5 @@ jobs:
       - name: Upload archive
         uses: actions/upload-artifact@v3
         with:
-          name: mkxp-z.macos.${{github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          name: mkxp-z.macos.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: build/Build/Products/Release/Z-universal.app.zip

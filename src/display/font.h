@@ -76,7 +76,9 @@ public:
 
 	const Font &operator=(const Font &o);
 
-	DECL_ATTR( Size,     int    )
+	int getSize() const;
+	void setSize(int value, bool checkIllegal=true);
+
 	DECL_ATTR( Bold,     bool   )
 	DECL_ATTR( Italic,   bool   )
 	DECL_ATTR( Color,    Color& )

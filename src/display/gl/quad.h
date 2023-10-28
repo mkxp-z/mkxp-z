@@ -22,6 +22,8 @@
 #ifndef QUAD_H
 #define QUAD_H
 
+#include "config.h"
+#include "graphics.h"
 #include "vertex.h"
 #include "gl-util.h"
 #include "gl-meta.h"
@@ -77,8 +79,8 @@ struct Quad
 	      vboDirty(true)
 	{
 		GLMeta::vaoFillInVertexData<Vertex>(vao);
-        vao.vbo = vbo;
-        vao.ibo = shState->globalIBO().ibo;
+		vao.vbo = vbo;
+		vao.ibo = shState->globalIBO().ibo;
 
 		GLMeta::vaoInit(vao, true);
 		VBO::allocEmpty(sizeof(Vertex[4]), GL_DYNAMIC_DRAW);

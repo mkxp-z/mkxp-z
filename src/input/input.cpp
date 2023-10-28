@@ -26,7 +26,6 @@
 #include "input/keybindings.h"
 #include "util/exception.h"
 #include "util/util.h"
-#include "ThreadManager.h"
 
 #include <SDL_scancode.h>
 #include <SDL_keyboard.h>
@@ -41,34 +40,34 @@
 
 #define BUTTON_CODE_COUNT 26
 
-#define m(vk, sc) { vk, SDL_SCANCODE_##sc }
+#define m(vk,sc) { vk, SDL_SCANCODE_##sc }
 std::unordered_map<int, int> vKeyToScancode{
-        // 0x01 LEFT MOUSE
-        // 0x02 RIGHT MOUSE
-        m(0x03, CANCEL),
-        // 0x04 MIDDLE MOUSE
-        // 0x05 XBUTTON 1
-        // 0x06 XBUTTON 2
-        // 0x07 undef
-        m(0x08, BACKSPACE),
-        m(0x09, TAB),
-        // 0x0a reserved
-        // 0x0b reserved
-        m(0x0c, CLEAR),
-        m(0x0d, RETURN),
-        // 0x0e undefined
-        // 0x0f undefined
-        // 0x10 SHIFT (both)
-        // 0x11 CONTROL (both)
-        // 0x12 ALT (both)
-        m(0x13, PAUSE),
-        m(0x14, CAPSLOCK),
-        // 0x15 KANA, HANGUL
-        // 0x16 undefined
-        // 0x17 JUNJA
-        // 0x18 FINAL
-        // 0x19 HANJA, KANJI
-        // 0x1a undefined
+    // 0x01 LEFT MOUSE
+    // 0x02 RIGHT MOUSE
+    m(0x03, CANCEL),
+    // 0x04 MIDDLE MOUSE
+    // 0x05 XBUTTON 1
+    // 0x06 XBUTTON 2
+    // 0x07 undef
+    m(0x08, BACKSPACE),
+    m(0x09, TAB),
+    // 0x0a reserved
+    // 0x0b reserved
+    m(0x0c, CLEAR),
+    m(0x0d, RETURN),
+    // 0x0e undefined
+    // 0x0f undefined
+    // 0x10 SHIFT (both)
+    // 0x11 CONTROL (both)
+    // 0x12 ALT (both)
+    m(0x13, PAUSE),
+    m(0x14, CAPSLOCK),
+    // 0x15 KANA, HANGUL
+    // 0x16 undefined
+    // 0x17 JUNJA
+    // 0x18 FINAL
+    // 0x19 HANJA, KANJI
+    // 0x1a undefined
     m(0x1b, ESCAPE),
     // 0x1c CONVERT
     // 0x1d NONCONVERT
@@ -756,7 +755,7 @@ struct InputPrivate
         /* Main thread should have these posted by now */
         checkBindingChange(rtData);
         
-        int fps = rtData.config->fixedFramerate;
+        int fps = rtData.config.fixedFramerate;
         if (!fps) fps = (rgssVer >= 2) ? 60 : 40;
         recalcRepeatTime(fps);
         
@@ -1050,7 +1049,7 @@ struct InputPrivate
     
     void updateRaw()
     {
-
+        
         memcpy(rawStates, shState->eThread().keyStates, SDL_NUM_SCANCODES);
         
         for (int i = 0; i < SDL_NUM_SCANCODES; i++)
@@ -1080,7 +1079,7 @@ struct InputPrivate
     {
         for (int i = 0; i < SDL_CONTROLLER_AXIS_MAX; i++)
             axisStateArray[i] = shState->eThread().controllerState.axes[i];
-
+        
         memcpy(rawButtonStates, shState->eThread().controllerState.buttons, SDL_CONTROLLER_BUTTON_MAX);
         
         for (int i = 0; i < SDL_CONTROLLER_BUTTON_MAX; i++)
@@ -1186,11 +1185,10 @@ struct InputPrivate
 };
 
 
-Input::Input(const RGSSThreadData &rtData) :
-        p(std::make_unique<InputPrivate>(rtData)) {
+Input::Input(const RGSSThreadData &rtData)
+{
+    p = new InputPrivate(rtData);
 }
-
-Input::~Input() = default;
 
 double Input::getDelta() {
     return shState->runTime() - p->last_update;
@@ -1200,35 +1198,37 @@ void Input::recalcRepeat(unsigned int fps) {
     p->recalcRepeatTime(fps);
 }
 
-void Input::update() {
+void Input::update()
+{
     shState->checkShutdown();
-    p->checkBindingChange(*shState->rtData());
-
+    p->checkBindingChange(shState->rtData());
+    
     p->swapBuffers();
     p->clearBuffer();
-
+    
     ButtonCode repeatCand = None;
-
+    
     /* Poll all bindings */
     p->pollBindings(repeatCand);
-
+    
     // Update raw keys, controller buttons and axes
     p->updateRaw();
     p->updateControllerRaw();
-
+    
     // Record mouse positions
     p->mousePos[0] = shState->eThread().mouseState.x;
     p->mousePos[1] = shState->eThread().mouseState.y;
     p->mouseInWindow = shState->eThread().mouseState.inWindow;
-
-
+    
+    
     /* Check for new repeating key */
-    if (repeatCand != None && repeatCand != p->repeating) {
+    if (repeatCand != None && repeatCand != p->repeating)
+    {
         p->repeating = repeatCand;
         p->repeatCount = 0;
         p->repeatTime = shState->runTime();
         p->getState(repeatCand).repeated = true;
-
+        
         p->last_update = p->repeatTime;
         return;
     }
@@ -1247,7 +1247,7 @@ void Input::update() {
          */
         bool repeated = p->repeatCount >= p->repeatStart && ((p->repeatCount+1) % p->repeatDelay) == 0;
         p->getState(p->repeating).repeated |= repeated;
-
+        
         p->last_update = shState->runTime();
         return;
     }
@@ -1256,7 +1256,7 @@ void Input::update() {
     
     /* Fetch new cumulative scroll distance and reset counter */
     p->vScrollDistance = SDL_AtomicSet(&EventThread::verticalScrollDistance, 0);
-
+    
     p->last_update = shState->runTime();
 }
 
@@ -1309,7 +1309,7 @@ unsigned int Input::count(int button) {
 double Input::repeatTime(int button) {
     if (button != p->repeating)
         return 0;
-
+    
     return shState->runTime() - p->repeatTime;
 }
 
@@ -1381,14 +1381,14 @@ double Input::repeatTimeEx(int code, bool isVKey) {
     
     if (c != p->rawRepeating)
         return 0;
-
+    
     return shState->runTime() - p->rawRepeatTime;
 }
 
 double Input::controllerRepeatTimeEx(int button) {
     if (button != p->buttonRepeating)
         return 0;
-
+    
     return shState->runTime() - p->buttonRepeatTime;
 }
 
@@ -1439,14 +1439,14 @@ int Input::dir8Value()
 
 int Input::mouseX()
 {
-    RGSSThreadData &rtData = *shState->rtData();
+    RGSSThreadData &rtData = shState->rtData();
     
     return (p->mousePos[0] - rtData.screenOffset.x) * rtData.sizeResoRatio.x;
 }
 
 int Input::mouseY()
 {
-    RGSSThreadData &rtData = *shState->rtData();
+    RGSSThreadData &rtData = shState->rtData();
     
     return (p->mousePos[1] - rtData.screenOffset.y) * rtData.sizeResoRatio.y;
 }
@@ -1464,15 +1464,15 @@ bool Input::getControllerConnected()
 const char *Input::getControllerName()
 {
     return (getControllerConnected()) ?
-           SDL_GameControllerName(shState->eThread().controller()) :
-           0;
+    SDL_GameControllerName(shState->eThread().controller()) :
+    0;
 }
 
 int Input::getControllerPowerLevel()
 {
     if (!getControllerConnected())
         return SDL_JOYSTICK_POWER_UNKNOWN;
-
+    
     SDL_Joystick *js = SDL_GameControllerGetJoystick(shState->eThread().controller());
     return SDL_JoystickCurrentPowerLevel(js);
 }
@@ -1482,7 +1482,8 @@ bool Input::getTextInputMode()
     return (SDL_IsTextInputActive() == SDL_TRUE);
 }
 
-void Input::setTextInputMode(bool mode) {
+void Input::setTextInputMode(bool mode)
+{
     shState->eThread().requestTextInputMode(mode);
 }
 
@@ -1491,7 +1492,8 @@ const char *Input::getText()
     return shState->eThread().textInputBuffer.c_str();
 }
 
-void Input::clearText() {
+void Input::clearText()
+{
     shState->eThread().textInputBuffer.clear();
 }
 
@@ -1521,4 +1523,9 @@ const char *Input::getButtonName(SDL_GameControllerButton button) {
         return "Invalid";
     
     return buttonNames[button];
+}
+
+Input::~Input()
+{
+    delete p;
 }

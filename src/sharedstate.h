@@ -23,13 +23,8 @@
 #define SHAREDSTATE_H
 
 #include "sigslot/signal.hpp"
-#include "IGraphics.h"
-#include "IInput.h"
-#include "IAudio.h"
-#include "AbstractEventThread.h"
-#include "ThreadManager.h"
 
-#define shState ThreadManager::getInstance().getSharedState()
+#define shState SharedState::instance
 #define glState shState->_glState()
 #define rgssVer SharedState::rgssVersion
 
@@ -42,66 +37,49 @@ struct Quad;
 struct ShaderSet;
 
 class Scene;
-
 class FileSystem;
-
 class EventThread;
-
 class Graphics;
-
 class Input;
-
 class Audio;
-
 class GLState;
-
 class TexPool;
-
 class Font;
-
 class SharedFontState;
-
 struct GlobalIBO;
 struct Config;
 struct Vec2i;
 struct SharedMidiState;
 
-struct SharedState {
-    void *bindingData() const;
+struct SharedState
+{
+	void *bindingData() const;
+	void setBindingData(void *data);
 
-    void setBindingData(void *data);
+	SDL_Window *sdlWindow() const;
 
-    SDL_Window *sdlWindow() const;
+	Scene *screen() const;
+	void setScreen(Scene &screen);
 
-    std::shared_ptr<Scene> screen() const;
+	FileSystem &fileSystem() const;
 
-    void setScreen(std::shared_ptr<Scene> screen);
+	EventThread &eThread() const;
+	RGSSThreadData &rtData() const;
+	Config &config() const;
 
-    std::shared_ptr<FileSystem> filesystem() const;
+	Graphics &graphics() const;
+	Input &input() const;
+	Audio &audio() const;
 
-    AbstractEventThread &eThread() const;
+	GLState &_glState() const;
 
-    std::shared_ptr<RGSSThreadData> rtData() const;
+	ShaderSet &shaders() const;
 
-    std::shared_ptr<Config> config() const;
+	TexPool &texPool() const;
 
-    IGraphics &graphics() const;
-
-    IInput &input() const;
-
-    IAudio &audio() const;
-
-    GLState &_glState() const;
-
-    ShaderSet &shaders() const;
-
-    TexPool &texPool() const;
-
-    SharedFontState &fontState() const;
-
-    Font &defaultFont() const;
-
-    SharedMidiState &midiState() const;
+	SharedFontState &fontState() const;
+	Font &defaultFont() const;
+	SharedMidiState &midiState() const;
 
 	sigslot::signal<> prepareDraw;
 
@@ -135,23 +113,19 @@ struct SharedState {
 
 	void checkReset();
 
-    static int rgssVersion;
+	static SharedState *instance;
+	static int rgssVersion;
 
-    /* This function will throw an Exception instance
-     * on initialization error */
-    static std::shared_ptr<SharedState> initInstance(std::shared_ptr<RGSSThreadData> threadData);
-
-private:
-    SharedState(std::shared_ptr<RGSSThreadData> threadData);
-
-public:
-    ~SharedState();
+	/* This function will throw an Exception instance
+	 * on initialization error */
+	static void initInstance(RGSSThreadData *threadData);
+	static void finiInstance();
 
 private:
-    friend std::unique_ptr<SharedState>::deleter_type;
-    friend std::default_delete<SharedState>;
+	SharedState(RGSSThreadData *threadData);
+	~SharedState();
 
-    std::unique_ptr<SharedStatePrivate> p;
+	SharedStatePrivate *p;
 };
 
 #endif // SHAREDSTATE_H
