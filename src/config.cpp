@@ -136,12 +136,17 @@ void Config::read(const std::vector<std::string> &args) {
     auto optsJ = json::object({
         {"rgssVersion", 0},
         {"debugMode", false},
+        {"displayFPS", false},
         {"printFPS", false},
         {"winResizable", true},
         {"fullscreen", false},
         {"fixedAspectRatio", true},
         {"smoothScaling", false},
         {"lanczos3Scaling", false},
+        {"enableHires", false},
+        {"textureScalingFactor", 1.},
+        {"framebufferScalingFactor", 1.},
+        {"atlasScalingFactor", 1.},
         {"vsync", false},
         {"defScreenW", 0},
         {"defScreenH", 0},
@@ -254,11 +259,16 @@ void Config::read(const std::vector<std::string> &args) {
     // now RESUME
     
     SET_OPT(debugMode, boolean);
+    SET_OPT(displayFPS, boolean);
     SET_OPT(printFPS, boolean);
     SET_OPT(fullscreen, boolean);
     SET_OPT(fixedAspectRatio, boolean);
     SET_OPT(smoothScaling, boolean);
     SET_OPT(lanczos3Scaling, boolean);
+    SET_OPT(enableHires, boolean);
+    SET_OPT(textureScalingFactor, number);
+    SET_OPT(framebufferScalingFactor, number);
+    SET_OPT(atlasScalingFactor, number);
     SET_OPT(winResizable, boolean);
     SET_OPT(vsync, boolean);
     SET_STRINGOPT(windowTitle, windowTitle);

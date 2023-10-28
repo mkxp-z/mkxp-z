@@ -25,8 +25,11 @@
 #include "glstate.h"
 #include "quad.h"
 #include "config.h"
-#include "gamelauncher.h"
-#include "ConfigManager.h"
+
+namespace FBO
+{
+	ID boundFramebufferID;
+}
 
 namespace GLMeta
 {
@@ -140,56 +143,107 @@ static void _blitBegin(FBO::ID fbo, const Vec2i &size)
 {
 	if (HAVE_NATIVE_BLIT)
 	{
+		FBO::boundFramebufferID = fbo;
 		gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo.gl);
 	}
-	else {
-        FBO::bind(fbo);
-        shState->_glState().viewport.pushSet(IntRect(0, 0, size.x, size.y));
+	else
+	{
+		FBO::bind(fbo);
+		glState.viewport.pushSet(IntRect(0, 0, size.x, size.y));
 
-        if (shState->config()->lanczos3Scaling) {
-            Lanczos3Shader &shader = shState->shaders().lanczos3;
-            shader.bind();
-            shader.applyViewportProj();
-            shader.setTranslation(Vec2i());
-            shader.setTexSize(Vec2i(size.x, size.y));
-        } else {
-            SimpleShader &shader = shState->shaders().simple;
-            shader.bind();
-            shader.applyViewportProj();
-            shader.setTranslation(Vec2i());
+		if (shState->config().lanczos3Scaling)
+		{
+			Lanczos3Shader &shader = shState->shaders().lanczos3;
+			shader.bind();
+			shader.applyViewportProj();
+			shader.setTranslation(Vec2i());
+			shader.setTexSize(Vec2i(size.x, size.y));
+		}
+		else
+		{
+			SimpleShader &shader = shState->shaders().simple;
+			shader.bind();
+			shader.applyViewportProj();
+			shader.setTranslation(Vec2i());
 			shader.setTexSize(Vec2i(size.x, size.y));
 		}
 	}
 }
 
-void blitBegin(TEXFBO &target)
+int blitDstWidthLores = 1;
+int blitDstWidthHires = 1;
+int blitDstHeightLores = 1;
+int blitDstHeightHires = 1;
+
+int blitSrcWidthLores = 1;
+int blitSrcWidthHires = 1;
+int blitSrcHeightLores = 1;
+int blitSrcHeightHires = 1;
+
+void blitBegin(TEXFBO &target, bool preferHires)
 {
-	_blitBegin(target.fbo, Vec2i(target.width, target.height));
+	blitDstWidthLores = target.width;
+	blitDstHeightLores = target.height;
+
+	if (preferHires && target.selfHires != nullptr) {
+		blitDstWidthHires = target.selfHires->width;
+		blitDstHeightHires = target.selfHires->height;
+		_blitBegin(target.selfHires->fbo, Vec2i(target.selfHires->width, target.selfHires->height));
+	}
+	else {
+		blitDstWidthHires = blitDstWidthLores;
+		blitDstHeightHires = blitDstHeightLores;
+		_blitBegin(target.fbo, Vec2i(target.width, target.height));
+	}
 }
 
 void blitBeginScreen(const Vec2i &size)
 {
+	blitDstWidthLores = 1;
+	blitDstWidthHires = 1;
+	blitDstHeightLores = 1;
+	blitDstHeightHires = 1;
+
 	_blitBegin(FBO::ID(0), size);
 }
 
 void blitSource(TEXFBO &source)
 {
+	blitSrcWidthLores = source.width;
+	blitSrcHeightLores = source.height;
+	if (source.selfHires != nullptr) {
+		blitSrcWidthHires = source.selfHires->width;
+		blitSrcHeightHires = source.selfHires->height;
+	}
+	else {
+		blitSrcWidthHires = blitSrcWidthLores;
+		blitSrcHeightHires = blitSrcHeightLores;
+	}
+
 	if (HAVE_NATIVE_BLIT)
 	{
 		gl.BindFramebuffer(GL_READ_FRAMEBUFFER, source.fbo.gl);
 	}
 	else
 	{
-        if (shState->config()->lanczos3Scaling) {
-            Lanczos3Shader &shader = shState->shaders().lanczos3;
-            shader.bind();
-            shader.setTexSize(Vec2i(source.width, source.height));
-        } else {
-            SimpleShader &shader = shState->shaders().simple;
-            shader.bind();
-            shader.setTexSize(Vec2i(source.width, source.height));
+		if (shState->config().lanczos3Scaling)
+		{
+			Lanczos3Shader &shader = shState->shaders().lanczos3;
+			shader.bind();
+			shader.setTexSize(Vec2i(blitSrcWidthHires, blitSrcHeightHires));
 		}
-		TEX::bind(source.tex);
+		else
+		{
+			SimpleShader &shader = shState->shaders().simple;
+			shader.bind();
+			shader.setTexSize(Vec2i(blitSrcWidthHires, blitSrcHeightHires));
+		}
+		if (source.selfHires != nullptr) {
+			TEX::bind(source.selfHires->tex);
+		}
+		else {
+			TEX::bind(source.tex);
+		}
 	}
 }
 
@@ -200,31 +254,57 @@ void blitRectangle(const IntRect &src, const Vec2i &dstPos)
 
 void blitRectangle(const IntRect &src, const IntRect &dst, bool smooth)
 {
+	// Handle high-res dest
+	int scaledDstX = dst.x * blitDstWidthHires / blitDstWidthLores;
+	int scaledDstY = dst.y * blitDstHeightHires / blitDstHeightLores;
+	int scaledDstWidth = dst.w * blitDstWidthHires / blitDstWidthLores;
+	int scaledDstHeight = dst.h * blitDstHeightHires / blitDstHeightLores;
+	IntRect dstScaled(scaledDstX, scaledDstY, scaledDstWidth, scaledDstHeight);
+
+	// Handle high-res source
+	int scaledSrcX = src.x * blitSrcWidthHires / blitSrcWidthLores;
+	int scaledSrcY = src.y * blitSrcHeightHires / blitSrcHeightLores;
+	int scaledSrcWidth = src.w * blitSrcWidthHires / blitSrcWidthLores;
+	int scaledSrcHeight = src.h * blitSrcHeightHires / blitSrcHeightLores;
+	IntRect srcScaled(scaledSrcX, scaledSrcY, scaledSrcWidth, scaledSrcHeight);
+
 	if (HAVE_NATIVE_BLIT)
 	{
-		gl.BlitFramebuffer(src.x, src.y, src.x+src.w, src.y+src.h,
-		                   dst.x, dst.y, dst.x+dst.w, dst.y+dst.h,
+		gl.BlitFramebuffer(srcScaled.x, srcScaled.y, srcScaled.x+srcScaled.w, srcScaled.y+srcScaled.h,
+		                   dstScaled.x, dstScaled.y, dstScaled.x+dstScaled.w, dstScaled.y+dstScaled.h,
 		                   GL_COLOR_BUFFER_BIT, smooth ? GL_LINEAR : GL_NEAREST);
 	}
-	else {
-        if (smooth)
-            TEX::setSmooth(true);
+	else
+	{
+		if (smooth)
+			TEX::setSmooth(true);
 
-        shState->_glState().blend.pushSet(false);
-        Quad &quad = shState->gpQuad();
-        quad.setTexPosRect(src, dst);
-        quad.draw();
-        shState->_glState().blend.pop();
+		glState.blend.pushSet(false);
+		Quad &quad = shState->gpQuad();
+		quad.setTexPosRect(srcScaled, dstScaled);
+		quad.draw();
+		glState.blend.pop();
 
-        if (smooth)
-            TEX::setSmooth(false);
-    }
+		if (smooth)
+			TEX::setSmooth(false);
+	}
 }
 
 void blitEnd()
 {
-    if (!HAVE_NATIVE_BLIT)
-        shState->_glState().viewport.pop();
+	blitDstWidthLores = 1;
+	blitDstWidthHires = 1;
+	blitDstHeightLores = 1;
+	blitDstHeightHires = 1;
+
+	blitSrcWidthLores = 1;
+	blitSrcWidthHires = 1;
+	blitSrcHeightLores = 1;
+	blitSrcHeightHires = 1;
+
+	if (!HAVE_NATIVE_BLIT) {
+		glState.viewport.pop();
+	}
 }
 
 }

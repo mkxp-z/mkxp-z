@@ -399,14 +399,17 @@ void Font::setName(const std::vector<std::string> &names) {
     p->sdlFont = 0;
 }
 
-void Font::setSize(int value)
+void Font::setSize(int value, bool checkIllegal)
 {
 	if (p->size == value)
 		return;
 
 	/* Catch illegal values (according to RMXP) */
-	if (value < 6 || value > 96)
-		throw Exception(Exception::ArgumentError, "%s", "bad value for size");
+	if (value < 6 || value > 96) {
+		if (checkIllegal) {
+			throw Exception(Exception::ArgumentError, "%s", "bad value for size");
+		}
+	}
 
 	p->size = value;
 	p->sdlFont = 0;

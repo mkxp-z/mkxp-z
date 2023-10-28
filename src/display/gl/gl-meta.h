@@ -65,7 +65,7 @@ void vaoBind(VAO &vao);
 void vaoUnbind(VAO &vao);
 
 /* EXT_framebuffer_blit */
-void blitBegin(TEXFBO &target);
+void blitBegin(TEXFBO &target, bool preferHires = false);
 void blitBeginScreen(const Vec2i &size);
 void blitSource(TEXFBO &source);
 void blitRectangle(const IntRect &src, const Vec2i &dstPos);

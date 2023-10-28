@@ -20,6 +20,8 @@
 */
 
 #include "shader.h"
+#include "config.h"
+#include "graphics.h"
 #include "sharedstate.h"
 #include "glstate.h"
 #include "exception.h"
@@ -55,7 +57,6 @@
 #include "blurH.vert.xxd"
 #include "blurV.vert.xxd"
 #include "tilemapvx.vert.xxd"
-
 #endif
 
 #ifdef MKXPZ_BUILD_XCODE
@@ -121,13 +122,15 @@ Shader::~Shader()
 	gl.DeleteShader(fragShader);
 }
 
-void Shader::bind() {
-    shState->_glState().program.set(program);
+void Shader::bind()
+{
+	glState.program.set(program);
 }
 
-void Shader::unbind() {
-    gl.ActiveTexture(GL_TEXTURE0);
-    shState->_glState().program.set(0);
+void Shader::unbind()
+{
+	gl.ActiveTexture(GL_TEXTURE0);
+	glState.program.set(0);
 }
 
 #ifdef MKXPZ_BUILD_XCODE
@@ -292,8 +295,19 @@ void ShaderBase::init()
 
 void ShaderBase::applyViewportProj()
 {
-    const IntRect &vp = shState->_glState().viewport.get();
-	projMat.set(Vec2i(vp.w, vp.h));
+	// High-res: scale the matrix if we're rendering to the PingPong framebuffer.
+	const IntRect &vp = glState.viewport.get();
+	if (shState->config().enableHires && shState->graphics().isPingPongFramebufferActive() && framebufferScalingAllowed()) {
+		projMat.set(Vec2i(shState->graphics().width(), shState->graphics().height()));
+	}
+	else {
+		projMat.set(Vec2i(vp.w, vp.h));
+	}
+}
+
+bool ShaderBase::framebufferScalingAllowed()
+{
+	return true;
 }
 
 void ShaderBase::setTexSize(const Vec2i &value)
@@ -590,6 +604,13 @@ GrayShader::GrayShader()
 	ShaderBase::init();
 
 	GET_U(gray);
+}
+
+bool GrayShader::framebufferScalingAllowed()
+{
+	// This shader is used with input textures that have already had a
+	// framebuffer scale applied. So we don't want to double-apply it.
+	return false;
 }
 
 void GrayShader::setGray(float value)

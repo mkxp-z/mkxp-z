@@ -37,6 +37,7 @@ struct Config {
     bool debugMode;
     bool winConsole;
     bool preferMetalRenderer;
+    bool displayFPS;
     bool printFPS;
     
     bool winResizable;
@@ -44,6 +45,10 @@ struct Config {
     bool fixedAspectRatio;
     bool smoothScaling;
     bool lanczos3Scaling;
+    bool enableHires;
+    double textureScalingFactor;
+    double framebufferScalingFactor;
+    double atlasScalingFactor;
     bool vsync;
     
     int defScreenW;

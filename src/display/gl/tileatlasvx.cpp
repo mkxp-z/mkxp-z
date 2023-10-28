@@ -24,6 +24,7 @@
 #include "tilemap-common.h"
 #include "bitmap.h"
 #include "table.h"
+#include "debugwriter.h"
 #include "etc-internal.h"
 #include "gl-util.h"
 #include "gl-meta.h"
@@ -271,24 +272,47 @@ static void doBlit(Bitmap *bm, const IntRect &src, const Vec2i &dst)
 
 void build(TEXFBO &tf, Bitmap *bitmaps[BM_COUNT])
 {
-    assert(tf.width == ATLASVX_W && tf.height == ATLASVX_H);
+	assert(tf.width == ATLASVX_W && tf.height == ATLASVX_H);
 
-    GLMeta::blitBegin(tf);
+	GLMeta::blitBegin(tf, true);
 
-    shState->_glState().clearColor.pushSet(Vec4());
-    FBO::clear();
-    shState->_glState().clearColor.pop();
+	glState.clearColor.pushSet(Vec4());
+	FBO::clear();
+	glState.clearColor.pop();
 
 	if (rgssVer >= 3)
 	{
 		SDL_Surface *shadow = createShadowSet();
-		TEX::bind(tf.tex);
-		TEX::uploadSubImage(shadowArea.x*32, shadowArea.y*32,
-							shadow->w, shadow->h, shadow->pixels, GL_RGBA);
+		if (tf.selfHires != nullptr) {
+			SDL_Rect srcRect({0, 0, shadow->w, shadow->h});
+			int destX = shadowArea.x*32 * tf.selfHires->width / tf.width;
+			int destY = shadowArea.y*32 * tf.selfHires->height / tf.height;
+			int destWidth = shadow->w * tf.selfHires->width / tf.width;
+			int destHeight = shadow->h * tf.selfHires->height / tf.height;
+
+			int bpp;
+			Uint32 rMask, gMask, bMask, aMask;
+			SDL_PixelFormatEnumToMasks(SDL_PIXELFORMAT_ABGR8888,
+			                           &bpp, &rMask, &gMask, &bMask, &aMask);
+			SDL_Surface *blitTemp =
+				SDL_CreateRGBSurface(0, destWidth, destHeight, bpp, rMask, gMask, bMask, aMask);
+
+			SDL_BlitScaled(shadow, &srcRect, blitTemp, 0);
+
+			TEX::bind(tf.selfHires->tex);
+			TEX::uploadSubImage(destX, destY,
+				blitTemp->w, blitTemp->h, blitTemp->pixels, GL_RGBA);
+		}
+		else {
+			TEX::bind(tf.tex);
+			TEX::uploadSubImage(shadowArea.x*32, shadowArea.y*32,
+				shadow->w, shadow->h, shadow->pixels, GL_RGBA);
+		}
 		SDL_FreeSurface(shadow);
 	}
 
-    Bitmap *bm;
+	Bitmap *bm;
+
 #define EXEC_BLITS(part) \
 	if (!nullOrDisposed(bm = bitmaps[BM_##part])) \
 	{ \

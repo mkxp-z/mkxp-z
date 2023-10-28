@@ -22,6 +22,8 @@
 #ifndef QUAD_H
 #define QUAD_H
 
+#include "config.h"
+#include "graphics.h"
 #include "vertex.h"
 #include "gl-util.h"
 #include "gl-meta.h"

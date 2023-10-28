@@ -23,6 +23,7 @@
 
 #include "sharedstate.h"
 #include "bitmap.h"
+#include "debugwriter.h"
 #include "etc.h"
 #include "etc-internal.h"
 #include "util.h"
@@ -605,6 +606,10 @@ void Sprite::draw()
         shader.setBushOpacity(p->bushOpacity.norm);
         
         if (p->pattern && p->patternOpacity > 0) {
+            if (p->pattern->hasHires()) {
+                Debug() << "BUG: High-res Sprite pattern not implemented";
+            }
+
             shader.setPattern(p->pattern->getGLTypes().tex, Vec2(p->pattern->width(), p->pattern->height()));
             shader.setPatternBlendType(p->patternBlendType);
             shader.setPatternTile(p->patternTile);

@@ -19,6 +19,7 @@
  ** along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
 #include "graphics.h"
 #include "sharedstate.h"
 #include "binding-util.h"

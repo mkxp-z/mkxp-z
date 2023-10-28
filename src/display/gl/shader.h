@@ -91,6 +91,7 @@ public:
 
 protected:
 	void init();
+	virtual bool framebufferScalingAllowed();
 
 	GLint u_texSizeInv, u_translation;
 };
@@ -225,6 +226,9 @@ public:
 	GrayShader();
 
 	void setGray(float value);
+
+protected:
+	virtual bool framebufferScalingAllowed();
 
 private:
 	GLint u_gray;
