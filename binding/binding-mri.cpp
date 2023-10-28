@@ -257,8 +257,6 @@ RUBY_FUNC_EXPORTED void initBindings(void) {
 
         rb_define_global_const("RGSS_VERSION", rb_utf8_str_new_cstr("3.0.1"));
     } else {
-        _rb_define_module_function(rb_mKernel, "print", mriPrint);
-        _rb_define_module_function(rb_mKernel, "p", mriP);
 
         rb_define_alias(rb_singleton_class(rb_mKernel), "_mkxp_kernel_caller_alias",
                         "caller");

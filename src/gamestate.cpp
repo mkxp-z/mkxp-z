@@ -206,6 +206,7 @@ void GameState::initGameState(std::string_view windowName, bool showWindow) {
       return;
     }
 
+    /*
 #ifndef WORKDIR_CURRENT
     char dataDir[512]{};
 #if defined(__linux__)
@@ -220,6 +221,7 @@ void GameState::initGameState(std::string_view windowName, bool showWindow) {
     }
     mkxp_fs::setCurrentDirectory(dataDir);
 #endif
+     */
 
     /* now we load the config */
     auto conf = ConfigManager::getInstance().getConfig();
