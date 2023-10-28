@@ -31,7 +31,7 @@ public:
 
     std::shared_ptr<Config> getConfig();
 
-    std::shared_ptr<FileSystem> getfilesystem();
+    std::shared_ptr<FileSystem> getFilesystem();
 
 private:
     friend std::unique_ptr<ConfigManager>::deleter_type;

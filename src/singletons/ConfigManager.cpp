@@ -31,6 +31,6 @@ std::shared_ptr<Config> ConfigManager::getConfig() {
     return m_config;
 }
 
-std::shared_ptr<FileSystem> ConfigManager::getfilesystem() {
+std::shared_ptr<FileSystem> ConfigManager::getFilesystem() {
     return m_filesystem;
 }

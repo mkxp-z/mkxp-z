@@ -46,6 +46,8 @@
 
 #ifdef __WIN32__
 #include <direct.h>
+#include <filesystem>
+
 #endif
 
 struct SDLRWIoContext {
@@ -654,7 +656,9 @@ void FileSystem::openRead(OpenHandler &handler, const char *filename) {
 
 void FileSystem::openReadRaw(SDL_RWops &ops, const char *filename,
                              bool freeOnClose) {
-
+    Debug() << "Current path: " << std::filesystem::current_path().string();
+    for (auto i = PHYSFS_getSearchPath(); *i != nullptr; i++)
+        Debug() << "[" << *i << "] is in the search path.\n";
   PHYSFS_File *handle = PHYSFS_openRead(normalize(filename, 0, 0).c_str());
 
   if (!handle)

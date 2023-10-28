@@ -105,7 +105,7 @@ struct SharedStatePrivate
 	SharedStatePrivate(RGSSThreadData *threadData)
 	    : bindingData(0),
 	      sdlWindow(threadData->window),
-	      fileSystem(ConfigManager::getInstance().getfilesystem()),
+	      fileSystem(ConfigManager::getInstance().getFilesystem()),
 	      eThread(*threadData->ethread),
 	      rtData(*threadData),
 	      config(threadData->config),

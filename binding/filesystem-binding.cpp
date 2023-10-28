@@ -183,6 +183,19 @@ kernelLoadDataInt(const char *filename, bool rubyExc, bool raw) {
     return result;
 }
 
+RB_METHOD(kernelAddSearchPath) {
+    RB_UNUSED_PARAM
+
+    VALUE path;
+    rb_scan_args(argc, argv, "1", &path);
+
+    auto pathString = rb_string_value_cstr(&path);
+
+    shState->fileSystem().addPath(pathString);
+
+    return Qnil;
+}
+
 RB_METHOD(kernelLoadData) {
     RB_UNUSED_PARAM;
     
@@ -284,7 +297,8 @@ void fileIntBindingInit() {
 #endif
     _rb_define_method(klass, "binmode", fileIntBinmode);
     _rb_define_method(klass, "close", fileIntClose);
-    
+
+    _rb_define_module_function(rb_mKernel, "add_search_path", kernelAddSearchPath);
     _rb_define_module_function(rb_mKernel, "load_data", kernelLoadData);
     _rb_define_module_function(rb_mKernel, "save_data", kernelSaveData);
     

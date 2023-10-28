@@ -208,11 +208,13 @@ RUBY_FUNC_EXPORTED void initBindings(void) {
         }
     }
 
+
     // TODO: Change this to actually get the name of the exe
     auto &cm =  ConfigManager::getInstance();
     cm.initConfig("Ruby.exe", launchArgs.size(), launchArgs.data());
+    shState->rgssVersion = cm.getConfig()->rgssVersion;
 
-    tableBindingInit();
+            tableBindingInit();
     etcBindingInit();
     fontBindingInit();
     bitmapBindingInit();
