@@ -94,7 +94,7 @@ global_include_dirs += include_directories('.',
     'net',
     'singletons',
     'system',
-    'util', 'util/sigslot', 'util/sigslot/adapter', 'util/sdl'
+    'util', 'util/sigslot', 'util/sigslot/adapter'
 )
 
 global_dependencies += [openal, zlib, bz2, sdl2, sdl_sound, pixman, physfs, theora, vorbisfile, vorbis, ogg, sdl2_ttf, freetype, sdl2_image, png, iconv, uchardet]
@@ -116,7 +116,7 @@ if get_option('cjk_fallback_font') == true
 endif
 
 main_source = files(
-    #'main.cpp',
+    'gamestate.cpp',
     'config.cpp',
     'eventthread.cpp',
     'settingsmenu.cpp',
@@ -164,10 +164,8 @@ main_source = files(
 
     'util/iniconfig.cpp',
     'util/win-consoleutils.cpp',
-    'util/sdl/SDL_Instance.cpp',
 
     'singletons/ConfigManager.cpp',
-    'singletons/ThreadManager.cpp',
     
     'etc/etc.cpp',
     'etc/table.cpp',
@@ -178,8 +176,8 @@ main_source = files(
     'input/input.cpp',
     'input/keybindings.cpp',
 
-    #'net/LUrlParser.cpp',
-    #'net/net.cpp',
+    'net/LUrlParser.cpp',
+    'net/net.cpp',
 
     'system/systemImpl.cpp'
 )

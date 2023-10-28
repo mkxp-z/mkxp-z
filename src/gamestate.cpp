@@ -63,6 +63,9 @@ extern "C" {
 __declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
 __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 }
+
+// Windows seems to need this as well in this configuration for some reason
+#define MKXPZ_INIT_GL_LATER
 #endif
 
 #ifdef MKXPZ_STEAM
@@ -76,8 +79,6 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 #define MKXPZ_INIT_GL_LATER
 #endif
 #endif
-
-#define MKXPZ_INIT_GL_LATER
 
 #ifndef MKXPZ_INIT_GL_LATER
 #define GLINIT_SHOWERROR(s) showInitError(s)
@@ -205,23 +206,6 @@ void GameState::initGameState(std::string_view windowName, bool showWindow) {
       showInitError("Error allocating SDL user events");
       return;
     }
-
-    /*
-#ifndef WORKDIR_CURRENT
-    char dataDir[512]{};
-#if defined(__linux__)
-    char *tmp{};
-    tmp = getenv("SRCDIR");
-    if (tmp) {
-      strncpy(dataDir, tmp, sizeof(dataDir));
-    }
-#endif
-    if (!dataDir[0]) {
-        strncpy(dataDir, mkxp_fs::getDefaultGameRoot().c_str(), sizeof(dataDir));
-    }
-    mkxp_fs::setCurrentDirectory(dataDir);
-#endif
-     */
 
     /* now we load the config */
     auto conf = ConfigManager::getInstance().getConfig();
