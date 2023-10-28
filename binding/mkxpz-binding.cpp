@@ -12,6 +12,7 @@
 
 #include "gamestate.h"
 #include "ConfigManager.h"
+#include "sharedstate.h"
 
 class RubyGemBinding : public ScriptBinding {
 public:
@@ -44,10 +45,15 @@ public:
         m_proc = proc;
     }
 
+    RbData &getRbData() {
+        return m_rbData;
+    }
+
 private:
     std::unique_ptr<std::jthread> m_eventThread;
     std::shared_ptr<RGSSThread> m_rgssThread;
     VALUE m_proc = Qnil;
+    RbData m_rbData;
 };
 
 RubyGemBinding rubyGemBinding;
@@ -74,7 +80,11 @@ RB_METHOD(initGameState) {
     const auto &gs = GameState::getInstance();
     rubyGemBinding.startEventThread(&runEventThread, appName, windowVisible);
     while (!gs.rgssReady())
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::yield();
+
+    auto rgssThread = GameState::getInstance().createRGSSThread();
+    rubyGemBinding.setRgssThread(rgssThread);
+    shState->setBindingData(&rubyGemBinding.getRbData());
 
     return Qnil;
 }

@@ -77,6 +77,8 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 #endif
 #endif
 
+#define MKXPZ_INIT_GL_LATER
+
 #ifndef MKXPZ_INIT_GL_LATER
 #define GLINIT_SHOWERROR(s) showInitError(s)
 #else
@@ -425,6 +427,7 @@ void GameState::initGameState(std::string_view windowName, bool showWindow) {
 
     /* Hand information back to the interpreter to start the RGSS thread */
     m_rgssReady = true;
+    std::this_thread::yield();
 
     /* Start event processing */
     eventThread.process(*rtData);
@@ -484,9 +487,9 @@ std::shared_ptr<RGSSThread> GameState::createRGSSThread() {
         return nullptr;
 
 #ifdef MKXPZ_INIT_GL_LATER
-    threadData->glContext =
-      initGL(rtData->window, rtData->config, threadData);
-  if (!threadData->glContext)
+    rtData->glContext =
+      initGL(rtData->window, rtData->config, rtData.get());
+  if (!rtData->glContext)
     return 0;
 #else
     SDL_GL_MakeCurrent(rtData->window, rtData->glContext);

@@ -82,3 +82,4 @@ cmake-build-relwithdebinfo/
 ext/mkxp_z/bin
 ext/mkxp_z/include
 ext/mkxp_z/lib
+/mkxp_z-0.1.0.gem

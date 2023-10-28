@@ -37,6 +37,7 @@
 #include "binding.h"
 #include "exception.h"
 #include "sharedmidistate.h"
+#include "ConfigManager.h"
 
 #include <unistd.h>
 #include <stdio.h>
@@ -66,7 +67,7 @@ struct SharedStatePrivate
 	SDL_Window *sdlWindow;
 	Scene *screen;
 
-	FileSystem fileSystem;
+	std::shared_ptr<FileSystem> fileSystem;
 
 	EventThread &eThread;
 	RGSSThreadData &rtData;
@@ -104,7 +105,7 @@ struct SharedStatePrivate
 	SharedStatePrivate(RGSSThreadData *threadData)
 	    : bindingData(0),
 	      sdlWindow(threadData->window),
-	      fileSystem(threadData->argv0, threadData->config.allowSymlinks),
+	      fileSystem(ConfigManager::getInstance().getfilesystem()),
 	      eThread(*threadData->ethread),
 	      rtData(*threadData),
 	      config(threadData->config),
@@ -129,19 +130,19 @@ struct SharedStatePrivate
 		FILE *tmp = fopen(archPath.c_str(), "rb");
 		if (tmp)
 		{
-			fileSystem.addPath(archPath.c_str());
+			fileSystem->addPath(archPath.c_str());
 			fclose(tmp);
 		}
 
-		fileSystem.addPath(".");
+		fileSystem->addPath(".");
 
 		for (size_t i = 0; i < config.rtps.size(); ++i)
-			fileSystem.addPath(config.rtps[i].c_str());
+			fileSystem->addPath(config.rtps[i].c_str());
 
 		if (config.pathCache)
-			fileSystem.createPathCache();
+			fileSystem->createPathCache();
 
-		fileSystem.initFontSets(fontState);
+		fileSystem->initFontSets(fontState);
 
 		globalTexW = 128;
 		globalTexH = 64;
@@ -227,7 +228,6 @@ void SharedState::setScreen(Scene &screen)
 GSATT(void*, bindingData)
 GSATT(SDL_Window*, sdlWindow)
 GSATT(Scene*, screen)
-GSATT(FileSystem&, fileSystem)
 GSATT(EventThread&, eThread)
 GSATT(RGSSThreadData&, rtData)
 GSATT(Config&, config)
@@ -240,6 +240,10 @@ GSATT(TexPool&, texPool)
 GSATT(Quad&, gpQuad)
 GSATT(SharedFontState&, fontState)
 GSATT(SharedMidiState&, midiState)
+
+FileSystem &SharedState::fileSystem() const {
+    return *p->fileSystem;
+}
 
 void SharedState::setBindingData(void *data)
 {
