@@ -53,27 +53,18 @@ DEF_ALLOCFUNC(Rect);
 #define ATTR_INT_RW(Klass, Attr) ATTR_RW(Klass, Attr, int, "i", rb_fix_new)
 
 ATTR_DOUBLE_RW(Color, Red)
-
 ATTR_DOUBLE_RW(Color, Green)
-
 ATTR_DOUBLE_RW(Color, Blue)
-
 ATTR_DOUBLE_RW(Color, Alpha)
 
 ATTR_DOUBLE_RW(Tone, Red)
-
 ATTR_DOUBLE_RW(Tone, Green)
-
 ATTR_DOUBLE_RW(Tone, Blue)
-
 ATTR_DOUBLE_RW(Tone, Gray)
 
 ATTR_INT_RW(Rect, X)
-
 ATTR_INT_RW(Rect, Y)
-
 ATTR_INT_RW(Rect, Width)
-
 ATTR_INT_RW(Rect, Height)
 
 #if RAPI_FULL > 187
@@ -103,9 +94,7 @@ ATTR_INT_RW(Rect, Height)
 #endif
 
 EQUAL_FUN(Color)
-
 EQUAL_FUN(Tone)
-
 EQUAL_FUN(Rect)
 
 #define INIT_FUN(Klass, param_type, param_t_s, last_param_def)                 \
@@ -123,9 +112,7 @@ EQUAL_FUN(Rect)
   }
 
 INIT_FUN(Color, double, "fff|f", 255)
-
 INIT_FUN(Tone, double, "fff|f", 0)
-
 INIT_FUN(Rect, int, "iiii", 0)
 
 #if RAPI_FULL > 187
@@ -161,70 +148,64 @@ INIT_FUN(Rect, int, "iiii", 0)
 #endif
 
 SET_FUN(Color, double, "fff|f", 255)
-
 SET_FUN(Tone, double, "fff|f", 0)
-
 SET_FUN(Rect, int, "iiii", 0)
 
 RB_METHOD(rectEmpty) {
-    RB_UNUSED_PARAM;
-    Rect *r = getPrivateData<Rect>(self);
-    r->empty();
-    return self;
+  RB_UNUSED_PARAM;
+  Rect *r = getPrivateData<Rect>(self);
+  r->empty();
+  return self;
 }
 
 RB_METHOD(ColorStringify) {
-    RB_UNUSED_PARAM;
+  RB_UNUSED_PARAM;
 
-    Color *c = getPrivateData<Color>(self);
+  Color *c = getPrivateData<Color>(self);
 #if RAPI_FULL > 187
-    return rb_sprintf("(%f, %f, %f, %f)", c->red, c->green, c->blue, c->alpha);
+  return rb_sprintf("(%f, %f, %f, %f)", c->red, c->green, c->blue, c->alpha);
 #else
-    char buf[50] = {0};
-    sprintf((char *)&buf, "(%f, %f, %f, %f)", c->red, c->green, c->blue,
-            c->alpha);
-    return rb_str_new2(buf);
+  char buf[50] = {0};
+  sprintf((char *)&buf, "(%f, %f, %f, %f)", c->red, c->green, c->blue,
+          c->alpha);
+  return rb_str_new2(buf);
 #endif
 }
 
 RB_METHOD(ToneStringify) {
-    RB_UNUSED_PARAM;
+  RB_UNUSED_PARAM;
 
-    Tone *t = getPrivateData<Tone>(self);
+  Tone *t = getPrivateData<Tone>(self);
 
 #if RAPI_FULL > 187
-    return rb_sprintf("(%f, %f, %f, %f)", t->red, t->green, t->blue, t->gray);
+  return rb_sprintf("(%f, %f, %f, %f)", t->red, t->green, t->blue, t->gray);
 #else
-    char buf[50] = {0};
-    sprintf((char *)&buf, "(%f, %f, %f, %f)", t->red, t->green, t->blue, t->gray);
-    return rb_str_new2(buf);
+  char buf[50] = {0};
+  sprintf((char *)&buf, "(%f, %f, %f, %f)", t->red, t->green, t->blue, t->gray);
+  return rb_str_new2(buf);
 #endif
 }
 
 RB_METHOD(RectStringify) {
-    RB_UNUSED_PARAM;
+  RB_UNUSED_PARAM;
 
-    Rect *r = getPrivateData<Rect>(self);
+  Rect *r = getPrivateData<Rect>(self);
 
 #if RAPI_FULL > 187
-    return rb_sprintf("(%d, %d, %d, %d)", r->x, r->y, r->width, r->height);
+  return rb_sprintf("(%d, %d, %d, %d)", r->x, r->y, r->width, r->height);
 #else
-    char buf[50] = {0};
-    sprintf((char *)&buf, "(%d, %d, %d, %d)", r->x, r->y, r->width, r->height);
-    return rb_str_new2(buf);
+  char buf[50] = {0};
+  sprintf((char *)&buf, "(%d, %d, %d, %d)", r->x, r->y, r->width, r->height);
+  return rb_str_new2(buf);
 #endif
 }
 
 MARSH_LOAD_FUN(Color)
-
 MARSH_LOAD_FUN(Tone)
-
 MARSH_LOAD_FUN(Rect)
 
 INITCOPY_FUN(Tone)
-
 INITCOPY_FUN(Color)
-
 INITCOPY_FUN(Rect)
 
 #if RAPI_FULL > 187
@@ -282,27 +263,27 @@ INITCOPY_FUN(Rect)
   }
 
 void etcBindingInit() {
-    VALUE klass;
+  VALUE klass;
 
-    INIT_BIND(Color);
+  INIT_BIND(Color);
 
-    RB_ATTR_RW(Color, Red, red);
-    RB_ATTR_RW(Color, Green, green);
-    RB_ATTR_RW(Color, Blue, blue);
-    RB_ATTR_RW(Color, Alpha, alpha);
+  RB_ATTR_RW(Color, Red, red);
+  RB_ATTR_RW(Color, Green, green);
+  RB_ATTR_RW(Color, Blue, blue);
+  RB_ATTR_RW(Color, Alpha, alpha);
 
-    INIT_BIND(Tone);
+  INIT_BIND(Tone);
 
-    RB_ATTR_RW(Tone, Red, red);
-    RB_ATTR_RW(Tone, Green, green);
-    RB_ATTR_RW(Tone, Blue, blue);
-    RB_ATTR_RW(Tone, Gray, gray);
+  RB_ATTR_RW(Tone, Red, red);
+  RB_ATTR_RW(Tone, Green, green);
+  RB_ATTR_RW(Tone, Blue, blue);
+  RB_ATTR_RW(Tone, Gray, gray);
 
-    INIT_BIND(Rect);
+  INIT_BIND(Rect);
 
-    RB_ATTR_RW(Rect, X, x);
-    RB_ATTR_RW(Rect, Y, y);
-    RB_ATTR_RW(Rect, Width, width);
-    RB_ATTR_RW(Rect, Height, height);
-    _rb_define_method(klass, "empty", rectEmpty);
+  RB_ATTR_RW(Rect, X, x);
+  RB_ATTR_RW(Rect, Y, y);
+  RB_ATTR_RW(Rect, Width, width);
+  RB_ATTR_RW(Rect, Height, height);
+  _rb_define_method(klass, "empty", rectEmpty);
 }

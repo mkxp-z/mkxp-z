@@ -117,9 +117,9 @@ struct FlashMap
 	      data(0),
 	      allocQuads(0)
 	{
-        vao.vbo = VBO::gen();
-        vao.ibo = shState->globalIBO().ibo;
-        GLMeta::vaoFillInVertexData<CVertex>(vao);
+		vao.vbo = VBO::gen();
+		vao.ibo = shState->globalIBO().ibo;
+		GLMeta::vaoFillInVertexData<CVertex>(vao);
 
 		GLMeta::vaoInit(vao);
 	}
@@ -168,27 +168,28 @@ struct FlashMap
 		dirty = false;
 	}
 
-	void draw(float alpha, const Vec2i &trans) {
-        const size_t count = quadCount();
+	void draw(float alpha, const Vec2i &trans)
+	{
+		const size_t count = quadCount();
 
-        if (count == 0)
-            return;
+		if (count == 0)
+			return;
 
-        GLMeta::vaoBind(vao);
-        shState->_glState().blendMode.pushSet(BlendAddition);
+		GLMeta::vaoBind(vao);
+		glState.blendMode.pushSet(BlendAddition);
 
-        FlashMapShader &shader = shState->shaders().flashMap;
-        shader.bind();
-        shader.applyViewportProj();
-        shader.setAlpha(alpha);
-        shader.setTranslation(trans);
+		FlashMapShader &shader = shState->shaders().flashMap;
+		shader.bind();
+		shader.applyViewportProj();
+		shader.setAlpha(alpha);
+		shader.setTranslation(trans);
 
-        gl.DrawElements(GL_TRIANGLES, count * 6, _GL_INDEX_TYPE, 0);
+		gl.DrawElements(GL_TRIANGLES, count * 6, _GL_INDEX_TYPE, 0);
 
-        shState->_glState().blendMode.pop();
+		glState.blendMode.pop();
 
-        GLMeta::vaoUnbind(vao);
-    }
+		GLMeta::vaoUnbind(vao);
+	}
 
 private:
 	void setDirty()
@@ -249,18 +250,19 @@ private:
 
 		VBO::bind(vao.vbo);
 
-        if (quadCount() > allocQuads) {
-            allocQuads = quadCount();
-            VBO::allocEmpty(sizeof(CVertex) * vertices.size());
-        }
+		if (quadCount() > allocQuads)
+		{
+			allocQuads = quadCount();
+			VBO::allocEmpty(sizeof(CVertex) * vertices.size());
+		}
 
-        VBO::uploadSubData(0, sizeof(CVertex) * vertices.size(), dataPtr(vertices));
+		VBO::uploadSubData(0, sizeof(CVertex) * vertices.size(), dataPtr(vertices));
 
-        VBO::unbind();
+		VBO::unbind();
 
-        /* Ensure global IBO size */
-        shState->ensureQuadIBO(quadCount());
-    }
+		/* Ensure global IBO size */
+		shState->ensureQuadIBO(quadCount());
+	}
 
 	bool dirty;
 

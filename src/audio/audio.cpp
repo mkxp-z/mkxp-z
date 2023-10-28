@@ -28,8 +28,6 @@
 #include "eventthread.h"
 #include "sdl-util.h"
 #include "exception.h"
-#include "ConfigManager.h"
-#include "ISyncPoint.h"
 
 #include <string>
 #include <vector>
@@ -37,7 +35,8 @@
 #include <SDL_thread.h>
 #include <SDL_timer.h>
 
-struct AudioPrivate {
+struct AudioPrivate
+{
     
     std::vector<AudioStream*> bgmTracks;
 	AudioStream bgs;
@@ -45,7 +44,7 @@ struct AudioPrivate {
 
 	SoundEmitter se;
 
-    std::shared_ptr<ISyncPoint> syncPoint;
+	SyncPoint &syncPoint;
     
     float volumeRatio;
 
@@ -71,12 +70,12 @@ struct AudioPrivate {
 
 	AudioPrivate(RGSSThreadData &rtData)
 	    : bgs(ALStream::Looped, "bgs"),
-          me(ALStream::NotLooped, "me"),
-          se(*rtData.config),
-          syncPoint(rtData.syncPoint),
+	      me(ALStream::NotLooped, "me"),
+	      se(rtData.config),
+	      syncPoint(rtData.syncPoint),
           volumeRatio(1)
 	{
-        for (int i = 0; i < rtData.config->BGM.trackCount; i++) {
+        for (int i = 0; i < rtData.config.BGM.trackCount; i++) {
             std::string id = std::string("bgm" + std::to_string(i));
             bgmTracks.push_back(new AudioStream(ALStream::Looped, id.c_str()));
         }
@@ -109,7 +108,7 @@ struct AudioPrivate {
 
 		while (true)
 		{
-            syncPoint->passSecondarySync();
+			syncPoint.passSecondarySync();
 
 			if (meWatch.termReq)
 				return;
@@ -280,16 +279,15 @@ struct AudioPrivate {
 			}
 			}
 
-            SDL_Delay(AUDIO_SLEEP);
+			SDL_Delay(AUDIO_SLEEP);
 		}
 	}
 };
 
 Audio::Audio(RGSSThreadData &rtData)
-        : p(std::make_unique<AudioPrivate>(rtData))
+	: p(new AudioPrivate(rtData))
 {}
 
-Audio::~Audio() = default;
 
 void Audio::bgmPlay(const char *filename,
                     int volume,
@@ -404,8 +402,9 @@ void Audio::seStop()
 	p->se.stop();
 }
 
-void Audio::setupMidi() {
-    shState->midiState().initIfNeeded(*shState->config());
+void Audio::setupMidi()
+{
+	shState->midiState().initIfNeeded(shState->config());
 }
 
 float Audio::bgmPos(int track)
@@ -428,3 +427,5 @@ void Audio::reset()
 	p->me.stop();
 	p->se.stop();
 }
+
+Audio::~Audio() { delete p; }

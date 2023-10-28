@@ -10,9 +10,6 @@
 #if defined(MKXPZ_SSL)
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 #endif
-
-#include <SDL.h>
-
 #include "httplib.h"
 
 #include "util/exception.h"
@@ -20,8 +17,8 @@
 #include "LUrlParser.h"
 #include "net.h"
 
-const char *httpErrorNames[] = {
-        "Success",
+const char* httpErrorNames[] = {
+    "Success",
     "Unknown",
     "Connection",
     "Bind IP Address",
@@ -54,13 +51,12 @@ LUrlParser::ParseURL readURL(const char *url) {
     return p;
 }
 
-
 std::string getHost(LUrlParser::ParseURL url) {
     std::string host;
     host += url.scheme_;
     host += "://";
     host += url.host_;
-
+    
     int port;
     if (!url.port_.empty() && url.getPort(&port)) {
         host += ":";
@@ -72,12 +68,12 @@ std::string getHost(LUrlParser::ParseURL url) {
 std::string getPath(LUrlParser::ParseURL url) {
     std::string path = "/";
     path += url.path_;
-
+    
     if (!url.query_.empty()) {
         path += "?";
         path += url.query_;
     }
-
+    
     return path;
 }
 
@@ -119,7 +115,7 @@ StringMap &HTTPRequest::headers() {
 HTTPResponse HTTPRequest::get() {
     HTTPResponse ret;
     auto target = readURL(destination.c_str());
-
+    
     httplib::Client *client = nullptr;
     try {
         client = new httplib::Client(getHost(target).c_str());
@@ -128,33 +124,33 @@ HTTPResponse HTTPRequest::get() {
         delete client;
         throw Exception(Exception::MKXPError, "Failed to create HTTP client (%s)", e.what());
     }
-
+    
     httplib::Headers head;
-
+    
     // Seems to need to be disabled for now, at least on macOS
 #ifdef MKXPZ_SSL
     client->enable_server_certificate_verification(false);
 #endif
     client->set_follow_location(follow_location);
-
+    
     for (auto const &h : _headers)
         head.emplace(h.first, h.second);
-
+        
     if (auto result = client->Get(getPath(target).c_str(), head)) {
         auto response = result.value();
         ret._status = response.status;
         ret._body = response.body;
-
+        
         for (auto const &h : response.headers)
             ret._headers.emplace(h.first, h.second);
     }
     else {
-        auto err = (int) result.error();
+        int err = result.error();
         const char *errname = httpErrorNames[err];
         delete client;
         throw Exception(Exception::MKXPError, "Failed to GET %s (%i: %s)", destination.c_str(), err, errname);
     }
-
+    
     delete client;
     return ret;
 }
@@ -162,7 +158,7 @@ HTTPResponse HTTPRequest::get() {
 HTTPResponse HTTPRequest::post(StringMap &postData) {
     HTTPResponse ret;
     auto target = readURL(destination.c_str());
-
+    
     httplib::Client *client = nullptr;
     try {
         client = new httplib::Client(getHost(target).c_str());
@@ -171,32 +167,32 @@ HTTPResponse HTTPRequest::post(StringMap &postData) {
         delete client;
         throw Exception(Exception::MKXPError, "Failed to create HTTP client (%s)", e.what());
     }
-
+    
     httplib::Headers head;
     httplib::Params params;
-
+    
     // Seems to need to be disabled for now, at least on macOS
 #ifdef MKXPZ_SSL
     client->enable_server_certificate_verification(false);
 #endif
     client->set_follow_location(follow_location);
-
+    
     for (auto const &h : _headers)
         head.emplace(h.first, h.second);
-
+    
     for (auto const &p : postData)
         params.emplace(p.first, p.second);
-
+    
     if (auto result = client->Post(getPath(target).c_str(), head, params)) {
         auto response = result.value();
         ret._status = response.status;
         ret._body = response.body;
-
+        
         for (auto h : response.headers)
             ret._headers.emplace(h.first, h.second);
     }
     else {
-        auto err = (int) result.error();
+        int err = result.error();
         const char *errname = httpErrorNames[err];
         delete client;
         throw Exception(Exception::MKXPError, "Failed to POST %s (%i: %s)", destination.c_str(), err, errname);
@@ -208,7 +204,7 @@ HTTPResponse HTTPRequest::post(StringMap &postData) {
 HTTPResponse HTTPRequest::post(const char *body, const char *content_type) {
     HTTPResponse ret;
     auto target = readURL(destination.c_str());
-
+    
     httplib::Client *client = nullptr;
     try {
         client = new httplib::Client(getHost(target).c_str());
@@ -217,15 +213,15 @@ HTTPResponse HTTPRequest::post(const char *body, const char *content_type) {
         delete client;
         throw Exception(Exception::MKXPError, "Failed to create HTTP client (%s)", e.what());
     }
-
+    
     httplib::Headers head;
-
+    
     // Seems to need to be disabled for now, at least on macOS
 #ifdef MKXPZ_SSL
     client->enable_server_certificate_verification(false);
 #endif
     client->set_follow_location(true);
-
+    
     for (auto const &h : _headers)
         head.emplace(h.first, h.second);
 
@@ -233,12 +229,12 @@ HTTPResponse HTTPRequest::post(const char *body, const char *content_type) {
         auto response = result.value();
         ret._status = response.status;
         ret._body = response.body;
-
+        
         for (auto const &h : response.headers)
             ret._headers.emplace(h.first, h.second);
     }
     else {
-        auto err = (int) result.error();
+        int err = result.error();
         delete client;
         throw Exception(Exception::MKXPError, "Failed to POST %s (%i: %s)", destination.c_str(), err, httpErrorNames[err]);
     }

@@ -105,7 +105,7 @@ typedef NSMutableArray<NSNumber*> BindingIndexArray;
 }
 
 - (IBAction)acceptButton:(NSButton *)sender {
-    shState->rtData()->bindingUpdateMsg.post(*binds);
+    shState->rtData().bindingUpdateMsg.post(*binds);
     storeBindings(*binds, CONFIG);
     [self closeWindow];
 }

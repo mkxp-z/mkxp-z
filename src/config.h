@@ -160,7 +160,7 @@ struct Config {
     
     bool fontIsSolid(const char *fontName) const;
     
-    void read(const std::vector<std::string> &args);
+    void read(int argc, char *argv[]);
     void readGameINI();
 };
 

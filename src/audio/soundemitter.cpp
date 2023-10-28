@@ -27,7 +27,6 @@
 #include "config.h"
 #include "util.h"
 #include "debugwriter.h"
-#include "ConfigManager.h"
 
 #include <SDL_sound.h>
 
@@ -238,18 +237,19 @@ SoundBuffer *SoundEmitter::allocateBuffer(const std::string &filename)
 	}
 	else
 	{
-        /* Buffer not in cache, needs to be loaded */
-        SoundOpenHandler handler;
-        shState->filesystem()->openRead(handler, filename.c_str());
-        buffer = handler.buffer;
+		/* Buffer not in cache, needs to be loaded */
+		SoundOpenHandler handler;
+		shState->fileSystem().openRead(handler, filename.c_str());
+		buffer = handler.buffer;
 
-        if (!buffer) {
-            char buf[512];
-            snprintf(buf, sizeof(buf), "Unable to decode sound: %s: %s",
-                     filename.c_str(), Sound_GetError());
-            Debug() << buf;
+		if (!buffer)
+		{
+			char buf[512];
+			snprintf(buf, sizeof(buf), "Unable to decode sound: %s: %s",
+			         filename.c_str(), Sound_GetError());
+			Debug() << buf;
 
-            return 0;
+			return 0;
 		}
 
 		buffer->key = filename;

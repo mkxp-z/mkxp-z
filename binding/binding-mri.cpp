@@ -57,7 +57,6 @@ extern "C" {
 #endif
 
 #include "ConfigManager.h"
-#include "ThreadManager.h"
 
 #include <assert.h>
 #include <string>
@@ -198,8 +197,8 @@ extern "C" {
 RUBY_FUNC_EXPORTED void initBindings(void) {
     Debug() << "Loading MKXP-Z!";
 
-    std::vector<std::string> launchArgs;
-    auto nativeResult = rb_eval_string("MKXP_Z.get_launch_args rescue []");
+    std::vector<char*> launchArgs;
+    auto nativeResult = rb_eval_string("$mkxpz_launch_args rescue []");
     if (TYPE(nativeResult) == T_ARRAY) {
         long len = rb_array_len(nativeResult);
         for (long i = 0; i < len; i++) {
@@ -212,7 +211,7 @@ RUBY_FUNC_EXPORTED void initBindings(void) {
 
     // TODO: Change this to actually get the name of the exe
     auto &cm =  ConfigManager::getInstance();
-    cm.initConfig("Ruby.exe", launchArgs);
+    cm.initConfig("Ruby.exe", launchArgs.size(), launchArgs.data());
 
     tableBindingInit();
     etcBindingInit();
@@ -403,10 +402,10 @@ RB_METHOD(mkxpDelta) {
 RB_METHOD(mkxpDataDirectory) {
     RB_UNUSED_PARAM;
 
-    const std::string &path = shState->config()->customDataPath;
+    const std::string &path = shState->config().customDataPath;
     const char *s = path.empty() ? "." : path.c_str();
 
-    std::string s_nml = shState->filesystem()->normalize(s, 1, 1);
+    std::string s_nml = shState->fileSystem().normalize(s, 1, 1);
     VALUE ret = rb_utf8_str_new_cstr(s_nml.c_str());
 
     return ret;
@@ -439,7 +438,7 @@ RB_METHOD(mkxpDesensitize) {
     SafeStringValue(filename);
 
     return rb_utf8_str_new_cstr(
-            shState->filesystem()->desensitize(RSTRING_PTR(filename)));
+            shState->fileSystem().desensitize(RSTRING_PTR(filename)));
 }
 
 RB_METHOD(mkxpPuts) {
@@ -549,7 +548,7 @@ RB_METHOD(mkxpUserName) {
 RB_METHOD(mkxpGameTitle) {
     RB_UNUSED_PARAM;
 
-    return rb_utf8_str_new_cstr(shState->config()->game.title.c_str());
+    return rb_utf8_str_new_cstr(shState->config().game.title.c_str());
 }
 
 RB_METHOD(mkxpPowerState) {
@@ -595,7 +594,7 @@ RB_METHOD(mkxpSystemMemory) {
 RB_METHOD(mkxpReloadPathCache) {
     RB_UNUSED_PARAM;
 
-    shState->filesystem()->reloadPathCache();
+    shState->fileSystem().reloadPathCache();
     return Qnil;
 }
 
@@ -614,7 +613,7 @@ RB_METHOD(mkxpAddPath) {
         if (reload != Qnil)
             rb_bool_arg(reload, &rl);
 
-        shState->filesystem()->addPath(RSTRING_PTR(path), mp, rl);
+        shState->fileSystem().addPath(RSTRING_PTR(path), mp, rl);
     } catch (Exception &e) {
         raiseRbExc(e);
     }
@@ -633,7 +632,7 @@ RB_METHOD(mkxpRemovePath) {
         if (reload != Qnil)
             rb_bool_arg(reload, &rl);
 
-        shState->filesystem()->removePath(RSTRING_PTR(path), rl);
+        shState->fileSystem().removePath(RSTRING_PTR(path), rl);
     } catch (Exception &e) {
         raiseRbExc(e);
     }
@@ -647,7 +646,7 @@ RB_METHOD(mkxpFileExists) {
     rb_scan_args(argc, argv, "1", &path);
     SafeStringValue(path);
 
-    if (shState->filesystem()->exists(RSTRING_PTR(path)))
+    if (shState->fileSystem().exists(RSTRING_PTR(path)))
         return Qtrue;
     return Qfalse;
 }
@@ -748,7 +747,7 @@ RB_METHOD(mkxpLaunch) {
 
 json5pp::value loadUserSettings() {
     json5pp::value ret;
-    VALUE cpath = rb_utf8_str_new_cstr(shState->config()->userConfPath.c_str());
+    VALUE cpath = rb_utf8_str_new_cstr(shState->config().userConfPath.c_str());
 
     if (rb_funcall(rb_cFile, rb_intern("exists?"), 1, cpath) == Qtrue) {
         VALUE f = rb_funcall(rb_cFile, rb_intern("open"), 2, cpath, rb_str_new("r", 1));
@@ -764,7 +763,7 @@ json5pp::value loadUserSettings() {
 }
 
 void saveUserSettings(json5pp::value &settings) {
-    VALUE cpath = rb_utf8_str_new_cstr(shState->config()->userConfPath.c_str());
+    VALUE cpath = rb_utf8_str_new_cstr(shState->config().userConfPath.c_str());
     VALUE f = rb_funcall(rb_cFile, rb_intern("open"), 2, cpath, rb_str_new("w", 1));
     rb_funcall(f, rb_intern("write"), 1,
                rb_utf8_str_new_cstr(settings.stringify5(json5pp::rule::space_indent<>()).c_str()));
@@ -782,7 +781,7 @@ RB_METHOD(mkxpGetJSONSetting) {
     auto &s = settings.as_object();
 
     if (s[RSTRING_PTR(sname)].is_null()) {
-        return json2rb(shState->config()->raw.as_object()[RSTRING_PTR(sname)]);
+        return json2rb(shState->config().raw.as_object()[RSTRING_PTR(sname)]);
     }
 
     return json2rb(s[RSTRING_PTR(sname)]);
@@ -807,7 +806,7 @@ RB_METHOD(mkxpSetJSONSetting) {
 RB_METHOD(mkxpGetAllJSONSettings) {
     RB_UNUSED_PARAM;
 
-    return json2rb(shState->config()->raw);
+    return json2rb(shState->config().raw);
 }
 
 static VALUE rgssMainCb(VALUE block) {
@@ -827,8 +826,8 @@ static void processReset() {
     shState->graphics().reset();
     shState->audio().reset();
 
-    shState->rtData()->rqReset.clear();
-    shState->graphics().repaintWait(shState->rtData()->rqResetFinish, false);
+    shState->rtData().rqReset.clear();
+    shState->graphics().repaintWait(shState->rtData().rqResetFinish, false);
 }
 
 RB_METHOD(mriRgssMain) {
@@ -941,7 +940,7 @@ bool evalScript(VALUE string, const char *filename) {
 #define SCRIPT_SECTION_FMT (rgssVer >= 3 ? "{%04ld}" : "Section%03ld")
 
 static void runRMXPScripts(BacktraceData &btData) {
-    const Config &conf = *shState->rtData()->config;
+    const Config &conf = shState->rtData().config;
     const std::string &scriptPack = conf.game.scripts;
 
     if (scriptPack.empty()) {
@@ -949,7 +948,7 @@ static void runRMXPScripts(BacktraceData &btData) {
         return;
     }
 
-    if (!shState->filesystem()->exists(scriptPack.c_str())) {
+    if (!shState->fileSystem().exists(scriptPack.c_str())) {
         showMsg("Unable to load scripts from '" + scriptPack + "'");
         return;
     }

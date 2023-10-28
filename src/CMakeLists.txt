@@ -3,6 +3,7 @@ project(MKXPZ_Core)
 target_sources(mkxp_z PUBLIC
         #main.cpp
         #gamelauncher.cpp
+        gamestate.cpp
         config.cpp
         eventthread.cpp
         settingsmenu.cpp
@@ -48,7 +49,7 @@ target_sources(mkxp_z PUBLIC
         display/gl/tilequad.cpp
         display/gl/vertex.cpp
 
-        util/sdl/SDL_Instance.cpp
+        #util/sdl/SDL_Instance.cpp
 
         util/iniconfig.cpp
         util/win-consoleutils.cpp
@@ -66,7 +67,7 @@ target_sources(mkxp_z PUBLIC
         net/net.cpp
 
         singletons/ConfigManager.cpp
-        singletons/ThreadManager.cpp
+        #singletons/ThreadManager.cpp
 
         system/systemImpl.cpp)
 

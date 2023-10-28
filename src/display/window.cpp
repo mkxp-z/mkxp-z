@@ -273,15 +273,16 @@ struct WindowPrivate
 		cursorVert.count = 9;
 		pauseAniVert.count = 1;
 
-        prepareCon = shState->prepareDraw.connect
-                (&WindowPrivate::prepare, this);
+		prepareCon = shState->prepareDraw.connect
+		        (&WindowPrivate::prepare, this);
 	}
 
-	~WindowPrivate() {
-        shState->texPool().release(baseTex);
-        cursorRectCon.disconnect();
-        prepareCon.disconnect();
-    }
+	~WindowPrivate()
+	{
+		shState->texPool().release(baseTex);
+		cursorRectCon.disconnect();
+		prepareCon.disconnect();
+	}
 
 	void markControlVertDirty()
 	{
@@ -395,62 +396,64 @@ struct WindowPrivate
 		if (size.x > baseTex.width)
 		{
 			newW = findNextPow2(size.x);
-            resizeNeeded = true;
-        }
-        if (size.y > baseTex.height) {
-            newH = findNextPow2(size.y);
-            resizeNeeded = true;
-        }
+			resizeNeeded = true;
+		}
+		if (size.y > baseTex.height)
+		{
+			newH = findNextPow2(size.y);
+			resizeNeeded = true;
+		}
 
-        if (!resizeNeeded)
-            return;
+		if (!resizeNeeded)
+			return;
 
-        shState->texPool().release(baseTex);
-        baseTex = shState->texPool().request(newW, newH);
+		shState->texPool().release(baseTex);
+		baseTex = shState->texPool().request(newW, newH);
 
-        baseTexDirty = true;
-    }
+		baseTexDirty = true;
+	}
 
-	void redrawBaseTex() {
-        /* Discard old buffer */
-        TEX::bind(baseTex.tex);
-        TEX::allocEmpty(baseTex.width, baseTex.height);
-        TEX::unbind();
+	void redrawBaseTex()
+	{
+		/* Discard old buffer */
+		TEX::bind(baseTex.tex);
+		TEX::allocEmpty(baseTex.width, baseTex.height);
+		TEX::unbind();
 
-        FBO::bind(baseTex.fbo);
-        shState->_glState().viewport.pushSet(IntRect(0, 0, baseTex.width, baseTex.height));
-        shState->_glState().clearColor.pushSet(Vec4());
+		FBO::bind(baseTex.fbo);
+		glState.viewport.pushSet(IntRect(0, 0, baseTex.width, baseTex.height));
+		glState.clearColor.pushSet(Vec4());
 
-        SimpleAlphaShader &shader = shState->shaders().simpleAlpha;
-        shader.bind();
-        shader.applyViewportProj();
-        shader.setTranslation(Vec2i());
+		SimpleAlphaShader &shader = shState->shaders().simpleAlpha;
+		shader.bind();
+		shader.applyViewportProj();
+		shader.setTranslation(Vec2i());
 
-        /* Clear texture */
-        FBO::clear();
+		/* Clear texture */
+		FBO::clear();
 
-        /* Repaint base */
-        windowskin->bindTex(shader);
-        TEX::setSmooth(true);
+		/* Repaint base */
+		windowskin->bindTex(shader);
+		TEX::setSmooth(true);
 
-        /* We need to blit the background without blending,
-         * because we want to retain its correct alpha value.
-         * Otherwise it would be mutliplied by the backgrounds 0 alpha */
-        shState->_glState().blend.pushSet(false);
+		/* We need to blit the background without blending,
+		 * because we want to retain its correct alpha value.
+		 * Otherwise it would be mutliplied by the backgrounds 0 alpha */
+		glState.blend.pushSet(false);
 
-        baseQuadArray.draw(0, backgroundVert.count);
+		baseQuadArray.draw(0, backgroundVert.count);
 
-        /* Now draw the rest (ie. the frame) with blending */
-        shState->_glState().blend.pop();
-        shState->_glState().blendMode.pushSet(BlendNormal);
+		/* Now draw the rest (ie. the frame) with blending */
+		glState.blend.pop();
+		glState.blendMode.pushSet(BlendNormal);
 
-        baseQuadArray.draw(backgroundVert.count, baseQuadArray.count() - backgroundVert.count);
+		baseQuadArray.draw(backgroundVert.count, baseQuadArray.count()-backgroundVert.count);
 
-        shState->_glState().clearColor.pop();
-        shState->_glState().blendMode.pop();
-        shState->_glState().viewport.pop();
-        TEX::setSmooth(false);
-    }
+		glState.clearColor.pop();
+		glState.blendMode.pop();
+		glState.viewport.pop();
+		TEX::setSmooth(false);
+	}
 
 	void buildControlsVert()
 	{
@@ -553,7 +556,7 @@ struct WindowPrivate
 		if (size == Vec2i(0, 0))
 			return;
 
-        SimpleAlphaShader &shader = shState->shaders().simpleAlpha;
+		SimpleAlphaShader &shader = shState->shaders().simpleAlpha;
 		shader.bind();
 		shader.applyViewportProj();
 		shader.setTranslation(position + sceneOffset);
@@ -587,29 +590,30 @@ struct WindowPrivate
 		if (controlsVertDirty)
 		{
 			buildControlsVert();
-            updateControls();
-            controlsVertDirty = false;
-        }
+			updateControls();
+			controlsVertDirty = false;
+		}
 
-        /* Effective on screen coordinates */
-        const Vec2i efPos = position + sceneOffset;
+		/* Effective on screen coordinates */
+		const Vec2i efPos = position + sceneOffset;
 
-        const IntRect windowRect(efPos, size);
-        const IntRect contentsRect(efPos + Vec2i(16), size - Vec2i(32));
+		const IntRect windowRect(efPos, size);
+		const IntRect contentsRect(efPos + Vec2i(16), size - Vec2i(32));
 
-        shState->_glState().scissorTest.pushSet(true);
-        shState->_glState().scissorBox.push();
-        shState->_glState().scissorBox.setIntersect(windowRect);
+		glState.scissorTest.pushSet(true);
+		glState.scissorBox.push();
+		glState.scissorBox.setIntersect(windowRect);
 
-        SimpleAlphaShader &shader = shState->shaders().simpleAlpha;
-        shader.bind();
-        shader.applyViewportProj();
+		SimpleAlphaShader &shader = shState->shaders().simpleAlpha;
+		shader.bind();
+		shader.applyViewportProj();
 
-        if (!nullOrDisposed(windowskin)) {
-            shader.setTranslation(efPos);
+		if (!nullOrDisposed(windowskin))
+		{
+			shader.setTranslation(efPos);
 
-            /* Draw arrows / cursors */
-            windowskin->bindTex(shader);
+			/* Draw arrows / cursors */
+			windowskin->bindTex(shader);
 			TEX::setSmooth(true);
 
 			controlsQuadArray.draw(0, controlsQuadCount);
@@ -617,19 +621,20 @@ struct WindowPrivate
 			TEX::setSmooth(false);
 		}
 
-        if (!nullOrDisposed(contents)) {
-            /* Draw contents bitmap */
-            shState->_glState().scissorBox.setIntersect(contentsRect);
+		if (!nullOrDisposed(contents))
+		{
+			/* Draw contents bitmap */
+			glState.scissorBox.setIntersect(contentsRect);
 
-            shader.setTranslation(efPos + (Vec2i(16) - contentsOffset));
+			shader.setTranslation(efPos + (Vec2i(16) - contentsOffset));
 
-            contents->bindTex(shader);
-            contentsQuad.draw();
-        }
+			contents->bindTex(shader);
+			contentsQuad.draw();
+		}
 
-        shState->_glState().scissorBox.pop();
-        shState->_glState().scissorTest.pop();
-    }
+		glState.scissorBox.pop();
+		glState.scissorTest.pop();
+	}
 
 	void updateControls()
 	{

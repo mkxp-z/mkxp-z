@@ -27,7 +27,6 @@
 #include <SDL_mutex.h>
 #include <SDL_thread.h>
 #include <SDL_timer.h>
-#include <thread>
 
 AudioStream::AudioStream(ALStream::LoopMode loopMode,
                          const std::string &threadId)

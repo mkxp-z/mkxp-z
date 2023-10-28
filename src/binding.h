@@ -22,26 +22,29 @@
 #ifndef BINDING_H
 #define BINDING_H
 
-struct ScriptBinding
+class ScriptBinding
 {
+public:
+    virtual ~ScriptBinding() = default;
+
 	/* Starts the part where the binding takes over,
 	 * loading the compressed scripts and executing them.
 	 * This function returns as soon as the scripts finish
 	 * execution or an error is encountered */
-	void (*execute) (void);
+	virtual void execute() = 0;
 
 	/* Instructs the binding
 	 * to immediately terminate script execution. This
 	 * function will perform a longjmp instead of returning,
 	 * so be careful about any variables with local storage */
-	void (*terminate) (void);
+	virtual void terminate() = 0;
 
 	/* Instructs the binding to issue a game reset.
 	 * Same conditions as for terminate apply */
-	void (*reset) (void);
+	virtual void reset() = 0;
 };
 
 /* VTable defined in the binding source */
-//extern ScriptBinding *scriptBinding;
+extern ScriptBinding *scriptBinding;
 
 #endif // BINDING_H

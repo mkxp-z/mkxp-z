@@ -119,9 +119,9 @@ struct SpritePrivate
         sceneRect.x = sceneRect.y = 0;
         
         updateSrcRectCon();
-
+        
         prepareCon = shState->prepareDraw.connect
-                (&SpritePrivate::prepare, this);
+        (&SpritePrivate::prepare, this);
         
         patternScroll = Vec2(0,0);
         patternZoom = Vec2(1, 1);
@@ -642,25 +642,27 @@ void Sprite::draw()
         shader.setAlpha(p->opacity.norm);
         shader.applyViewportProj();
         base = &shader;
-    } else {
+    }
+    else
+    {
         SimpleSpriteShader &shader = shState->shaders().simpleSprite;
         shader.bind();
-
+        
         shader.setSpriteMat(p->trans.getMatrix());
         shader.applyViewportProj();
         base = &shader;
     }
-
-    shState->_glState().blendMode.pushSet(p->blendType);
-
+    
+    glState.blendMode.pushSet(p->blendType);
+    
     p->bitmap->bindTex(*base);
-
+    
     if (p->wave.active)
         p->wave.qArray.draw();
     else
         p->quad.draw();
-
-    shState->_glState().blendMode.pop();
+    
+    glState.blendMode.pop();
 }
 
 void Sprite::onGeometryChange(const Scene::Geometry &geo)

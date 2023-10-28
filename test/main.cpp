@@ -9,7 +9,7 @@
 #include <iostream>
 #include <SDL_events.h>
 
-int main(int argc, char **argv) {
+void initGameState(int argc, char **argv) {
     ruby_sysinit(&argc, &argv);
     RUBY_INIT_STACK
     ruby_init();
