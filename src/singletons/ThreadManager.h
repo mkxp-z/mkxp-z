@@ -35,6 +35,8 @@ public:
 
     bool init(bool windowVisible = true);
 
+    bool isInitialized() const;
+
     bool startRgssThread();
 
     bool startEventLoop();

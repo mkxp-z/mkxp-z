@@ -338,7 +338,24 @@ bool ThreadManager::init(bool windowVisible) {
 #endif
 
     m_initialized = true;
+
+    /* Start event processing */
+    m_eventThread->process(*m_threadData);
+
+    /* Request RGSS thread to stop */
+    m_threadData->rqTerm.set();
+
+    if (m_threadData->glContext)
+        SDL_GL_DeleteContext(m_threadData->glContext);
+
+    /* Clean up any remainin events */
+    m_eventThread->cleanup();
+
     return true;
+}
+
+bool ThreadManager::isInitialized() const {
+    return m_initialized;
 }
 
 bool ThreadManager::startRgssThread() {
