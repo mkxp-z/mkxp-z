@@ -1,7 +1,12 @@
 include(DependencySetup)
 
-find_package(PhysFS REQUIRED GLOBAL)
-find_package(OpenAL REQUIRED GLOBAL)
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    find_package(PhysFS REQUIRED GLOBAL NO_CMAKE_SYSTEM_PACKAGE_REGISTRY )
+    find_package(OpenAL REQUIRED GLOBAL NO_CMAKE_SYSTEM_PACKAGE_REGISTRY )
+else()
+    find_package(PhysFS REQUIRED GLOBAL)
+    find_package(OpenAL REQUIRED GLOBAL)
+endif()
 find_package(THEORA REQUIRED GLOBAL)
 find_package(Vorbis REQUIRED GLOBAL)
 find_package(OGG REQUIRED GLOBAL)
@@ -17,12 +22,10 @@ find_package(Uchardet REQUIRED GLOBAL)
 find_package(SDL2_image REQUIRED GLOBAL)
 
 # We need to do a little bit of Aliasing to get the library names to be correct
-add_library(PhysFS::PhysFS INTERFACE IMPORTED)
-target_include_directories(PhysFS::PhysFS INTERFACE ${PHYSFS_INCLUDE_DIR})
-target_link_libraries(PhysFS::PhysFS INTERFACE ${PHYSFS_LIBRARY})
-set_target_properties(PhysFS::PhysFS PROPERTIES IMPORTED_GLOBAL ON)
+add_library(PhysFS::PhysFS ALIAS PhysFS::PhysFS-static)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set(CMAKE_FIND_PACKAGE_NO_SYSTEM_PACKAGE_REGISTRY ${OLD_CMAKE_FIND_PACKAGE_NO_SYSTEM_PACKAGE_REGISTRY})
     add_library(SDL2::Core ALIAS SDL2::SDL2-static)
     add_library(SDL2::Image INTERFACE IMPORTED)
     target_link_libraries(SDL2::Image INTERFACE
@@ -37,7 +40,7 @@ else()
     add_library(SDL2::Image ALIAS SDL2_image::SDL2_image)
 endif()
 
-find_package(Bzip2 REQUIRED GLOBAL)
+find_package(BZip2 REQUIRED GLOBAL)
 find_package(Iconv REQUIRED GLOBAL)
 if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
     find_library(CHARSET_LIB charset REQUIRED)
@@ -60,10 +63,11 @@ endif()
 set(EXPLICIT_LIBS "")
 if (CMAKE_HOST_SYSTEM_NAME STREQUAL WINDOWS)
     # TODO: Determine if the bit about the explicit libs is really necessary
+    list(APPEND EXPLICIT_LIBS libucrt libgcc libmingwex libgmp)
 endif()
 
-if (BUILD_STATIC)
-    if (CMAKE_HOST_SYSTEM_NAME STREQUAL WINDOWS)
+if (STATIC_EXECUTABLE)
+    if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
         list(APPEND LOCAL_LINK_ARGS -static-libgcc -static-libstdc++ -Wl,-Bstatic -lgcc -lstdc++ -lpthread -Wl,-Bdynamic)
     else()
         list(APPEND LOCAL_LINK_ARGS -static-libgcc -static-libstdc++)
@@ -78,7 +82,7 @@ foreach(LIB ${EXPLICIT_LIBS})
 endforeach ()
 
 set(ALCDEV_STRUCT ALCdevice_struct)
-if (OpenAL_VERSION GREATER_EQUAL 1.20.1)
+if (OPENAL_VERSION_STRING GREATER_EQUAL 1.20.1)
     set(ALCDEV_STRUCT ALCdevice)
 endif()
 
@@ -105,10 +109,9 @@ file(GLOB SRC_INCLUDES LIST_DIRECTORIES ON RELATIVE ${CMAKE_SOURCE_DIR}
 
 list(APPEND LOCAL_INCLUDE_DIRS ${SRC_INCLUDES})
 
-list(APPEND GLOBAL_DEPENDENCIES
+list(APPEND LOCAL_DEPENDENCIES
         OpenAL::OpenAL
         ZLIB::ZLIB
-        BZip2::BZip2
         SDL2::Core
         SDL2::Sound
         Pixman::Pixman
@@ -119,24 +122,24 @@ list(APPEND GLOBAL_DEPENDENCIES
         OGG::OGG
         SDL2::TTF
         Freetype::Freetype
+        BZip2::BZip2
         SDL2::Image
         PNG::PNG
         Iconv::Iconv
         uchardet::libuchardet
         )
 
-if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    list(APPEND LOCAL_DEPENDENCIES wsock32)
-endif()
-
 if (SHARED_FLUID)
     find_package(FluidSynth REQUIRED GLOBAL)
-    list(APPEND LOCAL_PREPROCESSORS SHARED_FLUID)
+    list(APPEND LOCAL_PREPROCESSORS SHARED_FLUID FLUIDSYNTH_NOT_A_DLL)
     list(APPEND LOCAL_DEPENDENCIES FluidSynth::FluidSynth)
     if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-        find_library(DSOUND_LIBRARY dsound REQUIRED)
-        list(APPEND LOCAL_DEPENDENCIES ${DSOUND_LIBRARY})
+        list(APPEND LOCAL_DEPENDENCIES dsound winmm)
     endif()
+endif()
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    list(APPEND LOCAL_DEPENDENCIES wsock32)
 endif()
 
 if (CJK_FALLBACK_FONT)
