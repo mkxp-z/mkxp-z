@@ -41,16 +41,16 @@ find_package(Bzip2 REQUIRED GLOBAL)
 find_package(Iconv REQUIRED GLOBAL)
 if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
     find_library(CHARSET_LIB charset REQUIRED)
-    set(GLOBAL_DEPENDENCIES ${GLOBAL_DEPENDENCIES} ${CHARSET_LIB} PARENT_SCOPE)
+    list(APPEND LOCAL_DEPENDENCIES ${CHARSET_LIB})
 endif()
 
 if (ENABLE_HTTPS)
     find_package(OpenSSL GLOBAL)
     if (OpenSSL_FOUND)
-        set(GLOBAL_DEPENDENCIES ${GLOBAL_DEPENDENCIES} OpenSSL::OpenSSL PARENT_SCOPE)
-        set(GLOBAL_PREPROCESSORS ${GLOBAL_PREPROCESSORS} MKXPZ_SSL PARENT_SCOPE)
+        list(APPEND LOCAL_DEPENDENCIES OpenSSL::SSL)
+        list(APPEND LOCAL_PREPROCESSORS MKXPZ_SSL)
         if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
-            set(GLOBAL_LINK_ARGS ${GLOBAL_LINK_ARGS} -lcrypt32 PARENT_SCOPE)
+            list(APPEND LOCAL_LINK_ARGS -lcrypt32)
         endif()
     else()
         message(WARNING "Could not locate OpenSSL. HTTPS will be disabled.")
@@ -64,16 +64,16 @@ endif()
 
 if (BUILD_STATIC)
     if (CMAKE_HOST_SYSTEM_NAME STREQUAL WINDOWS)
-        set(GLOBAL_LINK_ARGS ${GLOBAL_LINK_ARGS} -static-libgcc -static-libstdc++ -Wl,-Bstatic -lgcc -lstdc++ -lpthread -Wl,-Bdynamic PARENT_SCOPE)
+        list(APPEND LOCAL_LINK_ARGS -static-libgcc -static-libstdc++ -Wl,-Bstatic -lgcc -lstdc++ -lpthread -Wl,-Bdynamic)
     else()
-        set(GLOBAL_LINK_ARGS ${GLOBAL_LINK_ARGS} -static-libgcc -static-libstdc++ PARENT_SCOPE)
+        list(APPEND LOCAL_LINK_ARGS -static-libgcc -static-libstdc++)
     endif()
-    set(GLOBAL_PREPROCESSORS ${GLOBAL_PREPROCESSORS} AL_LIBTYPE_STATIC PARENT_SCOPE)
+    list(APPEND LOCAL_PREPROCESSORS AL_LIBTYPE_STATIC)
 endif()
 
 foreach(LIB ${EXPLICIT_LIBS})
     if (NOT LIB STREQUAL "")
-        set(GLOBAL_LINK_ARGS ${GLOBAL_LINK_ARGS} -l:${LIB}.a PARENT_SCOPE)
+        list(APPEND LOCAL_LINK_ARGS -l:${LIB}.a)
     endif()
 endforeach ()
 
@@ -82,7 +82,7 @@ if (OpenAL_VERSION GREATER_EQUAL 1.20.1)
     set(ALCDEV_STRUCT ALCdevice)
 endif()
 
-set(GLOBAL_PREPROCESSORS ${GLOBAL_PREPROCESSORS} MKXPZ_ALCDEVICE=${ALCDEV_STRUCT} PARENT_SCOPE)
+list(APPEND LOCAL_PREPROCESSORS MKXPZ_ALCDEVICE=${ALCDEV_STRUCT})
 
 file(GLOB SRC_INCLUDES LIST_DIRECTORIES ON RELATIVE ${CMAKE_SOURCE_DIR}
         audio
@@ -103,7 +103,7 @@ file(GLOB SRC_INCLUDES LIST_DIRECTORIES ON RELATIVE ${CMAKE_SOURCE_DIR}
         util/sigslot
         util/sigslot/adapter PARENT_SCOPE)
 
-set(GLOBAL_INCLUDE_DIRS ${GLOBAL_INCLUDE_DIRS} ${SRC_INCLUDES} PARENT_SCOPE)
+list(APPEND LOCAL_INCLUDE_DIRS ${SRC_INCLUDES})
 
 list(APPEND GLOBAL_DEPENDENCIES
         OpenAL::OpenAL
@@ -126,21 +126,21 @@ list(APPEND GLOBAL_DEPENDENCIES
         )
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    set(GLOBAL_DEPENDENCIES ${GLOBAL_DEPENDENCIES} wsock32 PARENT_SCOPE)
+    list(APPEND LOCAL_DEPENDENCIES wsock32)
 endif()
 
 if (SHARED_FLUID)
     find_package(FluidSynth REQUIRED GLOBAL)
-    set(GLOBAL_PREPROCESSORS ${GLOBAL_PREPROCESSORS} SHARED_FLUID PARENT_SCOPE)
-    set(GLOBAL_DEPENDENCIES ${GLOBAL_DEPENDENCIES} FluidSynth::FluidSynth PARENT_SCOPE)
+    list(APPEND LOCAL_PREPROCESSORS SHARED_FLUID)
+    list(APPEND LOCAL_DEPENDENCIES FluidSynth::FluidSynth)
     if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
         find_library(DSOUND_LIBRARY dsound REQUIRED)
-        set(GLOBAL_DEPENDENCIES ${GLOBAL_DEPENDENCIES} ${DSOUND_LIBRARY} PARENT_SCOPE)
+        list(APPEND LOCAL_DEPENDENCIES ${DSOUND_LIBRARY})
     endif()
 endif()
 
 if (CJK_FALLBACK_FONT)
-    set(GLOBAL_PREPROCESSORS ${GLOBAL_PREPROCESSORS} MKXPZ_CJK_FONT PARENT_SCOPE)
+    list(APPEND LOCAL_PREPROCESSORS MKXPZ_CJK_FONT)
 endif()
 
 file(GLOB SRC_FILES RELATIVE ${CMAKE_SOURCE_DIR}
@@ -209,7 +209,99 @@ file(GLOB SRC_FILES RELATIVE ${CMAKE_SOURCE_DIR}
 
         system/systemImpl.cpp)
 
-set(GLOBAL_SOURCES ${GLOBAL_SOURCES} ${SRC_FILES} PARENT_SCOPE)
+
+
+file(GLOB_RECURSE SRC_HEADERS RELATIVE ${CMAKE_SOURCE_DIR}
+        mkxpz_global.h
+        binding.h
+        config.h
+        eventthread.h
+        gamestate.h
+        settingsmenu.h
+        sharedstate.h
+
+        audio/al-util.h
+        audio/aldatasource.h
+        audio/alstream.h
+        audio/audio.h
+        audio/audiostream.h
+        audio/fluid-fun.h
+        audio/sharedmidistate.h
+        audio/soundemitter.h
+
+        crypto/rgssad.h
+
+        display/bitmap.h
+        display/flashable.h
+        display/font.h
+        display/gl/gl-debug.h
+        display/gl/gl-fun.h
+        display/gl/gl-meta.h
+        display/gl/gl-util.h
+        display/gl/global-ibo.h
+        display/gl/glstate.h
+        display/gl/quad.h
+        display/gl/quadarray.h
+        display/gl/scene.h
+        display/gl/shader.h
+        display/gl/texpool.h
+        display/gl/tileatlas.h
+        display/gl/tileatlasvx.h
+        display/gl/tilequad.h
+        display/gl/transform.h
+        display/gl/vertex.h
+        display/graphics.h
+        display/libnsgif/libnsgif.h
+        display/libnsgif/lzw.h
+        display/libnsgif/utils/log.h
+        display/plane.h
+        display/sprite.h
+        display/tilemap-common.h
+        display/tilemap.h
+        display/tilemapvx.h
+        display/viewport.h
+        display/window.h
+        display/windowvx.h
+
+        etc/etc-internal.h
+        etc/etc.h
+        etc/table.h
+
+        filesystem/filesystem.h
+        filesystem/filesystemImpl.h
+
+        input/input.h
+        input/keybindings.h
+
+        net/LUrlParser.h
+        net/httplib.h
+        net/net.h
+
+        singletons/ConfigManager.h
+
+        system/system.h
+
+        theoraplay/theoraplay.h
+        theoraplay/theoraplay_cvtrgb.h
+
+        util/boost-hash.h
+        util/debugwriter.h
+        util/disposable.h
+        util/encoding.h
+        util/exception.h
+        util/iniconfig.h
+        util/intrulist.h
+        util/sdl-util.h
+        util/serial-util.h
+        util/serializable.h
+        util/string-util.h
+        util/util.h
+        util/win-consoleutils.h)
+
+list(APPEND LOCAL_SOURCES ${SRC_FILES})
+list(APPEND LOCAL_INCLUDES ${SRC_HEADERS})
 set(EXE_SOURCES ${EXE_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp PARENT_SCOPE)
 
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/mkxpz_global.h DESTINATION ${CMAKE_SOURCE_DIR}/ext/mkxp_z/include)
+
+propagate_locals_to_global()

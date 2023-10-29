@@ -490,11 +490,6 @@ FIND_PACKAGE_HANDLE_STANDARD_ARGS(Ruby  REQUIRED_VARS  ${_Ruby_REQUIRED_VARS}
 
 if(Ruby_FOUND)
   set(Ruby_LIBRARIES ${Ruby_LIBRARY})
-  if(Ruby_FOUND)
-    add_library(Ruby::Ruby INTERFACE IMPORTED)
-    target_link_libraries(Ruby::Ruby INTERFACE ${Ruby_LIBRARY})
-    target_include_directories(Ruby::Ruby INTERFACE ${Ruby_INCLUDE_DIR} ${Ruby_CONFIG_DIR})
-  endif()
 endif()
 
 mark_as_advanced(
@@ -536,3 +531,9 @@ foreach(Camel
     string(TOUPPER ${Camel} UPPER)
     set(${UPPER} ${${Camel}})
 endforeach()
+
+if(Ruby_FOUND)
+  add_library(Ruby::Ruby INTERFACE IMPORTED)
+  target_link_libraries(Ruby::Ruby INTERFACE ${Ruby_LIBRARY})
+  target_include_directories(Ruby::Ruby INTERFACE ${Ruby_INCLUDE_DIRS})
+endif()

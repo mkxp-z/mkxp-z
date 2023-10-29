@@ -41,8 +41,9 @@ execute_process(
 )
 
 set(GLOBAL_SOURCES "")
+set(GLOBAL_INCLUDES "")
 set(GLOBAL_DEPENDENCIES "")
-set(GLOBAL_INCLUDE_DIRS "")
+set(GLOBAL_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
 set(GLOBAL_PREPROCESSORS "")
 set(GLOBAL_ARGS "")
 set(GLOBAL_LINK_ARGS "")
@@ -110,6 +111,7 @@ endif()
 
 list(APPEND GLOBAL_PREPROCESSORS MKXPZ_INIT_GL_LATER)
 
+include(LocalToGlobalConverter)
 add_subdirectory(src)
 add_subdirectory(binding)
 add_subdirectory(shader)
@@ -120,6 +122,14 @@ list(APPEND GLOBAL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/bind
 set(RPATH "")
 
 if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
+
+    set(CMAKE_RC_COMPILER_INIT windres)
+    enable_language(RC)
+    set(CMAKE_RC_ARCHIVE_CREATE "")
+    set(CMAKE_RC_ARCHIVE_FINISH "")
+    set(CMAKE_RC_COMPILE_OBJECT
+            "<CMAKE_RC_COMPILER> <FLAGS> -O coff <DEFINES> -i <SOURCE> -o <OBJECT>")
+
     add_subdirectory(windows)
     list(APPEND GLOBAL_SOURCES ${WINDOWS_RESOURCES})
     list(APPEND GLOBAL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/windows)
@@ -178,7 +188,7 @@ if (STEAMWORKS)
 endif()
 
 
-add_library(${CMAKE_PROJECT_NAME}-common STATIC ${GLOBAL_SOURCES})
+add_library(${CMAKE_PROJECT_NAME}-common STATIC ${GLOBAL_SOURCES} ${GLOBAL_INCLUDES})
 target_link_libraries(${CMAKE_PROJECT_NAME}-common PUBLIC ${GLOBAL_DEPENDENCIES})
 target_include_directories(${CMAKE_PROJECT_NAME}-common PUBLIC ${GLOBAL_INCLUDE_DIRS})
 target_compile_definitions(${CMAKE_PROJECT_NAME}-common PUBLIC ${GLOBAL_PREPROCESSORS})
