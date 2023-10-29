@@ -22,6 +22,7 @@ find_package(pixman-1 REQUIRED)
 find_package(Vorbis REQUIRED)
 find_package(uchardet REQUIRED)
 find_package(THEORA REQUIRED)
+find_package(Fluidsynth REQUIRED)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     install(FILES

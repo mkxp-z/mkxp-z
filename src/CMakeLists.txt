@@ -111,10 +111,12 @@ target_link_libraries(mkxp_z PUBLIC
         pixman-1
         ${NATIVE_DEPS}
         ${EXTERNAL_LIBS}
+        ${FLUIDSYNTH_LIBRARIES}
         )
 
 target_compile_definitions(mkxp_z PUBLIC
         SDL_MAIN_HANDLED
+        SHARED_FLUID
         MKXPZ_ALCDEVICE=ALCdevice
         )
 

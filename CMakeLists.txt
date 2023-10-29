@@ -39,14 +39,3 @@ endif()
 
 
 install(TARGETS mkxp_z RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/ext/mkxp_z/bin ARCHIVE DESTINATION ${CMAKE_SOURCE_DIR}/../ext/mkxp_z/lib)
-
-set(CMAKE_CXX_COMPILER)
-
-add_executable(test_app test/main.cpp)
-
-target_include_directories(test_app PUBLIC
-        ${Ruby_INCLUDE_DIRS})
-
-target_link_libraries(test_app PUBLIC mkxp_z)
-
-get_target_property(ALL_INCLUDES mkxp_z INCLUDE_DIRECTORIES)
