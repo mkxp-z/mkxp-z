@@ -76,7 +76,7 @@ set (Vorbis_Vorbis_FIND_QUIETLY TRUE)
 set (Vorbis_Enc_FIND_QUIETLY TRUE)
 set (Vorbis_File_FIND_QUIETLY TRUE)
 
-find_package (Ogg QUIET)
+find_package (OGG QUIET)
 
 find_package (PkgConfig QUIET)
 pkg_check_modules (PC_Vorbis_Vorbis QUIET vorbis)
@@ -144,7 +144,7 @@ find_library (Vorbis_File_LIBRARY
 
 include (FindPackageHandleStandardArgs)
 
-if (Vorbis_Vorbis_LIBRARY AND Vorbis_Vorbis_INCLUDE_DIR AND Ogg_FOUND)
+if (Vorbis_Vorbis_LIBRARY AND Vorbis_Vorbis_INCLUDE_DIR AND OGG_FOUND)
     set (Vorbis_Vorbis_FOUND TRUE)
 endif ()
 
@@ -160,7 +160,7 @@ find_package_handle_standard_args (Vorbis
         REQUIRED_VARS
         Vorbis_Vorbis_LIBRARY
         Vorbis_Vorbis_INCLUDE_DIR
-        Ogg_FOUND
+        OGG_FOUND
         HANDLE_COMPONENTS
         VERSION_VAR Vorbis_VERSION)
 
@@ -173,7 +173,7 @@ if (Vorbis_Vorbis_FOUND)
         set_target_properties (Vorbis::vorbis PROPERTIES
                 INTERFACE_INCLUDE_DIRECTORIES "${Vorbis_Vorbis_INCLUDE_DIR}"
                 IMPORTED_LOCATION "${Vorbis_Vorbis_LIBRARY}"
-                INTERFACE_LINK_LIBRARIES Ogg::ogg
+                INTERFACE_LINK_LIBRARIES OGG::OGG
                 )
     endif ()
 

@@ -1,6 +1,18 @@
-project(MKXPZ_Bindings)
+if (MRI_INCLUDES STREQUAL "")
+    find_package(Ruby REQUIRED GLOBAL)
+    if (Ruby_VERSION LESS_EQUAL 1.8)
+        set(GLOBAL_PREPROCESSORS ${GLOBAL_PREPROCESSORS} MKXPZ_LEGACY_RUBY PARENT_SCOPE)
+    elseif(Ruby_VERSION GREATER_EQUAL 3.0 AND CMAKE_CXX_COMPILER_ID STREQUAL Clang)
+        set(GLOBAL_ARGS ${GLOBAL_ARGS} -fdeclspec PARENT_SCOPE)
+    endif()
+    set(GLOBAL_DEPENDENCIES ${GLOBAL_DEPENDENCIES} Ruby::Ruby PARENT_SCOPE)
+else()
+    set(GLOBAL_INCLUDE_DIRS ${GLOBAL_INCLUDE_DIRS} ${MRI_INCLUDES} PARENT_SCOPE)
+    find_library(RUBY_LIBRARY {MRI_LIBRARY} REQUIRED PATHS ${MRI_LIBPATH})
+    set(GLOBAL_DEPENDENCIES ${GLOBAL_DEPENDENCIES} ${RUBY_LIBRARY} PARENT_SCOPE)
+endif()
 
-target_sources(mkxp_z PUBLIC
+set(BINDING_SOURCE
         binding-mri.cpp
         mkxpz-binding.cpp
         binding-util.cpp
@@ -22,20 +34,20 @@ target_sources(mkxp_z PUBLIC
         tilemapvx-binding.cpp
         http-binding.cpp)
 
-target_include_directories(mkxp_z PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_BINARY_DIR}
-        ${Ruby_INCLUDE_DIRS}
-        ${uchardet_INCLUDE_DIRS}/uchardet
-        )
+if (STEAMWORKS)
+    list(APPEND BINDING_SOURCE cusl-binding.cpp)
+endif()
 
-target_link_libraries(mkxp_z PUBLIC
-        ${Ruby_LIBRARY}
-        )
+if (MINIFFI)
+    list(APPEND BINDING_SOURCE
+            miniffi-binding.cpp
+            miniffi.cpp)
+endif()
 
-target_compile_definitions(mkxp_z PUBLIC
-        SDL_MAIN_HANDLED
-        MKXPZ_ALCDEVICE=ALCdevice
-        )
+file(GLOB BINDING_SOURCE_PATHS RELATIVE ${CMAKE_SOURCE_DIR}
+        ${BINDING_SOURCE})
 
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/binding-mri.h DESTINATION ${CMAKE_SOURCE_DIR}/../ext/mkxp_z/include)
+set(GLOBAL_SOURCES ${GLOBAL_SOURCES} ${BINDING_SOURCE_PATHS} PARENT_SCOPE)
+set(GEM_SOURCES ${GEM_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/mkxpz-binding.cpp PARENT_SCOPE)
+
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/binding-mri.h DESTINATION ${CMAKE_SOURCE_DIR}/ext/mkxp_z/include)
