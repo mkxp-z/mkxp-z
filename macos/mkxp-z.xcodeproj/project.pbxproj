@@ -534,10 +534,10 @@
 		ECEC415E939B13D8C959F8D7 /* libhwy.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C3D4EBA94DA7A5C543A337E /* libhwy.a */; };
 		EF05486C9854302CD39A0B80 /* libhwy.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 667B4E3FBC5B03611D5C334E /* libhwy.a */; };
 		F7CA439883B85807B560AF67 /* libhwy.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 667B4E3FBC5B03611D5C334E /* libhwy.a */; };
-		FE5204162A08E27D0070038A /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FE5204152A08E27D0070038A /* CoreHaptics.framework */; };
-		FE5204172A08E2880070038A /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FE5204152A08E27D0070038A /* CoreHaptics.framework */; };
-		FE5204182A08E28F0070038A /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FE5204152A08E27D0070038A /* CoreHaptics.framework */; };
-		FE5204192A08E2950070038A /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FE5204152A08E27D0070038A /* CoreHaptics.framework */; };
+		FE5204162A08E27D0070038A /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FE5204152A08E27D0070038A /* CoreHaptics.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		FE5204172A08E2880070038A /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FE5204152A08E27D0070038A /* CoreHaptics.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		FE5204182A08E28F0070038A /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FE5204152A08E27D0070038A /* CoreHaptics.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		FE5204192A08E2950070038A /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FE5204152A08E27D0070038A /* CoreHaptics.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		FE52041B2A08E58D0070038A /* lanczos3.frag in Resources */ = {isa = PBXBuildFile; fileRef = FE52041A2A08E58D0070038A /* lanczos3.frag */; };
 		FE52041C2A08E62F0070038A /* lanczos3.frag in CopyFiles */ = {isa = PBXBuildFile; fileRef = FE52041A2A08E58D0070038A /* lanczos3.frag */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 /* End PBXBuildFile section */
@@ -1942,7 +1942,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3B1C23EF25A19C600075EF5D /* Build configuration list for PBXNativeTarget "Z-steam" */;
 			buildPhases = (
-				FE4F72FE2A179EE0004FED68 /* ShellScript */,
 				3B1C237025A19C600075EF5D /* Sources */,
 				3B1C23C225A19C600075EF5D /* Frameworks */,
 				3B1C23E625A19C600075EF5D /* Resources */,
@@ -1951,6 +1950,7 @@
 				3B1C23EA25A19C600075EF5D /* CopyFiles */,
 				3B251DAB26DA2EBB00E5D09B /* CopyFiles */,
 				3B1C23EC25A19C600075EF5D /* Embed Frameworks */,
+				FE4F72FE2A179EE0004FED68 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -1986,7 +1986,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3BBE88062705A73400A574AE /* Build configuration list for PBXNativeTarget "Z-steam-universal" */;
 			buildPhases = (
-				FE4F72FD2A179ED5004FED68 /* ShellScript */,
 				3BBE87852705A73400A574AE /* Sources */,
 				3BBE87CE2705A73400A574AE /* Frameworks */,
 				3BBE87F42705A73400A574AE /* Resources */,
@@ -1995,6 +1994,7 @@
 				3BBE87FC2705A73400A574AE /* CopyFiles */,
 				3BBE87FE2705A73400A574AE /* CopyFiles */,
 				3BBE88002705A73400A574AE /* Embed Frameworks */,
+				FE4F72FD2A179ED5004FED68 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -2011,7 +2011,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3BC65E122584F3AD0063AFF1 /* Build configuration list for PBXNativeTarget "Z-universal" */;
 			buildPhases = (
-				FE4F72FB2A179D9E004FED68 /* ShellScript */,
 				3BC65D8D2584F3AD0063AFF1 /* Sources */,
 				3BC65DDB2584F3AD0063AFF1 /* Frameworks */,
 				3BC65E0D2584F3AD0063AFF1 /* Resources */,
@@ -2019,6 +2018,7 @@
 				3BC65E0F2584F3AD0063AFF1 /* CopyFiles */,
 				3B251D9F26DA2C2A00E5D09B /* CopyFiles */,
 				3B522D79259BA0E3003301C4 /* Embed Frameworks */,
+				FE4F72FB2A179D9E004FED68 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -2034,7 +2034,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3BD2B7222565AEC0003DAD8A /* Build configuration list for PBXNativeTarget "Z-intel" */;
 			buildPhases = (
-				FE4F72FC2A179ECC004FED68 /* ShellScript */,
 				3BD2B64C2565AEC0003DAD8A /* Sources */,
 				3BD2B6E12565AEC0003DAD8A /* Frameworks */,
 				3BD2B6F82565AEC0003DAD8A /* Resources */,
@@ -2042,6 +2041,7 @@
 				3B5A843B2569F95A00BAF2E5 /* CopyFiles */,
 				3B251DA726DA2E8A00E5D09B /* CopyFiles */,
 				3B522D7C259BA0E8003301C4 /* Embed Frameworks */,
+				FE4F72FC2A179ECC004FED68 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -2154,6 +2154,7 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
+				"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}",
 			);
 			outputFileListPaths = (
 			);
@@ -2161,7 +2162,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nCOMMIT_HASH=`git rev-parse --short HEAD`\n/usr/libexec/PlistBuddy -c \"Set :GIT_COMMIT_HASH $COMMIT_HASH\" \"${INFOPLIST_FILE}\"\n";
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nCOMMIT_HASH=`git rev-parse --short HEAD`\n/usr/libexec/PlistBuddy -c \"Set :GIT_COMMIT_HASH $COMMIT_HASH\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n";
 		};
 		FE4F72FC2A179ECC004FED68 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -2171,6 +2172,7 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
+				"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}",
 			);
 			outputFileListPaths = (
 			);
@@ -2178,7 +2180,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nCOMMIT_HASH=`git rev-parse --short HEAD`\n/usr/libexec/PlistBuddy -c \"Set :GIT_COMMIT_HASH $COMMIT_HASH\" \"${INFOPLIST_FILE}\"\n";
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nCOMMIT_HASH=`git rev-parse --short HEAD`\n/usr/libexec/PlistBuddy -c \"Set :GIT_COMMIT_HASH $COMMIT_HASH\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n";
 		};
 		FE4F72FD2A179ED5004FED68 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -2188,6 +2190,7 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
+				"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}",
 			);
 			outputFileListPaths = (
 			);
@@ -2195,7 +2198,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nCOMMIT_HASH=`git rev-parse --short HEAD`\n/usr/libexec/PlistBuddy -c \"Set :GIT_COMMIT_HASH $COMMIT_HASH\" \"${INFOPLIST_FILE}\"\n";
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nCOMMIT_HASH=`git rev-parse --short HEAD`\n/usr/libexec/PlistBuddy -c \"Set :GIT_COMMIT_HASH $COMMIT_HASH\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n";
 		};
 		FE4F72FE2A179EE0004FED68 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -2205,6 +2208,7 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
+				"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}",
 			);
 			outputFileListPaths = (
 			);
@@ -2212,7 +2216,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nCOMMIT_HASH=`git rev-parse --short HEAD`\n/usr/libexec/PlistBuddy -c \"Set :GIT_COMMIT_HASH $COMMIT_HASH\" \"${INFOPLIST_FILE}\"\n";
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nCOMMIT_HASH=`git rev-parse --short HEAD`\n/usr/libexec/PlistBuddy -c \"Set :GIT_COMMIT_HASH $COMMIT_HASH\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
