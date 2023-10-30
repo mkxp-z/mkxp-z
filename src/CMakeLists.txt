@@ -63,15 +63,11 @@ endif()
 set(EXPLICIT_LIBS "")
 if (CMAKE_HOST_SYSTEM_NAME STREQUAL WINDOWS)
     # TODO: Determine if the bit about the explicit libs is really necessary
-    list(APPEND EXPLICIT_LIBS libucrt libgcc libmingwex libgmp)
+    #list(APPEND EXPLICIT_LIBS libucrt libgcc libmingwex libgmp)
 endif()
 
 if (STATIC_EXECUTABLE)
-    if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
-        list(APPEND LOCAL_LINK_ARGS -static-libgcc -static-libstdc++ -Wl,-Bstatic -lgcc -lstdc++ -lpthread -Wl,-Bdynamic)
-    else()
-        list(APPEND LOCAL_LINK_ARGS -static-libgcc -static-libstdc++)
-    endif()
+    #list(APPEND LOCAL_LINK_ARGS -static-libgcc -static-libstdc++)
     list(APPEND LOCAL_PREPROCESSORS AL_LIBTYPE_STATIC)
 endif()
 

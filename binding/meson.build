@@ -1,4 +1,3 @@
-
 if get_option('mri_includes') == ''
     ver = get_option('mri_version')
     if ver.version_compare('<=1.8')
@@ -43,6 +42,10 @@ endif
 if miniffi == true
     binding_source += files('miniffi-binding.cpp')
     binding_source += files('miniffi.cpp')
+endif
+
+if (get_option('build_gem') == true)
+    binding_source += files('gem-binding.cpp')
 endif
 
 global_sources += binding_source

@@ -72,8 +72,9 @@ RB_METHOD(initGameState) {
         std::this_thread::yield();
 
     auto rgssThread = GameState::getInstance().createRGSSThread(RubyGemBinding::instance);
-    RubyGemBinding::instance.setRgssThread(std::move(rgssThread));
     shState->setBindingData(&RubyGemBinding::instance.getRbData());
+    rgssThread->executeBindings();
+    RubyGemBinding::instance.setRgssThread(std::move(rgssThread));
 
     return Qnil;
 }

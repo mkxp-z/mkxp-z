@@ -49,8 +49,6 @@
 
 #include "system/system.h"
 
-#include "ConfigManager.h"
-
 #if defined(__WIN32__)
 #include "resource.h"
 #include <Winsock2.h>
