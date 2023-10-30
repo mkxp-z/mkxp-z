@@ -1,4 +1,4 @@
-project('mkxp-z', 'c', 'cpp', version: '2.4.2', meson_version: '>=0.56.0', default_options: ['cpp_std=c++14', 'buildtype=release'])
+project('mkxp-z', 'c', 'cpp', version: '2.4.2', meson_version: '>=0.56.0', default_options: ['cpp_std=c++20', 'buildtype=release'])
 
 host_system = host_machine.system()
 
@@ -18,6 +18,9 @@ global_include_dirs = []
 global_args = []
 global_link_args = []
 
+exe_sources = []
+gem_sources = []
+
 sizeof = {'void*': compilers['cpp'].sizeof('void*'),
           'long': compilers['cpp'].sizeof('long')
          }
@@ -26,7 +29,6 @@ win64 = (sizeof['void*'] != sizeof['long'])
 global_args += '-DMKXPZ_BUILD_MESON'
 global_args += '-DMKXPZ_VERSION="@0@"'.format(meson.project_version())
 global_args += '-DMKXPZ_GIT_HASH="@0@"'.format(git_hash)
-global_args += '-DRGSS_VERSION=1'
 global_args += '-DHAVE_NANOSLEEP'
 # ====================
 # Ext libs
@@ -183,14 +185,29 @@ if steamworks == true
         install: (host_system != 'windows'))
 endif
 
-shared_library(exe_name,
-    sources: global_sources,
-    dependencies: global_dependencies,
-    include_directories: global_include_dirs,
-    install_rpath: rpath,
-    link_args: global_link_args,
-    cpp_args: global_args,
-    objc_args: global_args,
-    objcpp_args: global_args,
-    install: (host_system != 'windows')
-)
+if (get_option('build_gem') == true)
+    shared_library(exe_name,
+            sources: global_sources,
+            dependencies: global_dependencies,
+            include_directories: global_include_dirs,
+            install_rpath: rpath,
+            link_args: global_link_args,
+            cpp_args: global_args,
+            objc_args: global_args,
+            objcpp_args: global_args,
+            install: (host_system != 'windows')
+        )
+else
+    executable(exe_name,
+        sources: global_sources,
+        dependencies: global_dependencies,
+        include_directories: global_include_dirs,
+        install_rpath: rpath,
+        link_args: global_link_args,
+        cpp_args: global_args,
+        objc_args: global_args,
+        objcpp_args: global_args,
+        win_subsystem: 'windows',
+        install: (host_system != 'windows')
+    )
+endif

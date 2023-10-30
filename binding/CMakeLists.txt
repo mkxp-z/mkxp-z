@@ -1,8 +1,21 @@
-project(MKXPZ_Bindings)
+if (MRI_INCLUDES STREQUAL "")
+    find_package(Ruby REQUIRED GLOBAL)
+    set(Ruby_VERSION ${Ruby_VERSION_MAJOR}.${Ruby_VERSION_MINOR}.${Ruby_VERSION_PATCH})
+    if (Ruby_VERSION LESS_EQUAL 1.8)
+        list(APPEND LOCAL_PREPROCESSORS MKXPZ_LEGACY_RUBY)
+    elseif(Ruby_VERSION GREATER_EQUAL 3.0 AND CMAKE_CXX_COMPILER_ID STREQUAL Clang)
+        list(APPEND LOCAL_ARGS -fdeclspec)
+    endif()
+    list(APPEND LOCAL_DEPENDENCIES Ruby::Ruby)
+else()
+    list(APPEND LOCAL_INCLUDE_DIRS ${MRI_INCLUDES})
+    find_library(RUBY_LIBRARY {MRI_LIBRARY} REQUIRED PATHS ${MRI_LIBPATH})
+    list(APPEND LOCAL_DEPENDENCIES ${RUBY_LIBRARY})
+endif()
 
-target_sources(mkxp_z PUBLIC
+set(BINDING_SOURCE
         binding-mri.cpp
-        mkxpz-binding.cpp
+        gem-binding.cpp
         binding-util.cpp
         table-binding.cpp
         etc-binding.cpp
@@ -22,20 +35,37 @@ target_sources(mkxp_z PUBLIC
         tilemapvx-binding.cpp
         http-binding.cpp)
 
-target_include_directories(mkxp_z PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_BINARY_DIR}
-        ${Ruby_INCLUDE_DIRS}
-        ${uchardet_INCLUDE_DIRS}/uchardet
-        )
+set(BINDING_INCLUDE
+        binding-mri.h
+        binding-mri-win32.h
+        binding-types.h
+        binding-util.h
+        disposable-binding.h
+        flashable-binding.h
+        sceneelement-binding.h
+        serializable-binding.h
+        viewportelement-binding.h)
 
-target_link_libraries(mkxp_z PUBLIC
-        ${Ruby_LIBRARY}
-        )
+if (STEAMWORKS)
+    list(APPEND BINDING_SOURCE cusl-binding.cpp)
+endif()
 
-target_compile_definitions(mkxp_z PUBLIC
-        SDL_MAIN_HANDLED
-        MKXPZ_ALCDEVICE=ALCdevice
-        )
+if (USE_MINIFFI)
+    list(APPEND BINDING_SOURCE
+            miniffi-binding.cpp
+            miniffi.cpp)
+    list(APPEND BINDING_INCLUDE miniffi.h)
+endif()
 
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/binding-mri.h DESTINATION ${CMAKE_SOURCE_DIR}/../ext/mkxp_z/include)
+file(GLOB BINDING_SOURCE_PATHS RELATIVE ${CMAKE_SOURCE_DIR}
+        ${BINDING_SOURCE})
+file(GLOB BINDING_INCLUDE_PATHS RELATIVE ${CMAKE_SOURCE_DIR}
+        ${BINDING_INCLUDE})
+
+list(APPEND LOCAL_SOURCES ${BINDING_SOURCE_PATHS})
+list(APPEND LOCAL_INCLUDES ${BINDING_INCLUDE_PATHS})
+set(GEM_BINDING_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/gem-binding.h ${CMAKE_CURRENT_SOURCE_DIR}/gem-binding.cpp PARENT_SCOPE)
+
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/gem-binding.h DESTINATION ${CMAKE_SOURCE_DIR}/ext/mkxp_z/include)
+
+propagate_locals_to_global()

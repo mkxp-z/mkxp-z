@@ -92,7 +92,6 @@ global_include_dirs += include_directories('.',
     'filesystem', 'filesystem/ghc',
     'input',
     'net',
-    'singletons',
     'system',
     'util', 'util/sigslot', 'util/sigslot/adapter'
 )
@@ -116,12 +115,11 @@ if get_option('cjk_fallback_font') == true
 endif
 
 main_source = files(
-    'gamestate.cpp',
     'config.cpp',
     'eventthread.cpp',
     'settingsmenu.cpp',
     'sharedstate.cpp',
-    
+
     'audio/alstream.cpp',
     'audio/audio.cpp',
     'audio/audiostream.cpp',
@@ -165,14 +163,12 @@ main_source = files(
     'util/iniconfig.cpp',
     'util/win-consoleutils.cpp',
 
-    'singletons/ConfigManager.cpp',
-    
     'etc/etc.cpp',
     'etc/table.cpp',
 
     'filesystem/filesystem.cpp',
     'filesystem/filesystemImpl.cpp',
-    
+
     'input/input.cpp',
     'input/keybindings.cpp',
 
@@ -181,5 +177,11 @@ main_source = files(
 
     'system/systemImpl.cpp'
 )
+
+if (get_option('build_gem') == true)
+    main_source += files('gamestate.cpp')
+else
+    main_source += files('main.cpp')
+endif
 
 global_sources += main_source

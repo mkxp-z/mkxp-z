@@ -22,9 +22,8 @@
 #ifndef BINDING_H
 #define BINDING_H
 
-class ScriptBinding
+struct ScriptBinding
 {
-public:
     virtual ~ScriptBinding() = default;
 
 	/* Starts the part where the binding takes over,

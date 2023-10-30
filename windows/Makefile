@@ -59,7 +59,7 @@ $(LIBDIR)/libtheora.a: $(LIBDIR)/libogg.a $(DOWNLOADS)/theora/Makefile
 
 $(DOWNLOADS)/theora/Makefile: $(DOWNLOADS)/theora/configure
 	cd $(DOWNLOADS)/theora; \
-	$(CONFIGURE) --with-ogg=$(BUILD_PREFIX) --enable-shared=true --enable-static=false --disable-examples
+	$(CONFIGURE) --with-ogg=$(BUILD_PREFIX) --enable-shared=false --enable-static=true --disable-examples
 
 $(DOWNLOADS)/theora/configure: $(DOWNLOADS)/theora/autogen.sh
 	cd $(DOWNLOADS)/theora; \
@@ -77,7 +77,7 @@ $(LIBDIR)/libvorbis.a: $(LIBDIR)/libogg.a $(DOWNLOADS)/vorbis/Makefile
 
 $(DOWNLOADS)/vorbis/Makefile: $(DOWNLOADS)/vorbis/configure
 	cd $(DOWNLOADS)/vorbis; \
-	$(CONFIGURE) --with-ogg=$(BUILD_PREFIX) --enable-shared=true --enable-static=false
+	$(CONFIGURE) --with-ogg=$(BUILD_PREFIX) --enable-shared=false --enable-static=true
 
 $(DOWNLOADS)/vorbis/configure: $(DOWNLOADS)/vorbis/autogen.sh
 	cd $(DOWNLOADS)/vorbis; \
@@ -96,7 +96,7 @@ $(LIBDIR)/libogg.a: $(DOWNLOADS)/ogg/Makefile
 
 $(DOWNLOADS)/ogg/Makefile: $(DOWNLOADS)/ogg/configure
 	cd $(DOWNLOADS)/ogg; \
-	$(CONFIGURE) --enable-static=false --enable-shared=true
+	$(CONFIGURE) --enable-static=true --enable-shared=false
 
 $(DOWNLOADS)/ogg/configure: $(DOWNLOADS)/ogg/autogen.sh
 	cd $(DOWNLOADS)/ogg; ./autogen.sh
@@ -176,7 +176,7 @@ $(LIBDIR)/libSDL2.a: $(DOWNLOADS)/sdl2/cmakebuild/Makefile
 $(DOWNLOADS)/sdl2/cmakebuild/Makefile: $(DOWNLOADS)/sdl2/CMakeLists.txt
 	cd $(DOWNLOADS)/sdl2; \
 	mkdir cmakebuild; cd cmakebuild; \
-	$(CMAKE) -DBUILD_SHARED_LIBS=yes
+	$(CMAKE) -DBUILD_SHARED_LIBS=no
 
 $(DOWNLOADS)/sdl2/CMakeLists.txt:
 	$(CLONE) $(GITHUB)/mkxp-z/SDL $(DOWNLOADS)/sdl2 -b mkxp-z-2.28.1
@@ -197,7 +197,7 @@ $(DOWNLOADS)/sdl2_image/cmakebuild/Makefile: $(DOWNLOADS)/sdl2_image/CMakeLists.
 	-DSDL2IMAGE_PNG_SHARED=no \
 	-DSDL2IMAGE_JPG_SHARED=no \
 	-DSDL2IMAGE_JXL=yes \
-	-DSDL2IMAGE_JXL_SHARED=yes \
+	-DSDL2IMAGE_JXL_SHARED=no \
 	-DSDL2IMAGE_VENDORED=yes
 
 $(DOWNLOADS)/sdl2_image/CMakeLists.txt:
@@ -215,7 +215,7 @@ $(LIBDIR)/libSDL2_sound.a: $(DOWNLOADS)/sdl_sound/cmakebuild/Makefile
 $(DOWNLOADS)/sdl_sound/cmakebuild/Makefile: $(DOWNLOADS)/sdl_sound/CMakeLists.txt
 	cd $(DOWNLOADS)/sdl_sound; mkdir -p cmakebuild; cd cmakebuild; \
 	$(CMAKE) \
-	-DSDLSOUND_BUILD_SHARED=true \
+	-DSDLSOUND_BUILD_SHARED=false \
 	-DSDLSOUND_BUILD_TEST=false
 
 $(DOWNLOADS)/sdl_sound/CMakeLists.txt:

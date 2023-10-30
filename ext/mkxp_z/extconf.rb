@@ -9,6 +9,6 @@ append_cflags("-fvisibility=hidden")
 
 extension_name = "mkxp_z"
 dir_config(extension_name, "#{__dir__}/include", "#{__dir__}/lib")
-have_library("mkxp_z", "initBindings")
+have_library("mkxp-z", "mkxpzBindingInit")
 
 create_makefile("#{extension_name}/#{extension_name}")

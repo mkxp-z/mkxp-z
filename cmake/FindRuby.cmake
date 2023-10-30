@@ -531,3 +531,9 @@ foreach(Camel
     string(TOUPPER ${Camel} UPPER)
     set(${UPPER} ${${Camel}})
 endforeach()
+
+if(Ruby_FOUND)
+  add_library(Ruby::Ruby INTERFACE IMPORTED)
+  target_link_libraries(Ruby::Ruby INTERFACE ${Ruby_LIBRARY})
+  target_include_directories(Ruby::Ruby INTERFACE ${Ruby_INCLUDE_DIRS})
+endif()

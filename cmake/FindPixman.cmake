@@ -38,3 +38,7 @@ if(PIXMAN-1_FOUND)
 endif()
 
 mark_as_advanced(PIXMAN_INCLUDE_DIR PIXMAN_LIBRARY)
+
+add_library(Pixman::Pixman INTERFACE IMPORTED)
+target_include_directories(Pixman::Pixman INTERFACE ${PIXMAN_INCLUDE_DIRS})
+target_link_libraries(Pixman::Pixman INTERFACE ${PIXMAN_LIBRARIES})

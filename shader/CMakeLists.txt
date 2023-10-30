@@ -1,5 +1,3 @@
-project(MKXPZ_Shaders)
-
 set(EMBEDED_SHADERS
         common.h
         transSimple.frag
@@ -29,9 +27,11 @@ set(EMBEDED_SHADERS
         simpleMatrix.vert)
 
 foreach(SHADER ${EMBEDED_SHADERS})
-    execute_process(COMMAND xxd -i ../shader/${SHADER} ${CMAKE_CURRENT_BINARY_DIR}/${SHADER}.xxd
+    execute_process(COMMAND ${XXD_PROGRAM} -i ../shader/${SHADER} ${CMAKE_CURRENT_BINARY_DIR}/${SHADER}.xxd
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 endforeach()
 
-add_library(${PROJECT_NAME} INTERFACE)
-target_include_directories(${PROJECT_NAME} INTERFACE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+list(APPEND LOCAL_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/common.h)
+list(APPEND LOCAL_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+
+propagate_locals_to_global()
