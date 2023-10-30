@@ -119,7 +119,9 @@ static void printGLInfo() {
 static SDL_GLContext initGL(SDL_Window *win, Config &conf,
                             RGSSThreadData *threadData);
 
-RGSSThread::RGSSThread(std::shared_ptr<RGSSThreadData> rtData, ALCcontext_ptr &&ctx) : threadData(std::move(rtData)), alcCtx(std::move(ctx)) {
+RGSSThread::RGSSThread(std::shared_ptr<RGSSThreadData> rtData, ALCcontext_ptr &&ctx,
+                       ScriptBinding &scriptBinding) : threadData(std::move(rtData)), alcCtx(std::move(ctx)),
+                       m_scriptBinding(scriptBinding) {
 
 }
 
@@ -132,8 +134,7 @@ RGSSThread::~RGSSThread() {
 }
 
 void RGSSThread::executeBindings() {
-  /* Start script execution */
-  scriptBinding->execute();
+  m_scriptBinding.execute();
 }
 
 static void printRgssVersion(int ver) {
@@ -185,7 +186,7 @@ GameState &GameState::getInstance() {
     return gameState;
 }
 
-void GameState::initGameState(std::string_view windowName, bool showWindow) {
+void GameState::initGameState(int argc, char *argv[], bool showWindow) {
     SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
     SDL_SetHint(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, "0");
 
@@ -205,7 +206,8 @@ void GameState::initGameState(std::string_view windowName, bool showWindow) {
     }
 
     /* now we load the config */
-    auto conf = ConfigManager::getInstance().getConfig();
+    conf = std::make_unique<Config>();
+    conf->read(argc, argv);
 
 #if defined(__WIN32__)
     // Create a debug console in debug mode
@@ -294,7 +296,7 @@ void GameState::initGameState(std::string_view windowName, bool showWindow) {
     if (conf->fullscreen)
       winFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 
-    if (!showWindow)
+    if (!argv)
         winFlags |= SDL_WINDOW_HIDDEN;
 
 
@@ -394,8 +396,8 @@ void GameState::initGameState(std::string_view windowName, bool showWindow) {
     SDL_GLContext glCtx = NULL;
 #endif
 
-    rtData = std::make_shared<RGSSThreadData>(&eventThread, windowName.data(), win, alcDev, mode.refresh_rate,
-                          mkxp_sys::getScalingFactor(), *conf, glCtx);
+    rtData = std::make_shared<RGSSThreadData>(&eventThread, argv[0], win, alcDev, mode.refresh_rate,
+                                              mkxp_sys::getScalingFactor(), *conf, glCtx);
 
     int winW, winH, drwW, drwH;
     SDL_GetWindowSize(win, &winW, &winH);
@@ -409,7 +411,7 @@ void GameState::initGameState(std::string_view windowName, bool showWindow) {
 
 #ifdef MKXPZ_BUILD_XCODE
     // Create Touch Bar
-    initTouchBar(win, conf);
+    initTouchBar(win, *conf);
 #endif
 
     /* Hand information back to the interpreter to start the RGSS thread */
@@ -469,7 +471,7 @@ bool GameState::rgssReady() const {
     return m_rgssReady;
 }
 
-std::shared_ptr<RGSSThread> GameState::createRGSSThread() {
+std::unique_ptr<RGSSThread> GameState::createRGSSThread(ScriptBinding &scriptBinding) {
     if (!m_rgssReady)
         return nullptr;
 
@@ -477,7 +479,7 @@ std::shared_ptr<RGSSThread> GameState::createRGSSThread() {
     rtData->glContext =
       initGL(rtData->window, rtData->config, rtData.get());
   if (!rtData->glContext)
-    return 0;
+    return nullptr;
 #else
     SDL_GL_MakeCurrent(rtData->window, rtData->glContext);
 #endif
@@ -500,7 +502,7 @@ std::shared_ptr<RGSSThread> GameState::createRGSSThread() {
         return nullptr;
     }
 
-    return std::make_shared<RGSSThread>(rtData, std::move(alcCtx));
+    return std::make_unique<RGSSThread>(rtData, std::move(alcCtx), scriptBinding);
 }
 
 static SDL_GLContext initGL(SDL_Window *win, Config &conf,

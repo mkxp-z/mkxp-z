@@ -53,7 +53,7 @@ if (ENABLE_HTTPS)
         list(APPEND LOCAL_DEPENDENCIES OpenSSL::SSL)
         list(APPEND LOCAL_PREPROCESSORS MKXPZ_SSL)
         if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
-            list(APPEND LOCAL_LINK_ARGS -lcrypt32)
+            list(APPEND LOCAL_DEPENDENCIES crypt32)
         endif()
     else()
         message(WARNING "Could not locate OpenSSL. HTTPS will be disabled.")
@@ -139,7 +139,7 @@ if (SHARED_FLUID)
 endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    list(APPEND LOCAL_DEPENDENCIES wsock32)
+    list(APPEND LOCAL_DEPENDENCIES wsock32 Ws2_32)
 endif()
 
 if (CJK_FALLBACK_FONT)
@@ -147,7 +147,6 @@ if (CJK_FALLBACK_FONT)
 endif()
 
 file(GLOB SRC_FILES RELATIVE ${CMAKE_SOURCE_DIR}
-        gamestate.cpp
         config.cpp
         eventthread.cpp
         settingsmenu.cpp
@@ -215,11 +214,9 @@ file(GLOB SRC_FILES RELATIVE ${CMAKE_SOURCE_DIR}
 
 
 file(GLOB_RECURSE SRC_HEADERS RELATIVE ${CMAKE_SOURCE_DIR}
-        mkxpz_global.h
         binding.h
         config.h
         eventthread.h
-        gamestate.h
         settingsmenu.h
         sharedstate.h
 
@@ -303,7 +300,11 @@ file(GLOB_RECURSE SRC_HEADERS RELATIVE ${CMAKE_SOURCE_DIR}
 
 list(APPEND LOCAL_SOURCES ${SRC_FILES})
 list(APPEND LOCAL_INCLUDES ${SRC_HEADERS})
-set(EXE_SOURCES ${EXE_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp PARENT_SCOPE)
+set(EXE_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp PARENT_SCOPE)
+set(GEM_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/mkxpz_global.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/gamestate.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/gamestate.h PARENT_SCOPE)
 
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/mkxpz_global.h DESTINATION ${CMAKE_SOURCE_DIR}/ext/mkxp_z/include)
 

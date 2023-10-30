@@ -15,7 +15,7 @@ endif()
 
 set(BINDING_SOURCE
         binding-mri.cpp
-        mkxpz-binding.cpp
+        gem-binding.cpp
         binding-util.cpp
         table-binding.cpp
         etc-binding.cpp
@@ -50,7 +50,7 @@ if (STEAMWORKS)
     list(APPEND BINDING_SOURCE cusl-binding.cpp)
 endif()
 
-if (MINIFFI)
+if (USE_MINIFFI)
     list(APPEND BINDING_SOURCE
             miniffi-binding.cpp
             miniffi.cpp)
@@ -64,7 +64,7 @@ file(GLOB BINDING_INCLUDE_PATHS RELATIVE ${CMAKE_SOURCE_DIR}
 
 list(APPEND LOCAL_SOURCES ${BINDING_SOURCE_PATHS})
 list(APPEND LOCAL_INCLUDES ${BINDING_INCLUDE_PATHS})
-set(GEM_SOURCES ${GEM_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/mkxpz-binding.cpp PARENT_SCOPE)
+set(GEM_BINDING_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/gem-binding.h ${CMAKE_CURRENT_SOURCE_DIR}/gem-binding.cpp PARENT_SCOPE)
 
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/binding-mri.h DESTINATION ${CMAKE_SOURCE_DIR}/ext/mkxp_z/include)
 
