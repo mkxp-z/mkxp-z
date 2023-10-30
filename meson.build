@@ -1,4 +1,4 @@
-project('mkxp-z', 'c', 'cpp', version: '2.4.2', meson_version: '>=0.56.0', default_options: ['cpp_std=c++20', 'buildtype=release'])
+project('mkxp-z', 'c', 'cpp', version: '2.4.2', meson_version: '>=0.56.0', default_options: ['cpp_std=c++14', 'buildtype=release'])
 
 host_system = host_machine.system()
 
@@ -182,7 +182,7 @@ if steamworks == true
         install: (host_system != 'windows'))
 endif
 
-shared_library(exe_name,
+executable(exe_name,
     sources: global_sources,
     dependencies: global_dependencies,
     include_directories: global_include_dirs,
@@ -191,5 +191,6 @@ shared_library(exe_name,
     cpp_args: global_args,
     objc_args: global_args,
     objcpp_args: global_args,
+    win_subsystem: 'windows',
     install: (host_system != 'windows')
 )
