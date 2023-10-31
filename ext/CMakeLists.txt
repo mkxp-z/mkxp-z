@@ -1,1 +1,0 @@
-add_subdirectory(mkxp_z)
