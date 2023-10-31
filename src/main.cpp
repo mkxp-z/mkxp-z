@@ -38,6 +38,9 @@
 
 #ifdef MKXPZ_RUBY_GEM
 #include <thread>
+
+// We want the gem to always run from the current directory
+#define WORKDIR_CURRENT
 #endif
 
 #include "binding.h"
@@ -85,6 +88,10 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 #define GLINIT_SHOWERROR(s) rgssThreadError(threadData, s)
 #endif
 
+#ifdef MKXPZ_RUBY_GEM
+RGSSThreadData *externThreadData = nullptr;
+#endif
+
 static void rgssThreadError(RGSSThreadData *rtData, const std::string &msg);
 static void showInitError(const std::string &msg);
 
@@ -122,7 +129,7 @@ static SDL_GLContext initGL(SDL_Window *win, Config &conf,
                             RGSSThreadData *threadData);
 
 #ifdef MKXPZ_RUBY_GEM
-int startRgssThread(RGSSThreadData *threadData) {
+ALCcontext *startRgssThread(RGSSThreadData *threadData) {
 #else
 int rgssThreadFun(void *userdata) {
     RGSSThreadData *threadData = static_cast<RGSSThreadData *>(userdata);
@@ -159,6 +166,12 @@ int rgssThreadFun(void *userdata) {
     /* Start script execution */
     scriptBinding->execute();
 
+#ifdef MKXPZ_RUBY_GEM
+    return alcCtx;
+}
+
+int killRgssThread(RGSSThreadData *threadData, ALCcontext *alcCtx) {
+#endif
     threadData->rqTermAck.set();
     threadData->ethread->requestTerminate();
 
@@ -211,7 +224,7 @@ static void setupWindowIcon(const Config &conf, SDL_Window *win) {
 }
 
 #ifdef MKXPZ_RUBY_GEM
-int startGameWindow(int argc, char *argv[], bool showWindow = true) {
+int startGameWindow(int argc, char *argv[], bool showWindow) {
 #else
 int main(int argc, char *argv[]) {
 #endif
@@ -338,6 +351,10 @@ int main(int argc, char *argv[]) {
         winFlags |= SDL_WINDOW_RESIZABLE;
     if (conf.fullscreen)
         winFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+#ifdef MKXPZ_RUBY_GEM
+    if (!showWindow)
+        winFlags |= SDL_WINDOW_HIDDEN;
+#endif
 
 #ifdef GLES2_HEADER
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
@@ -455,6 +472,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef MKXPZ_RUBY_GEM
     /* Yield the thread so the interpreter thread can start the RGSS stuff */
+    externThreadData = &rtData;
     std::this_thread::yield();
 #else
     /* Start RGSS thread */
@@ -521,6 +539,9 @@ int main(int argc, char *argv[]) {
     IMG_Quit();
     SDL_Quit();
 
+#ifdef MKXPZ_RUBY_GEM
+    externThreadData = nullptr;
+#endif
     return 0;
 }
 

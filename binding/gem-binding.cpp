@@ -7,36 +7,27 @@
 
 #include <thread>
 #include <memory>
+#include <alc.h>
 
 #include "binding-util.h"
 #include "gem-binding.h"
 
-#include "gamestate.h"
 #include "sharedstate.h"
-#include "binding.h"
-#include "binding-mri.h"
 
-class RubyGemBinding : public ScriptBinding {
-public:
-    void execute() final;
-    void terminate() final;
-    void reset() final;
+extern RGSSThreadData *externThreadData;
+
+std::unique_ptr<std::jthread> eventThread;
+RbData rbData;
+ALCcontext *alcCtx = nullptr;
+
+int startGameWindow(int argc, char *argv[], bool showWindow = true);
+ALCcontext *startRgssThread(RGSSThreadData *threadData);
+int killRgssThread(RGSSThreadData *threadData, ALCcontext *alcCtx);
 
     template<class Function, class... Args >
     void startEventThread(Function&& f, Args&&... args);
 
     void stopEventThread();
-    void setRgssThread(std::unique_ptr<RGSSThread> &&rgssThread);
-
-    RbData &getRbData();
-
-    static RubyGemBinding instance;
-
-private:
-    std::unique_ptr<std::jthread> m_eventThread;
-    std::shared_ptr<RGSSThread> m_rgssThread;
-    RbData m_rbData;
-};
 
 static void runEventThread(std::string &&windowName, std::vector<std::string> &&args, bool windowVisible);
 
@@ -66,22 +57,19 @@ RB_METHOD(initGameState) {
     bool windowVisible;
     rb_bool_arg(visible, &windowVisible);
 
-    const auto &gs = GameState::getInstance();
-    RubyGemBinding::instance.startEventThread(&runEventThread, appName, argList, windowVisible);
-    while (!gs.rgssReady())
+    startEventThread(&runEventThread, appName, argList, windowVisible);
+    while (externThreadData == nullptr)
         std::this_thread::yield();
 
-    auto rgssThread = GameState::getInstance().createRGSSThread(RubyGemBinding::instance);
-    shState->setBindingData(&RubyGemBinding::instance.getRbData());
-    rgssThread->executeBindings();
-    RubyGemBinding::instance.setRgssThread(std::move(rgssThread));
+    alcCtx = startRgssThread(externThreadData);
 
     return Qnil;
 }
 
 void killGameState(VALUE arg) {
-    RubyGemBinding::instance.setRgssThread(nullptr);
-    RubyGemBinding::instance.stopEventThread();
+    if (externThreadData != nullptr && alcCtx != nullptr)
+        killRgssThread(externThreadData, alcCtx);
+    stopEventThread();
 }
 
 extern "C" {
@@ -99,37 +87,14 @@ static void runEventThread(std::string &&windowName, std::vector<std::string> &&
     for (auto &a : args) {
         argv.push_back(a.data());
     }
-    GameState::getInstance().initGameState(argv.size(), argv.data(), windowVisible);
+    startGameWindow(argv.size(), argv.data(), windowVisible);
 }
-
-
-RubyGemBinding RubyGemBinding::instance;
 
 template<class Function, class... Args >
-void RubyGemBinding::startEventThread(Function&& f, Args&&... args) {
-m_eventThread = std::make_unique<std::jthread>(f, args...);
+void startEventThread(Function&& f, Args&&... args) {
+    eventThread = std::make_unique<std::jthread>(f, args...);
 }
 
-void RubyGemBinding::stopEventThread()  {
-    m_eventThread->request_stop();
-}
-
-void RubyGemBinding::setRgssThread(std::unique_ptr<RGSSThread> &&rgssThread) {
-    m_rgssThread = std::move(rgssThread);
-}
-
-RbData &RubyGemBinding::getRbData() {
-    return m_rbData;
-}
-
-void RubyGemBinding::execute() {
-    mriBindingInit();
-}
-
-void RubyGemBinding::terminate() {
-
-}
-
-void RubyGemBinding::reset() {
-
+void stopEventThread()  {
+    eventThread->request_stop();
 }
