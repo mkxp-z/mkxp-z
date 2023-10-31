@@ -72,17 +72,19 @@ static const KbBindingData defaultKbBindings[] =
 	{ SDL_SCANCODE_UP,     Input::Up    },
 	{ SDL_SCANCODE_DOWN,   Input::Down  },
     
-	{ SDL_SCANCODE_SPACE,  Input::C     },
-	{ SDL_SCANCODE_RETURN, Input::C     },
-	{ SDL_SCANCODE_ESCAPE, Input::B     },
-	{ SDL_SCANCODE_KP_0,   Input::B     },
-	{ SDL_SCANCODE_LSHIFT, Input::A     },
-	{ SDL_SCANCODE_X,      Input::B     },
-	{ SDL_SCANCODE_D,      Input::Z     },
-	{ SDL_SCANCODE_Q,      Input::L     },
-	{ SDL_SCANCODE_W,      Input::R     },
-	{ SDL_SCANCODE_A,      Input::X     },
-	{ SDL_SCANCODE_S,      Input::Y     }
+	{ SDL_SCANCODE_SPACE,    Input::C   },
+	{ SDL_SCANCODE_RETURN,   Input::C   },
+	{ SDL_SCANCODE_ESCAPE,   Input::B   },
+	{ SDL_SCANCODE_KP_0,     Input::B   },
+	{ SDL_SCANCODE_LSHIFT,   Input::A   },
+	{ SDL_SCANCODE_X,        Input::B   },
+	{ SDL_SCANCODE_D,        Input::Z   },
+	{ SDL_SCANCODE_Q,        Input::L   },
+	{ SDL_SCANCODE_PAGEUP,   Input::L   },
+	{ SDL_SCANCODE_W,        Input::R   },
+	{ SDL_SCANCODE_PAGEDOWN, Input::R   },
+	{ SDL_SCANCODE_A,        Input::X   },
+	{ SDL_SCANCODE_S,        Input::Y   }
 };
 
 /* RGSS1 */
