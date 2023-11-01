@@ -17,7 +17,6 @@
 extern RGSSThreadData *externThreadData;
 
 std::unique_ptr<std::jthread> eventThread;
-RbData rbData;
 ALCcontext *alcCtx = nullptr;
 
 int startGameWindow(int argc, char *argv[], bool showWindow = true);
