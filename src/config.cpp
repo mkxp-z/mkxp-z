@@ -134,8 +134,7 @@ void Config::read(int argc, char *argv[]) {
         {"winResizable", true},
         {"fullscreen", false},
         {"fixedAspectRatio", true},
-        {"smoothScaling", false},
-        {"lanczos3Scaling", false},
+        {"smoothScaling", 0},
         {"enableHires", false},
         {"textureScalingFactor", 1.},
         {"framebufferScalingFactor", 1.},
@@ -263,8 +262,7 @@ try { exp } catch (...) {}
     SET_OPT(printFPS, boolean);
     SET_OPT(fullscreen, boolean);
     SET_OPT(fixedAspectRatio, boolean);
-    SET_OPT(smoothScaling, boolean);
-    SET_OPT(lanczos3Scaling, boolean);
+    SET_OPT(smoothScaling, integer);
     SET_OPT(enableHires, boolean);
     SET_OPT(textureScalingFactor, number);
     SET_OPT(framebufferScalingFactor, number);

@@ -11,6 +11,8 @@ option('use_miniffi', type: 'boolean', value: true, description: 'Enable MiniFFI
 option('enable-https', type: 'boolean', value: true, description: 'Support HTTPS for get/post requests. Requires OpenSSL.')
 option('workdir_current', type: 'boolean', value: false, description: 'Keep current directory on startup')
 
+option('windows_resource_directory', type: 'string', value: 'windows', description: 'Path to Windows EXE resource directory')
+
 option('static_executable', type: 'boolean', value: true, description: 'Build a static executable (Windows-only)')
 option('appimagekit_path', type: 'string', value: '', description: 'Path to AppImageTool, used for building AppImages')
 option('appimage', type: 'boolean', value: false, description: 'Whether to install to an AppImage or just copy everything')

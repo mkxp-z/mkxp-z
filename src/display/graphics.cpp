@@ -28,6 +28,7 @@
 #include "config.h"
 #include "debugwriter.h"
 #include "disposable.h"
+#include "etc.h"
 #include "etc-internal.h"
 #include "eventthread.h"
 #include "filesystem.h"
@@ -1020,13 +1021,13 @@ struct GraphicsPrivate {
                                       (scSize.y + scOffset.y),
                                       scSize.x,
                                       -scSize.y),
-                              threadData->config.smoothScaling);
+                              threadData->config.smoothScaling == Bilinear);
     }
     
     void metaBlitBufferFlippedScaled(const Vec2i &sourceSize, bool forceNearestNeighbor=false) {
         GLMeta::blitRectangle(IntRect(0, 0, sourceSize.x, sourceSize.y),
                               IntRect(scOffset.x, scSize.y+scOffset.y, scSize.x, -scSize.y),
-                              !forceNearestNeighbor && threadData->config.smoothScaling);
+                              !forceNearestNeighbor && threadData->config.smoothScaling == Bilinear);
     }
     
     void redrawScreen() {
@@ -1613,13 +1614,13 @@ void Graphics::setFixedAspectRatio(bool value)
     p->updateScreenResoRatio(p->threadData);
 }
 
-bool Graphics::getSmoothScaling() const
+int Graphics::getSmoothScaling() const
 {
     // Same deal as with fixed aspect ratio
     return shState->config().smoothScaling;
 }
 
-void Graphics::setSmoothScaling(bool value)
+void Graphics::setSmoothScaling(int value)
 {
     shState->config().smoothScaling = value;
 }
