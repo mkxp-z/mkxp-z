@@ -225,13 +225,13 @@ jobs:
       - name: Zip Folder
         run: |
           cd windows
-          rm -rf stdlib
           rm -f mkxp.json
           mv mkxp-z.exe Game.exe
-          zip -r ../mkxp-z.windows.zip *
+          zip -r ../mkxp-z.windows.zip Game.exe *.dll stdlib
           cd ../linux
           mv mkxp-z-x86_64.AppImage Game.AppImage
-          zip -r ../mkxp-z.linux.zip Game.AppImage
+          mv local/stdlib stdlib
+          zip -r ../mkxp-z.linux.zip Game.AppImage stdlib
           cd ..
           mv macos/Z-universal.app.zip mkxp-z.macos.zip
 
