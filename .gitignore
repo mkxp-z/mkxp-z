@@ -80,7 +80,7 @@ cmake-build-release/
 cmake/conan/
 cmake-build-debug/
 cmake-build-relwithdebinfo/
-/lib/mkxp_z/mkxp_z.so
+/lib/mkxp-z/mkxp_z.so
 ext/mkxp_z/bin
 ext/mkxp_z/include
 ext/mkxp_z/lib
