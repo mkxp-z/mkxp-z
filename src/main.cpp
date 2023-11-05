@@ -90,6 +90,7 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 
 #ifdef MKXPZ_RUBY_GEM
 RGSSThreadData *externThreadData = nullptr;
+std::mutex rgssThreadMutex;
 #endif
 
 static void rgssThreadError(RGSSThreadData *rtData, const std::string &msg);
@@ -130,6 +131,7 @@ static SDL_GLContext initGL(SDL_Window *win, Config &conf,
 
 #ifdef MKXPZ_RUBY_GEM
 ALCcontext *startRgssThread(RGSSThreadData *threadData) {
+    rgssThreadMutex.lock();
 #else
 int rgssThreadFun(void *userdata) {
     RGSSThreadData *threadData = static_cast<RGSSThreadData *>(userdata);
@@ -179,6 +181,9 @@ int killRgssThread(RGSSThreadData *threadData, ALCcontext *alcCtx) {
 
     alcDestroyContext(alcCtx);
 
+#ifdef MKXPZ_RUBY_GEM
+    rgssThreadMutex.unlock();
+#endif
     return 0;
 }
 
@@ -497,7 +502,9 @@ int main(int argc, char *argv[]) {
         SDL_Delay(10);
     }
 
-#ifndef MKXPZ_RUBY_GEM
+#ifdef MKXPZ_RUBY_GEM
+    rgssThreadMutex.lock();
+#else
     /* If RGSS thread ack'd request, wait for it to shutdown,
      * otherwise abandon hope and just end the process as is. */
     if (rtData.rqTermAck)
@@ -541,6 +548,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef MKXPZ_RUBY_GEM
     externThreadData = nullptr;
+    rgssThreadMutex.unlock();
 #endif
     return 0;
 }
