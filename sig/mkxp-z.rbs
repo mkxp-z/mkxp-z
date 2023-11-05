@@ -1,0 +1,3 @@
+module MKXP_Z
+  VERSION: String
+end
