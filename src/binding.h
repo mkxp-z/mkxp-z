@@ -24,23 +24,21 @@
 
 struct ScriptBinding
 {
-    virtual ~ScriptBinding() = default;
+    /* Starts the part where the binding takes over,
+     * loading the compressed scripts and executing them.
+     * This function returns as soon as the scripts finish
+     * execution or an error is encountered */
+    void (*execute) (void);
 
-	/* Starts the part where the binding takes over,
-	 * loading the compressed scripts and executing them.
-	 * This function returns as soon as the scripts finish
-	 * execution or an error is encountered */
-	virtual void execute() = 0;
+    /* Instructs the binding
+     * to immediately terminate script execution. This
+     * function will perform a longjmp instead of returning,
+     * so be careful about any variables with local storage */
+    void (*terminate) (void);
 
-	/* Instructs the binding
-	 * to immediately terminate script execution. This
-	 * function will perform a longjmp instead of returning,
-	 * so be careful about any variables with local storage */
-	virtual void terminate() = 0;
-
-	/* Instructs the binding to issue a game reset.
-	 * Same conditions as for terminate apply */
-	virtual void reset() = 0;
+    /* Instructs the binding to issue a game reset.
+     * Same conditions as for terminate apply */
+    void (*reset) (void);
 };
 
 /* VTable defined in the binding source */

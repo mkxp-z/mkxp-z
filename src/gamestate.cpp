@@ -294,7 +294,7 @@ void GameState::initGameState(int argc, char *argv[], bool showWindow) {
     if (conf->fullscreen)
       winFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 
-    if (!argv)
+    if (!showWindow)
         winFlags |= SDL_WINDOW_HIDDEN;
 
 

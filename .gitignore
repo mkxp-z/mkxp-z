@@ -8,6 +8,8 @@
 mkxp
 xxd+
 
+/res
+
 /build
 /builddir
 
@@ -78,8 +80,10 @@ cmake-build-release/
 cmake/conan/
 cmake-build-debug/
 cmake-build-relwithdebinfo/
-/lib/mkxp_z/mkxp_z.so
+/lib/mkxp-z/mkxp_z.so
 ext/mkxp_z/bin
 ext/mkxp_z/include
 ext/mkxp_z/lib
 /mkxp_z-0.1.0.gem
+/mkxp-z-2.4.2.gem
+/lib/mkxp-z/mkxpz.so

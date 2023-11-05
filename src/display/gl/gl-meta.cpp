@@ -25,6 +25,7 @@
 #include "glstate.h"
 #include "quad.h"
 #include "config.h"
+#include "etc.h"
 
 namespace FBO
 {
@@ -151,7 +152,9 @@ static void _blitBegin(FBO::ID fbo, const Vec2i &size)
 		FBO::bind(fbo);
 		glState.viewport.pushSet(IntRect(0, 0, size.x, size.y));
 
-		if (shState->config().lanczos3Scaling)
+		switch (shState->config().smoothScaling)
+		{
+		case Lanczos3:
 		{
 			Lanczos3Shader &shader = shState->shaders().lanczos3;
 			shader.bind();
@@ -159,13 +162,16 @@ static void _blitBegin(FBO::ID fbo, const Vec2i &size)
 			shader.setTranslation(Vec2i());
 			shader.setTexSize(Vec2i(size.x, size.y));
 		}
-		else
+
+			break;
+		default:
 		{
 			SimpleShader &shader = shState->shaders().simple;
 			shader.bind();
 			shader.applyViewportProj();
 			shader.setTranslation(Vec2i());
 			shader.setTexSize(Vec2i(size.x, size.y));
+		}
 		}
 	}
 }
@@ -226,17 +232,22 @@ void blitSource(TEXFBO &source)
 	}
 	else
 	{
-		if (shState->config().lanczos3Scaling)
+		switch (shState->config().smoothScaling)
+		{
+		case Lanczos3:
 		{
 			Lanczos3Shader &shader = shState->shaders().lanczos3;
 			shader.bind();
 			shader.setTexSize(Vec2i(blitSrcWidthHires, blitSrcHeightHires));
 		}
-		else
+
+			break;
+		default:
 		{
 			SimpleShader &shader = shState->shaders().simple;
 			shader.bind();
 			shader.setTexSize(Vec2i(blitSrcWidthHires, blitSrcHeightHires));
+		}
 		}
 		if (source.selfHires != nullptr) {
 			TEX::bind(source.selfHires->tex);

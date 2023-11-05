@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "mkxp_z/version"
+require_relative "mkxp-z/version"
 
 $mkxpz_launch_args ||= []
 
@@ -9,4 +9,4 @@ module MKXP_Z
 
 end
 
-require_relative "mkxp_z/mkxp_z"
+require_relative "mkxp-z/mkxpz"

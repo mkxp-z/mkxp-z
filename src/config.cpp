@@ -106,7 +106,7 @@ json::value readConfFile(const char *path) {
     
     try {
         std::string cfg = mkxp_fs::contentsOfFileAsString(path);
-        ret = json::parse5(cfg);
+        ret = json::parse5(Encoding::convertString(cfg));
     }
     catch (const std::exception &e) {
         Debug() << "Failed to parse" << path << ":" << e.what();
@@ -114,10 +114,10 @@ json::value readConfFile(const char *path) {
     catch (const Exception &e) {
         Debug() << "Failed to parse" << path << ":" << "Unknown encoding";
     }
-    
+
     if (!ret.is_object())
         ret = json::object({});
-    
+
     return ret;
 }
 
@@ -134,8 +134,7 @@ void Config::read(int argc, char *argv[]) {
         {"winResizable", true},
         {"fullscreen", false},
         {"fixedAspectRatio", true},
-        {"smoothScaling", false},
-        {"lanczos3Scaling", false},
+        {"smoothScaling", 0},
         {"enableHires", false},
         {"textureScalingFactor", 1.},
         {"framebufferScalingFactor", 1.},
@@ -199,35 +198,35 @@ void Config::read(int argc, char *argv[]) {
             {"r", "R"}
         })}
     });
-    
+
     auto &opts = optsJ.as_object();
-    
+
 #define GUARD(exp) \
 try { exp } catch (...) {}
-    
+
     editor.debug = false;
     editor.battleTest = false;
-    
+
     if (argc > 1) {
         if (!strcmp(argv[1], "debug") || !strcmp(argv[1], "test"))
             editor.debug = true;
         else if (!strcmp(argv[1], "btest"))
             editor.battleTest = true;
-        
+
         for (int i = 1; i < argc; i++) {
             if (strcmp(argv[i], "debug"))
                 launchArgs.push_back(argv[i]);
         }
     }
-    
+
     json::value baseConf = readConfFile(CONF_FILE);
     copyObject(optsJ, baseConf);
     copyObject(opts["bindingNames"], baseConf.as_object()["bindingNames"], "bindingNames .");
-    
+
 #define SET_OPT_CUSTOMKEY(var, key, type) GUARD(var = opts[#key].as_##type();)
 #define SET_OPT(var, type) SET_OPT_CUSTOMKEY(var, var, type)
 #define SET_STRINGOPT(var, key) GUARD(var = std::string(opts[#key].as_string());)
-    
+
     SET_STRINGOPT(gameFolder, gameFolder);
     SET_STRINGOPT(dataPathOrg, dataPathOrg);
     SET_STRINGOPT(dataPathApp, dataPathApp);
@@ -243,28 +242,27 @@ try { exp } catch (...) {}
     SET_OPT(rgssVersion, integer);
     SET_OPT(defScreenW, integer);
     SET_OPT(defScreenH, integer);
-    
+
     // Take a break real quick and witch to set game folder and read the game's ini
     if (!gameFolder.empty() && !mkxp_fs::setCurrentDirectory(gameFolder.c_str())) {
         throw Exception(Exception::MKXPError, "Unable to switch into gameFolder %s", gameFolder.c_str());
     }
-    
+
     readGameINI();
-    
+
     // Now check for an extra mkxp.conf in the user's save directory and merge anything else from that
     userConfPath = mkxp_fs::normalizePath(std::string(customDataPath + "/" CONF_FILE).c_str(), 0, 1);
     json::value userConf = readConfFile(userConfPath.c_str());
     copyObject(optsJ, userConf);
-    
+
     // now RESUME
-    
+
     SET_OPT(debugMode, boolean);
     SET_OPT(displayFPS, boolean);
     SET_OPT(printFPS, boolean);
     SET_OPT(fullscreen, boolean);
     SET_OPT(fixedAspectRatio, boolean);
-    SET_OPT(smoothScaling, boolean);
-    SET_OPT(lanczos3Scaling, boolean);
+    SET_OPT(smoothScaling, integer);
     SET_OPT(enableHires, boolean);
     SET_OPT(textureScalingFactor, number);
     SET_OPT(framebufferScalingFactor, number);
@@ -297,7 +295,7 @@ try { exp } catch (...) {}
     SET_OPT_CUSTOMKEY(BGM.trackCount, BGMTrackCount, integer);
     SET_STRINGOPT(customScript, customScript);
     SET_OPT(useScriptNames, boolean);
-    
+
     fillStringVec(opts["preloadScript"], preloadScripts);
     fillStringVec(opts["RTP"], rtps);
     fillStringVec(opts["fontSub"], fontSubs);
@@ -305,9 +303,9 @@ try { exp } catch (...) {}
         std::transform(fontSub.begin(), fontSub.end(), fontSub.begin(),
             [](unsigned char c) { return std::tolower(c); });
     fillStringVec(opts["rubyLoadpath"], rubyLoadpaths);
-    
+
     auto &bnames = opts["bindingNames"].as_object();
-    
+
 #define BINDING_NAME(btn) kbActionNames.btn = bnames[#btn].as_string()
     BINDING_NAME(a);
     BINDING_NAME(b);
@@ -317,33 +315,33 @@ try { exp } catch (...) {}
     BINDING_NAME(z);
     BINDING_NAME(l);
     BINDING_NAME(r);
-    
+
     rgssVersion = clamp(rgssVersion, 0, 3);
     SE.sourceCount = clamp(SE.sourceCount, 1, 64);
     BGM.trackCount = clamp(BGM.trackCount, 1, 16);
-    
+
     // Determine whether to open a console window on... Windows
     winConsole = getEnvironmentBool("MKXPZ_WINDOWS_CONSOLE", editor.debug);
-    
+
 #ifdef __APPLE__
     // Determine whether to use the Metal renderer on macOS
     // Environment variable takes priority over the json setting
     preferMetalRenderer = isMetalSupported() && getEnvironmentBool("MKXPZ_MACOS_METAL", preferMetalRenderer);
 #endif
-    
+
     // Determine whether to allow manual selection of a game folder on startup
     // Only works on macOS atm, mainly used to test games located outside of the bundle.
     // The config is re-read after the window is already created, so some entries
     // may not take effect
     manualFolderSelect = getEnvironmentBool("MKXPZ_FOLDER_SELECT", false);
-    
+
     raw = optsJ;
 }
 
 static void setupScreenSize(Config &conf) {
     if (conf.defScreenW <= 0)
         conf.defScreenW = (conf.rgssVersion == 1 ? 640 : 544);
-    
+
     if (conf.defScreenH <= 0)
         conf.defScreenH = (conf.rgssVersion == 1 ? 480 : 416);
 }
@@ -351,25 +349,25 @@ static void setupScreenSize(Config &conf) {
 bool Config::fontIsSolid(const char *fontName) const {
     for (std::string solidfont : solidFonts)
         if (!strcmp(solidfont.c_str(), fontName)) return true;
-    
+
     return false;
 }
 
 void Config::readGameINI() {
     if (!customScript.empty()) {
         game.title = customScript.c_str();
-        
+
         if (rgssVersion == 0)
             rgssVersion = 1;
-        
+
         setupScreenSize(*this);
-        
+
         return;
     }
-    
+
     std::string iniFileName(execName + ".ini");
     SDLRWStream iniFile(iniFileName.c_str(), "r");
-    
+
     bool convSuccess = false;
     if (iniFile)
     {
@@ -378,20 +376,20 @@ void Config::readGameINI() {
         {
             GUARD(game.title = ic.getStringProperty("Game", "Title"););
             GUARD(game.scripts = ic.getStringProperty("Game", "Scripts"););
-            
+
             strReplace(game.scripts, '\\', '/');
-            
+
             if (game.title.empty()) {
                 Debug() << iniFileName + ": Could not find Game.Title";
             }
-            
+
             if (game.scripts.empty())
                 Debug() << iniFileName + ": Could not find Game.Scripts";
         }
     }
     else
         Debug() << "Could not read" << iniFileName;
-    
+
     try {
         game.title = Encoding::convertString(game.title);
         convSuccess = true;
@@ -399,36 +397,36 @@ void Config::readGameINI() {
     catch (const Exception &e) {
         Debug() << iniFileName + ": Could not determine encoding of Game.Title";
     }
-    
+
     if (game.title.empty() || !convSuccess)
         game.title = "mkxp-z";
-    
+
     if (dataPathOrg.empty())
         dataPathOrg = ".";
-    
+
     if (dataPathApp.empty())
         dataPathApp = game.title;
-    
+
     customDataPath = mkxp_fs::normalizePath(prefPath(dataPathOrg.c_str(), dataPathApp.c_str()).c_str(), 0, 1);
-    
+
     if (rgssVersion == 0) {
         /* Try to guess RGSS version based on Data/Scripts extension */
         rgssVersion = 1;
-        
+
         if (!game.scripts.empty()) {
             const char *p = &game.scripts[game.scripts.size()];
             const char *head = &game.scripts[0];
-            
+
             while (--p != head)
                 if (*p == '.')
                     break;
-            
+
             if (!strcmp(p, ".rvdata"))
                 rgssVersion = 2;
             else if (!strcmp(p, ".rvdata2"))
                 rgssVersion = 3;
         }
     }
-    
+
     setupScreenSize(*this);
 }

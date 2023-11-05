@@ -43,8 +43,7 @@ struct Config {
     bool winResizable;
     bool fullscreen;
     bool fixedAspectRatio;
-    bool smoothScaling;
-    bool lanczos3Scaling;
+    int smoothScaling;
     bool enableHires;
     double textureScalingFactor;
     double framebufferScalingFactor;

@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require_relative "lib/mkxp_z/version"
+require_relative "lib/mkxp-z/version"
 
 Gem::Specification.new do |spec|
-  spec.name = "mkxp_z"
+  spec.name = "mkxp-z"
   spec.version = MkxpZ::VERSION
   spec.authors = ["Francesco Corso"]
   spec.email = ["fcorso2016@gmail.com"]
@@ -19,13 +19,9 @@ Gem::Specification.new do |spec|
 
   # Specify which files should be added to the gem when it is released.
   # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
-  spec.files = Dir["{bin,lib,ext,sig}/**/*",
+  spec.files = Dir["{bin,lib,sig}/**/*",
                    "LICENSE.txt",
                    "Rakefile"]
-
-  spec.extensions << "ext/mkxp_z/extconf.rb"
-
-  spec.add_development_dependency "rake-compiler"
 
   # Uncomment to register a new dependency of your gem
   # spec.add_dependency "example-gem", "~> 1.0"

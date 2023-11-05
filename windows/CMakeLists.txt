@@ -1,3 +1,0 @@
-list(APPEND LOCAL_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/resource.h)
-set(WINDOWS_RESOURCES ${CMAKE_CURRENT_SOURCE_DIR}/resource.rc PARENT_SCOPE)
-propagate_locals_to_global()

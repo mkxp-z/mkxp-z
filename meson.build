@@ -30,6 +30,10 @@ global_args += '-DMKXPZ_BUILD_MESON'
 global_args += '-DMKXPZ_VERSION="@0@"'.format(meson.project_version())
 global_args += '-DMKXPZ_GIT_HASH="@0@"'.format(git_hash)
 global_args += '-DHAVE_NANOSLEEP'
+
+if get_option('build_gem')
+    global_args += '-DMKXPZ_RUBY_GEM'
+endif
 # ====================
 # Ext libs
 # ====================
@@ -128,6 +132,7 @@ global_include_dirs += include_directories('src', 'binding')
 rpath = ''
 
 if host_system == 'windows'
+    windows_resource_directory = '../' + get_option('windows_resource_directory')
     subdir('windows')
     global_sources += windows_resources
     global_include_dirs += include_directories('windows')
@@ -186,7 +191,7 @@ if steamworks == true
 endif
 
 if (get_option('build_gem') == true)
-    shared_library(exe_name,
+    shared_library(exe_name.replace('-', ''),
             sources: global_sources,
             dependencies: global_dependencies,
             include_directories: global_include_dirs,
@@ -195,7 +200,10 @@ if (get_option('build_gem') == true)
             cpp_args: global_args,
             objc_args: global_args,
             objcpp_args: global_args,
-            install: (host_system != 'windows')
+            install: true,
+            install_dir: meson.source_root() + '/lib/mkxp-z',
+            name_prefix: '',
+            name_suffix: 'so'
         )
 else
     executable(exe_name,

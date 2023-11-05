@@ -36,6 +36,13 @@
 #include <unistd.h>
 #include <regex>
 
+#ifdef MKXPZ_RUBY_GEM
+#include <thread>
+
+// We want the gem to always run from the current directory
+#define WORKDIR_CURRENT
+#endif
+
 #include "binding.h"
 #include "sharedstate.h"
 #include "eventthread.h"
@@ -81,6 +88,10 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 #define GLINIT_SHOWERROR(s) rgssThreadError(threadData, s)
 #endif
 
+#ifdef MKXPZ_RUBY_GEM
+RGSSThreadData *externThreadData = nullptr;
+#endif
+
 static void rgssThreadError(RGSSThreadData *rtData, const std::string &msg);
 static void showInitError(const std::string &msg);
 
@@ -117,8 +128,12 @@ static void printGLInfo() {
 static SDL_GLContext initGL(SDL_Window *win, Config &conf,
                             RGSSThreadData *threadData);
 
+#ifdef MKXPZ_RUBY_GEM
+ALCcontext *startRgssThread(RGSSThreadData *threadData) {
+#else
 int rgssThreadFun(void *userdata) {
     RGSSThreadData *threadData = static_cast<RGSSThreadData *>(userdata);
+#endif
 
 #ifdef MKXPZ_INIT_GL_LATER
     threadData->glContext =
@@ -151,6 +166,12 @@ int rgssThreadFun(void *userdata) {
     /* Start script execution */
     scriptBinding->execute();
 
+#ifdef MKXPZ_RUBY_GEM
+    return alcCtx;
+}
+
+int killRgssThread(RGSSThreadData *threadData, ALCcontext *alcCtx) {
+#endif
     threadData->rqTermAck.set();
     threadData->ethread->requestTerminate();
 
@@ -202,7 +223,11 @@ static void setupWindowIcon(const Config &conf, SDL_Window *win) {
     }
 }
 
+#ifdef MKXPZ_RUBY_GEM
+int startGameWindow(int argc, char *argv[], bool showWindow) {
+#else
 int main(int argc, char *argv[]) {
+#endif
     SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
     SDL_SetHint(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, "0");
 
@@ -326,6 +351,10 @@ int main(int argc, char *argv[]) {
         winFlags |= SDL_WINDOW_RESIZABLE;
     if (conf.fullscreen)
         winFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+#ifdef MKXPZ_RUBY_GEM
+    if (!showWindow)
+        winFlags |= SDL_WINDOW_HIDDEN;
+#endif
 
 #ifdef GLES2_HEADER
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
@@ -441,8 +470,14 @@ int main(int argc, char *argv[]) {
     initTouchBar(win, conf);
 #endif
 
+#ifdef MKXPZ_RUBY_GEM
+    /* Yield the thread so the interpreter thread can start the RGSS stuff */
+    externThreadData = &rtData;
+    std::this_thread::yield();
+#else
     /* Start RGSS thread */
     SDL_Thread *rgssThread = SDL_CreateThread(rgssThreadFun, "rgss", &rtData);
+#endif
 
     /* Start event processing */
     eventThread.process(rtData);
@@ -462,6 +497,7 @@ int main(int argc, char *argv[]) {
         SDL_Delay(10);
     }
 
+#ifndef MKXPZ_RUBY_GEM
     /* If RGSS thread ack'd request, wait for it to shutdown,
      * otherwise abandon hope and just end the process as is. */
     if (rtData.rqTermAck)
@@ -471,6 +507,7 @@ int main(int argc, char *argv[]) {
                 SDL_MESSAGEBOX_ERROR, conf.game.title.c_str(),
                 std::string("The RGSS script seems to be stuck. "+conf.game.title+" will now force quit.").c_str(),
                 win);
+#endif
 
     if (!rtData.rgssErrorMsg.empty()) {
         Debug() << rtData.rgssErrorMsg;
@@ -502,6 +539,9 @@ int main(int argc, char *argv[]) {
     IMG_Quit();
     SDL_Quit();
 
+#ifdef MKXPZ_RUBY_GEM
+    externThreadData = nullptr;
+#endif
     return 0;
 }
 

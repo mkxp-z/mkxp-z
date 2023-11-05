@@ -115,6 +115,7 @@ if get_option('cjk_fallback_font') == true
 endif
 
 main_source = files(
+    'main.cpp',
     'config.cpp',
     'eventthread.cpp',
     'settingsmenu.cpp',
@@ -177,11 +178,5 @@ main_source = files(
 
     'system/systemImpl.cpp'
 )
-
-if (get_option('build_gem') == true)
-    main_source += files('gamestate.cpp')
-else
-    main_source += files('main.cpp')
-endif
 
 global_sources += main_source

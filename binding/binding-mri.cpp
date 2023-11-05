@@ -19,6 +19,11 @@
  ** along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef MKXPZ_RUBY_GEM
+// We want the gem to always run from the current directory
+#define WORKDIR_CURRENT
+#endif
+
 #include "audio/audio.h"
 #include "filesystem/filesystem.h"
 #include "display/graphics.h"
@@ -67,15 +72,12 @@ extern const char module_rpg1[];
 extern const char module_rpg2[];
 extern const char module_rpg3[];
 
-struct MriScriptBinding : public ScriptBinding {
-    void execute() final;
+static void mriBindingExecute();
+static void mriBindingTerminate();
+static void mriBindingReset();
 
-    void terminate() final;
-
-    void reset() final;
-};
-
-MriScriptBinding scriptBindingImpl;
+ScriptBinding scriptBindingImpl = {mriBindingExecute, mriBindingTerminate,
+                                   mriBindingReset};
 
 ScriptBinding *scriptBinding = &scriptBindingImpl;
 
@@ -197,8 +199,10 @@ void mriBindingInit() {
 
         rb_define_global_const("RGSS_VERSION", rb_utf8_str_new_cstr("3.0.1"));
     } else {
+#ifndef MKXPZ_RUBY_GEM
         _rb_define_module_function(rb_mKernel, "print", mriPrint);
         _rb_define_module_function(rb_mKernel, "p", mriP);
+#endif
 
         rb_define_alias(rb_singleton_class(rb_mKernel), "_mkxp_kernel_caller_alias",
                         "caller");
@@ -1105,7 +1109,9 @@ static void showExc(VALUE exc, const BacktraceData &btData) {
     showMsg(ms);
 }
 
-void MriScriptBinding::execute() {
+static void mriBindingExecute() {
+    // We don't need to start a Ruby interpreter when running as a gem
+#ifndef MKXPZ_RUBY_GEM
     Config &conf = shState->rtData().config;
 
 #if RAPI_MAJOR >= 2
@@ -1216,6 +1222,7 @@ void MriScriptBinding::execute() {
         rb_ary_push(lpaths, rb_utf8_str_new_cstr(mkxp_fs::getCurrentDirectory().c_str()));
     }
 #endif
+#endif
 
     RbData rbData;
     shState->setBindingData(&rbData);
@@ -1223,6 +1230,7 @@ void MriScriptBinding::execute() {
 
     mriBindingInit();
 
+#ifndef MKXPZ_RUBY_GEM
     std::string &customScript = conf.customScript;
     if (!customScript.empty())
         runCustomScript(customScript);
@@ -1240,8 +1248,9 @@ void MriScriptBinding::execute() {
     ruby_cleanup(0);
 
     shState->rtData().rqTermAck.set();
+#endif
 }
 
-void MriScriptBinding::terminate() { rb_raise(rb_eSystemExit, " "); }
+static void mriBindingTerminate() { rb_raise(rb_eSystemExit, " "); }
 
-void MriScriptBinding::reset() { rb_raise(getRbData()->exc[Reset], " "); }
+static void mriBindingReset() { rb_raise(getRbData()->exc[Reset], " "); }
