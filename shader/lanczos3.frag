@@ -1,10 +1,10 @@
 // From https://raw.githubusercontent.com/Sentmoraap/doing-sdl-right/93a52a0db0ff2da5066cce12f5b9a2ac62e6f401/assets/lanczos3.frag
 // Copyright 2020 Lilian Gimenez (Sentmoraap).
+// mkxp-z modifications Copyright 2022-2023 Splendide Imaginarius.
 // MIT license.
 
 uniform sampler2D texture;
 uniform vec2 sourceSize;
-uniform vec2 texSizeInv;
 varying vec2 v_texCoord;
 
 float lanczos3(float x)
@@ -18,8 +18,8 @@ void main()
 {
 	vec2 pixel = v_texCoord * sourceSize + 0.5;
 	vec2 frac = fract(pixel);
-	vec2 onePixel = texSizeInv;
-	pixel = floor(pixel) * texSizeInv - onePixel / 2.0;
+	vec2 onePixel = 1.0 / sourceSize;
+	pixel = floor(pixel) * onePixel - onePixel / 2.0;
 
 	float lanczosX[6];
 	float sum = 0.0;
