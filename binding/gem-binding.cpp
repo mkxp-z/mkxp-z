@@ -22,12 +22,8 @@ int startGameWindow(int argc, char *argv[], bool showWindow = true);
 ALCcontext *startRgssThread(RGSSThreadData *threadData);
 int killRgssThread(RGSSThreadData *threadData, ALCcontext *alcCtx);
 
-    template<class Function, class... Args >
-    void startEventThread(Function&& f, Args&&... args);
-
-    void stopEventThread();
-
-static void runEventThread(std::string &&windowName, std::vector<std::string> &&args, bool windowVisible);
+void stopEventThread();
+static void runEventThread(std::string windowName, std::vector<std::string> args, bool windowVisible);
 
 RB_METHOD(initGameState) {
     RB_UNUSED_PARAM
@@ -55,7 +51,7 @@ RB_METHOD(initGameState) {
     bool windowVisible;
     rb_bool_arg(visible, &windowVisible);
 
-    startEventThread(&runEventThread, appName, argList, windowVisible);
+    eventThread = std::make_unique<std::jthread>(&runEventThread, appName, argList, windowVisible);
     while (externThreadData == nullptr)
         std::this_thread::yield();
 
@@ -79,18 +75,13 @@ __declspec(dllexport) void Init_mkxpz() {
 }
 }
 
-static void runEventThread(std::string &&windowName, std::vector<std::string> &&args, bool windowVisible) {
+static void runEventThread(std::string windowName, std::vector<std::string> args, bool windowVisible) {
     std::vector<char *> argv;
     argv.push_back(windowName.data());
     for (auto &a : args) {
         argv.push_back(a.data());
     }
     startGameWindow(argv.size(), argv.data(), windowVisible);
-}
-
-template<class Function, class... Args >
-void startEventThread(Function&& f, Args&&... args) {
-    eventThread = std::make_unique<std::jthread>(f, args...);
 }
 
 void stopEventThread()  {
