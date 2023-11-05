@@ -200,7 +200,9 @@ if (get_option('build_gem') == true)
             cpp_args: global_args,
             objc_args: global_args,
             objcpp_args: global_args,
-            install: (host_system != 'windows')
+            install: (host_system != 'windows',
+            name_prefix: ''
+            name_suffix: '.so')
         )
 else
     executable(exe_name,
