@@ -191,7 +191,7 @@ if steamworks == true
 endif
 
 if (get_option('build_gem') == true)
-    shared_library(exe_name,
+    shared_library(exe_name.replace('-', ''),
             sources: global_sources,
             dependencies: global_dependencies,
             include_directories: global_include_dirs,
@@ -201,9 +201,9 @@ if (get_option('build_gem') == true)
             objc_args: global_args,
             objcpp_args: global_args,
             install: true,
-            install_dir: './lib/mkxp-z',
+            install_dir: meson.source_root() + '/lib/mkxp-z',
             name_prefix: '',
-            name_suffix: '.so'
+            name_suffix: 'so'
         )
 else
     executable(exe_name,

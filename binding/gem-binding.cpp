@@ -71,7 +71,7 @@ void killGameState(VALUE arg) {
 }
 
 extern "C" {
-RUBY_FUNC_EXPORTED void Init_mkxp_z() {
+__declspec(dllexport) void Init_mkxpz() {
     auto mkxpzModule = rb_define_module("MKXP_Z");
     _rb_define_module_function(mkxpzModule, "init_game_state", initGameState);
 
