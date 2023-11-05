@@ -32,3 +32,23 @@ strip mkxp-z.exe
 # Feast your eyes upon your work
 start .
 ```
+
+```shell
+# Export the variables necessary to find the stuff we built
+source vars.sh
+
+# Configure the build
+cd ..; meson build -Dbuild_gem=true
+
+# Build the thing
+cd build && ninja
+
+# Strip it to save space
+strip mkxpz.so
+
+# Cory over to the lib folder
+cp $PWD/mkxpz.so $PWD/lib/mkxp-z
+
+# Feast your eyes upon your work
+start .
+```
