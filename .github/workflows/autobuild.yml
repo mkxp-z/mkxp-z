@@ -60,8 +60,6 @@ jobs:
 
       - name: Install sonar-scanner and build-wrapper
         uses: SonarSource/sonarcloud-github-c-cpp@v2
-        with:
-          shell: msys2 {0}
 
 
       - name: Run sonar-scanner
@@ -70,6 +68,7 @@ jobs:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_EXE_WINDOWS }}
         run: |
+          export PATH = '/d/a/mkxp-z/mkxp-z/.sonar/sonar-scanner-5.0.1.3006-windows/bin:$PATH'
           sonar-scanner --define sonar.cfamily.compile-commands=build/compile_commands.json --define sonar.projectKey=fcorso2016_mkxp-z_exe_windows  
 
       - name: Prepare archive
