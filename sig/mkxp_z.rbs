@@ -1,6 +1,0 @@
-module MKXP_Z
-  VERSION: String
-  @@launch_args: Array[String]
-  def get_lauch_args: -> Array[String]
-  def set_launch_args: (*String) -> void
-end
