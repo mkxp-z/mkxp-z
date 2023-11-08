@@ -68,7 +68,7 @@ jobs:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_EXE_WINDOWS }}
         run: |
-          sonar-scanner --define sonar.cfamily.compile-commands=build/compile_commands.json --define sonar.projectKey=fcorso2016_mkxp-z_exe_windows  
+          sonar-scanner --define sonar.cfamily.compile-commands=build/compile_commands.json --define sonar.projectKey=fcorso2016_mkxp-z_gem_windows  
 
       - name: Prepare archive
         shell: msys2 {0}
@@ -137,13 +137,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_EXE_LINUX }}
         run: |
-          sonar-scanner --define sonar.cfamily.compile-commands=build/compile_commands.json --define sonar.projectKey=fcorso2016_mkxp-z_exe_linux
+          sonar-scanner --define sonar.cfamily.compile-commands=build/compile_commands.json --define sonar.projectKey=fcorso2016_mkxp-z_gem_linux
 
       - name: Prepare archive
         run: |
           cd build/local
-          cp -r ../../linux/build-x86_64/lib/ruby/3.1.0 .
-          mv ./3.1.0 ./stdlib
+          cp ../../mkxp-z-*.gem .
           cp ../../mkxp.json .
           cp -r ../../scripts .
           cd ..
