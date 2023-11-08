@@ -21,7 +21,6 @@ jobs:
 
       - uses: msys2/setup-msys2@v2
         with:
-          path-type: inherit
           msystem: mingw64
           install: >-
             base-devel
@@ -64,13 +63,10 @@ jobs:
 
 
       - name: Run sonar-scanner
-        shell: msys2 {0}
         env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_EXE_WINDOWS }}
         run: |
-          where cc
-          where c++
           sonar-scanner --define sonar.cfamily.compile-commands=build/compile_commands.json --define sonar.projectKey=fcorso2016_mkxp-z_exe_windows  
 
       - name: Prepare archive
