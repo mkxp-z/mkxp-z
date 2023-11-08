@@ -131,6 +131,16 @@ jobs:
           ninja
           ninja install
 
+      - name: Install sonar-scanner and build-wrapper
+        uses: SonarSource/sonarcloud-github-c-cpp@v2
+
+      - name: Run sonar-scanner
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_EXE_LINUX }}
+        run: |
+          sonar-scanner --define sonar.cfamily.compile-commands=build/compile_commands.json --define sonar.projectKey=fcorso2016_mkxp-z_exe_linux
+
       - name: Prepare archive
         run: |
           cd build/local
