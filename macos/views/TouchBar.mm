@@ -116,7 +116,7 @@ MKXPZTouchBar *_sharedTouchBar;
 
 -(void)updateFPSDisplay:(uint32_t)value {
     if (fpsLabel) {
-        int targetFrameRate = GRAPHICS.getFrameRate();
+        int targetFrameRate = shState->graphics().getFrameRate();
         dispatch_async(dispatch_get_main_queue(), ^{
             self->fpsLabel.stringValue = [NSString stringWithFormat:@"%@\n%i FPS (%i%%)", self.gameTitle, value, (int)((float)value / (float)targetFrameRate * 100)];
         });
@@ -133,7 +133,7 @@ MKXPZTouchBar *_sharedTouchBar;
 
 -(void)simulateKeypress:(SDL_Scancode)scancode {
     [self simulateKeyDown:scancode];
-    double afr = GRAPHICS.averageFrameRate();
+    double afr = shState->graphics().averageFrameRate();
     afr = (afr >= 1) ? afr : 1;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 1000000 * afr), dispatch_get_main_queue(), ^{
         [self simulateKeyUp:scancode];
