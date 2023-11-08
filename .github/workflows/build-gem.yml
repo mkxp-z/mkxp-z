@@ -117,6 +117,7 @@ jobs:
       - name: Build everything else
         run: |
           cd linux
+          export CFLAGS="${CFLAGS} -fPIC"
           make
 
       - name: Build Ruby gem
