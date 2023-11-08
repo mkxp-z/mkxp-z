@@ -191,6 +191,10 @@ if steamworks == true
 endif
 
 if (get_option('build_gem') == true)
+    if host_system != 'windows'
+        global_args += '-fPIC'
+    endif
+
     shared_library(exe_name.replace('-', ''),
             sources: global_sources,
             dependencies: global_dependencies,
