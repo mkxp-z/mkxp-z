@@ -157,6 +157,8 @@ jobs:
   build-macos:
     name: macOS
     runs-on: macos-latest
+    env:
+      BUILD_WRAPPER_OUT_DIR: bw_output
     steps:
       - uses: benjlevesque/short-sha@v2.2
         id: short-sha
