@@ -203,7 +203,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          sonar-scanner --define sonar.cfamily.build-wrapper-output="${{ env.BUILD_WRAPPER_OUT_DIR }}" --define sonar.projectKey=fcorso2016_mkxp-z_exe_mac
+          sonar-scanner --define sonar.cfamily.build-wrapper-output="macos/${{ env.BUILD_WRAPPER_OUT_DIR }}" --define sonar.projectKey=fcorso2016_mkxp-z_exe_mac
 
       - name: Compress app
         run: |
