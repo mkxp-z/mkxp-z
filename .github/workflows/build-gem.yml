@@ -4,6 +4,7 @@ name: Build Gem
 on:
   push:
     branches: ['dev', 'build-gem']
+    tags: ['*']
     paths-ignore: ['*.md', '*.json', '*.png']
   pull_request:
     branches: ['dev', 'build-gem']
