@@ -91,3 +91,4 @@ ext/mkxp_z/lib
 Dockerfile
 .git
 .gitattributes
+.github

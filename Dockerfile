@@ -11,7 +11,7 @@ RUN apt-get install -y git build-essential cmake meson autoconf automake libtool
 COPY . build/mkxp-z
 WORKDIR build/mkxp-z/linux
 RUN make
-RUN source vars.sh; cd ..; meson build; cd build && ninja
+RUN source vars.sh; cd ..; meson build -Dbuild_gem=true; cd build && ninja
 
 WORKDIR ..
 RUN gem build mkxp-z.gemspec
