@@ -85,7 +85,7 @@ jobs:
           name: mkxp-z.windows.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: |
             build/artifact/*.dll
-            build/artifact/*.exe
+            build/artifact/*.gem
             build/artifact/mkxp.json
             build/artifact/scripts/
             build/artifact/stdlib/
