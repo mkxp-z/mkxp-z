@@ -1,9 +1,11 @@
-FROM ruby:3.1.4 as base
+FROM ruby:3.1.4 AS base
 
-RUN apt-get update && apt-get install -y git build-essential cmake meson autoconf automake libtool pkg-config bison  \
-    zlib1g-dev libbz2-dev xorg-dev libgl1-mesa-dev libasound2-dev libpulse-dev wget xxd
+RUN apt-get update && apt-get --no-install-recommends install -y git build-essential cmake meson autoconf automake libtool pkg-config bison  \
+    zlib1g-dev libbz2-dev xorg-dev libgl1-mesa-dev libasound2-dev libpulse-dev wget xxd && apt-get clean
 
-FROM base as build
+FROM base AS build
+
+USER nonroot
 
 SHELL ["/bin/bash", "-c"]
 
