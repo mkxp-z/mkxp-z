@@ -2,6 +2,8 @@
 // Created by fcors on 10/22/2023.
 //
 
+#include "gem-binding.h"
+
 #include <ruby.h>
 #include <SDL_sound.h>
 
@@ -67,7 +69,7 @@ void killGameState(VALUE arg) {
 }
 
 extern "C" {
-__declspec(dllexport) void Init_mkxpz() {
+MKXPZ_GEM_EXPORT void Init_mkxpz() {
     auto mkxpzModule = rb_define_module("MKXP_Z");
     _rb_define_module_function(mkxpzModule, "init_game_state", initGameState);
 

@@ -117,7 +117,9 @@ endif
 
 build_static = false
 if get_option('static_executable') == true
-    build_static = true
+    if get_option('build_gem') == false or host_system == 'windows'
+        build_static = true
+    endif
 endif
 
 global_args += '-DMKXPZ_INIT_GL_LATER'
