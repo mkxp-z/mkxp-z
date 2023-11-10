@@ -87,5 +87,6 @@ static void runEventThread(std::string windowName, std::vector<std::string> args
 }
 
 void stopEventThread()  {
-    eventThread->request_stop();
+    if (eventThread != nullptr)
+        eventThread->request_stop();
 }
