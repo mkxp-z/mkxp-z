@@ -12,8 +12,8 @@ LIBDIR := $(BUILD_PREFIX)/lib
 INCLUDEDIR := $(BUILD_PREFIX)/include
 DOWNLOADS := ${PWD}/downloads/$(ARCH)
 NPROC := $(shell nproc)
-CFLAGS := -I$(INCLUDEDIR) -flax-vector-conversions -O3
-LDFLAGS := -L$(LIBDIR)
+CFLAGS := -I$(INCLUDEDIR) -flax-vector-conversions -O3 ${CFLAGS}
+LDFLAGS := -L$(LIBDIR) ${LDFLAGS}
 CC      := gcc
 PKG_CONFIG_LIBDIR := $(BUILD_PREFIX)/lib/pkgconfig
 GIT := git
@@ -24,13 +24,14 @@ CONFIGURE_ENV := \
 	PKG_CONFIG_LIBDIR=$(PKG_CONFIG_LIBDIR) \
 	CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)"
 
-CONFIGURE_ARGS := --prefix="$(BUILD_PREFIX)"
+CONFIGURE_ARGS := --prefix="$(BUILD_PREFIX)" ${EXTRA_CONFIG_OPTIONS}
 
 CMAKE_ARGS := \
 	-DCMAKE_INSTALL_PREFIX="$(BUILD_PREFIX)" \
 	-DCMAKE_PREFIX_PATH="$(BUILD_PREFIX)" \
 	-DCMAKE_C_FLAGS="$(CFLAGS)" \
-	-DCMAKE_BUILD_TYPE=Release
+	-DCMAKE_BUILD_TYPE=Release \
+	${CMAKE_EXTRA_ARGS}
 
 RUBY_CONFIGURE_ARGS := \
 	--enable-install-static-library \
@@ -341,4 +342,5 @@ clean-downloads:
 	-rm -rf downloads
 
 deps-core: libtheora libvorbis pixman libpng physfs sdl2 sdl2image sdlsound sdl2ttf openal openssl fluidsynth uchardet iconv
+gem-deps: deps-core
 everything: deps-core ruby

@@ -115,6 +115,9 @@ jobs:
           sudo apt install git build-essential cmake meson autoconf automake libtool pkg-config ruby bison zlib1g-dev libbz2-dev xorg-dev libgl1-mesa-dev libasound2-dev libpulse-dev -y
 
       - name: Build everything else
+        env:
+          CMAKE_EXTRA_ARGS: -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+          EXTRA_CONFIG_OPTIONS: --with-pic
         run: |
           cd linux
           make
