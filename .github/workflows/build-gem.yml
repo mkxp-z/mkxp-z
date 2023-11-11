@@ -60,7 +60,11 @@ jobs:
           strip ./mkxpz.so
           cd ..
           gem build mkxp-z.gemspec
-          dirname $(where gcc) >> $GITHUB_PATH
+
+      - name: Set up MinGW
+        uses: egor-tensin/setup-mingw@v2
+        with:
+          platform: x64
 
       - name: Install sonar-scanner and build-wrapper
         uses: SonarSource/sonarcloud-github-c-cpp@v2
