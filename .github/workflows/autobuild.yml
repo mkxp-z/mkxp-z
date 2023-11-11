@@ -57,6 +57,7 @@ jobs:
           cd build
           ninja
           strip ./mkxp-z.exe
+          dirname $(where gcc) >> $GITHUB_PATH
 
       - name: Install sonar-scanner and build-wrapper
         uses: SonarSource/sonarcloud-github-c-cpp@v2

@@ -60,6 +60,7 @@ jobs:
           strip ./mkxpz.so
           cd ..
           gem build mkxp-z.gemspec
+          dirname $(where gcc) >> $GITHUB_PATH
 
       - name: Install sonar-scanner and build-wrapper
         uses: SonarSource/sonarcloud-github-c-cpp@v2
@@ -84,7 +85,7 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: mkxp-z.windows.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          name: mkxp-z.windows.gem.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: |
             build/artifact/*.dll
             build/artifact/*.gem
@@ -116,7 +117,7 @@ jobs:
       - name: Download Built Gem
         uses: actions/download-artifact@3
         with:
-          name: mkxp-z.windows.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          name: mkxp-z.windows.gem.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
 
       - name: Download Tests
         uses: actions/download-artifact@3
