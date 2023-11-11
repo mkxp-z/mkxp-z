@@ -3,8 +3,12 @@ name: Docker Image CI
 on:
   push:
     branches: [ "dev" ]
+    env:
+      - IMAGE_TAG: latest
   pull_request:
     branches: [ "dev" ]
+    env:
+      - IMAGE_TAG: ${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
 
 jobs:
 
@@ -23,7 +27,7 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Build Docker image
-      run: docker build . --file Dockerfile --tag ghcr.io/fcorso2016/mkxp-z:${git_hash}
+      run: docker build . --file Dockerfile --tag ghcr.io/fcorso2016/mkxp-z:${{IMAGE_TAG}}
 
     - name: Publish Docker Image
-      run: docker push ghcr.io/fcorso2016/mkxp-z:${git_hash}
+      run: docker push ghcr.io/fcorso2016/mkxp-z:${{IMAGE_TAG}}
