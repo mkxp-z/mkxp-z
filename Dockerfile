@@ -24,6 +24,3 @@ COPY --from=build build/mkxp-z/mkxp-z-*.gem build/
 
 WORKDIR build
 RUN GEMNAME=$(find -type f -name 'mkxp-z-*.gem') && echo $GEMNAME && gem install $GEMNAME
-
-
-ENTRYPOINT ["/app"]
