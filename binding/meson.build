@@ -6,8 +6,16 @@ if get_option('mri_includes') == ''
         global_args += '-fdeclspec'
     endif
     global_dependencies += dependency('ruby-' + ver)
+
 else
-    global_args += ('-I' + get_option('mri_includes'))
+    if host_system == 'windows'
+        include_paths = get_option('mri_includes').split(';')
+    else
+        include_paths = get_option('mri_includes').split(':')
+    endif
+    foreach inc : include_paths
+        global_args += ('-I' + inc)
+    endforeach
     global_dependencies += compilers['cpp'].find_library(get_option('mri_library'), dirs: get_option('mri_libpath'))
 endif
 
