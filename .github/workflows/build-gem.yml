@@ -42,7 +42,7 @@ jobs:
           path: |
             windows/build-mingw64
             windows/downloads
-          key: win-${{ hashFiles('windows/Makefile') }}
+          key: win-ucrt-${{ hashFiles('windows/Makefile') }}
 
       - name: Build all dependencies
         shell: msys2 {0}
