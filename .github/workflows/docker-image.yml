@@ -27,7 +27,7 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Build Docker image
-      run: docker build . --file Dockerfile ghcr.io/fcorso2016/mkxp-z --tag $IMAGE_TAG
+      run: docker build . --file Dockerfile ghcr.io/fcorso2016/mkxp-z --tag ${{ IMAGE_TAG }}
 
     - name: Publish Docker Image
-      run: docker push ghcr.io/fcorso2016/mkxp-z:$IMAGE_TAG
+      run: docker push ghcr.io/fcorso2016/mkxp-z:${{ IMAGE_TAG }}
