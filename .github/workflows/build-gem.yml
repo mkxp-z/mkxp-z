@@ -74,7 +74,7 @@ jobs:
         uses: SonarSource/sonarcloud-github-c-cpp@v2
 
       - name: Run sonar-scanner
-        if: ${{matrix.sys}} == 'x86_64'
+        if: ${{matrix.sys == 'mingw64'}}
         env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
