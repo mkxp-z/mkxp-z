@@ -34,7 +34,6 @@ jobs:
           install: >-
             base-devel
             git
-            ruby
             vim
             mingw-w64-${{matrix.msys.env}}-cmake
             mingw-w64-${{matrix.msys.env}}-meson
@@ -70,8 +69,11 @@ jobs:
 
       - name: Build all dependencies
         shell: msys2 {0}
+        env:
+          RUBY_BIN_DIR: ${{steps.ruby_path.output.RUBY_BIN_DIR}}
         run: |
           cd windows
+          export $PATH=$PATH:$RUBY_BIN_DIR
           make deps-core
 
       - name: Build Ruby gem
