@@ -54,12 +54,15 @@ RB_METHOD(initGameState) {
     rb_bool_arg(visible, &windowVisible);
 
     eventThread = std::make_unique<std::jthread>(&runEventThread, appName, argList, windowVisible);
-    while (externThreadData == nullptr)
+    while (externThreadData == nullptr && eventThread->joinable())
         std::this_thread::yield();
 
-    alcCtx = startRgssThread(externThreadData);
+    if (eventThread->joinable()) {
+        alcCtx = startRgssThread(externThreadData);
+        return RUBY_T_TRUE;
+    }
 
-    return Qnil;
+    return RUBY_T_FALSE;
 }
 
 void killGameState(VALUE arg) {
