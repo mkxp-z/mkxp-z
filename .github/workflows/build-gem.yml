@@ -128,6 +128,10 @@ jobs:
   build-linux:
     name: Ubuntu 22.04
     runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        ruby: ['3.1', '3.2']
+      fail-fast: false
     steps:
       - uses: benjlevesque/short-sha@v2.2
         id: short-sha
@@ -144,10 +148,15 @@ jobs:
             linux/downloads
           key: lin-gem-${{ hashFiles('linux/Makefile') }}
 
+      - name: Install Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+
       - name: Install apt dependencies
         run: |
           sudo apt update
-          sudo apt install git build-essential cmake meson autoconf automake libtool pkg-config ruby bison zlib1g-dev libbz2-dev xorg-dev libgl1-mesa-dev libasound2-dev libpulse-dev -y
+          sudo apt install git build-essential cmake meson autoconf automake libtool pkg-config bison zlib1g-dev libbz2-dev xorg-dev libgl1-mesa-dev libasound2-dev libpulse-dev -y
 
       - name: Build everything else
         env:
@@ -160,17 +169,22 @@ jobs:
       - name: Build Ruby gem
         run: |
           source linux/vars.sh
-          meson build --bindir=. --prefix=$GITHUB_WORKSPACE/build/local -Dbuild_gem=true
+          meson build --bindir=. --prefix=$GITHUB_WORKSPACE/build/local -Dbuild_gem=true -Dmri_version=${{matrix.ruby}}
           cd build
           ninja
           ninja install
           cd ..
           gem build mkxp-z.gemspec
 
+      - name: Test Gem
+        run: rake
+
       - name: Install sonar-scanner and build-wrapper
+        if: ${{matrix.ruby == '3.1'}}
         uses: SonarSource/sonarcloud-github-c-cpp@v2
 
       - name: Run sonar-scanner
+        if: ${{matrix.ruby == '3.1'}}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
