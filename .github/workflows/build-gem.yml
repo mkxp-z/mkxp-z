@@ -65,7 +65,7 @@ jobs:
           path: |
             windows/build-mingw64
             windows/downloads
-          key: win-gem-${{matrix.ruby}}-${{matrix.sys}}-${{ hashFiles('windows/Makefile') }}
+          key: win-gem-${{matrix.ruby}}-${{ hashFiles('windows/Makefile') }}
 
       - name: Build all dependencies
         shell: msys2 {0}
@@ -76,10 +76,10 @@ jobs:
       - name: Build Ruby gem
         shell: msys2 {0}
         env:
-          RUBY_BIN_DIR: ${{steps.ruby_path.output.RUBY_BIN_DIR}}
-          RUBY_LIB_DIR: ${{steps.ruby_path.output.RUBY_LIB_DIR}}
-          RUBY_LIB_NAME: ${{steps.ruby_path.output.RUBY_LIB_NAME}}
-          RUBY_INCLUDE_DIRS: ${{steps.ruby_path.output.RUBY_INCLUDE_DIRS}}
+          RUBY_BIN_DIR: ${{steps.ruby_path.outputs.RUBY_BIN_DIR}}
+          RUBY_LIB_DIR: ${{steps.ruby_path.outputs.RUBY_LIB_DIR}}
+          RUBY_LIB_NAME: ${{steps.ruby_path.outputs.RUBY_LIB_NAME}}
+          RUBY_INCLUDE_DIRS: ${{steps.ruby_path.outputs.RUBY_INCLUDE_DIRS}}
         run: |
           source windows/vars.sh
           meson build -Dbuild_gem=true -Dmri_includes=$RUBY_INCLUDE_DIRS -Dmri_libpath=$RUBY_LIB_DIR -Dmri_library=$RUBY_LIB_NAME
@@ -118,7 +118,7 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: mkxp-z.windows.gem.${{matrix.ruby}}.${{matrix.sys}}.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          name: mkxp-z.windows.gem.${{matrix.ruby}}.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: |
             build/artifact/*.dll
             build/artifact/*.gem
@@ -146,7 +146,7 @@ jobs:
           path: |
             linux/build-x86_64
             linux/downloads
-          key: lin-gem-${{ hashFiles('linux/Makefile') }}
+          key: lin-gem-${{matrix.ruby}}.-${{ hashFiles('linux/Makefile') }}
 
       - name: Install Ruby
         uses: ruby/setup-ruby@v1
@@ -202,5 +202,5 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: mkxp-z.linux.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          name: mkxp-z.linux.${{matrix.ruby}}.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: build/local.zip
