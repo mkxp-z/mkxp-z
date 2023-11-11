@@ -45,18 +45,6 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
 
-      - name: Export Ruby Location Variables
-        id: ruby_path
-        shell: powershell
-        run: |
-          $ruby_root = "$("$(Get-Command Ruby | Resolve-Path)/../.." | Resolve-Path)".replace('([A-Z]):', '/$1').replace('\', '/')
-          echo "RUBY_BIN_DIR=$ruby_root/bin" >> $GITHUB_OUTPUT
-          echo "RUBY_LIB_DIR=$ruby_root/lib" >> $GITHUB_OUTPUT
-          echo "RUBY_LIB_NAME=x64-${{matrix.clib}}-ruby$("${{matrix.ruby}}".replace('.', ''))0" >> $GITHUB_OUTPUT
-          $RUBY_INCLUDE_DIR = "$ruby_root/include/ruby-${{matrix.ruby}}.0"
-          echo "RUBY_INCLUDE_DIRS=${RUBY_INCLUDE_DIR}:${RUBY_INCLUDE_DIR}/x64-mingw-${{matrix.clib}}" >> $GITHUB_OUTPUT
-          
-
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -75,11 +63,6 @@ jobs:
 
       - name: Build Ruby gem
         shell: msys2 {0}
-        env:
-          RUBY_BIN_DIR: ${{steps.ruby_path.outputs.RUBY_BIN_DIR}}
-          RUBY_LIB_DIR: ${{steps.ruby_path.outputs.RUBY_LIB_DIR}}
-          RUBY_LIB_NAME: ${{steps.ruby_path.outputs.RUBY_LIB_NAME}}
-          RUBY_INCLUDE_DIRS: ${{steps.ruby_path.outputs.RUBY_INCLUDE_DIRS}}
         run: |
           source windows/vars.sh
           meson build -Dbuild_gem=true -Dmri_includes=$RUBY_INCLUDE_DIRS -Dmri_libpath=$RUBY_LIB_DIR -Dmri_library=$RUBY_LIB_NAME
