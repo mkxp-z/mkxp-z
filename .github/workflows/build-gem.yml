@@ -68,13 +68,10 @@ jobs:
           meson build -Dbuild_gem=true -Dmri_includes=$RUBY_INCLUDE_DIRS -Dmri_libpath=$RUBY_LIB_DIR -Dmri_library=$RUBY_LIB_NAME
           cd build
           ninja install
-          strip ./mkxpz.so
-          cd ..
-          gem build mkxp-z.gemspec
-          dirname $(where gcc) >> $GITHUB_PATH
 
       - name: Test Gem
-        run: rake
+        run: |
+          rake
 
       - name: Install sonar-scanner and build-wrapper
         if: ${{matrix.ruby == '3.1'}}
@@ -152,7 +149,7 @@ jobs:
       - name: Build Ruby gem
         run: |
           source linux/vars.sh
-          meson build --bindir=. --prefix=$GITHUB_WORKSPACE/build/local -Dbuild_gem=true -Dmri_version=${{matrix.ruby}}
+          meson build --bindir=. --prefix=$GITHUB_WORKSPACE/build/local -Dbuild_gem=true -Dmri_includes=$RUBY_INCLUDE_DIRS -Dmri_libpath=$RUBY_LIB_DIR -Dmri_library=$RUBY_LIB_NAME
           cd build
           ninja
           ninja install
