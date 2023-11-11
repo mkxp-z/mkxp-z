@@ -70,7 +70,7 @@ jobs:
           dirname $(where gcc) >> $GITHUB_PATH
 
       - name: Install sonar-scanner and build-wrapper
-        if: ${{matrix.sys}} == 'x86_64'
+        if: ${{matrix.sys == 'mingw64'}}
         uses: SonarSource/sonarcloud-github-c-cpp@v2
 
       - name: Run sonar-scanner
@@ -86,7 +86,7 @@ jobs:
         run: |
           mkdir build/artifact
           cd build/artifact
-          cp /ucrt64/bin/zlib1.dll .
+          cp /${{ matrix.sys }}/bin/zlib1.dll .
           cp ../../mkxp-z-*.gem .
           cp ../../mkxp.json .
           cp -r ../../scripts .
