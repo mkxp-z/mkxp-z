@@ -5,8 +5,6 @@ RUN apt-get update && apt-get --no-install-recommends install -y git build-essen
 
 FROM base AS build
 
-USER nonroot
-
 SHELL ["/bin/bash", "-c"]
 
 COPY . build/mkxp-z
