@@ -12,7 +12,7 @@ on:
 
 jobs:
   build-windows:
-    name: Windows - Build
+    name: Windows
     runs-on: windows-latest
 
     strategy:
@@ -90,6 +90,9 @@ jobs:
           gem build mkxp-z.gemspec
           dirname $(where gcc) >> $GITHUB_PATH
 
+      - name: Test Gem
+        run: rake
+
       - name: Install sonar-scanner and build-wrapper
         if: ${{matrix.ruby == '3.1'}}
         uses: SonarSource/sonarcloud-github-c-cpp@v2
@@ -122,48 +125,8 @@ jobs:
             build/artifact/mkxp.json
             build/artifact/scripts/
 
-
-  test-windows:
-    name: Windows - Test
-    runs-on: windows-latest
-    needs: build-windows
-    steps:
-      - uses: benjlevesque/short-sha@v2.2
-        id: short-sha
-        with:
-          length: 7
-
-      - name: Install Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.1'
-
-      - name: Download Tests
-        uses: snow-actions/sparse-checkout@v1.2.0
-        with:
-          patterns: |
-            tests
-            Rakefile
-
-      - name: Download Built Gem
-        uses: actions/download-artifact@v3
-        with:
-          name: mkxp-z.windows.gem.ucrt64.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
-
-      - name: Install Gem
-        run: |
-          cd build/artifact
-          $gem_file = @(gci mkxp-z-*.gem)[0]
-          gem install ${gem_file}
-          echo "${pwd}" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-      - name: Test Gem
-        run: |
-          cd ../..
-          rake
-
   build-linux:
-    name: Ubuntu 22.04 - Build
+    name: Ubuntu 22.04
     runs-on: ubuntu-22.04
     steps:
       - uses: benjlevesque/short-sha@v2.2
