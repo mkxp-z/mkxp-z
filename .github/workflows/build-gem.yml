@@ -164,7 +164,7 @@ jobs:
           EXTRA_CONFIG_OPTIONS: --with-pic
         run: |
           cd linux
-          make
+          make deps-core
 
       - name: Build Ruby gem
         run: |
