@@ -11,94 +11,8 @@ on:
     paths-ignore: ['*.md', '*.json', '*.png']
 
 jobs:
-  build-windows-msvcrt:
-    name: Windows (MSVCRT) - Build
-    runs-on: windows-latest
-    steps:
-      - uses: benjlevesque/short-sha@v2.2
-        id: short-sha
-        with:
-          length: 7
-
-      - uses: msys2/setup-msys2@v2
-        with:
-          msystem: ucrt64
-          install: >-
-            base-devel
-            git
-            ruby
-            vim
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-meson
-            mingw-w64-x86_64-autotools
-            mingw-w64-x86_64-gcc
-
-
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - uses: actions/cache@v3
-        with:
-          path: |
-            windows/build-mingw64
-            windows/downloads
-          key: win-gem-msvcrt-${{ hashFiles('windows/Makefile') }}
-
-      - name: Build all dependencies
-        shell: msys2 {0}
-        run: |
-          cd windows
-          make
-
-      - name: Build Ruby gem
-        shell: msys2 {0}
-        run: |
-          source windows/vars.sh
-          meson build -Dbuild_gem=true
-          cd build
-          ninja install
-          strip ./mkxpz.so
-          cd ..
-          gem build mkxp-z.gemspec
-
-      - name: Install sonar-scanner and build-wrapper
-        uses: SonarSource/sonarcloud-github-c-cpp@v2
-
-      - name: Run sonar-scanner
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          sonar-scanner --define sonar.cfamily.compile-commands=build/compile_commands.json --define sonar.projectKey=fcorso2016_mkxp-z_gem_windows  
-
-      - name: Prepare archive
-        shell: msys2 {0}
-        run: |
-          mkdir build/artifact
-          cd build/artifact
-          cp /ucrt64/bin/zlib1.dll .
-          cp ../../mkxp-z-*.gem .
-          cp ../../mkxp.json .
-          cp -r ../../scripts .
-          cp -r ../../tests .
-
-      - uses: actions/upload-artifact@v3
-        with:
-          name: mkxp-z.windows.gem-msvcrt.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
-          path: |
-            build/artifact/*.dll
-            build/artifact/*.gem
-            build/artifact/mkxp.json
-            build/artifact/scripts/
-
-      - uses: actions/upload-artifact@v3
-        with:
-          name: mkxp-z.windows.tests.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
-            tests/
-            Rakefile
-
-  build-windows-ucrt:
-    name: Windows (UCRT) - Build
+  build-windows:
+    name: Windows - Build
     runs-on: windows-latest
     steps:
       - uses: benjlevesque/short-sha@v2.2
@@ -128,7 +42,7 @@ jobs:
           path: |
             windows/build-mingw64
             windows/downloads
-          key: win-gem-ucrt-${{ hashFiles('windows/Makefile') }}
+          key: win-gem-${{ hashFiles('windows/Makefile') }}
 
       - name: Build all dependencies
         shell: msys2 {0}
@@ -147,6 +61,16 @@ jobs:
           cd ..
           gem build mkxp-z.gemspec
 
+      - name: Install sonar-scanner and build-wrapper
+        uses: SonarSource/sonarcloud-github-c-cpp@v2
+
+      - name: Run sonar-scanner
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          sonar-scanner --define sonar.cfamily.compile-commands=build/compile_commands.json --define sonar.projectKey=fcorso2016_mkxp-z_gem_windows  
+
       - name: Prepare archive
         shell: msys2 {0}
         run: |
@@ -160,7 +84,7 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: mkxp-z.windows.gem-ucrt.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          name: mkxp-z.windows.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: |
             build/artifact/*.dll
             build/artifact/*.gem
@@ -173,10 +97,11 @@ jobs:
             tests/
             Rakefile
 
+
   test-windows:
     name: Windows - Test
     runs-on: windows-latest
-    needs: build-windows-ucrt
+    needs: build-windows
     steps:
       - uses: benjlevesque/short-sha@v2.2
         id: short-sha
@@ -191,7 +116,7 @@ jobs:
       - name: Download Built Gem
         uses: actions/download-artifact@3
         with:
-          name: mkxp-z.windows.gem-ucrt.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          name: mkxp-z.windows.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
 
       - name: Download Tests
         uses: actions/download-artifact@3
@@ -273,5 +198,5 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: mkxp-z.linux.gem.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          name: mkxp-z.linux.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: build/local.zip
