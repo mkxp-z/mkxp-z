@@ -70,11 +70,8 @@ jobs:
 
       - name: Build all dependencies
         shell: msys2 {0}
-        env:
-          RUBY_BIN_DIR: ${{steps.ruby_path.output.RUBY_BIN_DIR}}
         run: |
           cd windows
-          export $PATH=$PATH:$RUBY_BIN_DIR
           make deps-core
 
       - name: Build Ruby gem
@@ -86,7 +83,6 @@ jobs:
           RUBY_INCLUDE_DIRS: ${{steps.ruby_path.output.RUBY_INCLUDE_DIRS}}
         run: |
           source windows/vars.sh
-          export $PATH=$PATH:$RUBY_BIN_DIR
           meson build -Dbuild_gem=true -Dmri_includes=$RUBY_INCLUDE_DIRS -Dmri_libpath=$RUBY_LIB_DIR -Dmri_library=$RUBY_LIB_NAME
           cd build
           ninja install
