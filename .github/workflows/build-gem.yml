@@ -14,6 +14,13 @@ jobs:
   build-windows:
     name: Windows - Build
     runs-on: windows-latest
+
+    strategy:
+      matrix:
+        include:
+          - { sys: mingw64, env: x86_64 }
+          - { sys: ucrt64,  env: ucrt-x86_64 }
+
     steps:
       - uses: benjlevesque/short-sha@v2.2
         id: short-sha
@@ -22,16 +29,16 @@ jobs:
 
       - uses: msys2/setup-msys2@v2
         with:
-          msystem: ucrt64
+          msystem: ${{matrix.sys}}
           install: >-
             base-devel
             git
             ruby
             vim
-            mingw-w64-ucrt-x86_64-cmake
-            mingw-w64-ucrt-x86_64-meson
-            mingw-w64-ucrt-x86_64-autotools
-            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-${{matrix.env}}-cmake
+            mingw-w64-${{matrix.env}}-meson
+            mingw-w64-${{matrix.env}}-autotools
+            mingw-w64-${{matrix.env}}-gcc
 
 
       - name: Checkout repository
@@ -42,7 +49,7 @@ jobs:
           path: |
             windows/build-mingw64
             windows/downloads
-          key: win-gem-${{ hashFiles('windows/Makefile') }}
+          key: win-gem-${{matrix.sys}}-${{ hashFiles('windows/Makefile') }}
 
       - name: Build all dependencies
         shell: msys2 {0}
@@ -63,9 +70,11 @@ jobs:
           dirname $(where gcc) >> $GITHUB_PATH
 
       - name: Install sonar-scanner and build-wrapper
+        if: ${{matrix.sys}} == 'x86_64'
         uses: SonarSource/sonarcloud-github-c-cpp@v2
 
       - name: Run sonar-scanner
+        if: ${{matrix.sys}} == 'x86_64'
         env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -85,7 +94,7 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: mkxp-z.windows.gem.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          name: mkxp-z.windows.gem.${{matrix.sys}}.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: |
             build/artifact/*.dll
             build/artifact/*.gem
@@ -117,7 +126,7 @@ jobs:
       - name: Download Built Gem
         uses: actions/download-artifact@3
         with:
-          name: mkxp-z.windows.gem.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          name: mkxp-z.windows.gem.ucrt64.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
 
       - name: Download Tests
         uses: actions/download-artifact@3
