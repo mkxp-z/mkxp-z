@@ -23,7 +23,7 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Build Docker image
-      run: docker build . --file Dockerfile --tag mkxp-z:$(date +%s)
+      run: docker build . --file Dockerfile --tag ghcr.io/fcorso2016/mkxp-z:$(date +%s)
 
     - name: Publish Docker Image
-      run: docker push ghcr.io/fcorso2016/mkxp-z:${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
+      run: docker push ghcr.io/fcorso2016/mkxp-z:$(date +%s)
