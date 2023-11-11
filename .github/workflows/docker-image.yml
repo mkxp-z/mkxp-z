@@ -3,12 +3,8 @@ name: Docker Image CI
 on:
   push:
     branches: [ "dev" ]
-    env:
-      - IMAGE_TAG: latest
   pull_request:
     branches: [ "dev" ]
-    env:
-      - IMAGE_TAG: $(git rev-parse --short "$GITHUB_SHA")
 
 jobs:
 
@@ -26,8 +22,19 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Build Docker image
-      run: docker build . --file Dockerfile ghcr.io/fcorso2016/mkxp-z --tag ${{ IMAGE_TAG }}
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        push: true
+        tags: |
+          ghcr.io/${{ github.repository }}:${{ github.sha }}
+          ghcr.io/${{ github.repository }}:latest
+        file: ./Dockerfile
 
-    - name: Publish Docker Image
-      run: docker push ghcr.io/fcorso2016/mkxp-z:${{ IMAGE_TAG }}
+    - name: Update latest tag on main branch
+      if: github.ref == 'refs/heads/dev'
+      run: |
+        docker pull ghcr.io/${{ github.repository }}:${{ github.sha }}
+        docker tag ghcr.io/${{ github.repository }}:${{ github.sha }} ghcr.io/${{ github.repository }}:latest
+        docker push ghcr.io/${{ github.repository }}:latest
