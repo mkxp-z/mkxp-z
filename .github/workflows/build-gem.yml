@@ -42,7 +42,7 @@ jobs:
           path: |
             windows/build-mingw64
             windows/downloads
-          key: win-ucrt-${{ hashFiles('windows/Makefile') }}
+          key: win-gem-${{ hashFiles('windows/Makefile') }}
 
       - name: Build all dependencies
         shell: msys2 {0}
@@ -152,7 +152,7 @@ jobs:
           path: |
             linux/build-x86_64
             linux/downloads
-          key: lin-${{ hashFiles('linux/Makefile') }}
+          key: lin-gem-${{ hashFiles('linux/Makefile') }}
 
       - name: Install apt dependencies
         run: |
