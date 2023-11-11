@@ -21,6 +21,7 @@ jobs:
         msys:
           - { sys: mingw64, env: x86_64, clib: msvcrt }
           - { sys: ucrt64,  env: ucrt-x86_64, clib: ucrt }
+      fail-fast: false
 
     steps:
       - uses: benjlevesque/short-sha@v2.2
