@@ -8,7 +8,7 @@ on:
   pull_request:
     branches: [ "dev" ]
     env:
-      - IMAGE_TAG: ${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
+      - IMAGE_TAG: $(git rev-parse --short "$GITHUB_SHA")
 
 jobs:
 
