@@ -101,12 +101,6 @@ jobs:
             build/artifact/mkxp.json
             build/artifact/scripts/
 
-      - uses: actions/upload-artifact@v3
-        with:
-          name: mkxp-z.windows.tests.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
-            tests/
-            Rakefile
-
 
   test-windows:
     name: Windows - Test
@@ -123,15 +117,17 @@ jobs:
         with:
           ruby-version: '3.1'
 
+      - name: Download Tests
+        uses: snow-actions/sparse-checkout@v1.2.0
+        with:
+          patterns: |
+            tests
+            Rakefile
+
       - name: Download Built Gem
         uses: actions/download-artifact@3
         with:
           name: mkxp-z.windows.gem.ucrt64.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
-
-      - name: Download Tests
-        uses: actions/download-artifact@3
-        with:
-          name: mkxp-z.windows.tests.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
 
       - name: Install Gem
         run: |
