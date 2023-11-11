@@ -54,7 +54,7 @@ jobs:
           echo "RUBY_LIB_DIR=$ruby_root/lib" >> $GITHUB_OUTPUT
           echo "RUBY_LIB_NAME=x64-${{matrix.msys.clib}}-ruby$("${{matrix.ruby}}".replace(".", ""))0" >> $GITHUB_OUTPUT
           $RUBY_INCLUDE_DIR = "$ruby_root/include/ruby-${{matrix.ruby}}.0"
-          echo "RUBY_INCLUDE_DIRS=$RUBY_INCLUDE_DIR:$RUBY_INCLUDE_DIR/x64-mingw-${{matrix.msys.clib}}" >> $GITHUB_OUTPUT
+          echo "RUBY_INCLUDE_DIRS=${RUBY_INCLUDE_DIR}:${RUBY_INCLUDE_DIR}/x64-mingw-${{matrix.msys.clib}}" >> $GITHUB_OUTPUT
           
 
       - name: Checkout repository
