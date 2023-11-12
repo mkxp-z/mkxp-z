@@ -285,7 +285,7 @@ struct AudioPrivate
 };
 
 Audio::Audio(RGSSThreadData &rtData)
-	: p(new AudioPrivate(rtData))
+	: p(std::make_unique<AudioPrivate>(rtData))
 {}
 
 
@@ -428,4 +428,4 @@ void Audio::reset()
 	p->se.stop();
 }
 
-Audio::~Audio() { delete p; }
+Audio::~Audio() = default;

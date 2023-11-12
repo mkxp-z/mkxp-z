@@ -44,7 +44,7 @@ public:
 		BitmapArray() {}
 		~BitmapArray() {}
 
-		TilemapVXPrivate *p;
+		std::shared_ptr<TilemapVXPrivate> p;
 		friend class TilemapVX;
 		friend struct TilemapVXPrivate;
 	};
@@ -65,7 +65,7 @@ public:
 	DECL_ATTR( OY,         int       )
 
 private:
-	TilemapVXPrivate *p;
+	std::shared_ptr<TilemapVXPrivate> p;
 	BitmapArray bmProxy;
 
 	void releaseResources();

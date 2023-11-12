@@ -69,7 +69,7 @@ public:
 	void initDynAttribs();
 
 private:
-	WindowVXPrivate *p;
+	std::unique_ptr<WindowVXPrivate> p;
 
 	void draw();
 	void onGeometryChange(const Scene::Geometry &);
