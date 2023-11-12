@@ -38,7 +38,7 @@ struct BitmapPrivate;
 class Bitmap : public Disposable
 {
 public:
-	Bitmap(std::string_view filename);
+    explicit Bitmap(std::string_view filename);
 
     Bitmap(int width, int height, bool isHires = false);
 

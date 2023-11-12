@@ -36,7 +36,7 @@
 #include <unistd.h>
 #include <regex>
 #include <string_view>
-#include <format>
+#include <array>
 
 #ifdef MKXPZ_RUBY_GEM
 
@@ -193,11 +193,11 @@ int killRgssThread(RGSSThreadData *threadData, ALCcontext *alcCtx) {
 static void printRgssVersion(int ver) {
     const std::array<std::string_view, 4> makers = {"", "XP", "VX", "VX Ace"};
 
-    std::string buf;
-    std::format_to(std::back_inserter(buf), "RGSS version %d (RPG Maker %s)", ver,
-                   makers[ver].data());
+    std::vector<char> buf(128);
+    snprintf(buf.data(), buf.size(), "RGSS version %d (RPG Maker %s)", ver,
+             makers[ver].data());
 
-    Debug() << buf;
+    Debug() << buf.data();
 }
 
 static void rgssThreadError(RGSSThreadData *rtData, std::string_view msg) {
@@ -279,10 +279,10 @@ int main(int argc, char *argv[]) {
         if (setupWindowsConsole()) {
             reopenWindowsStreams();
         } else {
-            std::string buf;
-            std::format_to(std::back_inserter(buf), "Error allocating console: %lu",
-                           GetLastError());
-            showInitError(buf);
+            std::array<char, 200> buf;
+            snprintf(buf.data(), buf.size(), "Error allocating console: %lu",
+                     GetLastError());
+            showInitError(std::string(buf.data()));
         }
     }
 #endif
@@ -344,8 +344,9 @@ int main(int argc, char *argv[]) {
 #if defined(__WIN32__)
     WSAData wsadata = {0};
     if (WSAStartup(0x101, &wsadata) || wsadata.wVersion != 0x101) {
-        std::string buf;
-        std::format_to(std::back_inserter(buf), "Error initializing winsock: %08X", WSAGetLastError());
+        std::array<char, 200> buf;
+        snprintf(buf.data(), buf.size(), "Error initializing winsock: %08X",
+                 WSAGetLastError());
         showInitError(
                 std::string(buf.data())); // Not an error worth ending the program over
     }
@@ -426,12 +427,16 @@ int main(int argc, char *argv[]) {
 #ifdef __LINUX__
     setupWindowIcon(conf, win);
 #else
-    (void)setupWindowIcon;
+    (void) setupWindowIcon;
 #endif
 
     ALCdevice *alcDev = alcOpenDevice(nullptr);
 
-    if (!alcDev) {
+#ifdef MKXPZ_RUBY_GEM
+    if (alcDev == nullptr && showWindow) {
+#else
+        if (!alcDev) {
+#endif
         showInitError("Could not detect an available audio device.");
         SDL_DestroyWindow(win);
         TTF_Quit();

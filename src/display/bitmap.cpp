@@ -53,7 +53,7 @@
 
 #include <math.h>
 #include <algorithm>
-#include <format>
+#include <array>
 
 extern "C" {
 #include "libnsgif/libnsgif.h"
@@ -461,7 +461,7 @@ struct BitmapOpenHandler : FileSystem::OpenHandler {
                     gif_finalise(gif.get());
                     gif.reset();
                     delete[] gif_data;
-                    error = std::format("Failed to initialize GIF (Error %s)", std::to_string(status));
+                    error = "Failed to initialize GIF (Error " + std::to_string(status) + ")";
                     return false;
                 }
             } while (status != GIF_OK);
@@ -469,7 +469,7 @@ struct BitmapOpenHandler : FileSystem::OpenHandler {
             // Decode the first frame
             status = gif_decode_frame(gif.get(), 0);
             if (status != GIF_OK && status != GIF_WORKING) {
-                error = std::format("Failed to decode first GIF frame. (Error %s)", std::to_string(status));
+                error = "Failed to decode first GIF frame. (Error " + std::to_string(status) + ")";
                 gif_finalise(gif.get());
                 gif.reset();
                 delete gif_data;
