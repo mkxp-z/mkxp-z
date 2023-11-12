@@ -392,7 +392,7 @@ int main(int argc, char *argv[]) {
     (void)setupWindowIcon;
 #endif
 
-    ALCdevice *alcDev = alcOpenDevice(0);
+    ALCdevice *alcDev = alcOpenDevice(nullptr);
 
     if (!alcDev) {
       showInitError("Could not detect an available audio device.");
@@ -419,7 +419,7 @@ int main(int argc, char *argv[]) {
 #ifndef MKXPZ_INIT_GL_LATER
     SDL_GLContext glCtx = initGL(win, conf, 0);
 #else
-    SDL_GLContext glCtx = NULL;
+    SDL_GLContext glCtx = nullptr;
 #endif
 
     RGSSThreadData rtData(&eventThread, argv[0], win, alcDev, mode.refresh_rate,
@@ -464,7 +464,7 @@ int main(int argc, char *argv[]) {
     /* If RGSS thread ack'd request, wait for it to shutdown,
      * otherwise abandon hope and just end the process as is. */
     if (rtData.rqTermAck)
-      SDL_WaitThread(rgssThread, 0);
+      SDL_WaitThread(rgssThread, nullptr);
     else
       SDL_ShowSimpleMessageBox(
           SDL_MESSAGEBOX_ERROR, conf.game.title.c_str(),
@@ -518,7 +518,7 @@ static SDL_GLContext initGL(SDL_Window *win, Config &conf,
 
   if (!glCtx) {
     GLINIT_SHOWERROR(std::string("Could not create OpenGL context: ") + SDL_GetError());
-    return 0;
+    return nullptr;
   }
 
   try {
@@ -527,14 +527,14 @@ static SDL_GLContext initGL(SDL_Window *win, Config &conf,
     GLINIT_SHOWERROR(exc.msg);
     SDL_GL_DeleteContext(glCtx);
 
-    return 0;
+    return nullptr;
   }
 
 // This breaks scaling for Retina screens.
 // Using Metal should be rendering this irrelevant anyway, hopefully
 #ifndef MKXPZ_BUILD_XCODE
   if (!conf.enableBlitting)
-    gl.BlitFramebuffer = 0;
+    gl.BlitFramebuffer = nullptr;
 #endif
 
   gl.ClearColor(0, 0, 0, 1);
