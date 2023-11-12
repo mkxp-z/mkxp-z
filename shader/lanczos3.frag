@@ -3,6 +3,16 @@
 // mkxp-z modifications Copyright 2022-2023 Splendide Imaginarius.
 // MIT license.
 
+// Unfortunately it seems that on at least some mediump platforms, this shader shows a solid color.
+// Patches welcome.
+#ifdef GL_ES
+	#ifdef GL_FRAGMENT_PRECISION_HIGH
+		precision highp float;
+	#else
+		precision mediump float;
+	#endif
+#endif
+
 uniform sampler2D texture;
 uniform vec2 sourceSize;
 varying vec2 v_texCoord;
@@ -10,7 +20,11 @@ varying vec2 v_texCoord;
 float lanczos3(float x)
 {
 	// 0.0001 is nonzero in mediump mode; 0.00001 is zero there.
-	x = max(abs(x), 0.0001);
+	#if defined(GL_ES) && !defined(GL_FRAGMENT_PRECISION_HIGH)
+		x = max(abs(x), 0.0001);
+	#else
+		x = max(abs(x), 0.00001);
+	#endif
 	float val = x * 3.141592654;
 	return sin(val) * sin(val / 3.0) / (val * val);
 }
