@@ -57,7 +57,7 @@ void main()
 	{
 		vec4 colour = vec4(0);
 		for(int x = -2; x <= 3; x++)
-				colour += texture2D(texture, pixel + vec2(float(x) * onePixel.x, float(y) * onePixel.y)).rgba * lanczosX[x + 2];
+			colour += texture2D(texture, pixel + vec2(float(x) * onePixel.x, float(y) * onePixel.y)).rgba * lanczosX[x + 2];
 		gl_FragColor += colour * lanczosY[y + 2];
 	}
 }
