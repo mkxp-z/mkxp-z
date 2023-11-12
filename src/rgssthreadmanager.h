@@ -34,9 +34,18 @@ public:
         return rgssThreadMutex;
     }
 
+    inline void lockRgssThread() {
+        rgssThreadLock = std::make_unique<std::scoped_lock<std::mutex>>(rgssThreadMutex);
+    }
+
+    inline void unlockRgssThread() {
+        rgssThreadLock.reset();
+    }
+
 private:
     static RgssThreadManager instance;
 
     RGSSThreadData *threadData = nullptr;
+    std::unique_ptr<std::scoped_lock<std::mutex>> rgssThreadLock;
     std::mutex rgssThreadMutex;
 };

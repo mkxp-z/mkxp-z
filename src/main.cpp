@@ -36,6 +36,7 @@
 #include <unistd.h>
 #include <regex>
 #include <string_view>
+#include <format>
 
 #ifdef MKXPZ_RUBY_GEM
 
@@ -60,6 +61,7 @@
 #include "resource.h"
 #include <winsock2.h>
 #include "util/win-consoleutils.h"
+#include "filesystem.hpp"
 
 // Try to work around buggy GL drivers that tend to be in Optimus laptops
 // by forcing MKXP to use the dedicated card instead of the integrated one
@@ -93,7 +95,8 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 RgssThreadManager RgssThreadManager::instance;
 #endif
 
-static void rgssThreadError(RGSSThreadData *rtData, const std::string &msg);
+static void rgssThreadError(RGSSThreadData *rtData, std::string_view msg);
+
 static void showInitError(const std::string &msg);
 
 static inline const char *glGetStringInt(GLenum name) {
@@ -105,15 +108,13 @@ static void printGLInfo() {
     const std::string version(glGetStringInt(GL_VERSION));
     std::regex rgx("ANGLE \\((.+), ANGLE Metal Renderer: (.+), Version (.+)\\)");
 
-    std::smatch matches;
-    if (std::regex_search(renderer, matches, rgx)) {
+    if (std::smatch matches; std::regex_search(renderer, matches, rgx)) {
 
         Debug() << "Backend           :" << "Metal";
         Debug() << "Metal Device      :" << matches[2] << "(" + matches[1].str() + ")";
         Debug() << "Renderer Version  :" << matches[3].str();
 
-        std::smatch vmatches;
-        if (std::regex_search(version, vmatches, std::regex("\\(ANGLE (.+) git hash: .+\\)"))) {
+        if (std::smatch vmatches; std::regex_search(version, vmatches, std::regex("\\(ANGLE (.+) git hash: .+\\)"))) {
             Debug() << "ANGLE Version     :" << vmatches[1].str();
         }
         return;
@@ -126,13 +127,13 @@ static void printGLInfo() {
     Debug() << "GLSL Version :" << glGetStringInt(GL_SHADING_LANGUAGE_VERSION);
 }
 
-static SDL_GLContext initGL(SDL_Window *win, Config &conf,
+static SDL_GLContext initGL(SDL_Window *win, const Config &conf,
                             RGSSThreadData *threadData);
 
 #ifdef MKXPZ_RUBY_GEM
 #define RGSS_THREAD_BAD_EXIT nullptr
 ALCcontext *startRgssThread(RGSSThreadData *threadData) {
-    RgssThreadManager::getInstance().getThreadMutex().lock();
+    RgssThreadManager::getInstance().lockRgssThread();
 #else
 #define RGSS_THREAD_BAD_EXIT 0
     int rgssThreadFun(void *userdata) {
@@ -184,7 +185,7 @@ int killRgssThread(RGSSThreadData *threadData, ALCcontext *alcCtx) {
     alcDestroyContext(alcCtx);
 
 #ifdef MKXPZ_RUBY_GEM
-    RgssThreadManager::getInstance().getThreadMutex().unlock();
+    RgssThreadManager::getInstance().unlockRgssThread();
 #endif
     return 0;
 }
@@ -192,14 +193,14 @@ int killRgssThread(RGSSThreadData *threadData, ALCcontext *alcCtx) {
 static void printRgssVersion(int ver) {
     const std::array<std::string_view, 4> makers = {"", "XP", "VX", "VX Ace"};
 
-    std::vector<char> buf(128);
-    snprintf(buf.data(), buf.size(), "RGSS version %d (RPG Maker %s)", ver,
-             makers[ver].data());
+    std::string buf;
+    std::format_to(std::back_inserter(buf), "RGSS version %d (RPG Maker %s)", ver,
+                   makers[ver].data());
 
-    Debug() << buf.data();
+    Debug() << buf;
 }
 
-static void rgssThreadError(RGSSThreadData *rtData, const std::string &msg) {
+static void rgssThreadError(RGSSThreadData *rtData, std::string_view msg) {
     rtData->rgssErrorMsg = msg;
     rtData->ethread->requestTerminate();
     rtData->rqTermAck.set();
@@ -278,10 +279,10 @@ int main(int argc, char *argv[]) {
         if (setupWindowsConsole()) {
             reopenWindowsStreams();
         } else {
-            std::array<char, 200> buf;
-            snprintf(buf.data(), buf.size(), "Error allocating console: %lu",
-                     GetLastError());
-            showInitError(std::string(buf.data()));
+            std::string buf;
+            std::format_to(std::back_inserter(buf), "Error allocating console: %lu",
+                           GetLastError());
+            showInitError(buf);
         }
     }
 #endif
@@ -343,9 +344,8 @@ int main(int argc, char *argv[]) {
 #if defined(__WIN32__)
     WSAData wsadata = {0};
     if (WSAStartup(0x101, &wsadata) || wsadata.wVersion != 0x101) {
-        std::array<char, 200> buf;
-        snprintf(buf.data(), buf.size(), "Error initializing winsock: %08X",
-                 WSAGetLastError());
+        std::string buf;
+        std::format_to(std::back_inserter(buf), "Error initializing winsock: %08X", WSAGetLastError());
         showInitError(
                 std::string(buf.data())); // Not an error worth ending the program over
     }
