@@ -38,30 +38,39 @@ struct BitmapPrivate;
 class Bitmap : public Disposable
 {
 public:
-	Bitmap(const char *filename);
-	Bitmap(int width, int height, bool isHires = false);
-    Bitmap(void *pixeldata, int width, int height);
-	/* Clone constructor */
-    
-    // frame is -2 for "any and all", -1 for "current", anything else for a specific frame
-	Bitmap(const Bitmap &other, int frame = -2);
-	~Bitmap();
+	Bitmap(std::string_view filename);
 
-	int width()  const;
-	int height() const;
-	bool hasHires() const;
-	DECL_ATTR(Hires, Bitmap*)
-	void setLores(Bitmap *lores);
-	bool isMega() const;
+    Bitmap(int width, int height, bool isHires = false);
+
+    Bitmap(void *pixeldata, int width, int height);
+    /* Clone constructor */
+
+    // frame is -2 for "any and all", -1 for "current", anything else for a specific frame
+    Bitmap(const Bitmap &other, int frame = -2);
+
+    ~Bitmap();
+
+    int width() const;
+
+    int height() const;
+
+    bool hasHires() const;
+
+    DECL_ATTR(Hires, std::shared_ptr<Bitmap>)
+
+    void setLores(Bitmap *lores);
+
+    bool isMega() const;
+
     bool isAnimated() const;
 
-	IntRect rect() const;
+    IntRect rect() const;
 
-	void blt(int x, int y,
-	         const Bitmap &source, IntRect rect,
-	         int opacity = 255);
+    void blt(int x, int y,
+             const Bitmap &source, IntRect rect,
+             int opacity = 255);
 
-	void stretchBlt(const IntRect &destRect,
+    void stretchBlt(const IntRect &destRect,
 	                const Bitmap &source, const IntRect &sourceRect,
 	                int opacity = 255);
 
@@ -89,9 +98,11 @@ public:
 
 	Color getPixel(int x, int y) const;
 	void setPixel(int x, int y, const Color &color);
-    
+
     bool getRaw(void *output, int output_size);
-    void replaceRaw(void *pixel_data, int size);
+
+    void replaceRaw(const void *pixel_data, int size);
+
     void saveToFile(const char *filename);
 
 	void hueChange(int hue);
@@ -104,26 +115,31 @@ public:
 	};
 
 	void drawText(int x, int y,
-	              int width, int height,
-	              const char *str, int align = Left);
+                  int width, int height,
+                  const char *str, int align = Left);
 
-	void drawText(const IntRect &rect,
-	              const char *str, int align = Left);
+    void drawText(const IntRect &rect,
+                  const char *str, int align = Left);
 
-	IntRect textSize(const char *str);
+    IntRect textSize(const char *str);
 
-	DECL_ATTR(Font, Font&)
+    DECL_ATTR(Font, Font &)
 
-	/* Sets initial reference without copying by value,
-	 * use at construction */
-	void setInitFont(Font *value);
+    /* Sets initial reference without copying by value,
+     * use at construction */
+    void setInitFont(Font *value);
 
-	/* <internal> */
-	TEXFBO &getGLTypes() const;
+    /* <internal> */
+    TEXFBO &getGLTypes() const;
+
     SDL_Surface *surface() const;
-	SDL_Surface *megaSurface() const;
-	void ensureNonMega() const;
+
+    SDL_Surface *megaSurface() const;
+
+    void ensureNonMega() const;
+
     void ensureNonAnimated() const;
+
     void ensureAnimated() const;
     
     // Animation functions
@@ -134,8 +150,9 @@ public:
     void gotoAndPlay(int frame);
     int numFrames() const;
     int currentFrameI() const;
-    
-    int addFrame(Bitmap &source, int position = -1);
+
+    int addFrame(const Bitmap &source, int position = -1);
+
     void removeFrame(int position = -1);
     
     void nextFrame();

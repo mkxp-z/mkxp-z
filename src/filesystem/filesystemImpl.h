@@ -20,7 +20,7 @@ bool setCurrentDirectory(const char *path);
     
 std::string getCurrentDirectory();
     
-std::string normalizePath(const char *path, bool preferred, bool absolute);
+std::string normalizePath(std::string_view path, bool preferred, bool absolute);
 
 std::string getDefaultGameRoot();
 

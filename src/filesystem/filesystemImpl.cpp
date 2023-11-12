@@ -68,9 +68,9 @@ std::string filesystemImpl::getCurrentDirectory() {
 }
 
 
-std::string filesystemImpl::normalizePath(const char *path, bool preferred, bool absolute) {
+std::string filesystemImpl::normalizePath(std::string_view path, bool preferred, bool absolute) {
     fs::path stdPath(path);
-    
+
     if (!stdPath.is_absolute() && absolute)
         stdPath = fs::current_path() / stdPath;
 

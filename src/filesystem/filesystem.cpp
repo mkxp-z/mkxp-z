@@ -604,17 +604,17 @@ openReadEnumCB(void *d, const char *dirpath, const char *filename) {
   return PHYSFS_ENUM_OK;
 }
 
-void FileSystem::openRead(OpenHandler &handler, const char *filename) {
-  std::string filename_nm = normalize(filename, false, false);
-  char buffer[512];
-  size_t len = strcpySafe(buffer, filename_nm.c_str(), sizeof(buffer), -1);
-  char *delim;
+void FileSystem::openRead(OpenHandler &handler, std::string_view filename) {
+    std::string filename_nm = normalize(filename, false, false);
+    char buffer[512];
+    size_t len = strcpySafe(buffer, filename_nm.c_str(), sizeof(buffer), -1);
+    char *delim;
 
-  if (p->havePathCache)
-    for (size_t i = 0; i < len; ++i)
-      buffer[i] = tolower(buffer[i]);
+    if (p->havePathCache)
+        for (size_t i = 0; i < len; ++i)
+            buffer[i] = tolower(buffer[i]);
 
-  /* Find the deliminator separating directory and file name */
+    /* Find the deliminator separating directory and file name */
   for (delim = buffer + len; delim > buffer; --delim)
     if (*delim == '/')
       break;
@@ -663,8 +663,8 @@ void FileSystem::openReadRaw(SDL_RWops &ops, const char *filename,
     return;
 }
 
-std::string FileSystem::normalize(const char *pathname, bool preferred,
-                            bool absolute) {
+std::string FileSystem::normalize(std::string_view pathname, bool preferred,
+                                  bool absolute) {
     return filesystemImpl::normalizePath(pathname, preferred, absolute);
 }
 
