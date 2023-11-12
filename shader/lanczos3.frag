@@ -9,7 +9,8 @@ varying vec2 v_texCoord;
 
 float lanczos3(float x)
 {
-	x = max(abs(x), 0.00001);
+	// 0.0001 is nonzero in mediump mode; 0.00001 is zero there.
+	x = max(abs(x), 0.0001);
 	float val = x * 3.141592654;
 	return sin(val) * sin(val / 3.0) / (val * val);
 }
