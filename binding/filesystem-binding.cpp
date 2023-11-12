@@ -62,7 +62,7 @@ static VALUE fileIntForPath(const char *path, bool rubyExc) {
         if (rubyExc)
             raiseRbExc(e);
         else
-            throw e;
+            throw;
     }
     
     VALUE klass = rb_const_get(rb_cObject, rb_intern("FileInt"));

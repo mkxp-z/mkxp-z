@@ -542,7 +542,7 @@ Bitmap::Bitmap(const char *filename)
                 delete handler.gif;
                 delete handler.gif_data;
                 
-                throw e;
+                throw;
             }
             
             TEX::bind(texfbo.tex);
@@ -603,8 +603,8 @@ Bitmap::Bitmap(const char *filename)
                 gif_finalise(handler.gif);
                 delete handler.gif;
                 delete handler.gif_data;
-                
-                throw e;
+
+                throw;
             }
             
             TEX::bind(texfbo.tex);
@@ -644,7 +644,7 @@ Bitmap::Bitmap(const char *filename)
         catch (const Exception &e)
         {
             SDL_FreeSurface(imgSurf);
-            throw e;
+            throw;
         }
 
         p = std::make_unique<BitmapPrivate>(this);
@@ -722,7 +722,7 @@ Bitmap::Bitmap(void *pixeldata, int width, int height)
         catch (const Exception &e)
         {
             SDL_FreeSurface(surface);
-            throw e;
+            throw;
         }
 
         p = std::make_unique<BitmapPrivate>(this);
@@ -783,7 +783,7 @@ Bitmap::Bitmap(const Bitmap &other, int frame)
             } catch(const Exception &e) {
                 for (TEXFBO &f : p->animation.frames)
                     shState->texPool().release(f);
-                throw e;
+                throw;
             }
             
             GLMeta::blitBegin(newframe);
