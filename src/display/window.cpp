@@ -678,9 +678,8 @@ struct WindowPrivate
 };
 
 Window::Window(Viewport *viewport)
-	: ViewportElement(viewport)
+	: ViewportElement(viewport), p(std::make_unique<WindowPrivate>(viewport))
 {
-	p = new WindowPrivate(viewport);
 	onGeometryChange(scene->getGeometry());
 }
 
@@ -896,6 +895,4 @@ void Window::releaseResources()
 	p->controlsElement.release();
 
 	unlink();
-
-	delete p;
 }

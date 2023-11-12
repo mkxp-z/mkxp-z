@@ -50,7 +50,7 @@ public:
 	void initDynAttribs();
 
 private:
-	PlanePrivate *p;
+	std::unique_ptr<PlanePrivate> p;
 
 	void draw();
 	void onGeometryChange(const Scene::Geometry &);

@@ -79,7 +79,7 @@ public:
 	void initDynAttribs();
 
 private:
-	SpritePrivate *p;
+	std::unique_ptr<SpritePrivate> p;
 
 	void draw();
 	void onGeometryChange(const Scene::Geometry &);

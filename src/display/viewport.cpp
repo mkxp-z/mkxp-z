@@ -123,7 +123,7 @@ Viewport::Viewport()
 
 void Viewport::initViewport(int x, int y, int width, int height)
 {
-	p = new ViewportPrivate(x, y, width, height, this);
+	p = std::make_unique<ViewportPrivate>(x, y, width, height, this);
 
 	/* Set our own geometry */
 	geometry.rect = IntRect(x, y, width, height);
@@ -224,8 +224,6 @@ void Viewport::onGeometryChange(const Geometry &geo)
 void Viewport::releaseResources()
 {
 	unlink();
-
-	delete p;
 }
 
 

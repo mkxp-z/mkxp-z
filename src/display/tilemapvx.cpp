@@ -424,9 +424,8 @@ Bitmap *TilemapVX::BitmapArray::get(int i) const
 	return p->bitmaps[i];
 }
 
-TilemapVX::TilemapVX(Viewport *viewport)
+TilemapVX::TilemapVX(Viewport *viewport) : p(std::make_shared<TilemapVXPrivate>(viewport))
 {
-	p = new TilemapVXPrivate(viewport);
 	bmProxy.p = p;
 }
 
@@ -562,6 +561,5 @@ void TilemapVX::setOY(int value)
 
 void TilemapVX::releaseResources()
 {
-	delete p;
-	bmProxy.p = 0;
+	bmProxy.p.reset();
 }

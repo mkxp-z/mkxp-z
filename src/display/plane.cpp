@@ -147,10 +147,8 @@ struct PlanePrivate
 };
 
 Plane::Plane(Viewport *viewport)
-    : ViewportElement(viewport)
+    : ViewportElement(viewport), p(std::make_unique<PlanePrivate>())
 {
-	p = new PlanePrivate();
-
 	onGeometryChange(scene->getGeometry());
 }
 
@@ -312,6 +310,4 @@ void Plane::onGeometryChange(const Scene::Geometry &geo)
 void Plane::releaseResources()
 {
 	unlink();
-
-	delete p;
 }

@@ -27,6 +27,8 @@
 #include "disposable.h"
 #include "util.h"
 
+#include <memory>
+
 struct ViewportPrivate;
 
 class Viewport : public Scene, public SceneElement, public Flashable, public Disposable
@@ -61,7 +63,7 @@ private:
 
 	ABOUT_TO_ACCESS_DISP
 
-	ViewportPrivate *p;
+	std::unique_ptr<ViewportPrivate> p;
 	friend struct ViewportPrivate;
 
 	IntruListLink<Scene> sceneLink;

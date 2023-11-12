@@ -1132,8 +1132,7 @@ struct GraphicsPrivate {
     }
 };
 
-Graphics::Graphics(RGSSThreadData *data) {
-    p = new GraphicsPrivate(data);
+Graphics::Graphics(RGSSThreadData *data) : p(std::make_unique<GraphicsPrivate>(data)){
     if (data->config.syncToRefreshrate) {
         p->frameRate = data->refreshRate;
         p->fpsLimiter.disabled = true;
@@ -1144,7 +1143,7 @@ Graphics::Graphics(RGSSThreadData *data) {
     }
 }
 
-Graphics::~Graphics() { delete p; }
+Graphics::~Graphics() = default;
 
 double Graphics::getDelta() {
     return shState->runTime() - p->last_update;

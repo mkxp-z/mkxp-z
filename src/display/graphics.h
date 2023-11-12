@@ -24,6 +24,8 @@
 
 #include "util.h"
 
+#include <memory>
+
 class Scene;
 class Bitmap;
 class Disposable;
@@ -108,7 +110,7 @@ private:
 	friend struct SharedStatePrivate;
 	friend class Disposable;
 
-	GraphicsPrivate *p;
+	std::unique_ptr<GraphicsPrivate> p;
 };
 
 #define GFX_LOCK shState->graphics().lock()
