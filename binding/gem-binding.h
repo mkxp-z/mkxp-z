@@ -12,3 +12,44 @@
         #define MKXPZ_GEM_EXPORT
     #endif
 #endif
+
+#include <memory>
+#include <vector>
+#include <string>
+#include <thread>
+
+struct ALCcontext;
+struct RGSSThreadData;
+
+class GemBinding {
+private:
+    GemBinding();
+    ~GemBinding();
+
+public:
+    static GemBinding &getInstance();
+
+    void stopEventThread();
+    void runEventThread(std::string windowName, std::vector<std::string> args, bool windowVisible);
+
+    inline bool isEventThreadKilled() const {
+        return eventThreadKilled;
+    }
+
+    inline void setEventThread(std::unique_ptr<std::jthread> &&thread){
+        eventThread = std::move(thread);
+    }
+
+    inline ALCcontext *getAlcContext() const {
+        return alcCtx;
+    }
+
+    inline void setAlcContext(ALCcontext *ctx) {
+        alcCtx = ctx;
+    }
+
+private:
+    std::unique_ptr<std::jthread> eventThread;
+    ALCcontext *alcCtx = nullptr;
+    bool eventThreadKilled = false;
+};

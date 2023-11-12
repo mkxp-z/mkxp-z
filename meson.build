@@ -193,7 +193,7 @@ if steamworks == true
 endif
 
 if (get_option('build_gem') == true)
-    shared_library(exe_name.replace('-', ''),
+    shared_library(meson.project_name().replace('-', ''),
             sources: global_sources,
             dependencies: global_dependencies,
             include_directories: global_include_dirs,

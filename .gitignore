@@ -84,6 +84,8 @@ cmake-build-relwithdebinfo/
 ext/mkxp_z/bin
 ext/mkxp_z/include
 ext/mkxp_z/lib
-/mkxp_z-0.1.0.gem
-/mkxp-z-2.4.2.gem
+/mkxp-z-*.gem
 /lib/mkxp-z/mkxpz.so
+/tests/rpg-maker-rgss
+/zlib1.dll
+/lib/mkxp-z/mkxpz.dll.a

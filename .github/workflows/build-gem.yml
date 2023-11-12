@@ -14,6 +14,13 @@ jobs:
   build-windows:
     name: Windows
     runs-on: windows-latest
+
+    strategy:
+      matrix:
+        include:
+          - { ruby: '3.1', sys: ucrt64,  env: ucrt-x86_64, clib: ucrt }
+      fail-fast: false
+
     steps:
       - uses: benjlevesque/short-sha@v2.2
         id: short-sha
@@ -22,17 +29,20 @@ jobs:
 
       - uses: msys2/setup-msys2@v2
         with:
-          msystem: mingw64
+          msystem: ${{matrix.sys}}
           install: >-
             base-devel
             git
-            ruby
             vim
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-meson
-            mingw-w64-x86_64-autotools
-            mingw-w64-x86_64-gcc
+            mingw-w64-${{matrix.env}}-cmake
+            mingw-w64-${{matrix.env}}-meson
+            mingw-w64-${{matrix.env}}-autotools
+            mingw-w64-${{matrix.env}}-gcc
 
+      - name: Install Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
 
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -42,7 +52,7 @@ jobs:
           path: |
             windows/build-mingw64
             windows/downloads
-          key: win-${{ hashFiles('windows/Makefile') }}
+          key: win-gem-${{matrix.ruby}}-${{ hashFiles('windows/Makefile') }}
 
       - name: Build all dependencies
         shell: msys2 {0}
@@ -57,7 +67,6 @@ jobs:
           meson build -Dbuild_gem=true
           cd build
           ninja install
-          strip ./mkxpz.so
           cd ..
           gem build mkxp-z.gemspec
 
@@ -76,24 +85,28 @@ jobs:
         run: |
           mkdir build/artifact
           cd build/artifact
-          cp /mingw64/bin/zlib1.dll .
+          cp /${{ matrix.sys }}/bin/zlib1.dll .
           cp ../../mkxp-z-*.gem .
           cp ../../mkxp.json .
           cp -r ../../scripts .
+          cp -r ../../tests .
 
       - uses: actions/upload-artifact@v3
         with:
-          name: mkxp-z.windows.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          name: mkxp-z.windows.gem.${{matrix.ruby}}.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: |
             build/artifact/*.dll
             build/artifact/*.gem
             build/artifact/mkxp.json
             build/artifact/scripts/
-            build/artifact/stdlib/
 
   build-linux:
     name: Ubuntu 22.04
     runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        ruby: ['3.1']
+      fail-fast: false
     steps:
       - uses: benjlevesque/short-sha@v2.2
         id: short-sha
@@ -108,12 +121,17 @@ jobs:
           path: |
             linux/build-x86_64
             linux/downloads
-          key: lin-${{ hashFiles('linux/Makefile') }}
+          key: lin-gem-${{matrix.ruby}}.-${{ hashFiles('linux/Makefile') }}
+
+      - name: Install Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
 
       - name: Install apt dependencies
         run: |
           sudo apt update
-          sudo apt install git build-essential cmake meson autoconf automake libtool pkg-config ruby bison zlib1g-dev libbz2-dev xorg-dev libgl1-mesa-dev libasound2-dev libpulse-dev -y
+          sudo apt install git build-essential cmake meson autoconf automake libtool pkg-config bison zlib1g-dev libbz2-dev xorg-dev libgl1-mesa-dev libasound2-dev libpulse-dev -y
 
       - name: Build everything else
         env:
@@ -154,5 +172,5 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: mkxp-z.linux.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          name: mkxp-z.linux.${{matrix.ruby}}.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: build/local.zip
