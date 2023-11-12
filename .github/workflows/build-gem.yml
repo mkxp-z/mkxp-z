@@ -67,6 +67,8 @@ jobs:
           meson build -Dbuild_gem=true
           cd build
           ninja install
+          cd ..
+          gem build mkxp-z.gemspec
 
       - name: Install sonar-scanner and build-wrapper
         uses: SonarSource/sonarcloud-github-c-cpp@v2
