@@ -56,7 +56,7 @@ public:
 
     bool hasHires() const;
 
-    DECL_ATTR(Hires, std::shared_ptr<Bitmap>)
+    DECL_ATTR(Hires, Bitmap*)
 
     void setLores(Bitmap *lores);
 

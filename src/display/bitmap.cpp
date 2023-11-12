@@ -824,9 +824,9 @@ bool Bitmap::hasHires() const{
     return p->selfHires != nullptr;
 }
 
-DEF_ATTR_RD_SIMPLE(Bitmap, Hires, std::shared_ptr<Bitmap>, p->selfHires)
+DEF_ATTR_RD_SIMPLE(Bitmap, Hires, Bitmap*, p->selfHires)
 
-void Bitmap::setHires(std::shared_ptr<Bitmap> hires) {
+void Bitmap::setHires(Bitmap *hires) {
     guardDisposed();
 
     Debug() << "BUG: High-res Bitmap setHires not fully implemented, expect bugs";
