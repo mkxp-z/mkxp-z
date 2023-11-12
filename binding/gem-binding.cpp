@@ -4,12 +4,10 @@
 
 #include "gem-binding.h"
 #include "binding-util.h"
+#include "rgssthreadmanager.h"
 
 #include <ruby.h>
 #include <alc.h>
-
-// TODO: Figure out a fix for this global
-extern RGSSThreadData *externThreadData;
 
 ALCcontext *startRgssThread(RGSSThreadData *threadData);
 int killRgssThread(RGSSThreadData *threadData, ALCcontext *alcCtx);
@@ -42,21 +40,25 @@ RB_METHOD(initGameState) {
     rb_bool_arg(visible, &windowVisible);
 
     auto &gemBinding = GemBinding::getInstance();
-    gemBinding.setEventThread(std::make_unique<std::jthread>(&GemBinding::runEventThread, &gemBinding, appName, argList, windowVisible));
-    while (externThreadData == nullptr) {
+    gemBinding.setEventThread(
+            std::make_unique<std::jthread>(&GemBinding::runEventThread, &gemBinding, appName, argList, windowVisible));
+
+    const auto &threadManager = RgssThreadManager::getInstance();
+    while (threadManager.getThreadData() == nullptr) {
         if (gemBinding.isEventThreadKilled())
             return Qfalse;
         std::this_thread::yield();
     }
 
-    gemBinding.setAlcContext(startRgssThread(externThreadData));
+    gemBinding.setAlcContext(startRgssThread(threadManager.getThreadData()));
     return Qtrue;
 }
 
 void killGameState(VALUE) {
     auto &gemBinding = GemBinding::getInstance();
-    if (externThreadData != nullptr && gemBinding.getAlcContext() != nullptr)
-        killRgssThread(externThreadData, gemBinding.getAlcContext());
+    if (const auto &threadManager = RgssThreadManager::getInstance(); threadManager.getThreadData() != nullptr &&
+                                                                      gemBinding.getAlcContext() != nullptr)
+        killRgssThread(threadManager.getThreadData(), gemBinding.getAlcContext());
     gemBinding.stopEventThread();
 }
 
@@ -89,6 +91,6 @@ void GemBinding::runEventThread(std::string windowName, std::vector<std::string>
     for (auto &a : args) {
         argv.push_back(a.data());
     }
-    startGameWindow(argv.size(), argv.data(), windowVisible);
+    startGameWindow((int) argv.size(), argv.data(), windowVisible);
     eventThreadKilled = true;
 }

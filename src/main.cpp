@@ -35,15 +35,15 @@
 #include <string>
 #include <unistd.h>
 #include <regex>
+#include <string_view>
 
 #ifdef MKXPZ_RUBY_GEM
-#include <thread>
 
-// We want the gem to always run from the current directory
-#define WORKDIR_CURRENT
+#include "rgssthreadmanager.h"
 #endif
 
 #include "binding.h"
+#include "rgssthreadmanager.h"
 #include "sharedstate.h"
 #include "eventthread.h"
 #include "util/debugwriter.h"
@@ -56,14 +56,15 @@
 #include "system/system.h"
 
 #if defined(__WIN32__)
+
 #include "resource.h"
-#include <Winsock2.h>
+#include <winsock2.h>
 #include "util/win-consoleutils.h"
-#include "gamestate.h"
 
 // Try to work around buggy GL drivers that tend to be in Optimus laptops
 // by forcing MKXP to use the dedicated card instead of the integrated one
 #include <windows.h>
+
 extern "C" {
 __declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
 __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
@@ -89,8 +90,7 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 #endif
 
 #ifdef MKXPZ_RUBY_GEM
-RGSSThreadData *externThreadData = nullptr;
-std::mutex rgssThreadMutex;
+RgssThreadManager RgssThreadManager::instance;
 #endif
 
 static void rgssThreadError(RGSSThreadData *rtData, const std::string &msg);
@@ -130,28 +130,30 @@ static SDL_GLContext initGL(SDL_Window *win, Config &conf,
                             RGSSThreadData *threadData);
 
 #ifdef MKXPZ_RUBY_GEM
+#define RGSS_THREAD_BAD_EXIT nullptr
 ALCcontext *startRgssThread(RGSSThreadData *threadData) {
-    rgssThreadMutex.lock();
+    RgssThreadManager::getInstance().getThreadMutex().lock();
 #else
-int rgssThreadFun(void *userdata) {
-    RGSSThreadData *threadData = static_cast<RGSSThreadData *>(userdata);
+#define RGSS_THREAD_BAD_EXIT 0
+    int rgssThreadFun(void *userdata) {
+        RGSSThreadData *threadData = static_cast<RGSSThreadData *>(userdata);
 #endif
 
 #ifdef MKXPZ_INIT_GL_LATER
     threadData->glContext =
             initGL(threadData->window, threadData->config, threadData);
     if (!threadData->glContext)
-        return 0;
+        return RGSS_THREAD_BAD_EXIT;
 #else
     SDL_GL_MakeCurrent(threadData->window, threadData->glContext);
 #endif
 
     /* Setup AL context */
-    ALCcontext *alcCtx = alcCreateContext(threadData->alcDev, 0);
+    ALCcontext *alcCtx = alcCreateContext(threadData->alcDev, nullptr);
 
     if (!alcCtx) {
         rgssThreadError(threadData, "Error creating OpenAL context");
-        return 0;
+        return RGSS_THREAD_BAD_EXIT;
     }
 
     alcMakeContextCurrent(alcCtx);
@@ -162,7 +164,7 @@ int rgssThreadFun(void *userdata) {
         rgssThreadError(threadData, exc.msg);
         alcDestroyContext(alcCtx);
 
-        return 0;
+        return RGSS_THREAD_BAD_EXIT;
     }
 
     /* Start script execution */
@@ -182,19 +184,19 @@ int killRgssThread(RGSSThreadData *threadData, ALCcontext *alcCtx) {
     alcDestroyContext(alcCtx);
 
 #ifdef MKXPZ_RUBY_GEM
-    rgssThreadMutex.unlock();
+    RgssThreadManager::getInstance().getThreadMutex().unlock();
 #endif
     return 0;
 }
 
 static void printRgssVersion(int ver) {
-    const char *const makers[] = {"", "XP", "VX", "VX Ace"};
+    const std::array<std::string_view, 4> makers = {"", "XP", "VX", "VX Ace"};
 
-    char buf[128];
-    snprintf(buf, sizeof(buf), "RGSS version %d (RPG Maker %s)", ver,
-             makers[ver]);
+    std::vector<char> buf(128);
+    snprintf(buf.data(), buf.size(), "RGSS version %d (RPG Maker %s)", ver,
+             makers[ver].data());
 
-    Debug() << buf;
+    Debug() << buf.data();
 }
 
 static void rgssThreadError(RGSSThreadData *rtData, const std::string &msg) {
@@ -205,7 +207,7 @@ static void rgssThreadError(RGSSThreadData *rtData, const std::string &msg) {
 
 static void showInitError(const std::string &msg) {
     Debug() << msg;
-    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "mkxp-z", msg.c_str(), 0);
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "mkxp-z", msg.c_str(), nullptr);
 }
 
 static void setupWindowIcon(const Config &conf, SDL_Window *win) {
@@ -252,7 +254,7 @@ int main(int argc, char *argv[]) {
     }
 
 #ifndef WORKDIR_CURRENT
-    char dataDir[512]{};
+    std::array<char, 512> dataDir;
 #if defined(__linux__)
     char *tmp{};
     tmp = getenv("SRCDIR");
@@ -261,9 +263,9 @@ int main(int argc, char *argv[]) {
     }
 #endif
     if (!dataDir[0]) {
-        strncpy(dataDir, mkxp_fs::getDefaultGameRoot().c_str(), sizeof(dataDir));
+        strncpy(dataDir.data(), mkxp_fs::getDefaultGameRoot().c_str(), dataDir.size());
     }
-    mkxp_fs::setCurrentDirectory(dataDir);
+    mkxp_fs::setCurrentDirectory(dataDir.data());
 #endif
 
     /* now we load the config */
@@ -276,10 +278,10 @@ int main(int argc, char *argv[]) {
         if (setupWindowsConsole()) {
             reopenWindowsStreams();
         } else {
-            char buf[200];
-            snprintf(buf, sizeof(buf), "Error allocating console: %lu",
+            std::array<char, 200> buf;
+            snprintf(buf.data(), buf.size(), "Error allocating console: %lu",
                      GetLastError());
-            showInitError(std::string(buf));
+            showInitError(std::string(buf.data()));
         }
     }
 #endif
@@ -341,11 +343,11 @@ int main(int argc, char *argv[]) {
 #if defined(__WIN32__)
     WSAData wsadata = {0};
     if (WSAStartup(0x101, &wsadata) || wsadata.wVersion != 0x101) {
-        char buf[200];
-        snprintf(buf, sizeof(buf), "Error initializing winsock: %08X",
+        std::array<char, 200> buf;
+        snprintf(buf.data(), buf.size(), "Error initializing winsock: %08X",
                  WSAGetLastError());
         showInitError(
-                std::string(buf)); // Not an error worth ending the program over
+                std::string(buf.data())); // Not an error worth ending the program over
     }
 #endif
 
@@ -460,7 +462,10 @@ int main(int argc, char *argv[]) {
     RGSSThreadData rtData(&eventThread, argv[0], win, alcDev, mode.refresh_rate,
                           mkxp_sys::getScalingFactor(), conf, glCtx);
 
-    int winW, winH, drwW, drwH;
+    int drwW;
+    int drwH;
+    int winW;
+    int winH;
     SDL_GetWindowSize(win, &winW, &winH);
     rtData.windowSizeMsg.post(Vec2i(winW, winH));
 
@@ -477,7 +482,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef MKXPZ_RUBY_GEM
     /* Yield the thread so the interpreter thread can start the RGSS stuff */
-    externThreadData = &rtData;
+    RgssThreadManager::getInstance().setThreadData(&rtData);
     std::this_thread::yield();
 #else
     /* Start RGSS thread */
@@ -503,7 +508,7 @@ int main(int argc, char *argv[]) {
     }
 
 #ifdef MKXPZ_RUBY_GEM
-    rgssThreadMutex.lock();
+    std::scoped_lock lockRgssThread(RgssThreadManager::getInstance().getThreadMutex());
 #else
     /* If RGSS thread ack'd request, wait for it to shutdown,
      * otherwise abandon hope and just end the process as is. */
@@ -547,13 +552,12 @@ int main(int argc, char *argv[]) {
     SDL_Quit();
 
 #ifdef MKXPZ_RUBY_GEM
-    externThreadData = nullptr;
-    rgssThreadMutex.unlock();
+    RgssThreadManager::getInstance().setThreadData(nullptr);
 #endif
     return 0;
 }
 
-static SDL_GLContext initGL(SDL_Window *win, Config &conf,
+static SDL_GLContext initGL(SDL_Window *win, const Config &conf,
                             RGSSThreadData *threadData) {
     SDL_GLContext glCtx{};
 
@@ -595,6 +599,5 @@ static SDL_GLContext initGL(SDL_Window *win, Config &conf,
     bool vsync = conf.vsync || conf.syncToRefreshrate;
     SDL_GL_SetSwapInterval(vsync ? 1 : 0);
 
-    // GLDebugLogger dLogger;
     return glCtx;
 }
