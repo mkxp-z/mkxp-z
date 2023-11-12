@@ -59,10 +59,10 @@ RB_METHOD(initGameState) {
 
     if (eventThread->joinable()) {
         alcCtx = startRgssThread(externThreadData);
-        return RUBY_T_TRUE;
+        return Qtrue;
     }
 
-    return RUBY_T_FALSE;
+    return Qfalse;
 }
 
 void killGameState(VALUE arg) {

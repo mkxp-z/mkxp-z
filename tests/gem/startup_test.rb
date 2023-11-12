@@ -13,6 +13,6 @@ class StartupTest < Minitest::Test
   end
 
   def test_gem_startup
-    assert_true(MKXP_Z.init_game_state("MKXP-Z", [], false))
+    assert_equal(true, MKXP_Z.init_game_state("MKXP-Z", [], false))
   end
 end

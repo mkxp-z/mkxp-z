@@ -19,7 +19,6 @@ jobs:
       matrix:
         include:
           - { ruby: '3.1', sys: ucrt64,  env: ucrt-x86_64, clib: ucrt }
-          - { ruby: '3.2', sys: ucrt64,  env: ucrt-x86_64, clib: ucrt }
       fail-fast: false
 
     steps:
@@ -59,13 +58,13 @@ jobs:
         shell: msys2 {0}
         run: |
           cd windows
-          make deps-core
+          make
 
       - name: Build Ruby gem
         shell: msys2 {0}
         run: |
           source windows/vars.sh
-          meson build -Dbuild_gem=true -Dmri_includes=$RUBY_INCLUDE_DIRS -Dmri_libpath=$RUBY_LIB_DIR -Dmri_library=$RUBY_LIB_NAME
+          meson build -Dbuild_gem=true
           cd build
           ninja install
 
@@ -74,11 +73,9 @@ jobs:
           rake
 
       - name: Install sonar-scanner and build-wrapper
-        if: ${{matrix.ruby == '3.1'}}
         uses: SonarSource/sonarcloud-github-c-cpp@v2
 
       - name: Run sonar-scanner
-        if: ${{matrix.ruby == '3.1'}}
         env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -110,7 +107,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        ruby: ['3.1', '3.2']
+        ruby: ['3.1']
       fail-fast: false
     steps:
       - uses: benjlevesque/short-sha@v2.2
@@ -144,12 +141,12 @@ jobs:
           EXTRA_CONFIG_OPTIONS: --with-pic
         run: |
           cd linux
-          make deps-core
+          make
 
       - name: Build Ruby gem
         run: |
           source linux/vars.sh
-          meson build --bindir=. --prefix=$GITHUB_WORKSPACE/build/local -Dbuild_gem=true -Dmri_includes=$RUBY_INCLUDE_DIRS -Dmri_libpath=$RUBY_LIB_DIR -Dmri_library=$RUBY_LIB_NAME
+          meson build --bindir=. --prefix=$GITHUB_WORKSPACE/build/local -Dbuild_gem=true
           cd build
           ninja
           ninja install
@@ -160,11 +157,9 @@ jobs:
         run: rake
 
       - name: Install sonar-scanner and build-wrapper
-        if: ${{matrix.ruby == '3.1'}}
         uses: SonarSource/sonarcloud-github-c-cpp@v2
 
       - name: Run sonar-scanner
-        if: ${{matrix.ruby == '3.1'}}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
