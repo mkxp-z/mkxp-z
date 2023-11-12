@@ -57,7 +57,7 @@ RB_METHOD(initGameState) {
 void killGameState(VALUE) {
     auto &gemBinding = GemBinding::getInstance();
     if (const auto &threadManager = RgssThreadManager::getInstance(); threadManager.getThreadData() != nullptr &&
-                                                                      gemBinding.getAlcContext() != nullptr)
+                                                                      gemBinding.alcContextSet())
         killRgssThread(threadManager.getThreadData(), gemBinding.getAlcContext());
     gemBinding.stopEventThread();
 }

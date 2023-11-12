@@ -46,10 +46,16 @@ public:
 
     inline void setAlcContext(ALCcontext *ctx) {
         alcCtx = ctx;
+        alcCtxSet = true;
+    }
+
+    inline bool alcContextSet() const {
+        return alcCtxSet;
     }
 
 private:
     std::unique_ptr<std::jthread> eventThread;
     ALCcontext *alcCtx = nullptr;
+    bool alcCtxSet = false;
     bool eventThreadKilled = false;
 };
