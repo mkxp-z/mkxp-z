@@ -131,11 +131,9 @@ static SDL_GLContext initGL(SDL_Window *win, const Config &conf,
                             RGSSThreadData *threadData);
 
 #ifdef MKXPZ_RUBY_GEM
-#define RGSS_THREAD_BAD_EXIT nullptr
 ALCcontext *startRgssThread(RGSSThreadData *threadData) {
     RgssThreadManager::getInstance().lockRgssThread();
 #else
-#define RGSS_THREAD_BAD_EXIT 0
     int rgssThreadFun(void *userdata) {
         RGSSThreadData *threadData = static_cast<RGSSThreadData *>(userdata);
 #endif
@@ -144,7 +142,11 @@ ALCcontext *startRgssThread(RGSSThreadData *threadData) {
     threadData->glContext =
             initGL(threadData->window, threadData->config, threadData);
     if (!threadData->glContext)
-        return RGSS_THREAD_BAD_EXIT;
+#ifdef MKXPZ_RUBY_GEM
+        throw std::system_error();
+#else
+    return 0;
+#endif
 #else
     SDL_GL_MakeCurrent(threadData->window, threadData->glContext);
 #endif
@@ -154,7 +156,12 @@ ALCcontext *startRgssThread(RGSSThreadData *threadData) {
 
     if (!alcCtx) {
         rgssThreadError(threadData, "Error creating OpenAL context");
-        return RGSS_THREAD_BAD_EXIT;
+#ifdef MKXPZ_RUBY_GEM
+        RgssThreadManager::getInstance().unlockRgssThread();
+        throw std::system_error(std::error_code(), "RGSS failed to initialize!");
+#else
+        return 0;
+#endif
     }
 
     alcMakeContextCurrent(alcCtx);
@@ -165,7 +172,13 @@ ALCcontext *startRgssThread(RGSSThreadData *threadData) {
         rgssThreadError(threadData, exc.msg);
         alcDestroyContext(alcCtx);
 
-        return RGSS_THREAD_BAD_EXIT;
+
+#ifdef MKXPZ_RUBY_GEM
+        RgssThreadManager::getInstance().unlockRgssThread();
+        throw std::system_error(std::error_code(), "RGSS failed to initialize!");
+#else
+        return 0;
+#endif
     }
 
     /* Start script execution */
@@ -182,7 +195,8 @@ int killRgssThread(RGSSThreadData *threadData, ALCcontext *alcCtx) {
 
     SharedState::finiInstance();
 
-    alcDestroyContext(alcCtx);
+    if (alcCtx != nullptr)
+        alcDestroyContext(alcCtx);
 
 #ifdef MKXPZ_RUBY_GEM
     RgssThreadManager::getInstance().unlockRgssThread();

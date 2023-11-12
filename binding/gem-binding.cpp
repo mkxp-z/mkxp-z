@@ -5,6 +5,7 @@
 #include "gem-binding.h"
 #include "binding-util.h"
 #include "rgssthreadmanager.h"
+#include "debugwriter.h"
 
 #include <ruby.h>
 #include <alc.h>
@@ -50,14 +51,18 @@ RB_METHOD(initGameState) {
         std::this_thread::yield();
     }
 
-    gemBinding.setAlcContext(startRgssThread(threadManager.getThreadData()));
-    return Qtrue;
+    try {
+        gemBinding.setAlcContext(startRgssThread(threadManager.getThreadData()));
+        return Qtrue;
+    } catch (const std::system_error &e) {
+        Debug() << e.what();
+        return Qfalse;
+    }
 }
 
 void killGameState(VALUE) {
     auto &gemBinding = GemBinding::getInstance();
-    if (const auto &threadManager = RgssThreadManager::getInstance(); threadManager.getThreadData() != nullptr &&
-                                                                      gemBinding.alcContextSet())
+    if (const auto &threadManager = RgssThreadManager::getInstance(); threadManager.getThreadData() != nullptr)
         killRgssThread(threadManager.getThreadData(), gemBinding.getAlcContext());
     gemBinding.stopEventThread();
 }
