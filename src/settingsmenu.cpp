@@ -121,7 +121,7 @@ struct Widget
 {
 	/* Widgets have a static size and position,
 	 * defined at creation */
-	Widget(SMP *p, const IntRect &rect);
+    Widget(std::weak_ptr<SMP> p, const IntRect &rect);
 
 	/* Public methods take coordinates in global
 	 * window coordinates */
@@ -132,7 +132,7 @@ struct Widget
 	void click(int x, int y, uint8_t button);
 
 protected:
-	SMP *p;
+    std::weak_ptr<SMP> p;
 	IntRect rect;
 
 	/* Protected abstract methods are called with
@@ -152,7 +152,7 @@ struct BindingWidget : Widget
 	 * for multiple button targets (red indicator) */
 	bool dupFlag[4];
 
-	BindingWidget(int vbIndex, SMP *p, const IntRect &rect)
+    BindingWidget(int vbIndex, std::weak_ptr<SMP> p, const IntRect &rect)
 	    : Widget(p, rect),
 	      vb(vButtons[vbIndex]),
 	      hoveredCell(-1)
@@ -182,8 +182,8 @@ struct Button : Widget
 	const char *str;
 	Callback cb;
 
-	Button(SMP *p, const IntRect &rect,
-	       const char *str, Callback cb)
+    Button(std::weak_ptr<SMP> p, const IntRect &rect,
+           const char *str, Callback cb)
 	    : Widget(p, rect),
 	      str(str), cb(cb), hovered(false)
 	{}
@@ -204,10 +204,10 @@ struct Label : Widget
 	const char *str;
 	SDL_Color c;
 
-	Label() : Widget(0, IntRect()) {}
+    Label() : Widget(std::weak_ptr<SMP>(), IntRect()) {}
 
-	Label(SMP *p, const IntRect &rect,
-	      const char *str, uint8_t r, uint8_t g, uint8_t b)
+    Label(std::weak_ptr<SMP> p, const IntRect &rect,
+          const char *str, uint8_t r, uint8_t g, uint8_t b)
 	    : Widget(p, rect),
 	      str(str),
 	      visible(true)
@@ -694,7 +694,7 @@ struct SettingsMenuPrivate
 	}
 };
 
-Widget::Widget(SMP *p, const IntRect &rect)
+Widget::Widget(std::weak_ptr<SMP> p, const IntRect &rect)
     : p(p), rect(rect)
 {}
 
@@ -705,10 +705,11 @@ bool Widget::hit(int x, int y)
 
 void Widget::draw(SDL_Surface *surf)
 {
-	Vec2i prev = p->drawOff;
-	p->drawOff = rect.pos();
+    auto lockP = p.lock();
+    Vec2i prev = lockP->drawOff;
+    lockP->drawOff = rect.pos();
 	drawHandler(surf);
-	p->drawOff = prev;
+    lockP->drawOff = prev;
 }
 
 void Widget::motion(int x, int y)
@@ -751,22 +752,23 @@ void BindingWidget::drawHandler(SDL_Surface *surf)
 	    cellW, cellH + cellH / 2
 	};
 
+    auto lockP = p.lock();
 	/* Hovered cell background */
 	if (hoveredCell != -1)
-		p->fillRect(surf, cBgDark,
+        lockP->fillRect(surf, cBgDark,
 		            cellOff[hoveredCell*2], cellOff[hoveredCell*2+1],
 		            cellW, cellH);
 
 	/* Frame */
-	p->strokeRectInner(surf, cLine, 0, 0, rect.w, rect.h, 2);
+    lockP->strokeRectInner(surf, cLine, 0, 0, rect.w, rect.h, 2);
 
 	/* Virtual button name */
-	p->drawText(surf, vb.str, 1, rect.h/2, cellOffX, Center, true);
+    lockP->drawText(surf, vb.str, 1, rect.h / 2, cellOffX, Center, true);
 
 	/* Cell frames */
-	p->strokeLineV(surf, cLine, cellOffX, 0, rect.h, 2);
-	p->strokeLineV(surf, cLine, cellOffX+cellW, 0, rect.h, 2);
-	p->strokeLineH(surf, cLine, cellOffX, cellH, cellW*2, 2);
+    lockP->strokeLineV(surf, cLine, cellOffX, 0, rect.h, 2);
+    lockP->strokeLineV(surf, cLine, cellOffX + cellW, 0, rect.h, 2);
+    lockP->strokeLineH(surf, cLine, cellOffX, cellH, cellW * 2, 2);
 
 	/* Draw binding labels */
 	for (size_t i = 0; i < 4; ++i)
@@ -777,7 +779,7 @@ void BindingWidget::drawHandler(SDL_Surface *surf)
 
 		const int x = lbOff[i*2+0];
 		const int y = lbOff[i*2+1];
-		p->drawText(surf, lb.c_str(), cellOffX+x+1, y, cellW-2, Center);
+        lockP->drawText(surf, lb.c_str(), cellOffX + x + 1, y, cellW - 2, Center);
 	}
 
 	for (size_t i = 0; i < 4; ++i)
@@ -785,7 +787,7 @@ void BindingWidget::drawHandler(SDL_Surface *surf)
 		if (!dupFlag[i])
 			continue;
 
-		p->strokeRectInner(surf, cellOff[i*2]+1, cellOff[i*2+1]+1,
+        lockP->strokeRectInner(surf, cellOff[i * 2] + 1, cellOff[i * 2 + 1] + 1,
 		        cellW-2, cellH-3, 1, 255, 0, 0);
 	}
 }
@@ -796,7 +798,7 @@ void BindingWidget::setHoveredCell(int cell)
 		return;
 
 	hoveredCell = cell;
-	p->redraw();
+    p.lock()->redraw();
 }
 
 void BindingWidget::motionHandler(int x, int y)
@@ -816,7 +818,7 @@ void BindingWidget::clickHandler(int x, int y, uint8_t button)
 	if (cell == -1)
 		return;
 
-	p->onBWidgetCellClicked(src[cell], vb.str, button);
+    p.lock()->onBWidgetCellClicked(src[cell], vb.str, button);
 }
 
 int BindingWidget::cellIndex(int x, int y) const
@@ -864,16 +866,17 @@ void Button::setHovered(bool val)
 		return;
 
 	hovered = val;
-	p->redraw();
+    p.lock()->redraw();
 }
 
 void Button::drawHandler(SDL_Surface *surf)
 {
+    auto lockP = p.lock();
 	if (hovered)
-		p->fillRect(surf, cBgDark, 0, 0, rect.w, rect.h);
+        lockP->fillRect(surf, cBgDark, 0, 0, rect.w, rect.h);
 
-	p->strokeRectInner(surf, cLine, 0, 0, rect.w, rect.h, 2);
-	p->drawText(surf, str, 0, rect.h/2, rect.w, Center);
+    lockP->strokeRectInner(surf, cLine, 0, 0, rect.w, rect.h, 2);
+    lockP->drawText(surf, str, 0, rect.h / 2, rect.w, Center);
 }
 
 void Button::motionHandler(int, int)
@@ -891,7 +894,7 @@ void Button::clickHandler(int, int, uint8_t button)
 	if (button != SDL_BUTTON_LEFT)
 		return;
 
-	(p->*cb)();
+    (p.lock().get()->*cb)();
 }
 
 void Label::setVisible(bool val)
@@ -900,13 +903,13 @@ void Label::setVisible(bool val)
 		return;
 
 	visible = val;
-	p->redraw();
+    p.lock()->redraw();
 }
 
 void Label::drawHandler(SDL_Surface *surf)
 {
 	if (visible)
-		p->drawText(surf, str, 0, rect.h/2, rect.w, Left, c);
+        p.lock()->drawText(surf, str, 0, rect.h / 2, rect.w, Left, c);
 }
 
 SettingsMenu::SettingsMenu(RGSSThreadData &rtData)
@@ -924,8 +927,8 @@ SettingsMenu::SettingsMenu(RGSSThreadData &rtData)
         SET_BUTTON_NAME(11, z);
 #undef SET_BUTTON_NAME
     }
-    
-	p = new SettingsMenuPrivate(rtData);
+
+    p = std::make_shared<SettingsMenuPrivate>(rtData);
 	p->state = Idle;
 
 	p->hasFocus = false;
@@ -1006,8 +1009,6 @@ SettingsMenu::~SettingsMenu()
 {
 	TTF_CloseFont(p->font);
 	SDL_DestroyWindow(p->window);
-
-	delete p;
 }
 
 bool SettingsMenu::onEvent(const SDL_Event &event)

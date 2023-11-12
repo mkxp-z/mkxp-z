@@ -31,17 +31,14 @@
 #include "texpool.h"
 #include "font.h"
 #include "eventthread.h"
-#include "gl-util.h"
 #include "global-ibo.h"
 #include "quad.h"
 #include "binding.h"
 #include "exception.h"
 #include "sharedmidistate.h"
 
-#include <unistd.h>
 #include <stdio.h>
 #include <string>
-#include <chrono>
 
 SharedState *SharedState::instance = 0;
 int SharedState::rgssVersion = 0;
@@ -374,13 +371,9 @@ unsigned int SharedState::genTimeStamp()
 	return p->stampCounter++;
 }
 
-SharedState::SharedState(RGSSThreadData *threadData)
+SharedState::SharedState(RGSSThreadData *threadData) : p(std::make_unique<SharedStatePrivate>(threadData))
 {
-	p = new SharedStatePrivate(threadData);
 	p->screen = p->graphics.getScreen();
 }
 
-SharedState::~SharedState()
-{
-	delete p;
-}
+SharedState::~SharedState() = default;

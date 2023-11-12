@@ -309,7 +309,7 @@ FileSystem::FileSystem(const char *argv0, bool allowSymlinks) {
   if (er == 0)
     throwPhysfsError("Error registering PhysFS RGSS archiver");
 
-  p = new FileSystemPrivate;
+    p = std::make_shared<FileSystemPrivate>();
   p->havePathCache = false;
 
   if (allowSymlinks)
@@ -317,8 +317,6 @@ FileSystem::FileSystem(const char *argv0, bool allowSymlinks) {
 }
 
 FileSystem::~FileSystem() {
-  delete p;
-
   if (PHYSFS_deinit() == 0)
     Debug() << "PhyFS failed to deinit.";
 }
@@ -353,7 +351,7 @@ void FileSystem::removePath(const char *path, bool reload) {
 }
 
 struct CacheEnumData {
-  FileSystemPrivate *p;
+    std::shared_ptr<FileSystemPrivate> p;
   std::stack<std::vector<std::string> *> fileLists;
 
 #ifdef __APPLE__
@@ -361,7 +359,7 @@ struct CacheEnumData {
   char buf[512];
 #endif
 
-  CacheEnumData(FileSystemPrivate *p) : p(p) {
+    CacheEnumData(std::shared_ptr<FileSystemPrivate> p) : p(p) {
 #ifdef __APPLE__
     nfd2nfc = iconv_open("utf-8", "utf-8-mac");
 #endif
@@ -455,7 +453,7 @@ void FileSystem::reloadPathCache() {
 }
 
 struct FontSetsCBData {
-  FileSystemPrivate *p;
+    std::shared_ptr<FileSystemPrivate> p;
   SharedFontState *sfs;
 };
 

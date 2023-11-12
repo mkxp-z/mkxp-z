@@ -125,7 +125,7 @@ private:
 	SharedState(RGSSThreadData *threadData);
 	~SharedState();
 
-	SharedStatePrivate *p;
+    std::unique_ptr<SharedStatePrivate> p;
 };
 
 #endif // SHAREDSTATE_H
