@@ -2,6 +2,7 @@
 // Copyright 2020 Lilian Gimenez (Sentmoraap).
 // MIT license.
 
+precision highp float;
 uniform sampler2D texture;
 uniform vec2 sourceSize;
 uniform vec2 texSizeInv;
