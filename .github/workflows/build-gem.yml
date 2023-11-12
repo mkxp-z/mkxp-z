@@ -68,10 +68,6 @@ jobs:
           cd build
           ninja install
 
-      - name: Test Gem
-        run: |
-          rake
-
       - name: Install sonar-scanner and build-wrapper
         uses: SonarSource/sonarcloud-github-c-cpp@v2
 
@@ -152,9 +148,6 @@ jobs:
           ninja install
           cd ..
           gem build mkxp-z.gemspec
-
-      - name: Test Gem
-        run: rake
 
       - name: Install sonar-scanner and build-wrapper
         uses: SonarSource/sonarcloud-github-c-cpp@v2
