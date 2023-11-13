@@ -86,7 +86,7 @@ GemBinding &GemBinding::getInstance() {
 }
 
 void GemBinding::stopEventThread() {
-    if (eventThread != nullptr)
+    if (eventThread != nullptr && !eventThreadKilled)
         eventThread->request_stop();
 }
 

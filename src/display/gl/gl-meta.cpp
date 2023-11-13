@@ -154,6 +154,7 @@ static void _blitBegin(FBO::ID fbo, const Vec2i &size)
 
 		switch (shState->config().smoothScaling)
 		{
+#ifdef ENABLE_LANVZOS3
 		case Bicubic:
 		{
 			BicubicShader &shader = shState->shaders().bicubic;
@@ -174,6 +175,7 @@ static void _blitBegin(FBO::ID fbo, const Vec2i &size)
 		}
 
 			break;
+#endif
 		default:
 		{
 			SimpleShader &shader = shState->shaders().simple;
@@ -244,6 +246,7 @@ void blitSource(TEXFBO &source)
 	{
 		switch (shState->config().smoothScaling)
 		{
+#ifdef ENABLE_LANVZOS3
 		case Bicubic:
 		{
 			BicubicShader &shader = shState->shaders().bicubic;
@@ -260,6 +263,7 @@ void blitSource(TEXFBO &source)
 		}
 
 			break;
+#endif
 		default:
 		{
 			SimpleShader &shader = shState->shaders().simple;

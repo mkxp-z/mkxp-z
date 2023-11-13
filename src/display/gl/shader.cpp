@@ -46,8 +46,11 @@
 #include "simpleAlphaUni.frag.xxd"
 #include "tilemap.frag.xxd"
 #include "flashMap.frag.xxd"
+#ifdef ENABLE_LANVZOS3
 #include "bicubic.frag.xxd"
 #include "lanczos3.frag.xxd"
+
+#endif
 #include "minimal.vert.xxd"
 #include "simple.vert.xxd"
 #include "simpleColor.vert.xxd"
@@ -768,6 +771,7 @@ void BltShader::setOpacity(float value)
 	gl.Uniform1f(u_opacity, value);
 }
 
+#ifdef ENABLE_LANVZOS3
 BicubicShader::BicubicShader()
 {
 	INIT_SHADER(simple, bicubic, BicubicShader);
@@ -797,3 +801,5 @@ void Lanczos3Shader::setTexSize(const Vec2i &value)
 	ShaderBase::setTexSize(value);
 	gl.Uniform2f(u_sourceSize, (float)value.x, (float)value.y);
 }
+
+#endif

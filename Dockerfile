@@ -38,7 +38,7 @@ RUN apt-get update && apt-get --no-install-recommends install -y git build-essen
 COPY . build/mkxp-z
 WORKDIR build/mkxp-z/linux
 RUN export CMAKE_EXTRA_ARGS="-DCMAKE_POSITION_INDEPENDENT_CODE=ON" && export EXTRA_CONFIG_OPTIONS=" --with-pic" && make deps-core
-RUN source vars.sh; cd ..; meson build -Dbuild_gem=true; cd build && ninja
+RUN source vars.sh; cd ..; meson build -Dbuild_gem=true -Dwith_lanczos3=false; cd build && ninja
 
 WORKDIR ..
 RUN cp build/mkxpz.so lib/mkxp-z

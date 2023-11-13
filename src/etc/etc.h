@@ -204,8 +204,10 @@ enum InterpolationMethod
 {
 	NearestNeighbor = 0,
 	Bilinear = 1,
+#ifdef ENABLE_LANVZOS3
 	Bicubic = 2,
 	Lanczos3 = 3,
+#endif
 };
 
 /* For internal use.

@@ -29,6 +29,10 @@ embedded_shaders = [
     'simpleMatrix.vert'
 ]
 
+if get_option('with_lanczos3')
+    global_args += '-DENABLE_LANVZOS3'
+endif
+
 embedded_shaders_f = files(embedded_shaders)
 
 count = 0

@@ -22,3 +22,4 @@ option('steamshim_debug', type: 'boolean', value: false, description: 'Whether t
 
 option('gfx_backend', type: 'combo', value: 'gl', choices: ['gl', 'gles'], description: 'Graphics rendering API to use.')
 option('build_gem', type: 'boolean', value: false, description: 'Should this be built as a Ruby gem or as an exe?')
+option('with_lanczos3', type: 'boolean', value: true, description: 'Should the Lanczos3 shader be enabled or not?')
