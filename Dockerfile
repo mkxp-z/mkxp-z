@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglu1-mesa \
     mesa-common-dev && apt-get clean
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get --no-install-recommends install -y \
    xvfb \
    x11-utils \
    xfonts-base \
@@ -19,7 +19,6 @@ RUN apt-get update && apt-get install -y \
    xfonts-scalable \
    xfonts-100dpi \
    x11-apps \
-   --no-install-recommends \
    && apt-get clean
 
 ENV LIBGL_ALWAYS_INDIRECT=1
@@ -54,6 +53,6 @@ COPY --from=build build/mkxp-z/Rakefile build/
 COPY --from=build build/mkxp-z/fake-ui.sh build/
 
 WORKDIR build
-RUN GEMNAME=$(find -type f -name 'mkxp-z-*.gem') && echo $GEMNAME && gem install $GEMNAME
+RUN GEMNAME=$(find -type f -name 'mkxp-z-*.gem') && echo "$GEMNAME" && gem install "$GEMNAME"
 
 USER user
