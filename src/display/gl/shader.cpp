@@ -46,6 +46,7 @@
 #include "simpleAlphaUni.frag.xxd"
 #include "tilemap.frag.xxd"
 #include "flashMap.frag.xxd"
+#include "bicubic.frag.xxd"
 #include "lanczos3.frag.xxd"
 #include "minimal.vert.xxd"
 #include "simple.vert.xxd"
@@ -765,6 +766,20 @@ void BltShader::setSubRect(const FloatRect &value)
 void BltShader::setOpacity(float value)
 {
 	gl.Uniform1f(u_opacity, value);
+}
+
+BicubicShader::BicubicShader()
+{
+	INIT_SHADER(simple, bicubic, BicubicShader);
+
+	ShaderBase::init();
+
+	GET_U(texOffsetX);
+	GET_U(sourceSize);
+	GET_U(bc);
+
+	// TODO: Maybe expose this as a setting?
+	gl.Uniform2f(u_bc, 0.0, 0.5);
 }
 
 Lanczos3Shader::Lanczos3Shader()

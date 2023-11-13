@@ -204,7 +204,7 @@ enum InterpolationMethod
 {
 	NearestNeighbor = 0,
 	Bilinear = 1,
-	// Reserving 2 for Bicubic
+	Bicubic = 2,
 	Lanczos3 = 3,
 };
 
