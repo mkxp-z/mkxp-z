@@ -815,14 +815,16 @@ struct WindowVXPrivate
 };
 
 WindowVX::WindowVX(Viewport *viewport)
-    : ViewportElement(viewport, DEF_Z, DEF_SPRITE_Y), p(std::make_unique<WindowVXPrivate>(0, 0, 0, 0))
+    : ViewportElement(viewport, DEF_Z, DEF_SPRITE_Y)
 {
+	p = new WindowVXPrivate(0, 0, 0, 0);
 	onGeometryChange(scene->getGeometry());
 }
 
 WindowVX::WindowVX(int x, int y, int width, int height)
-    : ViewportElement(0, DEF_Z, DEF_SPRITE_Y), p(std::make_unique<WindowVXPrivate>(x, y, width, height))
+    : ViewportElement(0, DEF_Z, DEF_SPRITE_Y)
 {
+	p = new WindowVXPrivate(x, y, width, height);
 	onGeometryChange(scene->getGeometry());
 }
 
@@ -1107,4 +1109,6 @@ void WindowVX::onGeometryChange(const Scene::Geometry &geo)
 void WindowVX::releaseResources()
 {
 	unlink();
+
+	delete p;
 }

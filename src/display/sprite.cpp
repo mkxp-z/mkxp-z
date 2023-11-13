@@ -319,8 +319,9 @@ struct SpritePrivate
 };
 
 Sprite::Sprite(Viewport *viewport)
-: ViewportElement(viewport), p(std::make_unique<SpritePrivate>())
+: ViewportElement(viewport)
 {
+    p = new SpritePrivate;
     onGeometryChange(scene->getGeometry());
 }
 
@@ -677,4 +678,6 @@ void Sprite::onGeometryChange(const Scene::Geometry &geo)
 void Sprite::releaseResources()
 {
     unlink();
+    
+    delete p;
 }

@@ -48,7 +48,7 @@ public:
 		Autotiles() {}
 		~Autotiles() {}
 
-		std::shared_ptr<TilemapPrivate> p;
+		TilemapPrivate *p;
 		friend class Tilemap;
 		friend struct TilemapPrivate;
 	};
@@ -77,7 +77,7 @@ public:
 	void initDynAttribs();
 
 private:
-	std::shared_ptr<TilemapPrivate> p;
+	TilemapPrivate *p;
 	Autotiles atProxy;
 
 	void releaseResources();

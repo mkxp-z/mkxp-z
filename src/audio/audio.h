@@ -32,8 +32,6 @@
  *   integers that _look_ like sample offsets but I can't
  *   quite make out their meaning yet) */
 
-#include <memory>
-
 struct AudioPrivate;
 struct RGSSThreadData;
 
@@ -80,7 +78,7 @@ private:
 
 	friend struct SharedStatePrivate;
 
-	std::unique_ptr<AudioPrivate> p;
+	AudioPrivate *p;
 };
 
 #endif // AUDIO_H

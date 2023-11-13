@@ -1175,34 +1175,34 @@ void ZLayer::finiUpdateZ(ZLayer *prev)
 
 void Tilemap::Autotiles::set(int i, Bitmap *bitmap)
 {
-	if (p == nullptr)
+	if (!p)
 		return;
 
 	if (i < 0 || i > autotileCount-1)
 		return;
-    
+
 	if (p->autotiles[i] == bitmap)
 		return;
 
-    p->autotiles[i] = bitmap;
+	p->autotiles[i] = bitmap;
 
-    p->invalidateAtlasContents();
+	p->invalidateAtlasContents();
 
-    p->autotilesCon[i].disconnect();
-    p->autotilesCon[i] = bitmap->modified.connect
+	p->autotilesCon[i].disconnect();
+	p->autotilesCon[i] = bitmap->modified.connect
 	        (&TilemapPrivate::invalidateAtlasContents, p);
 
-    p->autotilesDispCon[i].disconnect();
-    p->autotilesDispCon[i] = bitmap->wasDisposed.connect
+	p->autotilesDispCon[i].disconnect();
+	p->autotilesDispCon[i] = bitmap->wasDisposed.connect
 	        (&TilemapPrivate::invalidateAtlasContents, p);
 
-    p->updateAutotileInfo();
+	p->updateAutotileInfo();
 }
 
 Bitmap *Tilemap::Autotiles::get(int i) const
 {
-	if (p == nullptr)
-		return nullptr;
+	if (!p)
+		return 0;
 
 	if (i < 0 || i > autotileCount-1)
 		return 0;
@@ -1210,8 +1210,9 @@ Bitmap *Tilemap::Autotiles::get(int i) const
 	return p->autotiles[i];
 }
 
-Tilemap::Tilemap(Viewport *viewport) : p(std::make_shared<TilemapPrivate>(viewport))
+Tilemap::Tilemap(Viewport *viewport)
 {
+	p = new TilemapPrivate(viewport);
 	atProxy.p = p;
 }
 
@@ -1389,5 +1390,6 @@ void Tilemap::initDynAttribs()
 
 void Tilemap::releaseResources()
 {
-	atProxy.p.reset();
+	delete p;
+	atProxy.p = 0;
 }
