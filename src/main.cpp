@@ -446,11 +446,7 @@ int main(int argc, char *argv[]) {
 
     ALCdevice *alcDev = alcOpenDevice(nullptr);
 
-#ifdef MKXPZ_RUBY_GEM
-    if (alcDev == nullptr && showWindow) {
-#else
-        if (!alcDev) {
-#endif
+    if (!alcDev) {
         showInitError("Could not detect an available audio device.");
         SDL_DestroyWindow(win);
         TTF_Quit();
