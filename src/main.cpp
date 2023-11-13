@@ -272,7 +272,7 @@ int main(int argc, char *argv[]) {
     char *tmp{};
     tmp = getenv("SRCDIR");
     if (tmp) {
-      strncpy(dataDir, tmp, sizeof(dataDir));
+      strncpy(dataDir.data(), tmp, dataDir.size());
     }
 #endif
     if (!dataDir[0]) {
