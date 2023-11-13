@@ -240,7 +240,7 @@ struct BitmapPrivate
     pixman_region16_t tainted;
 
     // For high-resolution texture replacement.
-    Bitmap *selfHires;
+    Bitmap *selfHires = nullptr;
     Bitmap *selfLores = nullptr;
     bool assumingRubyGC;
 
