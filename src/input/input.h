@@ -26,7 +26,6 @@
 #include <SDL_gamecontroller.h>
 #include <string>
 #include <vector>
-#include <memory>
 
 extern std::unordered_map<int, int> vKeyToScancode;
 extern std::unordered_map<std::string, int> strToScancode;
@@ -123,7 +122,7 @@ private:
 
 	friend struct SharedStatePrivate;
 
-    std::unique_ptr<InputPrivate> p;
+	InputPrivate *p;
 };
 
 #endif // INPUT_H

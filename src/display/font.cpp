@@ -111,8 +111,10 @@ struct SharedFontStatePrivate
     std::string defaultFamily;
 };
 
-SharedFontState::SharedFontState(const Config &conf) : p(std::make_unique<SharedFontStatePrivate>())
+SharedFontState::SharedFontState(const Config &conf)
 {
+	p = new SharedFontStatePrivate;
+
 	/* Parse font substitutions */
 	for (size_t i = 0; i < conf.fontSubs.size(); ++i)
 	{
@@ -134,6 +136,8 @@ SharedFontState::~SharedFontState()
 	BoostHash<FontKey, TTF_Font*>::const_iterator iter;
 	for (iter = p->pool.cbegin(); iter != p->pool.cend(); ++iter)
 		TTF_CloseFont(iter->second);
+
+	delete p;
 }
 
 void SharedFontState::initFontSetCB(SDL_RWops &ops,
@@ -385,19 +389,25 @@ bool Font::doesExist(const char *name)
 }
 
 Font::Font(const std::vector<std::string> *names,
-           int size) : p(std::make_unique<FontPrivate>(size ? size : FontPrivate::defaultSize))
+           int size)
 {
+	p = new FontPrivate(size ? size : FontPrivate::defaultSize);
+
 	if (names)
 		setName(*names);
 	else
 		p->name = FontPrivate::defaultName;
 }
 
-Font::Font(const Font &other) : p(std::make_unique<FontPrivate>(*other.p))
+Font::Font(const Font &other)
 {
+	p = new FontPrivate(*other.p);
 }
 
-Font::~Font() = default;
+Font::~Font()
+{
+	delete p;
+}
 
 const Font &Font::operator=(const Font &o)
 {

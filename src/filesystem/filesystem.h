@@ -24,7 +24,6 @@
 
 #include <SDL_rwops.h>
 #include <string>
-#include <memory>
 
 #include "filesystemImpl.h"
 
@@ -81,7 +80,7 @@ public:
 	const char *desensitize(const char *filename);
 
 private:
-    std::shared_ptr<FileSystemPrivate> p;
+	FileSystemPrivate *p;
 };
 
 extern const Uint32 SDL_RWOPS_PHYSFS;

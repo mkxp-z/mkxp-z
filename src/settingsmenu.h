@@ -24,8 +24,6 @@
 
 #include <stdint.h>
 
-#include <memory>
-
 struct SettingsMenuPrivate;
 struct RGSSThreadData;
 union SDL_Event;
@@ -42,7 +40,7 @@ public:
 	bool destroyReq() const;
 
 private:
-    std::shared_ptr<SettingsMenuPrivate> p;
+	SettingsMenuPrivate *p;
 };
 
 #endif // SETTINGSMENU_H

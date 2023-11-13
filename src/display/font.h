@@ -56,7 +56,7 @@ public:
     void setDefaultFontFamily(const std::string &family);
 
 private:
-    std::unique_ptr<SharedFontStatePrivate> p;
+	SharedFontStatePrivate *p;
 };
 
 struct FontPrivate;
@@ -119,7 +119,7 @@ public:
 	_TTF_Font *getSdlFont();
 
 private:
-    std::unique_ptr<FontPrivate> p;
+	FontPrivate *p;
 };
 
 #endif // FONT_H

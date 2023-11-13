@@ -191,7 +191,7 @@ private:
 	void releaseResources();
 	const char *klassName() const { return "bitmap"; }
 
-    std::unique_ptr<BitmapPrivate> p;
+	BitmapPrivate *p;
 };
 
 #endif // BITMAP_H

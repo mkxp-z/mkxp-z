@@ -511,7 +511,7 @@ Bitmap::Bitmap(const char *filename)
     }
     
     if (handler.gif) {
-        p = std::make_unique<BitmapPrivate>(this);
+        p = new BitmapPrivate(this);
 
         p->selfHires = hiresBitmap;
         
@@ -614,7 +614,7 @@ Bitmap::Bitmap(const char *filename)
 
     if (imgSurf->w > glState.caps.maxTexSize || imgSurf->h > glState.caps.maxTexSize) {
         /* Mega surface */
-        p = std::make_unique<BitmapPrivate>(this);
+        p = new BitmapPrivate(this);
         p->selfHires = hiresBitmap;
         p->megaSurface = imgSurf;
         SDL_SetSurfaceBlendMode(p->megaSurface, SDL_BLENDMODE_NONE);
@@ -629,8 +629,8 @@ Bitmap::Bitmap(const char *filename)
             SDL_FreeSurface(imgSurf);
             throw;
         }
-
-        p = std::make_unique<BitmapPrivate>(this);
+        
+        p = new BitmapPrivate(this);
         p->selfHires = hiresBitmap;
         p->gl = tex;
         if (p->selfHires != nullptr) {
@@ -663,8 +663,8 @@ Bitmap::Bitmap(int width, int height, bool isHires)
     }
 
     TEXFBO tex = shState->texPool().request(width, height);
-
-    p = std::make_unique<BitmapPrivate>(this);
+    
+    p = new BitmapPrivate(this);
     p->gl = tex;
     if (p->selfHires != nullptr) {
         p->gl.selfHires = &p->selfHires->getGLTypes();
@@ -690,7 +690,7 @@ Bitmap::Bitmap(void *pixeldata, int width, int height)
     
     if (surface->w > glState.caps.maxTexSize || surface->h > glState.caps.maxTexSize)
     {
-        p = std::make_unique<BitmapPrivate>(this);
+        p = new BitmapPrivate(this);
         p->megaSurface = surface;
         SDL_SetSurfaceBlendMode(p->megaSurface, SDL_BLENDMODE_NONE);
     }
@@ -705,8 +705,8 @@ Bitmap::Bitmap(void *pixeldata, int width, int height)
             SDL_FreeSurface(surface);
             throw;
         }
-
-        p = std::make_unique<BitmapPrivate>(this);
+        
+        p = new BitmapPrivate(this);
         p->gl = tex;
         
         TEX::bind(p->gl.tex);
@@ -729,7 +729,7 @@ Bitmap::Bitmap(const Bitmap &other, int frame)
         Debug() << "BUG: High-res Bitmap from animation not implemented";
     }
 
-    p = std::make_unique<BitmapPrivate>(this);
+    p = new BitmapPrivate(this);
     
     // TODO: Clean me up
     if (!other.isAnimated() || frame >= -1) {
@@ -2450,4 +2450,6 @@ void Bitmap::releaseResources()
     }
     else
         shState->texPool().release(p->gl);
+    
+    delete p;
 }

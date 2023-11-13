@@ -1185,8 +1185,9 @@ struct InputPrivate
 };
 
 
-Input::Input(const RGSSThreadData &rtData) : p(std::make_unique<InputPrivate>(rtData))
+Input::Input(const RGSSThreadData &rtData)
 {
+    p = new InputPrivate(rtData);
 }
 
 double Input::getDelta() {
@@ -1524,4 +1525,7 @@ const char *Input::getButtonName(SDL_GameControllerButton button) {
     return buttonNames[button];
 }
 
-Input::~Input() = default;
+Input::~Input()
+{
+    delete p;
+}
