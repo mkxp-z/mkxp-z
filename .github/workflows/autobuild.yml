@@ -69,6 +69,8 @@ jobs:
           cd build/artifact
           cp /mingw64/bin/zlib1.dll .
           cp ../../windows/build-mingw64/bin/x64-msvcrt-ruby310.dll .
+          cp ../../windows/build-mingw64/bin/libcrypto-3-x64.dll .
+          cp ../../windows/build-mingw64/bin/libssl-3-x64.dll .
           cp -r ../../windows/build-mingw64/lib/ruby/3.1.0 .
           mv ./3.1.0 ./stdlib
           cp ../mkxp-z.exe .

@@ -39,7 +39,7 @@ RUBY_CONFIGURE_ARGS := \
 	--prefix="$(shell cygpath -m ${BUILD_PREFIX})" \
 	--enable-install-static-library \
 	--disable-install-doc \
-	--with-out-ext=openssl,readline,dbm,gdbm,win32ole \
+	--with-out-ext=readline,dbm,gdbm,win32ole \
 	--with-static-linked-ext \
 	--disable-rubygems \
 	--without-gmp
@@ -292,7 +292,6 @@ $(LIBDIR)/libssl.a: $(DOWNLOADS)/openssl/Makefile
 $(DOWNLOADS)/openssl/Makefile: $(DOWNLOADS)/openssl/Configure
 	cd $(DOWNLOADS)/openssl; \
 	./Configure $(OPENSSL_FLAGS) \
-	no-shared \
 	--prefix="$(BUILD_PREFIX)" \
 	--openssldir="$(BUILD_PREFIX)"
 

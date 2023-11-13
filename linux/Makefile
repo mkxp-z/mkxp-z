@@ -36,7 +36,7 @@ RUBY_CONFIGURE_ARGS := \
 	--enable-install-static-library \
 	--enable-shared \
 	--disable-install-doc \
-	--with-out-ext=openssl,readline,dbm,gdbm \
+	--with-out-ext=readline,dbm,gdbm \
 	--with-static-linked-ext \
 	--disable-rubygems \
 	--without-gmp
