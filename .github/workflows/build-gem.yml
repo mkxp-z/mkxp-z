@@ -44,6 +44,23 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
 
+      - name: Install Scream
+        shell: powershell
+        run: |
+          Invoke-WebRequest https://github.com/duncanthrax/scream/releases/download/3.8/Scream3.8.zip -OutFile Scream3.8.zip
+          Expand-Archive -Path Scream3.8.zip -DestinationPath Scream
+          Import-Certificate -FilePath Scream\Install\driver\x64\Scream.cat -CertStoreLocation Cert:\LocalMachine\TrustedPublisher 
+          Scream\Install\helpers\devcon-x64.exe install Scream\Install\driver\x64\Scream.inf *Scream
+
+      - name: Install Mesa
+        shell: cmd
+        run: |
+          curl.exe -L --output mesa.7z --url https://github.com/pal1000/mesa-dist-win/releases/download/20.3.2/mesa3d-20.3.2-release-msvc.7z
+          "C:\Program Files\7-Zip\7z.exe" x mesa.7z
+          mklink opengl32.dll "x64\opengl32.dll"
+          mklink libglapi.dll "x64\libglapi.dll"
+        working-directory: build\tests\Debug
+
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -69,14 +86,6 @@ jobs:
           ninja install
           cd ..
           gem build mkxp-z.gemspec
-
-      - name: Install Scream
-        shell: powershell
-        run: |
-          Invoke-WebRequest https://github.com/duncanthrax/scream/releases/download/3.8/Scream3.8.zip -OutFile Scream3.8.zip
-          Expand-Archive -Path Scream3.8.zip -DestinationPath Scream
-          Import-Certificate -FilePath Scream\Install\driver\x64\Scream.cat -CertStoreLocation Cert:\LocalMachine\TrustedPublisher 
-          Scream\Install\helpers\devcon-x64.exe install Scream\Install\driver\x64\Scream.inf *Scream
 
       - name: Test Gem
         run: rake
