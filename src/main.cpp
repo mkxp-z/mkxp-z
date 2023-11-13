@@ -39,12 +39,10 @@
 #include <array>
 
 #ifdef MKXPZ_RUBY_GEM
-
 #include "rgssthreadmanager.h"
 #endif
 
 #include "binding.h"
-#include "rgssthreadmanager.h"
 #include "sharedstate.h"
 #include "eventthread.h"
 #include "util/debugwriter.h"
