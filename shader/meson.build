@@ -15,6 +15,7 @@ embedded_shaders = [
     'simpleAlphaUni.frag',
     'tilemap.frag',
     'flashMap.frag',
+    'bicubic.frag',
     'lanczos3.frag',
     'minimal.vert',
     'simple.vert',
@@ -27,6 +28,10 @@ embedded_shaders = [
     'blurV.vert',
     'simpleMatrix.vert'
 ]
+
+if get_option('with_lanczos3')
+    global_args += '-DENABLE_LANVZOS3'
+endif
 
 embedded_shaders_f = files(embedded_shaders)
 

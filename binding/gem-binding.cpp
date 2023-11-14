@@ -4,20 +4,22 @@
 
 #include "gem-binding.h"
 #include "binding-util.h"
+#include "rgssthreadmanager.h"
+#include "debugwriter.h"
 
 #include <ruby.h>
 #include <alc.h>
-
-// TODO: Figure out a fix for this global
-extern RGSSThreadData *externThreadData;
 
 ALCcontext *startRgssThread(RGSSThreadData *threadData);
 int killRgssThread(RGSSThreadData *threadData, ALCcontext *alcCtx);
 int startGameWindow(int argc, char *argv[], bool showWindow = true);
 
+void killGameState(VALUE);
+
 RB_METHOD(initGameState) {
     RB_UNUSED_PARAM
 
+    Debug() << "MKXP-Z starting up!";
     VALUE windowName;
     VALUE args;
     VALUE visible;
@@ -42,21 +44,30 @@ RB_METHOD(initGameState) {
     rb_bool_arg(visible, &windowVisible);
 
     auto &gemBinding = GemBinding::getInstance();
-    gemBinding.setEventThread(std::make_unique<std::jthread>(&GemBinding::runEventThread, &gemBinding, appName, argList, windowVisible));
-    while (externThreadData == nullptr) {
+    gemBinding.setEventThread(
+            std::make_unique<std::jthread>(&GemBinding::runEventThread, &gemBinding, appName, argList, windowVisible));
+
+    const auto &threadManager = RgssThreadManager::getInstance();
+    while (threadManager.getThreadData() == nullptr) {
         if (gemBinding.isEventThreadKilled())
             return Qfalse;
         std::this_thread::yield();
     }
 
-    gemBinding.setAlcContext(startRgssThread(externThreadData));
-    return Qtrue;
+    try {
+        gemBinding.setAlcContext(startRgssThread(threadManager.getThreadData()));
+        rb_set_end_proc(killGameState, 0);
+        return Qtrue;
+    } catch (const std::system_error &e) {
+        Debug() << e.what();
+        return Qfalse;
+    }
 }
 
 void killGameState(VALUE) {
     auto &gemBinding = GemBinding::getInstance();
-    if (externThreadData != nullptr && gemBinding.getAlcContext() != nullptr)
-        killRgssThread(externThreadData, gemBinding.getAlcContext());
+    if (const auto &threadManager = RgssThreadManager::getInstance(); threadManager.getThreadData() != nullptr)
+        killRgssThread(threadManager.getThreadData(), gemBinding.getAlcContext());
     gemBinding.stopEventThread();
 }
 
@@ -64,8 +75,6 @@ extern "C" {
 MKXPZ_GEM_EXPORT void Init_mkxpz() {
     auto mkxpzModule = rb_define_module("MKXP_Z");
     _rb_define_module_function(mkxpzModule, "init_game_state", initGameState);
-
-    rb_set_end_proc(killGameState, 0);
 }
 }
 
@@ -79,7 +88,7 @@ GemBinding &GemBinding::getInstance() {
 }
 
 void GemBinding::stopEventThread() {
-    if (eventThread != nullptr)
+    if (eventThread != nullptr && !eventThreadKilled)
         eventThread->request_stop();
 }
 
@@ -89,6 +98,6 @@ void GemBinding::runEventThread(std::string windowName, std::vector<std::string>
     for (auto &a : args) {
         argv.push_back(a.data());
     }
-    startGameWindow(argv.size(), argv.data(), windowVisible);
+    startGameWindow((int) argv.size(), argv.data(), windowVisible);
     eventThreadKilled = true;
 }

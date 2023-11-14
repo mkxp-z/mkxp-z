@@ -154,6 +154,17 @@ static void _blitBegin(FBO::ID fbo, const Vec2i &size)
 
 		switch (shState->config().smoothScaling)
 		{
+#ifdef ENABLE_LANVZOS3
+		case Bicubic:
+		{
+			BicubicShader &shader = shState->shaders().bicubic;
+			shader.bind();
+			shader.applyViewportProj();
+			shader.setTranslation(Vec2i());
+			shader.setTexSize(Vec2i(size.x, size.y));
+		}
+
+			break;
 		case Lanczos3:
 		{
 			Lanczos3Shader &shader = shState->shaders().lanczos3;
@@ -164,6 +175,7 @@ static void _blitBegin(FBO::ID fbo, const Vec2i &size)
 		}
 
 			break;
+#endif
 		default:
 		{
 			SimpleShader &shader = shState->shaders().simple;
@@ -234,6 +246,15 @@ void blitSource(TEXFBO &source)
 	{
 		switch (shState->config().smoothScaling)
 		{
+#ifdef ENABLE_LANVZOS3
+		case Bicubic:
+		{
+			BicubicShader &shader = shState->shaders().bicubic;
+			shader.bind();
+			shader.setTexSize(Vec2i(blitSrcWidthHires, blitSrcHeightHires));
+		}
+
+			break;
 		case Lanczos3:
 		{
 			Lanczos3Shader &shader = shState->shaders().lanczos3;
@@ -242,6 +263,7 @@ void blitSource(TEXFBO &source)
 		}
 
 			break;
+#endif
 		default:
 		{
 			SimpleShader &shader = shState->shaders().simple;

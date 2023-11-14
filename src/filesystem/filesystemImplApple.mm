@@ -43,7 +43,7 @@ std::string filesystemImpl::getCurrentDirectory() {
 }
 
 std::string filesystemImpl::normalizePath(const char *path, bool preferred, bool absolute) {
-    NSString *nspath = [NSURL fileURLWithPath: PATHTONS(path)].URLByStandardizingPath.path;
+    NSString *nspath = [NSURL fileURLWithPath:PATHTONS(path)].URLByStandardizingPath.path;
     NSString *pwd = [NSString stringWithFormat:@"%@/", NSFileManager.defaultManager.currentDirectoryPath];
     if (!absolute) {
         nspath = [nspath stringByReplacingOccurrencesOfString:pwd withString:@""];

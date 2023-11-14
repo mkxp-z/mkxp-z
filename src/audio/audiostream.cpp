@@ -133,7 +133,7 @@ void AudioStream::play(const std::string &filename,
 			catch (const Exception &e)
 			{
 				unlockStream();
-				throw e;
+				throw;
 			}
 		}
 

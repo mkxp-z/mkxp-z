@@ -65,14 +65,14 @@ public:
 	};
 
 	void openRead(OpenHandler &handler,
-	              const char *filename);
+                  const char *filename);
 
 	/* Circumvents extension supplementing */
 	void openReadRaw(SDL_RWops &ops,
 	                 const char *filename,
 	                 bool freeOnClose = false);
 
-	std::string normalize(const char *pathname, bool preferred, bool absolute);
+    std::string normalize(const char *pathname, bool preferred, bool absolute);
 
 	/* Does not perform extension supplementing */
 	bool exists(const char *filename);

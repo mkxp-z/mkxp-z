@@ -607,24 +607,24 @@ openReadEnumCB(void *d, const char *dirpath, const char *filename) {
 }
 
 void FileSystem::openRead(OpenHandler &handler, const char *filename) {
-  std::string filename_nm = normalize(filename, false, false);
-  char buffer[512];
-  size_t len = strcpySafe(buffer, filename_nm.c_str(), sizeof(buffer), -1);
-  char *delim;
+    std::string filename_nm = normalize(filename, false, false);
+    char buffer[512];
+    size_t len = strcpySafe(buffer, filename_nm.c_str(), sizeof(buffer), -1);
+    char *delim;
 
-  if (p->havePathCache)
-    for (size_t i = 0; i < len; ++i)
-      buffer[i] = tolower(buffer[i]);
+    if (p->havePathCache)
+        for (size_t i = 0; i < len; ++i)
+            buffer[i] = tolower(buffer[i]);
 
-  /* Find the deliminator separating directory and file name */
-  for (delim = buffer + len; delim > buffer; --delim)
-    if (*delim == '/')
-      break;
+    /* Find the deliminator separating directory and file name */
+    for (delim = buffer + len; delim > buffer; --delim)
+        if (*delim == '/')
+            break;
 
-  const bool root = (delim == buffer);
+    const bool root = (delim == buffer);
 
-  const char *file = buffer;
-  const char *dir = "";
+    const char *file = buffer;
+    const char *dir = "";
 
   if (!root) {
     /* Cut the buffer in half so we can use it
@@ -666,7 +666,7 @@ void FileSystem::openReadRaw(SDL_RWops &ops, const char *filename,
 }
 
 std::string FileSystem::normalize(const char *pathname, bool preferred,
-                            bool absolute) {
+                                  bool absolute) {
     return filesystemImpl::normalizePath(pathname, preferred, absolute);
 }
 

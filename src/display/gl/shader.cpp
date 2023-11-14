@@ -46,7 +46,11 @@
 #include "simpleAlphaUni.frag.xxd"
 #include "tilemap.frag.xxd"
 #include "flashMap.frag.xxd"
+#ifdef ENABLE_LANVZOS3
+#include "bicubic.frag.xxd"
 #include "lanczos3.frag.xxd"
+
+#endif
 #include "minimal.vert.xxd"
 #include "simple.vert.xxd"
 #include "simpleColor.vert.xxd"
@@ -767,6 +771,21 @@ void BltShader::setOpacity(float value)
 	gl.Uniform1f(u_opacity, value);
 }
 
+#ifdef ENABLE_LANVZOS3
+BicubicShader::BicubicShader()
+{
+	INIT_SHADER(simple, bicubic, BicubicShader);
+
+	ShaderBase::init();
+
+	GET_U(texOffsetX);
+	GET_U(sourceSize);
+	GET_U(bc);
+
+	// TODO: Maybe expose this as a setting?
+	gl.Uniform2f(u_bc, 0.0, 0.5);
+}
+
 Lanczos3Shader::Lanczos3Shader()
 {
 	INIT_SHADER(simple, lanczos3, Lanczos3Shader);
@@ -782,3 +801,5 @@ void Lanczos3Shader::setTexSize(const Vec2i &value)
 	ShaderBase::setTexSize(value);
 	gl.Uniform2f(u_sourceSize, (float)value.x, (float)value.y);
 }
+
+#endif

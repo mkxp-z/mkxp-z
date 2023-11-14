@@ -81,7 +81,7 @@
     // is upscaled
     // 0: Nearest-Neighbor
     // 1: Bilinear
-    // 2: (Reserved)
+    // 2: Bicubic
     // 3: Lanczos3
     // (default: 0)
     //

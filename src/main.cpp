@@ -35,12 +35,11 @@
 #include <string>
 #include <unistd.h>
 #include <regex>
+#include <string_view>
+#include <array>
 
 #ifdef MKXPZ_RUBY_GEM
-#include <thread>
-
-// We want the gem to always run from the current directory
-#define WORKDIR_CURRENT
+#include "rgssthreadmanager.h"
 #endif
 
 #include "binding.h"
@@ -56,14 +55,16 @@
 #include "system/system.h"
 
 #if defined(__WIN32__)
+
 #include "resource.h"
-#include <Winsock2.h>
+#include <winsock2.h>
 #include "util/win-consoleutils.h"
-#include "gamestate.h"
+#include "filesystem.hpp"
 
 // Try to work around buggy GL drivers that tend to be in Optimus laptops
 // by forcing MKXP to use the dedicated card instead of the integrated one
 #include <windows.h>
+
 extern "C" {
 __declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
 __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
@@ -89,11 +90,11 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 #endif
 
 #ifdef MKXPZ_RUBY_GEM
-RGSSThreadData *externThreadData = nullptr;
-std::mutex rgssThreadMutex;
+RgssThreadManager RgssThreadManager::instance;
 #endif
 
-static void rgssThreadError(RGSSThreadData *rtData, const std::string &msg);
+static void rgssThreadError(RGSSThreadData *rtData, std::string_view msg);
+
 static void showInitError(const std::string &msg);
 
 static inline const char *glGetStringInt(GLenum name) {
@@ -105,15 +106,13 @@ static void printGLInfo() {
     const std::string version(glGetStringInt(GL_VERSION));
     std::regex rgx("ANGLE \\((.+), ANGLE Metal Renderer: (.+), Version (.+)\\)");
 
-    std::smatch matches;
-    if (std::regex_search(renderer, matches, rgx)) {
+    if (std::smatch matches; std::regex_search(renderer, matches, rgx)) {
 
         Debug() << "Backend           :" << "Metal";
         Debug() << "Metal Device      :" << matches[2] << "(" + matches[1].str() + ")";
         Debug() << "Renderer Version  :" << matches[3].str();
 
-        std::smatch vmatches;
-        if (std::regex_search(version, vmatches, std::regex("\\(ANGLE (.+) git hash: .+\\)"))) {
+        if (std::smatch vmatches; std::regex_search(version, vmatches, std::regex("\\(ANGLE (.+) git hash: .+\\)"))) {
             Debug() << "ANGLE Version     :" << vmatches[1].str();
         }
         return;
@@ -126,32 +125,41 @@ static void printGLInfo() {
     Debug() << "GLSL Version :" << glGetStringInt(GL_SHADING_LANGUAGE_VERSION);
 }
 
-static SDL_GLContext initGL(SDL_Window *win, Config &conf,
+static SDL_GLContext initGL(SDL_Window *win, const Config &conf,
                             RGSSThreadData *threadData);
 
 #ifdef MKXPZ_RUBY_GEM
 ALCcontext *startRgssThread(RGSSThreadData *threadData) {
-    rgssThreadMutex.lock();
+    RgssThreadManager::getInstance().lockRgssThread();
 #else
-int rgssThreadFun(void *userdata) {
-    RGSSThreadData *threadData = static_cast<RGSSThreadData *>(userdata);
+    int rgssThreadFun(void *userdata) {
+        RGSSThreadData *threadData = static_cast<RGSSThreadData *>(userdata);
 #endif
 
 #ifdef MKXPZ_INIT_GL_LATER
     threadData->glContext =
             initGL(threadData->window, threadData->config, threadData);
     if (!threadData->glContext)
-        return 0;
+#ifdef MKXPZ_RUBY_GEM
+        throw std::system_error();
+#else
+    return 0;
+#endif
 #else
     SDL_GL_MakeCurrent(threadData->window, threadData->glContext);
 #endif
 
     /* Setup AL context */
-    ALCcontext *alcCtx = alcCreateContext(threadData->alcDev, 0);
+    ALCcontext *alcCtx = alcCreateContext(threadData->alcDev, nullptr);
 
     if (!alcCtx) {
         rgssThreadError(threadData, "Error creating OpenAL context");
+#ifdef MKXPZ_RUBY_GEM
+        RgssThreadManager::getInstance().unlockRgssThread();
+        throw std::system_error(std::error_code(), "RGSS failed to initialize!");
+#else
         return 0;
+#endif
     }
 
     alcMakeContextCurrent(alcCtx);
@@ -162,7 +170,13 @@ int rgssThreadFun(void *userdata) {
         rgssThreadError(threadData, exc.msg);
         alcDestroyContext(alcCtx);
 
+
+#ifdef MKXPZ_RUBY_GEM
+        RgssThreadManager::getInstance().unlockRgssThread();
+        throw std::system_error(std::error_code(), "RGSS failed to initialize!");
+#else
         return 0;
+#endif
     }
 
     /* Start script execution */
@@ -179,25 +193,26 @@ int killRgssThread(RGSSThreadData *threadData, ALCcontext *alcCtx) {
 
     SharedState::finiInstance();
 
-    alcDestroyContext(alcCtx);
+    if (alcCtx != nullptr)
+        alcDestroyContext(alcCtx);
 
 #ifdef MKXPZ_RUBY_GEM
-    rgssThreadMutex.unlock();
+    RgssThreadManager::getInstance().unlockRgssThread();
 #endif
     return 0;
 }
 
 static void printRgssVersion(int ver) {
-    const char *const makers[] = {"", "XP", "VX", "VX Ace"};
+    const std::array<std::string_view, 4> makers = {"", "XP", "VX", "VX Ace"};
 
-    char buf[128];
-    snprintf(buf, sizeof(buf), "RGSS version %d (RPG Maker %s)", ver,
-             makers[ver]);
+    std::vector<char> buf(128);
+    snprintf(buf.data(), buf.size(), "RGSS version %d (RPG Maker %s)", ver,
+             makers[ver].data());
 
-    Debug() << buf;
+    Debug() << buf.data();
 }
 
-static void rgssThreadError(RGSSThreadData *rtData, const std::string &msg) {
+static void rgssThreadError(RGSSThreadData *rtData, std::string_view msg) {
     rtData->rgssErrorMsg = msg;
     rtData->ethread->requestTerminate();
     rtData->rqTermAck.set();
@@ -205,7 +220,7 @@ static void rgssThreadError(RGSSThreadData *rtData, const std::string &msg) {
 
 static void showInitError(const std::string &msg) {
     Debug() << msg;
-    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "mkxp-z", msg.c_str(), 0);
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "mkxp-z", msg.c_str(), nullptr);
 }
 
 static void setupWindowIcon(const Config &conf, SDL_Window *win) {
@@ -252,18 +267,18 @@ int main(int argc, char *argv[]) {
     }
 
 #ifndef WORKDIR_CURRENT
-    char dataDir[512]{};
+    std::array<char, 512> dataDir;
 #if defined(__linux__)
     char *tmp{};
     tmp = getenv("SRCDIR");
     if (tmp) {
-      strncpy(dataDir, tmp, sizeof(dataDir));
+      strncpy(dataDir.data(), tmp, dataDir.size());
     }
 #endif
     if (!dataDir[0]) {
-        strncpy(dataDir, mkxp_fs::getDefaultGameRoot().c_str(), sizeof(dataDir));
+        strncpy(dataDir.data(), mkxp_fs::getDefaultGameRoot().c_str(), dataDir.size());
     }
-    mkxp_fs::setCurrentDirectory(dataDir);
+    mkxp_fs::setCurrentDirectory(dataDir.data());
 #endif
 
     /* now we load the config */
@@ -276,10 +291,10 @@ int main(int argc, char *argv[]) {
         if (setupWindowsConsole()) {
             reopenWindowsStreams();
         } else {
-            char buf[200];
-            snprintf(buf, sizeof(buf), "Error allocating console: %lu",
+            std::array<char, 200> buf;
+            snprintf(buf.data(), buf.size(), "Error allocating console: %lu",
                      GetLastError());
-            showInitError(std::string(buf));
+            showInitError(std::string(buf.data()));
         }
     }
 #endif
@@ -341,11 +356,11 @@ int main(int argc, char *argv[]) {
 #if defined(__WIN32__)
     WSAData wsadata = {0};
     if (WSAStartup(0x101, &wsadata) || wsadata.wVersion != 0x101) {
-        char buf[200];
-        snprintf(buf, sizeof(buf), "Error initializing winsock: %08X",
+        std::array<char, 200> buf;
+        snprintf(buf.data(), buf.size(), "Error initializing winsock: %08X",
                  WSAGetLastError());
         showInitError(
-                std::string(buf)); // Not an error worth ending the program over
+                std::string(buf.data())); // Not an error worth ending the program over
     }
 #endif
 
@@ -424,10 +439,10 @@ int main(int argc, char *argv[]) {
 #ifdef __LINUX__
     setupWindowIcon(conf, win);
 #else
-    (void)setupWindowIcon;
+    (void) setupWindowIcon;
 #endif
 
-    ALCdevice *alcDev = alcOpenDevice(0);
+    ALCdevice *alcDev = alcOpenDevice(nullptr);
 
     if (!alcDev) {
         showInitError("Could not detect an available audio device.");
@@ -454,13 +469,16 @@ int main(int argc, char *argv[]) {
 #ifndef MKXPZ_INIT_GL_LATER
     SDL_GLContext glCtx = initGL(win, conf, 0);
 #else
-    SDL_GLContext glCtx = NULL;
+    SDL_GLContext glCtx = nullptr;
 #endif
 
     RGSSThreadData rtData(&eventThread, argv[0], win, alcDev, mode.refresh_rate,
                           mkxp_sys::getScalingFactor(), conf, glCtx);
 
-    int winW, winH, drwW, drwH;
+    int drwW;
+    int drwH;
+    int winW;
+    int winH;
     SDL_GetWindowSize(win, &winW, &winH);
     rtData.windowSizeMsg.post(Vec2i(winW, winH));
 
@@ -477,7 +495,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef MKXPZ_RUBY_GEM
     /* Yield the thread so the interpreter thread can start the RGSS stuff */
-    externThreadData = &rtData;
+    RgssThreadManager::getInstance().setThreadData(&rtData);
     std::this_thread::yield();
 #else
     /* Start RGSS thread */
@@ -503,12 +521,12 @@ int main(int argc, char *argv[]) {
     }
 
 #ifdef MKXPZ_RUBY_GEM
-    rgssThreadMutex.lock();
+    std::scoped_lock lockRgssThread(RgssThreadManager::getInstance().getThreadMutex());
 #else
     /* If RGSS thread ack'd request, wait for it to shutdown,
      * otherwise abandon hope and just end the process as is. */
     if (rtData.rqTermAck)
-        SDL_WaitThread(rgssThread, 0);
+      SDL_WaitThread(rgssThread, nullptr);
     else
         SDL_ShowSimpleMessageBox(
                 SDL_MESSAGEBOX_ERROR, conf.game.title.c_str(),
@@ -547,13 +565,12 @@ int main(int argc, char *argv[]) {
     SDL_Quit();
 
 #ifdef MKXPZ_RUBY_GEM
-    externThreadData = nullptr;
-    rgssThreadMutex.unlock();
+    RgssThreadManager::getInstance().setThreadData(nullptr);
 #endif
     return 0;
 }
 
-static SDL_GLContext initGL(SDL_Window *win, Config &conf,
+static SDL_GLContext initGL(SDL_Window *win, const Config &conf,
                             RGSSThreadData *threadData) {
     SDL_GLContext glCtx{};
 
@@ -565,10 +582,10 @@ static SDL_GLContext initGL(SDL_Window *win, Config &conf,
 
     glCtx = SDL_GL_CreateContext(win);
 
-    if (!glCtx) {
-        GLINIT_SHOWERROR(std::string("Could not create OpenGL context: ") + SDL_GetError());
-        return 0;
-    }
+  if (!glCtx) {
+    GLINIT_SHOWERROR(std::string("Could not create OpenGL context: ") + SDL_GetError());
+    return nullptr;
+  }
 
     try {
         initGLFunctions();
@@ -576,14 +593,14 @@ static SDL_GLContext initGL(SDL_Window *win, Config &conf,
         GLINIT_SHOWERROR(exc.msg);
         SDL_GL_DeleteContext(glCtx);
 
-        return 0;
-    }
+    return nullptr;
+  }
 
 // This breaks scaling for Retina screens.
 // Using Metal should be rendering this irrelevant anyway, hopefully
 #ifndef MKXPZ_BUILD_XCODE
-    if (!conf.enableBlitting)
-        gl.BlitFramebuffer = 0;
+  if (!conf.enableBlitting)
+    gl.BlitFramebuffer = nullptr;
 #endif
 
     gl.ClearColor(0, 0, 0, 1);
@@ -595,6 +612,5 @@ static SDL_GLContext initGL(SDL_Window *win, Config &conf,
     bool vsync = conf.vsync || conf.syncToRefreshrate;
     SDL_GL_SetSwapInterval(vsync ? 1 : 0);
 
-    // GLDebugLogger dLogger;
     return glCtx;
 }

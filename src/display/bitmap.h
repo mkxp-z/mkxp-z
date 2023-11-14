@@ -35,40 +35,49 @@ struct SDL_Surface;
 
 struct BitmapPrivate;
 // FIXME make this class use proper RGSS classes again
-class Bitmap : public Disposable
-{
+class Bitmap : public Disposable {
 public:
-	Bitmap(const char *filename);
-	Bitmap(int width, int height, bool isHires = false);
-    Bitmap(void *pixeldata, int width, int height);
-	/* Clone constructor */
-    
-    // frame is -2 for "any and all", -1 for "current", anything else for a specific frame
-	Bitmap(const Bitmap &other, int frame = -2);
-	~Bitmap();
+    Bitmap(const char *filename);
 
-	int width()  const;
-	int height() const;
-	bool hasHires() const;
-	DECL_ATTR(Hires, Bitmap*)
-	void setLores(Bitmap *lores);
-	bool isMega() const;
+    Bitmap(int width, int height, bool isHires = false);
+
+    Bitmap(void *pixeldata, int width, int height);
+    /* Clone constructor */
+
+    // frame is -2 for "any and all", -1 for "current", anything else for a specific frame
+    Bitmap(const Bitmap &other, int frame = -2);
+
+    ~Bitmap();
+
+    int width() const;
+
+    int height() const;
+
+    bool hasHires() const;
+
+    DECL_ATTR(Hires, Bitmap*)
+
+    void setLores(Bitmap *lores);
+
+    bool isMega() const;
+
     bool isAnimated() const;
 
-	IntRect rect() const;
+    IntRect rect() const;
 
-	void blt(int x, int y,
-	         const Bitmap &source, IntRect rect,
-	         int opacity = 255);
+    void blt(int x, int y,
+             const Bitmap &source, IntRect rect,
+             int opacity = 255);
 
-	void stretchBlt(const IntRect &destRect,
-	                const Bitmap &source, const IntRect &sourceRect,
-	                int opacity = 255);
+    void stretchBlt(const IntRect &destRect,
+                    const Bitmap &source, const IntRect &sourceRect,
+                    int opacity = 255);
 
-	void fillRect(int x, int y,
-	              int width, int height,
-	              const Vec4 &color);
-	void fillRect(const IntRect &rect, const Vec4 &color);
+    void fillRect(int x, int y,
+                  int width, int height,
+                  const Vec4 &color);
+
+    void fillRect(const IntRect &rect, const Vec4 &color);
 
 	void gradientFillRect(int x, int y,
 	                      int width, int height,
@@ -89,53 +98,65 @@ public:
 
 	Color getPixel(int x, int y) const;
 	void setPixel(int x, int y, const Color &color);
-    
+
     bool getRaw(void *output, int output_size);
+
     void replaceRaw(void *pixel_data, int size);
+
     void saveToFile(const char *filename);
 
 	void hueChange(int hue);
 
-	enum TextAlign
-	{
-		Left = 0,
-		Center = 1,
-		Right = 2
-	};
+	enum TextAlign {
+        Left = 0,
+        Center = 1,
+        Right = 2
+    };
 
-	void drawText(int x, int y,
-	              int width, int height,
-	              const char *str, int align = Left);
+    void drawText(int x, int y,
+                  int width, int height,
+                  const char *str, int align = Left);
 
-	void drawText(const IntRect &rect,
-	              const char *str, int align = Left);
+    void drawText(const IntRect &rect,
+                  const char *str, int align = Left);
 
-	IntRect textSize(const char *str);
+    IntRect textSize(const char *str);
 
-	DECL_ATTR(Font, Font&)
+    DECL_ATTR(Font, Font &)
 
-	/* Sets initial reference without copying by value,
-	 * use at construction */
-	void setInitFont(Font *value);
+    /* Sets initial reference without copying by value,
+     * use at construction */
+    void setInitFont(Font *value);
 
-	/* <internal> */
-	TEXFBO &getGLTypes() const;
+    /* <internal> */
+    TEXFBO &getGLTypes() const;
+
     SDL_Surface *surface() const;
-	SDL_Surface *megaSurface() const;
-	void ensureNonMega() const;
+
+    SDL_Surface *megaSurface() const;
+
+    void ensureNonMega() const;
+
     void ensureNonAnimated() const;
+
     void ensureAnimated() const;
-    
+
     // Animation functions
     void stop();
+
     void play();
+
     bool isPlaying() const;
+
     void gotoAndStop(int frame);
+
     void gotoAndPlay(int frame);
+
     int numFrames() const;
     int currentFrameI() const;
-    
+
     int addFrame(Bitmap &source, int position = -1);
+
     void removeFrame(int position = -1);
     
     void nextFrame();
