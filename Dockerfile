@@ -54,9 +54,7 @@ FROM base AS gem
 RUN groupadd --gid 1000 user && \
     useradd --uid 1000 --gid 1000 -m user
 COPY --from=build build/mkxp-z/mkxp-z-*.gem build/
-COPY --from=build build/mkxp-z/tests build/tests
-COPY --from=build build/mkxp-z/Rakefile build/
-COPY --from=build build/mkxp-z/fake-ui.sh build/
+COPY --from=build build/mkxp-z/startpulse.sh build/
 
 WORKDIR build
 RUN GEMNAME=$(find -type f -name 'mkxp-z-*.gem') && echo "$GEMNAME" && gem install "$GEMNAME"
