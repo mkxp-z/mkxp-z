@@ -1,3 +1,5 @@
 module MkxpZ
   VERSION: String
+
+  def get_platform_name: -> String
 end

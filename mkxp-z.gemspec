@@ -4,7 +4,7 @@ require_relative "lib/mkxp-z/version"
 
 Gem::Specification.new do |spec|
   spec.name = "mkxp-z"
-  spec.version = MkxpZ::VERSION
+  spec.version = MkxpZ::VERSION + "." + MkxpZ.get_platform_name
   spec.authors = ["Francesco Corso"]
   spec.email = ["fcorso2016@gmail.com"]
 
