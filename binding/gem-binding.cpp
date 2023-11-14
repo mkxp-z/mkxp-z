@@ -14,9 +14,12 @@ ALCcontext *startRgssThread(RGSSThreadData *threadData);
 int killRgssThread(RGSSThreadData *threadData, ALCcontext *alcCtx);
 int startGameWindow(int argc, char *argv[], bool showWindow = true);
 
+void killGameState(VALUE);
+
 RB_METHOD(initGameState) {
     RB_UNUSED_PARAM
 
+    Debug() << "MKXP-Z starting up!";
     VALUE windowName;
     VALUE args;
     VALUE visible;
@@ -53,6 +56,7 @@ RB_METHOD(initGameState) {
 
     try {
         gemBinding.setAlcContext(startRgssThread(threadManager.getThreadData()));
+        rb_set_end_proc(killGameState, 0);
         return Qtrue;
     } catch (const std::system_error &e) {
         Debug() << e.what();
@@ -71,8 +75,6 @@ extern "C" {
 MKXPZ_GEM_EXPORT void Init_mkxpz() {
     auto mkxpzModule = rb_define_module("MKXP_Z");
     _rb_define_module_function(mkxpzModule, "init_game_state", initGameState);
-
-    rb_set_end_proc(killGameState, 0);
 }
 }
 
