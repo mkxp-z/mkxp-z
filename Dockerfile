@@ -27,16 +27,22 @@ RUN apt-get update -y && \
     apt-get install -y --no-install-recommends alsa-utils pulseaudio libpulse0 && \
     apt-get clean
 
-FROM base AS build
+FROM base AS dev
 
 SHELL ["/bin/bash", "-c"]
 
 RUN apt-get update && apt-get --no-install-recommends install -y git build-essential cmake meson autoconf automake \
     libtool pkg-config bison wget xxd && apt-get clean
 
-COPY . build/mkxp-z
+FROM dev AS deps
+COPY ./linux/Makefile build/mkxp-z/linux/
 WORKDIR build/mkxp-z/linux
 RUN export CMAKE_EXTRA_ARGS="-DCMAKE_POSITION_INDEPENDENT_CODE=ON" && export EXTRA_CONFIG_OPTIONS=" --with-pic" && make deps-core
+
+FROM dev AS build
+COPY . build/mkxp-z
+COPY --from=deps build/mkxp-z/linux/ build/mkxp-z/linux/
+WORKDIR build/mkxp-z/linux
 RUN source vars.sh; cd ..; meson build -Dbuild_gem=true -Dwith_lanczos3=false; cd build && ninja
 
 WORKDIR ..
