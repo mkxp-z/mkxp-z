@@ -129,20 +129,20 @@ int rgssThreadFun(void *userdata) {
 #endif
 
   /* Setup AL context */
-  ALCcontext *alcCtx = alcCreateContext(threadData->alcDev, 0);
+  std::unique_ptr<ALCcontext, void (*)(ALCcontext *)> alcCtx(alcCreateContext(threadData->alcDev, 0),
+                                                             alcDestroyContext);
 
   if (!alcCtx) {
     rgssThreadError(threadData, "Error creating OpenAL context");
     return 0;
   }
 
-  alcMakeContextCurrent(alcCtx);
+    alcMakeContextCurrent(alcCtx.get());
 
   try {
     SharedState::initInstance(threadData);
   } catch (const Exception &exc) {
     rgssThreadError(threadData, exc.msg);
-    alcDestroyContext(alcCtx);
 
     return 0;
   }
@@ -154,8 +154,6 @@ int rgssThreadFun(void *userdata) {
   threadData->ethread->requestTerminate();
 
   SharedState::finiInstance();
-
-  alcDestroyContext(alcCtx);
 
   return 0;
 }
