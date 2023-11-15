@@ -43,9 +43,9 @@
 #include <string>
 #include <chrono>
 
-SharedState *SharedState::instance = 0;
+std::unique_ptr<SharedState> SharedState::instance;
 int SharedState::rgssVersion = 0;
-static GlobalIBO *_globalIBO = 0;
+std::unique_ptr<GlobalIBO> SharedState::_globalIBO;
 
 static const char *gameArchExt()
 {
@@ -84,8 +84,8 @@ struct SharedStatePrivate
 
 	TexPool texPool;
 
-	SharedFontState fontState;
-	Font *defaultFont;
+    SharedFontState fontState;
+    std::unique_ptr<Font> defaultFont;
 
 	TEX::ID globalTex;
 	int globalTexW, globalTexH;
@@ -172,45 +172,37 @@ struct SharedStatePrivate
 	}
 };
 
-void SharedState::initInstance(RGSSThreadData *threadData)
-{
-	/* This section is tricky because of dependencies:
-	 * SharedState depends on GlobalIBO existing,
-	 * Font depends on SharedState existing */
+void SharedState::initInstance(RGSSThreadData *threadData) {
+    /* This section is tricky because of dependencies:
+     * SharedState depends on GlobalIBO existing,
+     * Font depends on SharedState existing */
 
-	rgssVersion = threadData->config.rgssVersion;
-    
-	_globalIBO = new GlobalIBO();
-	_globalIBO->ensureSize(1);
+    rgssVersion = threadData->config.rgssVersion;
 
-	SharedState::instance = 0;
-	Font *defaultFont = 0;
+    _globalIBO = std::make_unique<GlobalIBO>();
+    _globalIBO->ensureSize(1);
 
-	try
-	{
-		SharedState::instance = new SharedState(threadData);
-		Font::initDefaults(instance->p->fontState);
-		defaultFont = new Font();
-	}
-	catch (const Exception &exc)
-	{
-		delete _globalIBO;
-		delete SharedState::instance;
-		delete defaultFont;
+    SharedState::instance.reset();
+    std::unique_ptr<Font> defaultFont;
 
-		throw exc;
-	}
+    try {
+        SharedState::instance = std::unique_ptr<SharedState>(new SharedState(threadData));
+        Font::initDefaults(instance->p->fontState);
+        defaultFont = std::make_unique<Font>();
+    }
+    catch (const Exception &exc) {
+        _globalIBO.reset();
+        SharedState::instance.reset();
 
-	SharedState::instance->p->defaultFont = defaultFont;
+        throw exc;
+    }
+
+    SharedState::instance->p->defaultFont = std::move(defaultFont);
 }
 
-void SharedState::finiInstance()
-{
-	delete SharedState::instance->p->defaultFont;
-
-	delete SharedState::instance;
-
-	delete _globalIBO;
+void SharedState::finiInstance() {
+    SharedState::instance.reset();
+    _globalIBO.reset();
 }
 
 void SharedState::setScreen(Scene &screen)
@@ -374,13 +366,9 @@ unsigned int SharedState::genTimeStamp()
 	return p->stampCounter++;
 }
 
-SharedState::SharedState(RGSSThreadData *threadData)
+SharedState::SharedState(RGSSThreadData *threadData) : p(std::make_unique<SharedStatePrivate>(threadData))
 {
-	p = new SharedStatePrivate(threadData);
 	p->screen = p->graphics.getScreen();
 }
 
-SharedState::~SharedState()
-{
-	delete p;
-}
+SharedState::~SharedState() = default;
