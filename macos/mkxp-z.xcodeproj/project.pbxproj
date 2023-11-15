@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		02054AB6B60F49E3DF366CBD /* libjxl_dec.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 672947DA8FC50921A7ED814A /* libjxl_dec.a */; };
+		3389416F9825F408A40824F3 /* libbrotlicommon-static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A8AA4AE49BB66C97EFAE3055 /* libbrotlicommon-static.a */; };
 		3B10EC5C2568D40500372D13 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3BE081562568D3A60006849F /* CoreGraphics.framework */; };
 		3B10EC5D2568D40C00372D13 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3BE081552568D3A60006849F /* Carbon.framework */; };
 		3B10EC5F2568D40C00372D13 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3BE081542568D3A60006849F /* Metal.framework */; };
@@ -498,9 +500,12 @@
 		3BE081462568A5C60006849F /* libpng.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3BE081452568A5C60006849F /* libpng.a */; };
 		3BE081592568D3A60006849F /* libbz2.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 3BE081502568D3A50006849F /* libbz2.tbd */; };
 		3BEA5D7225AC3CE300B6E359 /* libSDL2_image.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3BEA5D7125AC3CE300B6E359 /* libSDL2_image.a */; };
+		3BED4B7B9D57E5FB12D074A4 /* libjxl_dec.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 57354BACBAB03AB8617C398C /* libjxl_dec.a */; };
 		3BF5B4BD2685881D00A3B240 /* libSDL2_sound.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3BF5B4BC2685881C00A3B240 /* libSDL2_sound.a */; };
 		3BF5B4BF2685883B00A3B240 /* libSDL2_sound.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3BF5B4BE2685883B00A3B240 /* libSDL2_sound.a */; };
 		3BF5B4C02685883B00A3B240 /* libSDL2_sound.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3BF5B4BE2685883B00A3B240 /* libSDL2_sound.a */; };
+		3E2542219A9FD2B16781B1F5 /* libbrotlidec-static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C4B4BA780D4407F24279700 /* libbrotlidec-static.a */; };
+		74E9471FB1A876B0D9F2ABFF /* libbrotlidec-static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5C254B088D8B18C7E957DE30 /* libbrotlidec-static.a */; };
 		96563582279A5ABD003D6A75 /* libtheora.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 96563581279A5ABD003D6A75 /* libtheora.a */; };
 		96563583279A5ABD003D6A75 /* libtheora.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 96563581279A5ABD003D6A75 /* libtheora.a */; };
 		96563585279A5ADA003D6A75 /* libtheora.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 96563584279A5ADA003D6A75 /* libtheora.a */; };
@@ -518,10 +523,21 @@
 		96573E83279152DC002C3E77 /* TouchBar.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 96573E80279152DC002C3E77 /* TouchBar.xcassets */; };
 		96573E84279152DC002C3E77 /* TouchBar.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 96573E80279152DC002C3E77 /* TouchBar.xcassets */; };
 		96D8EDD128728DCE00A331EA /* gamecontrollerdb.txt in Resources */ = {isa = PBXBuildFile; fileRef = 96D8EDD028728DCA00A331EA /* gamecontrollerdb.txt */; };
-		FE5204162A08E27D0070038A /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FE5204152A08E27D0070038A /* CoreHaptics.framework */; };
-		FE5204172A08E2880070038A /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FE5204152A08E27D0070038A /* CoreHaptics.framework */; };
-		FE5204182A08E28F0070038A /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FE5204152A08E27D0070038A /* CoreHaptics.framework */; };
-		FE5204192A08E2950070038A /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FE5204152A08E27D0070038A /* CoreHaptics.framework */; };
+		9DBD4B93938DE5373F0B275B /* libbrotlidec-static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C4B4BA780D4407F24279700 /* libbrotlidec-static.a */; };
+		ADD04C5294116C82CB009D8A /* libbrotlicommon-static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 293E462B94F6FA33CCB8B20C /* libbrotlicommon-static.a */; };
+		AE974950A93FC9A717E13D28 /* libbrotlidec-static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5C254B088D8B18C7E957DE30 /* libbrotlidec-static.a */; };
+		B70841599CC887B2CF44195E /* libjxl_dec.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 672947DA8FC50921A7ED814A /* libjxl_dec.a */; };
+		BB8B436FB4831131BD506069 /* libbrotlicommon-static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 293E462B94F6FA33CCB8B20C /* libbrotlicommon-static.a */; };
+		C71F461FBD62A493F478410D /* libbrotlicommon-static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A8AA4AE49BB66C97EFAE3055 /* libbrotlicommon-static.a */; };
+		E6D84F678F91109969BD5191 /* libjxl_dec.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 57354BACBAB03AB8617C398C /* libjxl_dec.a */; };
+		E8E44E4292897395B7E25A92 /* libhwy.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C3D4EBA94DA7A5C543A337E /* libhwy.a */; };
+		ECEC415E939B13D8C959F8D7 /* libhwy.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C3D4EBA94DA7A5C543A337E /* libhwy.a */; };
+		EF05486C9854302CD39A0B80 /* libhwy.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 667B4E3FBC5B03611D5C334E /* libhwy.a */; };
+		F7CA439883B85807B560AF67 /* libhwy.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 667B4E3FBC5B03611D5C334E /* libhwy.a */; };
+		FE5204162A08E27D0070038A /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FE5204152A08E27D0070038A /* CoreHaptics.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		FE5204172A08E2880070038A /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FE5204152A08E27D0070038A /* CoreHaptics.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		FE5204182A08E28F0070038A /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FE5204152A08E27D0070038A /* CoreHaptics.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		FE5204192A08E2950070038A /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FE5204152A08E27D0070038A /* CoreHaptics.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		FE52041B2A08E58D0070038A /* lanczos3.frag in Resources */ = {isa = PBXBuildFile; fileRef = FE52041A2A08E58D0070038A /* lanczos3.frag */; };
 		FE52041C2A08E62F0070038A /* lanczos3.frag in CopyFiles */ = {isa = PBXBuildFile; fileRef = FE52041A2A08E58D0070038A /* lanczos3.frag */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 /* End PBXBuildFile section */
@@ -828,6 +844,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		293E462B94F6FA33CCB8B20C /* libbrotlicommon-static.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libbrotlicommon-static.a"; path = "Dependencies/build-macosx-x86_64/lib/libbrotlicommon-static.a"; sourceTree = "<group>"; };
 		3B012198261544A0001E574A /* string-util.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "string-util.h"; sourceTree = "<group>"; };
 		3B10EC832568E78400372D13 /* icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = icon.png; path = ../assets/icon.png; sourceTree = "<group>"; };
 		3B10EC842568E78400372D13 /* liberation.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = liberation.ttf; path = ../assets/liberation.ttf; sourceTree = "<group>"; };
@@ -1101,6 +1118,12 @@
 		3BF5B4BC2685881C00A3B240 /* libSDL2_sound.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libSDL2_sound.a; path = "Dependencies/build-macosx-universal/lib/libSDL2_sound.a"; sourceTree = "<group>"; };
 		3BF5B4BE2685883B00A3B240 /* libSDL2_sound.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libSDL2_sound.a; path = "Dependencies/build-macosx-x86_64/lib/libSDL2_sound.a"; sourceTree = "<group>"; };
 		3BFABF53267787940024C7DD /* sigslot */ = {isa = PBXFileReference; lastKnownFileType = folder; path = sigslot; sourceTree = "<group>"; };
+		3C3D4EBA94DA7A5C543A337E /* libhwy.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libhwy.a; path = "Dependencies/build-macosx-x86_64/lib/libhwy.a"; sourceTree = "<group>"; };
+		3C4B4BA780D4407F24279700 /* libbrotlidec-static.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libbrotlidec-static.a"; path = "Dependencies/build-macosx-universal/lib/libbrotlidec-static.a"; sourceTree = "<group>"; };
+		57354BACBAB03AB8617C398C /* libjxl_dec.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libjxl_dec.a; path = "Dependencies/build-macosx-x86_64/lib/libjxl_dec.a"; sourceTree = "<group>"; };
+		5C254B088D8B18C7E957DE30 /* libbrotlidec-static.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libbrotlidec-static.a"; path = "Dependencies/build-macosx-x86_64/lib/libbrotlidec-static.a"; sourceTree = "<group>"; };
+		667B4E3FBC5B03611D5C334E /* libhwy.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libhwy.a; path = "Dependencies/build-macosx-universal/lib/libhwy.a"; sourceTree = "<group>"; };
+		672947DA8FC50921A7ED814A /* libjxl_dec.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libjxl_dec.a; path = "Dependencies/build-macosx-universal/lib/libjxl_dec.a"; sourceTree = "<group>"; };
 		96563581279A5ABD003D6A75 /* libtheora.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libtheora.a; path = "Dependencies/build-macosx-x86_64/lib/libtheora.a"; sourceTree = "<group>"; };
 		96563584279A5ADA003D6A75 /* libtheora.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libtheora.a; path = "Dependencies/build-macosx-universal/lib/libtheora.a"; sourceTree = "<group>"; };
 		9656358E279A5B74003D6A75 /* theoraplay_cvtrgb.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = theoraplay_cvtrgb.h; sourceTree = "<group>"; };
@@ -1110,6 +1133,7 @@
 		96573E7B27913B46002C3E77 /* TouchBar.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; name = TouchBar.h; path = views/TouchBar.h; sourceTree = "<group>"; };
 		96573E80279152DC002C3E77 /* TouchBar.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = TouchBar.xcassets; path = views/TouchBar.xcassets; sourceTree = "<group>"; };
 		96D8EDD028728DCA00A331EA /* gamecontrollerdb.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = gamecontrollerdb.txt; path = ../assets/gamecontrollerdb.txt; sourceTree = "<group>"; };
+		A8AA4AE49BB66C97EFAE3055 /* libbrotlicommon-static.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libbrotlicommon-static.a"; path = "Dependencies/build-macosx-universal/lib/libbrotlicommon-static.a"; sourceTree = "<group>"; };
 		FE5204152A08E27D0070038A /* CoreHaptics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreHaptics.framework; path = System/Library/Frameworks/CoreHaptics.framework; sourceTree = SDKROOT; };
 		FE52041A2A08E58D0070038A /* lanczos3.frag */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.glsl; name = lanczos3.frag; path = ../shader/lanczos3.frag; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -1163,6 +1187,10 @@
 				3B1C23E325A19C600075EF5D /* libSDL2_image.a in Frameworks */,
 				3B1C23E425A19C600075EF5D /* libfreetype.a in Frameworks */,
 				3B1C23E525A19C600075EF5D /* libphysfs.a in Frameworks */,
+				3BED4B7B9D57E5FB12D074A4 /* libjxl_dec.a in Frameworks */,
+				74E9471FB1A876B0D9F2ABFF /* libbrotlidec-static.a in Frameworks */,
+				BB8B436FB4831131BD506069 /* libbrotlicommon-static.a in Frameworks */,
+				ECEC415E939B13D8C959F8D7 /* libhwy.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1213,6 +1241,10 @@
 				3BBE881E2705AC4200A574AE /* libSDL2_image.a in Frameworks */,
 				3BBE881F2705AC4800A574AE /* libfreetype.a in Frameworks */,
 				3BBE88202705AC4C00A574AE /* libphysfs.a in Frameworks */,
+				02054AB6B60F49E3DF366CBD /* libjxl_dec.a in Frameworks */,
+				3E2542219A9FD2B16781B1F5 /* libbrotlidec-static.a in Frameworks */,
+				C71F461FBD62A493F478410D /* libbrotlicommon-static.a in Frameworks */,
+				EF05486C9854302CD39A0B80 /* libhwy.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1257,6 +1289,10 @@
 				3BC65E202584F4290063AFF1 /* libpixman-1.a in Frameworks */,
 				3BC65E062584F3AD0063AFF1 /* libiconv.tbd in Frameworks */,
 				3BC65E262584F4290063AFF1 /* libpng16.a in Frameworks */,
+				B70841599CC887B2CF44195E /* libjxl_dec.a in Frameworks */,
+				9DBD4B93938DE5373F0B275B /* libbrotlidec-static.a in Frameworks */,
+				3389416F9825F408A40824F3 /* libbrotlicommon-static.a in Frameworks */,
+				F7CA439883B85807B560AF67 /* libhwy.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1300,6 +1336,10 @@
 				3BE0810E256879FE0006849F /* libSDL2_image.a in Frameworks */,
 				3BE0811A256879FE0006849F /* libfreetype.a in Frameworks */,
 				3BE0811D256879FE0006849F /* libphysfs.a in Frameworks */,
+				E6D84F678F91109969BD5191 /* libjxl_dec.a in Frameworks */,
+				AE974950A93FC9A717E13D28 /* libbrotlidec-static.a in Frameworks */,
+				ADD04C5294116C82CB009D8A /* libbrotlicommon-static.a in Frameworks */,
+				E8E44E4292897395B7E25A92 /* libhwy.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1733,6 +1773,10 @@
 				3BC65D812584F3780063AFF1 /* libvorbisfile.a */,
 				3B522DC8259BFEDF003301C4 /* libcrypto.a */,
 				3B522DC9259BFEDF003301C4 /* libssl.a */,
+				672947DA8FC50921A7ED814A /* libjxl_dec.a */,
+				3C4B4BA780D4407F24279700 /* libbrotlidec-static.a */,
+				A8AA4AE49BB66C97EFAE3055 /* libbrotlicommon-static.a */,
+				667B4E3FBC5B03611D5C334E /* libhwy.a */,
 			);
 			name = Universal;
 			sourceTree = "<group>";
@@ -1856,6 +1900,10 @@
 				3BE080E7256879FC0006849F /* libvorbisfile.a */,
 				3B522DD5259BFF2D003301C4 /* libcrypto.a */,
 				3B522DD4259BFF2D003301C4 /* libssl.a */,
+				57354BACBAB03AB8617C398C /* libjxl_dec.a */,
+				5C254B088D8B18C7E957DE30 /* libbrotlidec-static.a */,
+				293E462B94F6FA33CCB8B20C /* libbrotlicommon-static.a */,
+				3C3D4EBA94DA7A5C543A337E /* libhwy.a */,
 			);
 			name = Intel;
 			sourceTree = "<group>";
@@ -1894,7 +1942,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3B1C23EF25A19C600075EF5D /* Build configuration list for PBXNativeTarget "Z-steam" */;
 			buildPhases = (
-				FE4F72FE2A179EE0004FED68 /* ShellScript */,
 				3B1C237025A19C600075EF5D /* Sources */,
 				3B1C23C225A19C600075EF5D /* Frameworks */,
 				3B1C23E625A19C600075EF5D /* Resources */,
@@ -1903,6 +1950,7 @@
 				3B1C23EA25A19C600075EF5D /* CopyFiles */,
 				3B251DAB26DA2EBB00E5D09B /* CopyFiles */,
 				3B1C23EC25A19C600075EF5D /* Embed Frameworks */,
+				FE4F72FE2A179EE0004FED68 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -1938,7 +1986,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3BBE88062705A73400A574AE /* Build configuration list for PBXNativeTarget "Z-steam-universal" */;
 			buildPhases = (
-				FE4F72FD2A179ED5004FED68 /* ShellScript */,
 				3BBE87852705A73400A574AE /* Sources */,
 				3BBE87CE2705A73400A574AE /* Frameworks */,
 				3BBE87F42705A73400A574AE /* Resources */,
@@ -1947,6 +1994,7 @@
 				3BBE87FC2705A73400A574AE /* CopyFiles */,
 				3BBE87FE2705A73400A574AE /* CopyFiles */,
 				3BBE88002705A73400A574AE /* Embed Frameworks */,
+				FE4F72FD2A179ED5004FED68 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -1963,7 +2011,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3BC65E122584F3AD0063AFF1 /* Build configuration list for PBXNativeTarget "Z-universal" */;
 			buildPhases = (
-				FE4F72FB2A179D9E004FED68 /* ShellScript */,
 				3BC65D8D2584F3AD0063AFF1 /* Sources */,
 				3BC65DDB2584F3AD0063AFF1 /* Frameworks */,
 				3BC65E0D2584F3AD0063AFF1 /* Resources */,
@@ -1971,6 +2018,7 @@
 				3BC65E0F2584F3AD0063AFF1 /* CopyFiles */,
 				3B251D9F26DA2C2A00E5D09B /* CopyFiles */,
 				3B522D79259BA0E3003301C4 /* Embed Frameworks */,
+				FE4F72FB2A179D9E004FED68 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -1986,7 +2034,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3BD2B7222565AEC0003DAD8A /* Build configuration list for PBXNativeTarget "Z-intel" */;
 			buildPhases = (
-				FE4F72FC2A179ECC004FED68 /* ShellScript */,
 				3BD2B64C2565AEC0003DAD8A /* Sources */,
 				3BD2B6E12565AEC0003DAD8A /* Frameworks */,
 				3BD2B6F82565AEC0003DAD8A /* Resources */,
@@ -1994,6 +2041,7 @@
 				3B5A843B2569F95A00BAF2E5 /* CopyFiles */,
 				3B251DA726DA2E8A00E5D09B /* CopyFiles */,
 				3B522D7C259BA0E8003301C4 /* Embed Frameworks */,
+				FE4F72FC2A179ECC004FED68 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -2106,6 +2154,7 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
+				"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}",
 			);
 			outputFileListPaths = (
 			);
@@ -2113,7 +2162,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nCOMMIT_HASH=`git rev-parse --short HEAD`\n/usr/libexec/PlistBuddy -c \"Set :GIT_COMMIT_HASH $COMMIT_HASH\" \"${INFOPLIST_FILE}\"\n";
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nCOMMIT_HASH=`git rev-parse --short HEAD`\n/usr/libexec/PlistBuddy -c \"Set :GIT_COMMIT_HASH $COMMIT_HASH\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n";
 		};
 		FE4F72FC2A179ECC004FED68 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -2123,6 +2172,7 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
+				"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}",
 			);
 			outputFileListPaths = (
 			);
@@ -2130,7 +2180,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nCOMMIT_HASH=`git rev-parse --short HEAD`\n/usr/libexec/PlistBuddy -c \"Set :GIT_COMMIT_HASH $COMMIT_HASH\" \"${INFOPLIST_FILE}\"\n";
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nCOMMIT_HASH=`git rev-parse --short HEAD`\n/usr/libexec/PlistBuddy -c \"Set :GIT_COMMIT_HASH $COMMIT_HASH\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n";
 		};
 		FE4F72FD2A179ED5004FED68 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -2140,6 +2190,7 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
+				"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}",
 			);
 			outputFileListPaths = (
 			);
@@ -2147,7 +2198,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nCOMMIT_HASH=`git rev-parse --short HEAD`\n/usr/libexec/PlistBuddy -c \"Set :GIT_COMMIT_HASH $COMMIT_HASH\" \"${INFOPLIST_FILE}\"\n";
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nCOMMIT_HASH=`git rev-parse --short HEAD`\n/usr/libexec/PlistBuddy -c \"Set :GIT_COMMIT_HASH $COMMIT_HASH\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n";
 		};
 		FE4F72FE2A179EE0004FED68 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -2157,6 +2208,7 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
+				"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}",
 			);
 			outputFileListPaths = (
 			);
@@ -2164,7 +2216,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nCOMMIT_HASH=`git rev-parse --short HEAD`\n/usr/libexec/PlistBuddy -c \"Set :GIT_COMMIT_HASH $COMMIT_HASH\" \"${INFOPLIST_FILE}\"\n";
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nCOMMIT_HASH=`git rev-parse --short HEAD`\n/usr/libexec/PlistBuddy -c \"Set :GIT_COMMIT_HASH $COMMIT_HASH\" \"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

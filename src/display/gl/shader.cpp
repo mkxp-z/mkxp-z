@@ -3,7 +3,7 @@
 **
 ** This file is part of mkxp.
 **
-** Copyright (C) 2013 Jonas Kulla <Nyocurio@gmail.com>
+** Copyright (C) 2013 - 2021 Amaryllis Kulla <ancurio@mapleshrine.eu>
 **
 ** mkxp is free software: you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -20,6 +20,8 @@
 */
 
 #include "shader.h"
+#include "config.h"
+#include "graphics.h"
 #include "sharedstate.h"
 #include "glstate.h"
 #include "exception.h"
@@ -44,6 +46,7 @@
 #include "simpleAlphaUni.frag.xxd"
 #include "tilemap.frag.xxd"
 #include "flashMap.frag.xxd"
+#include "bicubic.frag.xxd"
 #include "lanczos3.frag.xxd"
 #include "minimal.vert.xxd"
 #include "simple.vert.xxd"
@@ -115,7 +118,6 @@ Shader::Shader()
 
 Shader::~Shader()
 {
-	gl.UseProgram(0);
 	gl.DeleteProgram(program);
 	gl.DeleteShader(vertShader);
 	gl.DeleteShader(fragShader);
@@ -294,8 +296,19 @@ void ShaderBase::init()
 
 void ShaderBase::applyViewportProj()
 {
+	// High-res: scale the matrix if we're rendering to the PingPong framebuffer.
 	const IntRect &vp = glState.viewport.get();
-	projMat.set(Vec2i(vp.w, vp.h));
+	if (shState->config().enableHires && shState->graphics().isPingPongFramebufferActive() && framebufferScalingAllowed()) {
+		projMat.set(Vec2i(shState->graphics().width(), shState->graphics().height()));
+	}
+	else {
+		projMat.set(Vec2i(vp.w, vp.h));
+	}
+}
+
+bool ShaderBase::framebufferScalingAllowed()
+{
+	return true;
 }
 
 void ShaderBase::setTexSize(const Vec2i &value)
@@ -594,6 +607,13 @@ GrayShader::GrayShader()
 	GET_U(gray);
 }
 
+bool GrayShader::framebufferScalingAllowed()
+{
+	// This shader is used with input textures that have already had a
+	// framebuffer scale applied. So we don't want to double-apply it.
+	return false;
+}
+
 void GrayShader::setGray(float value)
 {
 	gl.Uniform1f(u_gray, value);
@@ -746,6 +766,20 @@ void BltShader::setSubRect(const FloatRect &value)
 void BltShader::setOpacity(float value)
 {
 	gl.Uniform1f(u_opacity, value);
+}
+
+BicubicShader::BicubicShader()
+{
+	INIT_SHADER(simple, bicubic, BicubicShader);
+
+	ShaderBase::init();
+
+	GET_U(texOffsetX);
+	GET_U(sourceSize);
+	GET_U(bc);
+
+	// TODO: Maybe expose this as a setting?
+	gl.Uniform2f(u_bc, 0.0, 0.5);
 }
 
 Lanczos3Shader::Lanczos3Shader()

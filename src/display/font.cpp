@@ -3,7 +3,7 @@
 **
 ** This file is part of mkxp.
 **
-** Copyright (C) 2013 Jonas Kulla <Nyocurio@gmail.com>
+** Copyright (C) 2013 - 2021 Amaryllis Kulla <ancurio@mapleshrine.eu>
 **
 ** mkxp is free software: you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -28,8 +28,12 @@
 #include "util.h"
 #include "config.h"
 
+#include "debugwriter.h"
+
 #include <string>
 #include <utility>
+#include <algorithm>
+#include <cctype>
 
 #ifdef MKXPZ_BUILD_XCODE
 #include "filesystem/filesystem.h"
@@ -147,6 +151,9 @@ void SharedFontState::initFontSetCB(SDL_RWops &ops,
 	std::string family = TTF_FontFaceFamilyName(font);
 	std::string style = TTF_FontFaceStyleName(font);
 
+	std::transform(family.begin(), family.end(), family.begin(),
+		[](unsigned char c){ return std::tolower(c); });
+
 	TTF_CloseFont(font);
 
 	FontSet &set = p->sets[family];
@@ -160,6 +167,9 @@ void SharedFontState::initFontSetCB(SDL_RWops &ops,
 _TTF_Font *SharedFontState::getFont(std::string family,
                                     int size)
 {
+	std::transform(family.begin(), family.end(), family.begin(),
+		[](unsigned char c){ return std::tolower(c); });
+
 	if (family.empty())
 		family = p->defaultFamily;
 
@@ -217,6 +227,9 @@ _TTF_Font *SharedFontState::getFont(std::string family,
 
 bool SharedFontState::fontPresent(std::string family) const
 {
+	std::transform(family.begin(), family.end(), family.begin(),
+		[](unsigned char c){ return std::tolower(c); });
+
 	/* Check for substitutions */
 	if (p->subs.contains(family))
 		family = p->subs[family];
@@ -251,6 +264,17 @@ void pickExistingFontName(const std::vector<std::string> &names,
 		{
 			out = names[i];
 			return;
+		}
+		else
+		{
+			if (i == 0)
+			{
+				Debug() << "Primary font not found:" << names[i];
+			}
+			else
+			{
+				Debug() << "Fallback font not found:" << names[i];
+			}
 		}
 	}
 
@@ -399,14 +423,17 @@ void Font::setName(const std::vector<std::string> &names)
 	p->sdlFont = 0;
 }
 
-void Font::setSize(int value)
+void Font::setSize(int value, bool checkIllegal)
 {
 	if (p->size == value)
 		return;
 
 	/* Catch illegal values (according to RMXP) */
-	if (value < 6 || value > 96)
-		throw Exception(Exception::ArgumentError, "%s", "bad value for size");
+	if (value < 6 || value > 96) {
+		if (checkIllegal) {
+			throw Exception(Exception::ArgumentError, "%s", "bad value for size");
+		}
+	}
 
 	p->size = value;
 	p->sdlFont = 0;

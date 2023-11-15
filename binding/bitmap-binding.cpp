@@ -3,7 +3,7 @@
  **
  ** This file is part of mkxp.
  **
- ** Copyright (C) 2013 Jonas Kulla <Nyocurio@gmail.com>
+ ** Copyright (C) 2013 - 2021 Amaryllis Kulla <ancurio@mapleshrine.eu>
  **
  ** mkxp is free software: you can redistribute it and/or modify
  ** it under the terms of the GNU General Public License as published by
@@ -49,6 +49,12 @@ void bitmapInitProps(Bitmap *b, VALUE self) {
     b->setInitFont(font);
     
     rb_iv_set(self, "font", fontObj);
+
+    // Leave property as default nil if hasHires() is false.
+    if (b->hasHires()) {
+        b->assumeRubyGC();
+        wrapProperty(self, b->getHires(), "hires", BitmapType);
+    }
 }
 
 RB_METHOD(bitmapInitialize) {
@@ -93,6 +99,8 @@ RB_METHOD(bitmapHeight) {
     
     return INT2FIX(value);
 }
+
+DEF_GFX_PROP_OBJ_REF(Bitmap, Bitmap, Hires, "hires")
 
 RB_METHOD(bitmapRect) {
     RB_UNUSED_PARAM;
@@ -741,6 +749,9 @@ void bitmapBindingInit() {
     
     _rb_define_method(klass, "width", bitmapWidth);
     _rb_define_method(klass, "height", bitmapHeight);
+
+    INIT_PROP_BIND(Bitmap, Hires, "hires");
+
     _rb_define_method(klass, "rect", bitmapRect);
     _rb_define_method(klass, "blt", bitmapBlt);
     _rb_define_method(klass, "stretch_blt", bitmapStretchBlt);

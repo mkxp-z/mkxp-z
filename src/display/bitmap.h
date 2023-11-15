@@ -3,7 +3,7 @@
 **
 ** This file is part of mkxp.
 **
-** Copyright (C) 2013 Jonas Kulla <Nyocurio@gmail.com>
+** Copyright (C) 2013 - 2021 Amaryllis Kulla <ancurio@mapleshrine.eu>
 **
 ** mkxp is free software: you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ class Bitmap : public Disposable
 {
 public:
 	Bitmap(const char *filename);
-	Bitmap(int width, int height);
+	Bitmap(int width, int height, bool isHires = false);
     Bitmap(void *pixeldata, int width, int height);
 	/* Clone constructor */
     
@@ -49,6 +49,9 @@ public:
 
 	int width()  const;
 	int height() const;
+	bool hasHires() const;
+	DECL_ATTR(Hires, Bitmap*)
+	void setLores(Bitmap *lores);
 	bool isMega() const;
     bool isAnimated() const;
 
@@ -160,6 +163,8 @@ public:
 	static int maxSize();
     
     bool invalid() const;
+
+    void assumeRubyGC();
 
 private:
 	void releaseResources();

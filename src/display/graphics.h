@@ -3,7 +3,7 @@
 **
 ** This file is part of mkxp.
 **
-** Copyright (C) 2013 Jonas Kulla <Nyocurio@gmail.com>
+** Copyright (C) 2013 - 2021 Amaryllis Kulla <ancurio@mapleshrine.eu>
 **
 ** mkxp is free software: you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -58,6 +58,11 @@ public:
 
 	int width() const;
 	int height() const;
+	int widthHires() const;
+	int heightHires() const;
+	bool isPingPongFramebufferActive() const;
+    int displayContentWidth() const;
+    int displayContentHeight() const;
     int displayWidth() const;
     int displayHeight() const;
 	void resizeScreen(int width, int height);
@@ -76,7 +81,7 @@ public:
     DECL_ATTR( Scale,    double )
     DECL_ATTR( Frameskip, bool )
     DECL_ATTR( FixedAspectRatio, bool )
-    DECL_ATTR( SmoothScaling, bool )
+    DECL_ATTR( SmoothScaling, int )
     DECL_ATTR( IntegerScaling, bool )
     DECL_ATTR( LastMileScaling, bool )
     DECL_ATTR( Threadsafe, bool )

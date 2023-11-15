@@ -125,6 +125,7 @@ global_include_dirs += include_directories('src', 'binding')
 rpath = ''
 
 if host_system == 'windows'
+    windows_resource_directory = '../' + get_option('windows_resource_directory')
     subdir('windows')
     global_sources += windows_resources
     global_include_dirs += include_directories('windows')

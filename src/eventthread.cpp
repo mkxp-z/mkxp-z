@@ -3,7 +3,7 @@
  **
  ** This file is part of mkxp.
  **
- ** Copyright (C) 2013 Jonas Kulla <Nyocurio@gmail.com>
+ ** Copyright (C) 2013 - 2021 Amaryllis Kulla <ancurio@mapleshrine.eu>
  **
  ** mkxp is free software: you can redistribute it and/or modify
  ** it under the terms of the GNU General Public License as published by
@@ -152,11 +152,11 @@ void EventThread::process(RGSSThreadData &rtData)
     fullscreen = rtData.config.fullscreen;
     int toggleFSMod = rtData.config.anyAltToggleFS ? KMOD_ALT : KMOD_LALT;
     
-    if (rtData.config.printFPS)
+    bool displayingFPS = rtData.config.displayFPS;
+    
+    if (displayingFPS || rtData.config.printFPS)
         fps.sendUpdates.set();
-    
-    bool displayingFPS = false;
-    
+
     bool cursorInWindow = false;
     /* Will be updated eventually */
     SDL_Rect gameScreen = { 0, 0, 0, 0 };
@@ -328,6 +328,13 @@ void EventThread::process(RGSSThreadData &rtData)
                 
                 if (event.key.keysym.scancode == SDL_SCANCODE_F1 && rtData.config.enableSettings)
                 {
+                    // Do not open settings menu until initializing shared state.
+                    // Opening before initializing shared state will crash (segmentation fault).
+                    if (!shState)
+                    {
+                        break;
+                    }
+
 #ifndef MKXPZ_BUILD_XCODE
                     if (!sMenu)
                     {

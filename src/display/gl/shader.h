@@ -3,7 +3,7 @@
 **
 ** This file is part of mkxp.
 **
-** Copyright (C) 2013 Jonas Kulla <Nyocurio@gmail.com>
+** Copyright (C) 2013 - 2021 Amaryllis Kulla <ancurio@mapleshrine.eu>
 **
 ** mkxp is free software: you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -91,6 +91,7 @@ public:
 
 protected:
 	void init();
+	virtual bool framebufferScalingAllowed();
 
 	GLint u_texSizeInv, u_translation;
 };
@@ -226,6 +227,9 @@ public:
 
 	void setGray(float value);
 
+protected:
+	virtual bool framebufferScalingAllowed();
+
 private:
 	GLint u_gray;
 };
@@ -337,6 +341,15 @@ protected:
 	GLint u_sourceSize;
 };
 
+class BicubicShader : public Lanczos3Shader
+{
+public:
+	BicubicShader();
+
+protected:
+	GLint u_bc;
+};
+
 /* Global object containing all available shaders */
 struct ShaderSet
 {
@@ -358,6 +371,7 @@ struct ShaderSet
 	SimpleMatrixShader simpleMatrix;
 	BlurShader blur;
 	TilemapVXShader tilemapVX;
+	BicubicShader bicubic;
 	Lanczos3Shader lanczos3;
 };
 

@@ -179,20 +179,17 @@ $(DOWNLOADS)/libpng/configure:
 # SDL2
 sdl2: init_dirs $(LIBDIR)/libSDL2.a
 
-$(LIBDIR)/libSDL2.a: $(DOWNLOADS)/sdl2/Makefile
+$(LIBDIR)/libSDL2.a: $(DOWNLOADS)/sdl2/cmakebuild/Makefile
+	cd $(DOWNLOADS)/sdl2/cmakebuild; \
+	make -j$(NPROC); make install
+
+$(DOWNLOADS)/sdl2/cmakebuild/Makefile: $(DOWNLOADS)/sdl2/CMakeLists.txt
 	cd $(DOWNLOADS)/sdl2; \
-	make -j$(NPROC); make install;
+	mkdir cmakebuild; cd cmakebuild; \
+	$(CMAKE) -DBUILD_SHARED_LIBS=no
 
-$(DOWNLOADS)/sdl2/Makefile: $(DOWNLOADS)/sdl2/configure
-	cd $(DOWNLOADS)/sdl2; \
-	$(CONFIGURE) --enable-static=true --enable-shared=false \
-	--enable-video-x11=false $(SDL_FLAGS)
-
-$(DOWNLOADS)/sdl2/configure: $(DOWNLOADS)/sdl2/autogen.sh
-	cd $(DOWNLOADS)/sdl2; ./autogen.sh
-
-$(DOWNLOADS)/sdl2/autogen.sh:
-	$(CLONE) $(GITHUB)/mkxp-z/SDL $(DOWNLOADS)/sdl2 -b mkxp-z
+$(DOWNLOADS)/sdl2/CMakeLists.txt:
+	$(CLONE) $(GITHUB)/mkxp-z/SDL $(DOWNLOADS)/sdl2 -b mkxp-z-2.28.1
 	
 # SDL_image
 sdl2image: init_dirs sdl2 $(LIBDIR)/libSDL2_image.a
@@ -209,11 +206,16 @@ $(DOWNLOADS)/sdl2_image/cmakebuild/Makefile: $(DOWNLOADS)/sdl2_image/CMakeLists.
 	-DSDL2IMAGE_PNG_SAVE=yes \
 	-DSDL2IMAGE_PNG_SHARED=no \
 	-DSDL2IMAGE_JPG_SHARED=no \
-	-DSDL2IMAGE_BACKEND_IMAGEIO=no
+	-DSDL2IMAGE_JXL=yes \
+	-DSDL2IMAGE_JXL_SHARED=no \
+	-DSDL2IMAGE_BACKEND_IMAGEIO=no \
+	-DSDL2IMAGE_VENDORED=yes
 	
 
 $(DOWNLOADS)/sdl2_image/CMakeLists.txt:
-	$(CLONE) $(GITHUB)/mkxp-z/SDL_image $(DOWNLOADS)/sdl2_image -b mkxp-z
+	$(CLONE) $(GITHUB)/mkxp-z/SDL_image $(DOWNLOADS)/sdl2_image -b mkxp-z; \
+	cd $(DOWNLOADS)/sdl2_image; \
+	./external/download.sh
 
 
 # SDL_sound
@@ -296,8 +298,7 @@ $(DOWNLOADS)/openssl/Makefile: $(DOWNLOADS)/openssl/Configure
 	--openssldir="$(BUILD_PREFIX)"
 
 $(DOWNLOADS)/openssl/Configure:
-	$(CLONE) $(GITHUB)/openssl/openssl $(DOWNLOADS)/openssl; \
-	cd $(DOWNLOADS)/openssl --single-branch --branch OpenSSL_1_1_1i --depth 1
+	$(CLONE) $(GITHUB)/openssl/openssl $(DOWNLOADS)/openssl --single-branch --branch openssl-3.0.12 --depth 1
 
 # Standard ruby
 ruby: init_dirs openssl $(LIBDIR)/libruby.3.1.dylib

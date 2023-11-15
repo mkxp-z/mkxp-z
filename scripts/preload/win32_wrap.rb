@@ -7,8 +7,17 @@
 # all copyright and related or neighboring rights to win32_wrap.rb.
 # https://creativecommons.org/publicdomain/zero/1.0/
 
+# Edits by Splendide Imaginarius (2023) also CC0.
+
 # This preload script provides a subset of Win32API in a cross-platform way, so
 # you can play Win32API-based games on Linux and macOS.
+
+# To tweak behavior, you can set the following Win32API class constants in an
+# earlier preload script (these are usually only helpful for debugging):
+#
+# NATIVE_ON_WINDOWS=false
+# TOLERATE_ERRORS=false
+# LOG_NATIVE=true
 
 module Scancodes
 	SDL = { :UNKNOWN => 0x00,
@@ -334,6 +343,11 @@ def kappatalize(s)
 end
 
 class Win32API
+	NATIVE_ON_WINDOWS = true unless const_defined?("NATIVE_ON_WINDOWS")
+	TOLERATE_ERRORS = true unless const_defined?("TOLERATE_ERRORS")
+	LOG_NATIVE = false unless const_defined?("LOG_NATIVE")
+
+	alias_method :mkxp_native_initialize, :initialize
 	def initialize(dll, func, *args)
 		@dll = dll
 		@func = func
@@ -342,21 +356,45 @@ class Win32API
 		dll = kappatalize(dll.chomp(".dll"))
 		func = kappatalize(func)
 
-		if Win32API_Impl.const_defined?(dll)
-			dll_impl = Win32API_Impl.const_get(dll)
-			if dll_impl.const_defined?(func)
-				@impl = dll_impl.const_get(func).new
+		if !System.is_windows? or !NATIVE_ON_WINDOWS
+			if Win32API_Impl.const_defined?(dll)
+				dll_impl = Win32API_Impl.const_get(dll)
+				if dll_impl.const_defined?(func)
+					@mkxp_wrap_impl = dll_impl.const_get(func).new
+					return
+				end
 			end
 		end
 
-	end
-	def call(*args)
-		if @impl
-			return @impl.call(args)
+		@mkxp_native_available = false
+		begin
+			mkxp_native_initialize(@dll, @func, *args)
+			@mkxp_native_available = true
+			return
+		rescue
 		end
 
-		System.puts("[#{@dll}:#{@func}] #{args.to_s}") if !@called
-		@called = true
-		return 0
+	end
+
+	alias_method :mkxp_native_call, :call
+	def call(*args)
+		if @mkxp_wrap_impl
+			return @mkxp_wrap_impl.call(args)
+		end
+
+		if @mkxp_native_available
+			if LOG_NATIVE
+				System.puts("[Win32API] [#{@dll}:#{@func}] #{args.to_s}")
+			end
+			return mkxp_native_call(*args)
+		end
+
+		if TOLERATE_ERRORS
+			System.puts("[Win32API] [#{@dll}:#{@func}] #{args.to_s}") if !@called
+			@called = true
+			return 0
+		else
+			raise RuntimeError, "[Win32API] [#{@dll}:#{@func}] #{args.to_s}"
+		end
 	end
 end

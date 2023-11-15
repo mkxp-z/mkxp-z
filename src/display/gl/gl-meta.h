@@ -3,7 +3,7 @@
 **
 ** This file is part of mkxp.
 **
-** Copyright (C) 2014 Jonas Kulla <Nyocurio@gmail.com>
+** Copyright (C) 2014 - 2021 Amaryllis Kulla <ancurio@mapleshrine.eu>
 **
 ** mkxp is free software: you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ void vaoBind(VAO &vao);
 void vaoUnbind(VAO &vao);
 
 /* EXT_framebuffer_blit */
-void blitBegin(TEXFBO &target);
+void blitBegin(TEXFBO &target, bool preferHires = false);
 void blitBeginScreen(const Vec2i &size);
 void blitSource(TEXFBO &source);
 void blitRectangle(const IntRect &src, const Vec2i &dstPos);

@@ -196,7 +196,7 @@ s.d.ca.dir = (axis.value >= 0) ? AxisDir::Positive : AxisDir::Negative;
     checkButtonAlt(leftShoulder, SDL_CONTROLLER_BUTTON_LEFTSHOULDER, 12)
     checkButtonAlt(rightShoulder, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, 12)
 
-#if __MAC_OS_X_VERSION_MAX_ALLOWED >= __MAC_10_14_1
+#if defined(__MAC_10_14_1) && __MAC_OS_X_VERSION_MAX_ALLOWED >= __MAC_10_14_1
     // Requires macOS 10.14.1+
     checkButtonAlt(leftThumbstickButton, SDL_CONTROLLER_BUTTON_LEFTSTICK, 14)
     checkButtonAlt(rightThumbstickButton, SDL_CONTROLLER_BUTTON_RIGHTSTICK, 14)
@@ -204,7 +204,7 @@ s.d.ca.dir = (axis.value >= 0) ? AxisDir::Positive : AxisDir::Negative;
 #warning "This SDK doesn't support the detection of thumbstick buttons. You will not be able to rebind them from the menu on 10.14.1 or higher."
 #endif
 
-#if __MAC_OS_X_VERSION_MAX_ALLOWED >= __MAC_10_15
+#if defined(__MAC_10_15) && __MAC_OS_X_VERSION_MAX_ALLOWED >= __MAC_10_15
     // Requires macOS 10.15+
     checkButton(Menu, SDL_CONTROLLER_BUTTON_START, 15)
     checkButton(Options, SDL_CONTROLLER_BUTTON_BACK, 15)
@@ -212,7 +212,7 @@ s.d.ca.dir = (axis.value >= 0) ? AxisDir::Positive : AxisDir::Negative;
 #warning "This SDK doesn't support the detection of Start and Back buttons. You will not be able to rebind them from the menu on 10.15 or higher."
 #endif
     
-#if __MAC_OS_X_VERSION_MAX_ALLOWED >= __MAC_11_0
+#if defined(__MAC_11_0) && __MAC_OS_X_VERSION_MAX_ALLOWED >= __MAC_11_0
     // Requires macOS 11.0+
     checkButton(Home, SDL_CONTROLLER_BUTTON_GUIDE, 16)
 #else

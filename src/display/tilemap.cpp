@@ -3,7 +3,7 @@
 **
 ** This file is part of mkxp.
 **
-** Copyright (C) 2013 Jonas Kulla <Nyocurio@gmail.com>
+** Copyright (C) 2013 - 2021 Amaryllis Kulla <ancurio@mapleshrine.eu>
 **
 ** mkxp is free software: you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 
 #include "sharedstate.h"
 #include "config.h"
+#include "debugwriter.h"
 #include "glstate.h"
 #include "gl-util.h"
 #include "gl-meta.h"
@@ -550,6 +551,10 @@ struct TilemapPrivate
 			int blitW = std::min(atW, atAreaW);
 			int blitH = std::min(atH, autotileH);
 
+			if (autotile->hasHires()) {
+				Debug() << "BUG: High-res Tilemap blit autotiles not implemented";
+			}
+
 			GLMeta::blitSource(autotile->getGLTypes());
 
 			if (atW <= autotileW && tiles.animated && !atlas.smallATs[atInd])
@@ -639,6 +644,10 @@ struct TilemapPrivate
 		}
 		else
 		{
+			if (tileset->hasHires()) {
+				Debug() << "BUG: High-res Tilemap regular tileset not implemented";
+			}
+
 			/* Regular tileset */
 			GLMeta::blitBegin(atlas.gl);
 			GLMeta::blitSource(tileset->getGLTypes());

@@ -3,7 +3,7 @@
 **
 ** This file is part of mkxp.
 **
-** Copyright (C) 2013 Jonas Kulla <Nyocurio@gmail.com>
+** Copyright (C) 2013 - 2021 Amaryllis Kulla <ancurio@mapleshrine.eu>
 **
 ** mkxp is free software: you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -109,6 +109,8 @@ namespace FBO
 {
 	DEF_GL_ID
 
+	extern ID boundFramebufferID;
+
 	inline ID gen()
 	{
 		ID id;
@@ -124,6 +126,7 @@ namespace FBO
 
 	static inline void bind(ID id)
 	{
+		boundFramebufferID = id;
 		gl.BindFramebuffer(GL_FRAMEBUFFER, id.gl);
 	}
 
@@ -203,8 +206,10 @@ struct TEXFBO
 	FBO::ID fbo;
 	int width, height;
 
+	TEXFBO *selfHires;
+
 	TEXFBO()
-	    : tex(0), fbo(0), width(0), height(0)
+	    : tex(0), fbo(0), width(0), height(0), selfHires(nullptr)
 	{}
 
 	bool operator==(const TEXFBO &other) const

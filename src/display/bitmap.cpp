@@ -3,7 +3,7 @@
  **
  ** This file is part of mkxp.
  **
- ** Copyright (C) 2013 Jonas Kulla <Nyocurio@gmail.com>
+ ** Copyright (C) 2013 - 2021 Amaryllis Kulla <ancurio@mapleshrine.eu>
  **
  ** mkxp is free software: you can redistribute it and/or modify
  ** it under the terms of the GNU General Public License as published by
@@ -237,11 +237,19 @@ struct BitmapPrivate
      * in the texture and blit to it directly, saving
      * ourselves the expensive blending calculation */
     pixman_region16_t tainted;
+
+    // For high-resolution texture replacement.
+    Bitmap *selfHires;
+    Bitmap *selfLores;
+    bool assumingRubyGC;
     
     BitmapPrivate(Bitmap *self)
     : self(self),
     megaSurface(0),
-    surface(0)
+    selfHires(0),
+    selfLores(0),
+    surface(0),
+    assumingRubyGC(false)
     {
         format = SDL_AllocFormat(SDL_PIXELFORMAT_ABGR8888);
         
@@ -326,16 +334,30 @@ struct BitmapPrivate
         return result != PIXMAN_REGION_OUT;
     }
     
-    void bindTexture(ShaderBase &shader)
+    void bindTexture(ShaderBase &shader, bool substituteLoresSize = true)
     {
+        if (selfHires) {
+            selfHires->bindTex(shader);
+            return;
+        }
+
         if (animation.enabled) {
+            if (selfLores) {
+                Debug() << "BUG: High-res BitmapPrivate bindTexture for animations not implemented";
+            }
+
             TEXFBO cframe = animation.currentFrame();
             TEX::bind(cframe.tex);
             shader.setTexSize(Vec2i(cframe.width, cframe.height));
             return;
         }
         TEX::bind(gl.tex);
-        shader.setTexSize(Vec2i(gl.width, gl.height));
+        if (selfLores && substituteLoresSize) {
+            shader.setTexSize(Vec2i(selfLores->width(), selfLores->height()));
+        }
+        else {
+            shader.setTexSize(Vec2i(gl.width, gl.height));
+        }
     }
     
     void bindFBO()
@@ -468,6 +490,24 @@ struct BitmapOpenHandler : FileSystem::OpenHandler
 
 Bitmap::Bitmap(const char *filename)
 {
+    std::string hiresPrefix = "Hires/";
+    std::string filenameStd = filename;
+    Bitmap *hiresBitmap = nullptr;
+    // TODO: once C++20 is required, switch to filenameStd.starts_with(hiresPrefix)
+    if (shState->config().enableHires && filenameStd.compare(0, hiresPrefix.size(), hiresPrefix) != 0) {
+        // Look for a high-res version of the file.
+        std::string hiresFilename = hiresPrefix + filenameStd;
+        try {
+            hiresBitmap = new Bitmap(hiresFilename.c_str());
+            hiresBitmap->setLores(this);
+        }
+        catch (const Exception &e)
+        {
+            Debug() << "No high-res Bitmap found at" << hiresFilename;
+            hiresBitmap = nullptr;
+        }
+    }
+
     BitmapOpenHandler handler;
     shState->fileSystem().openRead(handler, filename);
     
@@ -482,6 +522,8 @@ Bitmap::Bitmap(const char *filename)
     
     if (handler.gif) {
         p = new BitmapPrivate(this);
+
+        p->selfHires = hiresBitmap;
         
         if (handler.gif->width >= (uint32_t)glState.caps.maxTexSize || handler.gif->height > (uint32_t)glState.caps.maxTexSize)
         {
@@ -510,6 +552,9 @@ Bitmap::Bitmap(const char *filename)
             delete handler.gif_data;
             
             p->gl = texfbo;
+            if (p->selfHires != nullptr) {
+                p->gl.selfHires = &p->selfHires->getGLTypes();
+            }
             p->addTaintedArea(rect());
             return;
         }
@@ -583,6 +628,7 @@ Bitmap::Bitmap(const char *filename)
     {
         /* Mega surface */
         p = new BitmapPrivate(this);
+        p->selfHires = hiresBitmap;
         p->megaSurface = imgSurf;
         SDL_SetSurfaceBlendMode(p->megaSurface, SDL_BLENDMODE_NONE);
     }
@@ -602,7 +648,11 @@ Bitmap::Bitmap(const char *filename)
         }
         
         p = new BitmapPrivate(this);
+        p->selfHires = hiresBitmap;
         p->gl = tex;
+        if (p->selfHires != nullptr) {
+            p->gl.selfHires = &p->selfHires->getGLTypes();
+        }
         
         TEX::bind(p->gl.tex);
         TEX::uploadImage(p->gl.width, p->gl.height, imgSurf->pixels, GL_RGBA);
@@ -613,15 +663,30 @@ Bitmap::Bitmap(const char *filename)
     p->addTaintedArea(rect());
 }
 
-Bitmap::Bitmap(int width, int height)
+Bitmap::Bitmap(int width, int height, bool isHires)
 {
     if (width <= 0 || height <= 0)
         throw Exception(Exception::RGSSError, "failed to create bitmap");
     
+    Bitmap *hiresBitmap = nullptr;
+
+    if (shState->config().enableHires && !isHires) {
+        // Create a high-res version as well.
+        double scalingFactor = shState->config().textureScalingFactor;
+        int hiresWidth = (int)lround(scalingFactor * width);
+        int hiresHeight = (int)lround(scalingFactor * height);
+        hiresBitmap = new Bitmap(hiresWidth, hiresHeight, true);
+        hiresBitmap->setLores(this);
+    }
+
     TEXFBO tex = shState->texPool().request(width, height);
     
     p = new BitmapPrivate(this);
     p->gl = tex;
+    if (p->selfHires != nullptr) {
+        p->gl.selfHires = &p->selfHires->getGLTypes();
+    }
+    p->selfHires = hiresBitmap;
     
     clear();
 }
@@ -679,6 +744,10 @@ Bitmap::Bitmap(const Bitmap &other, int frame)
     other.ensureNonMega();
     if (frame > -2) other.ensureAnimated();
     
+    if (other.hasHires()) {
+        Debug() << "BUG: High-res Bitmap from animation not implemented";
+    }
+
     p = new BitmapPrivate(this);
     
     // TODO: Clean me up
@@ -762,6 +831,28 @@ int Bitmap::height() const
     return p->gl.height;
 }
 
+bool Bitmap::hasHires() const{
+    guardDisposed();
+
+    return p->selfHires;
+}
+
+DEF_ATTR_RD_SIMPLE(Bitmap, Hires, Bitmap*, p->selfHires)
+
+void Bitmap::setHires(Bitmap *hires) {
+    guardDisposed();
+
+    Debug() << "BUG: High-res Bitmap setHires not fully implemented, expect bugs";
+    hires->setLores(this);
+    p->selfHires = hires;
+}
+
+void Bitmap::setLores(Bitmap *lores) {
+    guardDisposed();
+
+    p->selfLores = lores;
+}
+
 bool Bitmap::isMega() const{
     guardDisposed();
     
@@ -809,13 +900,35 @@ void Bitmap::stretchBlt(const IntRect &destRect,
                         int opacity)
 {
     guardDisposed();
-    
+
     // Don't need this, right? This function is fine with megasurfaces it seems
     //GUARD_MEGA;
-    
+
     if (source.isDisposed())
         return;
-    
+
+    if (hasHires()) {
+        int destX, destY, destWidth, destHeight;
+        destX = destRect.x * p->selfHires->width() / width();
+        destY = destRect.y * p->selfHires->height() / height();
+        destWidth = destRect.w * p->selfHires->width() / width();
+        destHeight = destRect.h * p->selfHires->height() / height();
+
+        p->selfHires->stretchBlt(IntRect(destX, destY, destWidth, destHeight), source, sourceRect, opacity);
+        return;
+    }
+
+    if (source.hasHires()) {
+        int sourceX, sourceY, sourceWidth, sourceHeight;
+        sourceX = sourceRect.x * source.getHires()->width() / source.width();
+        sourceY = sourceRect.y * source.getHires()->height() / source.height();
+        sourceWidth = sourceRect.w * source.getHires()->width() / source.width();
+        sourceHeight = sourceRect.h * source.getHires()->height() / source.height();
+
+        stretchBlt(destRect, *source.getHires(), IntRect(sourceX, sourceY, sourceWidth, sourceHeight), opacity);
+        return;
+    }
+
     opacity = clamp(opacity, 0, 255);
     
     if (opacity == 0)
@@ -936,7 +1049,7 @@ void Bitmap::stretchBlt(const IntRect &destRect,
         quad.setTexPosRect(sourceRect, destRect);
         quad.setColor(Vec4(1, 1, 1, normOpacity));
         
-        source.p->bindTexture(shader);
+        source.p->bindTexture(shader, false);
         p->bindFBO();
         p->pushSetViewport(shader);
         
@@ -963,6 +1076,16 @@ void Bitmap::fillRect(const IntRect &rect, const Vec4 &color)
     GUARD_MEGA;
     GUARD_ANIMATED;
     
+    if (hasHires()) {
+        int destX, destY, destWidth, destHeight;
+        destX = rect.x * p->selfHires->width() / width();
+        destY = rect.y * p->selfHires->height() / height();
+        destWidth = rect.w * p->selfHires->width() / width();
+        destHeight = rect.h * p->selfHires->height() / height();
+
+        p->selfHires->fillRect(IntRect(destX, destY, destWidth, destHeight), color);
+    }
+
     p->fillRect(rect, color);
     
     if (color.w == 0)
@@ -992,6 +1115,16 @@ void Bitmap::gradientFillRect(const IntRect &rect,
     GUARD_MEGA;
     GUARD_ANIMATED;
     
+    if (hasHires()) {
+        int destX, destY, destWidth, destHeight;
+        destX = rect.x * p->selfHires->width() / width();
+        destY = rect.y * p->selfHires->height() / height();
+        destWidth = rect.w * p->selfHires->width() / width();
+        destHeight = rect.h * p->selfHires->height() / height();
+
+        p->selfHires->gradientFillRect(IntRect(destX, destY, destWidth, destHeight), color1, color2, vertical);
+    }
+
     SimpleColorShader &shader = shState->shaders().simpleColor;
     shader.bind();
     shader.setTranslation(Vec2i());
@@ -1039,6 +1172,16 @@ void Bitmap::clearRect(const IntRect &rect)
     GUARD_MEGA;
     GUARD_ANIMATED;
     
+    if (hasHires()) {
+        int destX, destY, destWidth, destHeight;
+        destX = rect.x * p->selfHires->width() / width();
+        destY = rect.y * p->selfHires->height() / height();
+        destWidth = rect.w * p->selfHires->width() / width();
+        destHeight = rect.h * p->selfHires->height() / height();
+
+        p->selfHires->clearRect(IntRect(destX, destY, destWidth, destHeight));
+    }
+
     p->fillRect(rect, Vec4());
     
     p->onModified();
@@ -1051,6 +1194,12 @@ void Bitmap::blur()
     GUARD_MEGA;
     GUARD_ANIMATED;
     
+    if (hasHires()) {
+        p->selfHires->blur();
+    }
+
+    // TODO: Is there some kind of blur radius that we need to handle for high-res mode?
+
     Quad &quad = shState->gpQuad();
     FloatRect rect(0, 0, width(), height());
     quad.setTexPosRect(rect, rect);
@@ -1097,6 +1246,11 @@ void Bitmap::radialBlur(int angle, int divisions)
     GUARD_MEGA;
     GUARD_ANIMATED;
     
+    if (hasHires()) {
+        p->selfHires->radialBlur(angle, divisions);
+        return;
+    }
+
     angle     = clamp<int>(angle, 0, 359);
     divisions = clamp<int>(divisions, 2, 100);
     
@@ -1161,7 +1315,7 @@ void Bitmap::radialBlur(int angle, int divisions)
     SimpleMatrixShader &shader = shState->shaders().simpleMatrix;
     shader.bind();
     
-    p->bindTexture(shader);
+    p->bindTexture(shader, false);
     TEX::setSmooth(true);
     
     p->pushSetViewport(shader);
@@ -1193,6 +1347,10 @@ void Bitmap::clear()
     GUARD_MEGA;
     GUARD_ANIMATED;
     
+    if (hasHires()) {
+        p->selfHires->clear();
+    }
+
     p->bindFBO();
     
     glState.clearColor.pushSet(Vec4());
@@ -1221,9 +1379,52 @@ Color Bitmap::getPixel(int x, int y) const
     GUARD_MEGA;
     GUARD_ANIMATED;
     
+    if (hasHires()) {
+        Debug() << "GAME BUG: Game is calling getPixel on low-res Bitmap; you may want to patch the game to improve graphics quality.";
+
+        int xHires = x * p->selfHires->width() / width();
+        int yHires = y * p->selfHires->height() / height();
+
+        // We take the average color from the high-res Bitmap.
+        // RGB channels skip fully transparent pixels when averaging.
+        int w = p->selfHires->width() / width();
+        int h = p->selfHires->height() / height();
+
+        if (w >= 1 && h >= 1) {
+            double rSum = 0.;
+            double gSum = 0.;
+            double bSum = 0.;
+            double aSum = 0.;
+
+            long long rgbCount = 0;
+            long long aCount = 0;
+
+            for (int thisX = xHires; thisX < xHires+w && thisX < p->selfHires->width(); thisX++) {
+                for (int thisY = yHires; thisY < yHires+h && thisY < p->selfHires->height(); thisY++) {
+                    Color thisColor = p->selfHires->getPixel(thisX, thisY);
+                    if (thisColor.getAlpha() >= 1.0) {
+                        rSum += thisColor.getRed();
+                        gSum += thisColor.getGreen();
+                        bSum += thisColor.getBlue();
+                        rgbCount++;
+                    }
+                    aSum += thisColor.getAlpha();
+                    aCount++;
+                }
+            }
+
+            double rAvg = rSum / (double)rgbCount;
+            double gAvg = gSum / (double)rgbCount;
+            double bAvg = bSum / (double)rgbCount;
+            double aAvg = aSum / (double)aCount;
+
+            return Color(rAvg, gAvg, bAvg, aAvg);
+        }
+    }
+
     if (x < 0 || y < 0 || x >= width() || y >= height())
         return Vec4();
-    
+
     if (!p->surface)
     {
         p->allocSurface();
@@ -1252,6 +1453,24 @@ void Bitmap::setPixel(int x, int y, const Color &color)
     GUARD_MEGA;
     GUARD_ANIMATED;
     
+    if (hasHires()) {
+        Debug() << "GAME BUG: Game is calling setPixel on low-res Bitmap; you may want to patch the game to improve graphics quality.";
+
+        int xHires = x * p->selfHires->width() / width();
+        int yHires = y * p->selfHires->height() / height();
+
+        int w = p->selfHires->width() / width();
+        int h = p->selfHires->height() / height();
+
+        if (w >= 1 && h >= 1) {
+            for (int thisX = xHires; thisX < xHires+w && thisX < p->selfHires->width(); thisX++) {
+                for (int thisY = yHires; thisY < yHires+h && thisY < p->selfHires->height(); thisY++) {
+                    p->selfHires->setPixel(thisX, thisY, color);
+                }
+            }
+        }
+    }
+
     uint8_t pixel[] =
     {
         (uint8_t) clamp<double>(color.red,   0, 255),
@@ -1283,6 +1502,10 @@ bool Bitmap::getRaw(void *output, int output_size)
     
     guardDisposed();
     
+    if (hasHires()) {
+        Debug() << "GAME BUG: Game is calling getRaw on low-res Bitmap; you may want to patch the game to improve graphics quality.";
+    }
+
     if (!p->animation.enabled && (p->surface || p->megaSurface)) {
         void *src = (p->megaSurface) ? p->megaSurface->pixels : p->surface->pixels;
         memcpy(output, src, output_size);
@@ -1300,6 +1523,10 @@ void Bitmap::replaceRaw(void *pixel_data, int size)
     
     GUARD_MEGA;
     
+    if (hasHires()) {
+        Debug() << "GAME BUG: Game is calling replaceRaw on low-res Bitmap; you may want to patch the game to improve graphics quality.";
+    }
+
     int w = width();
     int h = height();
     int requiredsize = w*h*4;
@@ -1318,6 +1545,10 @@ void Bitmap::saveToFile(const char *filename)
 {
     guardDisposed();
     
+    if (hasHires()) {
+        Debug() << "GAME BUG: Game is calling saveToFile on low-res Bitmap; you may want to patch the game to improve graphics quality.";
+    }
+
     SDL_Surface *surf;
     
     if (p->surface || p->megaSurface) {
@@ -1377,6 +1608,11 @@ void Bitmap::hueChange(int hue)
     GUARD_MEGA;
     GUARD_ANIMATED;
     
+    if (hasHires()) {
+        p->selfHires->hueChange(hue);
+        return;
+    }
+
     if ((hue % 360) == 0)
         return;
     
@@ -1395,7 +1631,7 @@ void Bitmap::hueChange(int hue)
     
     FBO::bind(newTex.fbo);
     p->pushSetViewport(shader);
-    p->bindTexture(shader);
+    p->bindTexture(shader, false);
     
     p->blitQuad(quad);
     
@@ -1525,6 +1761,26 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
     GUARD_MEGA;
     GUARD_ANIMATED;
     
+    if (hasHires()) {
+        Font &loresFont = getFont();
+        Font &hiresFont = p->selfHires->getFont();
+        // Disable the illegal font size check when creating a high-res font.
+        hiresFont.setSize(loresFont.getSize() * p->selfHires->width() / width(), false);
+        hiresFont.setBold(loresFont.getBold());
+        hiresFont.setColor(loresFont.getColor());
+        hiresFont.setItalic(loresFont.getItalic());
+        hiresFont.setShadow(loresFont.getShadow());
+        hiresFont.setOutline(loresFont.getOutline());
+        hiresFont.setOutColor(loresFont.getOutColor());
+
+        int rectX = rect.x * p->selfHires->width() / width();
+        int rectY = rect.y * p->selfHires->height() / height();
+        int rectWidth = rect.w * p->selfHires->width() / width();
+        int rectHeight = rect.h * p->selfHires->height() / height();
+
+        p->selfHires->drawText(IntRect(rectX, rectY, rectWidth, rectHeight), str, align);
+    }
+
     std::string fixed = fixupString(str);
     str = fixed.c_str();
     
@@ -1564,15 +1820,20 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
         SDL_Color co = outColor.toSDLColor();
         co.a = 255;
         SDL_Surface *outline;
+        // Handle high-res for outline.
+        int scaledOutlineSize = OUTLINE_SIZE;
+        if (p->selfLores) {
+            scaledOutlineSize = scaledOutlineSize * width() / p->selfLores->width();
+        }
         /* set the next font render to render the outline */
-        TTF_SetFontOutline(font, OUTLINE_SIZE);
+        TTF_SetFontOutline(font, scaledOutlineSize);
         if (p->font->isSolid())
             outline = TTF_RenderUTF8_Solid(font, str, co);
         else
             outline = TTF_RenderUTF8_Blended(font, str, co);
         
         p->ensureFormat(outline, SDL_PIXELFORMAT_ABGR8888);
-        SDL_Rect outRect = {OUTLINE_SIZE, OUTLINE_SIZE, txtSurf->w, txtSurf->h};
+        SDL_Rect outRect = {scaledOutlineSize, scaledOutlineSize, txtSurf->w, txtSurf->h};
         
         SDL_SetSurfaceBlendMode(txtSurf, SDL_BLENDMODE_BLEND);
         SDL_BlitSurface(txtSurf, NULL, outline, &outRect);
@@ -1787,6 +2048,9 @@ IntRect Bitmap::textSize(const char *str)
     GUARD_MEGA;
     GUARD_ANIMATED;
     
+    // TODO: High-res Bitmap textSize not implemented, but I think it's the same as low-res?
+    // Need to double-check this.
+
     TTF_Font *font = p->font->getSdlFont();
     
     std::string fixed = fixupString(str);
@@ -1811,11 +2075,19 @@ DEF_ATTR_RD_SIMPLE(Bitmap, Font, Font&, *p->font)
 
 void Bitmap::setFont(Font &value)
 {
+    // High-res support handled in drawText, not here.
     *p->font = value;
 }
 
 void Bitmap::setInitFont(Font *value)
 {
+    if (hasHires()) {
+        Font *hiresFont = new Font(*value);
+        // Disable the illegal font size check when creating a high-res font.
+        hiresFont->setSize(hiresFont->getSize() * p->selfHires->width() / width(), false);
+        p->selfHires->setInitFont(hiresFont);
+    }
+
     p->font = value;
 }
 
@@ -1826,11 +2098,24 @@ TEXFBO &Bitmap::getGLTypes() const
 
 SDL_Surface *Bitmap::surface() const
 {
+    if (hasHires()) {
+        Debug() << "BUG: High-res Bitmap surface not implemented";
+    }
+
     return p->surface;
 }
 
 SDL_Surface *Bitmap::megaSurface() const
 {
+    if (hasHires()) {
+        if (p->megaSurface) {
+            Debug() << "BUG: High-res Bitmap megaSurface not implemented (low-res has megaSurface)";
+        }
+        if (p->selfHires->megaSurface()) {
+            Debug() << "BUG: High-res Bitmap megaSurface not implemented (high-res has megaSurface)";
+        }
+    }
+
     return p->megaSurface;
 }
 
@@ -1865,6 +2150,10 @@ void Bitmap::stop()
     GUARD_UNANIMATED;
     if (!p->animation.playing) return;
     
+    if (hasHires()) {
+        Debug() << "BUG: High-res Bitmap stop not implemented";
+    }
+
     p->animation.stop();
 }
 
@@ -1874,6 +2163,11 @@ void Bitmap::play()
     
     GUARD_UNANIMATED;
     if (p->animation.playing) return;
+
+    if (hasHires()) {
+        Debug() << "BUG: High-res Bitmap play not implemented";
+    }
+
     p->animation.play();
 }
 
@@ -1881,6 +2175,10 @@ bool Bitmap::isPlaying() const
 {
     guardDisposed();
     
+    if (hasHires()) {
+        Debug() << "BUG: High-res Bitmap isPlaying not implemented";
+    }
+
     if (!p->animation.playing)
         return false;
     
@@ -1896,6 +2194,10 @@ void Bitmap::gotoAndStop(int frame)
     
     GUARD_UNANIMATED;
     
+    if (hasHires()) {
+        Debug() << "BUG: High-res Bitmap gotoAndStop not implemented";
+    }
+
     p->animation.stop();
     p->animation.seek(frame);
 }
@@ -1905,6 +2207,10 @@ void Bitmap::gotoAndPlay(int frame)
     
     GUARD_UNANIMATED;
     
+    if (hasHires()) {
+        Debug() << "BUG: High-res Bitmap gotoAndPlay not implemented";
+    }
+
     p->animation.stop();
     p->animation.seek(frame);
     p->animation.play();
@@ -1914,6 +2220,10 @@ int Bitmap::numFrames() const
 {
     guardDisposed();
     
+    if (hasHires()) {
+        Debug() << "BUG: High-res Bitmap numFrames not implemented";
+    }
+
     if (!p->animation.enabled) return 1;
     return (int)p->animation.frames.size();
 }
@@ -1922,6 +2232,10 @@ int Bitmap::currentFrameI() const
 {
     guardDisposed();
     
+    if (hasHires()) {
+        Debug() << "BUG: High-res Bitmap currentFrameI not implemented";
+    }
+
     if (!p->animation.enabled) return 0;
     return p->animation.currentFrameI();
 }
@@ -1932,6 +2246,14 @@ int Bitmap::addFrame(Bitmap &source, int position)
     
     GUARD_MEGA;
     
+    if (hasHires()) {
+        Debug() << "BUG: High-res Bitmap addFrame dest not implemented";
+    }
+
+    if (source.hasHires()) {
+        Debug() << "BUG: High-res Bitmap addFrame source not implemented";
+    }
+
     if (source.height() != height() || source.width() != width())
         throw Exception(Exception::MKXPError, "Animations with varying dimensions are not supported (%ix%i vs %ix%i)",
                         source.width(), source.height(), width(), height());
@@ -1989,6 +2311,10 @@ void Bitmap::removeFrame(int position) {
     
     GUARD_UNANIMATED;
     
+    if (hasHires()) {
+        Debug() << "BUG: High-res Bitmap removeFrame not implemented";
+    }
+
     int pos = (position < 0) ? (int)p->animation.frames.size() - 1 : clamp(position, 0, (int)(p->animation.frames.size() - 1));
     shState->texPool().release(p->animation.frames[pos]);
     p->animation.frames.erase(p->animation.frames.begin() + pos);
@@ -2016,6 +2342,10 @@ void Bitmap::nextFrame()
     
     GUARD_UNANIMATED;
     
+    if (hasHires()) {
+        Debug() << "BUG: High-res Bitmap nextFrame not implemented";
+    }
+
     stop();
     if ((uint32_t)p->animation.lastFrame >= p->animation.frames.size() - 1)  {
         if (!p->animation.loop) return;
@@ -2032,6 +2362,10 @@ void Bitmap::previousFrame()
     
     GUARD_UNANIMATED;
     
+    if (hasHires()) {
+        Debug() << "BUG: High-res Bitmap previousFrame not implemented";
+    }
+
     stop();
     if (p->animation.lastFrame <= 0) {
         if (!p->animation.loop) {
@@ -2051,6 +2385,10 @@ void Bitmap::setAnimationFPS(float FPS)
     
     GUARD_MEGA;
     
+    if (hasHires()) {
+        Debug() << "BUG: High-res Bitmap setAnimationFPS not implemented";
+    }
+
     bool restart = p->animation.playing;
     p->animation.stop();
     p->animation.fps = (FPS < 0) ? 0 : FPS;
@@ -2059,6 +2397,10 @@ void Bitmap::setAnimationFPS(float FPS)
 
 std::vector<TEXFBO> &Bitmap::getFrames() const
 {
+    if (hasHires()) {
+        Debug() << "BUG: High-res Bitmap getFrames not implemented";
+    }
+
     return p->animation.frames;
 }
 
@@ -2068,6 +2410,10 @@ float Bitmap::getAnimationFPS() const
     
     GUARD_MEGA;
     
+    if (hasHires()) {
+        Debug() << "BUG: High-res Bitmap getAnimationFPS not implemented";
+    }
+
     return p->animation.fps;
 }
 
@@ -2077,6 +2423,10 @@ void Bitmap::setLooping(bool loop)
     
     GUARD_MEGA;
     
+    if (hasHires()) {
+        Debug() << "BUG: High-res Bitmap setLooping not implemented";
+    }
+
     p->animation.loop = loop;
 }
 
@@ -2086,16 +2436,32 @@ bool Bitmap::getLooping() const
     
     GUARD_MEGA;
     
+    if (hasHires()) {
+        Debug() << "BUG: High-res Bitmap getLooping not implemented";
+    }
+
     return p->animation.loop;
 }
 
 void Bitmap::bindTex(ShaderBase &shader)
 {
+    // Hires mode is handled by p->bindTexture.
+
     p->bindTexture(shader);
 }
 
 void Bitmap::taintArea(const IntRect &rect)
 {
+    if (hasHires()) {
+        int destX, destY, destWidth, destHeight;
+        destX = rect.x * p->selfHires->width() / width();
+        destY = rect.y * p->selfHires->height() / height();
+        destWidth = rect.w * p->selfHires->width() / width();
+        destHeight = rect.h * p->selfHires->height() / height();
+
+        p->selfHires->taintArea(IntRect(destX, destY, destWidth, destHeight));
+    }
+
     p->addTaintedArea(rect);
 }
 
@@ -2121,8 +2487,17 @@ bool Bitmap::invalid() const {
     return p == 0;
 }
 
+void Bitmap::assumeRubyGC()
+{
+    p->assumingRubyGC = true;
+}
+
 void Bitmap::releaseResources()
 {
+    if (p->selfHires && !p->assumingRubyGC) {
+        delete p->selfHires;
+    }
+
     if (p->megaSurface)
         SDL_FreeSurface(p->megaSurface);
     else if (p->animation.enabled) {

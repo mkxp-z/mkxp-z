@@ -145,10 +145,10 @@ HTTPResponse HTTPRequest::get() {
             ret._headers.emplace(h.first, h.second);
     }
     else {
-        int err = result.error();
-        const char *errname = httpErrorNames[err];
+        auto err = result.error();
+        std::string errname = httplib::to_string(err);
         delete client;
-        throw Exception(Exception::MKXPError, "Failed to GET %s (%i: %s)", destination.c_str(), err, errname);
+        throw Exception(Exception::MKXPError, "Failed to GET %s (%i: %s)", destination.c_str(), err, errname.c_str());
     }
     
     delete client;
@@ -192,10 +192,10 @@ HTTPResponse HTTPRequest::post(StringMap &postData) {
             ret._headers.emplace(h.first, h.second);
     }
     else {
-        int err = result.error();
-        const char *errname = httpErrorNames[err];
+        auto err = result.error();
+        std::string errname = httplib::to_string(err);
         delete client;
-        throw Exception(Exception::MKXPError, "Failed to POST %s (%i: %s)", destination.c_str(), err, errname);
+        throw Exception(Exception::MKXPError, "Failed to POST %s (%i: %s)", destination.c_str(), err, errname.c_str());
     }
     delete client;
     return ret;
@@ -234,9 +234,10 @@ HTTPResponse HTTPRequest::post(const char *body, const char *content_type) {
             ret._headers.emplace(h.first, h.second);
     }
     else {
-        int err = result.error();
+        auto err = result.error();
+        std::string errname = httplib::to_string(err);
         delete client;
-        throw Exception(Exception::MKXPError, "Failed to POST %s (%i: %s)", destination.c_str(), err, httpErrorNames[err]);
+        throw Exception(Exception::MKXPError, "Failed to POST %s (%i: %s)", destination.c_str(), err, errname.c_str());
     }
     delete client;
     return ret;

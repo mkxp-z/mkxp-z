@@ -3,7 +3,7 @@
  **
  ** This file is part of mkxp.
  **
- ** Copyright (C) 2013 Jonas Kulla <Nyocurio@gmail.com>
+ ** Copyright (C) 2013 - 2021 Amaryllis Kulla <ancurio@mapleshrine.eu>
  **
  ** mkxp is free software: you can redistribute it and/or modify
  ** it under the terms of the GNU General Public License as published by
@@ -728,6 +728,13 @@ struct InputPrivate
     } dir8Data;
     
     void recalcRepeatTime(unsigned int fps) {
+        // 0 fps would cause a divide by zero segfault later.
+        // Bail in that case.
+        if (fps == 0)
+        {
+            return;
+        }
+
         double framems = 1.f / fps;
         
         // Approximate time in milliseconds

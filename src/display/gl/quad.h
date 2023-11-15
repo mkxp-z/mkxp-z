@@ -3,7 +3,7 @@
 **
 ** This file is part of mkxp.
 **
-** Copyright (C) 2013 Jonas Kulla <Nyocurio@gmail.com>
+** Copyright (C) 2013 - 2021 Amaryllis Kulla <ancurio@mapleshrine.eu>
 **
 ** mkxp is free software: you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@
 #ifndef QUAD_H
 #define QUAD_H
 
+#include "config.h"
+#include "graphics.h"
 #include "vertex.h"
 #include "gl-util.h"
 #include "gl-meta.h"

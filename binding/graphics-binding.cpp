@@ -3,7 +3,7 @@
  **
  ** This file is part of mkxp.
  **
- ** Copyright (C) 2013 Jonas Kulla <Nyocurio@gmail.com>
+ ** Copyright (C) 2013 - 2021 Amaryllis Kulla <ancurio@mapleshrine.eu>
  **
  ** mkxp is free software: you can redistribute it and/or modify
  ** it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
  ** along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
 #include "graphics.h"
 #include "sharedstate.h"
 #include "binding-util.h"
@@ -367,7 +368,7 @@ DEF_GRA_PROP_B(ShowCursor)
 DEF_GRA_PROP_F(Scale)
 DEF_GRA_PROP_B(Frameskip)
 DEF_GRA_PROP_B(FixedAspectRatio)
-DEF_GRA_PROP_B(SmoothScaling)
+DEF_GRA_PROP_I(SmoothScaling)
 DEF_GRA_PROP_B(IntegerScaling)
 DEF_GRA_PROP_B(LastMileScaling)
 DEF_GRA_PROP_B(Threadsafe)

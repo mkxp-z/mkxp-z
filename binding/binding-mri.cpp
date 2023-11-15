@@ -3,7 +3,7 @@
  **
  ** This file is part of mkxp.
  **
- ** Copyright (C) 2013 Jonas Kulla <Nyocurio@gmail.com>
+ ** Copyright (C) 2013 - 2021 Amaryllis Kulla <ancurio@mapleshrine.eu>
  **
  ** mkxp is free software: you can redistribute it and/or modify
  ** it under the terms of the GNU General Public License as published by
@@ -133,6 +133,7 @@ RB_METHOD(mkxpSystemMemory);
 RB_METHOD(mkxpReloadPathCache);
 RB_METHOD(mkxpAddPath);
 RB_METHOD(mkxpRemovePath);
+RB_METHOD(mkxpFileExists);
 RB_METHOD(mkxpLaunch);
 
 RB_METHOD(mkxpGetJSONSetting);
@@ -243,6 +244,7 @@ static void mriBindingInit() {
     _rb_define_module_function(mod, "reload_cache", mkxpReloadPathCache);
     _rb_define_module_function(mod, "mount", mkxpAddPath);
     _rb_define_module_function(mod, "unmount", mkxpRemovePath);
+    _rb_define_module_function(mod, "file_exist?", mkxpFileExists);
     _rb_define_module_function(mod, "launch", mkxpLaunch);
     
     _rb_define_module_function(mod, "default_font_family=", mkxpSetDefaultFontFamily);
@@ -572,6 +574,18 @@ RB_METHOD(mkxpRemovePath) {
         raiseRbExc(e);
     }
     return path;
+}
+
+RB_METHOD(mkxpFileExists) {
+    RB_UNUSED_PARAM;
+    
+    VALUE path;
+    rb_scan_args(argc, argv, "1", &path);
+    SafeStringValue(path);
+    
+    if (shState->fileSystem().exists(RSTRING_PTR(path)))
+        return Qtrue;
+    return Qfalse;
 }
 
 RB_METHOD(mkxpSetDefaultFontFamily) {

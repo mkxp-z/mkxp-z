@@ -129,12 +129,16 @@ void Config::read(int argc, char *argv[]) {
     auto optsJ = json::object({
         {"rgssVersion", 0},
         {"debugMode", false},
+        {"displayFPS", false},
         {"printFPS", false},
         {"winResizable", true},
         {"fullscreen", false},
         {"fixedAspectRatio", true},
-        {"smoothScaling", false},
-        {"lanczos3Scaling", false},
+        {"smoothScaling", 0},
+        {"enableHires", false},
+        {"textureScalingFactor", 1.},
+        {"framebufferScalingFactor", 1.},
+        {"atlasScalingFactor", 1.},
         {"vsync", false},
         {"defScreenW", 0},
         {"defScreenH", 0},
@@ -173,7 +177,7 @@ void Config::read(int argc, char *argv[]) {
         {"BGMTrackCount", 1},
         {"customScript", ""},
         {"pathCache", true},
-        {"useScriptNames", 1},
+        {"useScriptNames", true},
         {"preloadScript", json::array({})},
         {"RTP", json::array({})},
         {"fontSub", json::array({})},
@@ -254,11 +258,15 @@ try { exp } catch (...) {}
     // now RESUME
     
     SET_OPT(debugMode, boolean);
+    SET_OPT(displayFPS, boolean);
     SET_OPT(printFPS, boolean);
     SET_OPT(fullscreen, boolean);
     SET_OPT(fixedAspectRatio, boolean);
-    SET_OPT(smoothScaling, boolean);
-    SET_OPT(lanczos3Scaling, boolean);
+    SET_OPT(smoothScaling, integer);
+    SET_OPT(enableHires, boolean);
+    SET_OPT(textureScalingFactor, number);
+    SET_OPT(framebufferScalingFactor, number);
+    SET_OPT(atlasScalingFactor, number);
     SET_OPT(winResizable, boolean);
     SET_OPT(vsync, boolean);
     SET_STRINGOPT(windowTitle, windowTitle);
@@ -266,6 +274,9 @@ try { exp } catch (...) {}
     SET_OPT(frameSkip, boolean);
     SET_OPT(syncToRefreshrate, boolean);
     fillStringVec(opts["solidFonts"], solidFonts);
+    for (std::string & solidFont : solidFonts)
+        std::transform(solidFont.begin(), solidFont.end(), solidFont.begin(),
+            [](unsigned char c) { return std::tolower(c); });
 #ifdef __APPLE__
     SET_OPT(preferMetalRenderer, boolean);
 #endif
@@ -288,6 +299,9 @@ try { exp } catch (...) {}
     fillStringVec(opts["preloadScript"], preloadScripts);
     fillStringVec(opts["RTP"], rtps);
     fillStringVec(opts["fontSub"], fontSubs);
+    for (std::string & fontSub : fontSubs)
+        std::transform(fontSub.begin(), fontSub.end(), fontSub.begin(),
+            [](unsigned char c) { return std::tolower(c); });
     fillStringVec(opts["rubyLoadpath"], rubyLoadpaths);
     
     auto &bnames = opts["bindingNames"].as_object();

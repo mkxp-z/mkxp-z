@@ -3,7 +3,7 @@
 **
 ** This file is part of mkxp.
 **
-** Copyright (C) 2013 Jonas Kulla <Nyocurio@gmail.com>
+** Copyright (C) 2013 - 2021 Amaryllis Kulla <ancurio@mapleshrine.eu>
 **
 ** mkxp is free software: you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -76,7 +76,9 @@ public:
 
 	const Font &operator=(const Font &o);
 
-	DECL_ATTR( Size,     int    )
+	int getSize() const;
+	void setSize(int value, bool checkIllegal=true);
+
 	DECL_ATTR( Bold,     bool   )
 	DECL_ATTR( Italic,   bool   )
 	DECL_ATTR( Color,    Color& )

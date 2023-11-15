@@ -3,7 +3,7 @@
  **
  ** This file is part of mkxp.
  **
- ** Copyright (C) 2013 Jonas Kulla <Nyocurio@gmail.com>
+ ** Copyright (C) 2013 - 2021 Amaryllis Kulla <ancurio@mapleshrine.eu>
  **
  ** mkxp is free software: you can redistribute it and/or modify
  ** it under the terms of the GNU General Public License as published by
@@ -37,13 +37,17 @@ struct Config {
     bool debugMode;
     bool winConsole;
     bool preferMetalRenderer;
+    bool displayFPS;
     bool printFPS;
     
     bool winResizable;
     bool fullscreen;
     bool fixedAspectRatio;
-    bool smoothScaling;
-    bool lanczos3Scaling;
+    int smoothScaling;
+    bool enableHires;
+    double textureScalingFactor;
+    double framebufferScalingFactor;
+    double atlasScalingFactor;
     bool vsync;
     
     int defScreenW;
