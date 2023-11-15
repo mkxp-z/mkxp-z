@@ -51,9 +51,13 @@ RUN gem build mkxp-z.gemspec
 
 FROM base AS gem
 
+RUN groupadd --gid 1000 user && \
+    useradd --uid 1000 --gid 1000 -m user
 COPY --from=build build/mkxp-z/mkxp-z-*.gem build/
 COPY --from=build build/mkxp-z/startpulse.sh build/
 COPY --from=build build/mkxp-z/pulseaudio.service /etc/systemd/system
 
 WORKDIR build
 RUN GEMNAME=$(find -type f -name 'mkxp-z-*.gem') && echo "$GEMNAME" && gem install "$GEMNAME"
+
+USER user
