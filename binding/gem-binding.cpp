@@ -60,6 +60,9 @@ RB_METHOD(initGameState) {
 
     try {
         gemBinding.setAlcContext(startRgssThread(threadManager.getThreadData()));
+#ifndef _WIN32
+        rb_set_end_proc(killGameState, 0);
+#endif
         return Qtrue;
     } catch (const std::system_error &e) {
         Debug() << e.what();
@@ -67,10 +70,23 @@ RB_METHOD(initGameState) {
     }
 }
 
+void killGameState(VALUE) {
+    auto &gemBinding = GemBinding::getInstance();
+    if (const auto &threadManager = RgssThreadManager::getInstance(); threadManager.getThreadData() != nullptr) {
+        killRgssThread(threadManager.getThreadData());
+        gemBinding.clearAlcContext();
+    }
+    gemBinding.stopEventThread();
+}
+
 extern "C" {
 MKXPZ_GEM_EXPORT void Init_mkxpz() {
     auto mkxpzModule = rb_define_module("MKXP_Z");
     _rb_define_module_function(mkxpzModule, "init_game_state", initGameState);
+
+#ifdef _WIN32
+    rb_set_end_proc(killGameState, 0);
+#endif
 }
 }
 
@@ -78,12 +94,7 @@ GemBinding::GemBinding() : alcCtx(nullptr, alcDestroyContext) {
 
 }
 
-GemBinding::~GemBinding() {
-    if (const auto &threadManager = RgssThreadManager::getInstance(); threadManager.getThreadData() != nullptr) {
-        killRgssThread(threadManager.getThreadData());
-    }
-    //stopEventThread();
-}
+GemBinding::~GemBinding() = default;
 
 GemBinding &GemBinding::getInstance() {
     static GemBinding gemBinding;

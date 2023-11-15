@@ -48,6 +48,10 @@ public:
         alcCtx = std::move(ctx);
     }
 
+    inline void clearAlcContext() {
+        alcCtx.reset();
+    }
+
 private:
     std::unique_ptr<std::jthread> eventThread;
     ALCcontextPtr alcCtx;

@@ -42,8 +42,9 @@ public:
 
 	virtual ~Disposable()
 	{
-		shState->graphics().remDisposable(this);
-	}
+        if (shState != nullptr)
+            shState->graphics().remDisposable(this);
+    }
 
 	void dispose()
 	{
