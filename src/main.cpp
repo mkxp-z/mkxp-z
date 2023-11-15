@@ -191,9 +191,7 @@ int killRgssThread(RGSSThreadData *threadData, ALCcontext *alcCtx) {
     threadData->rqTermAck.set();
     threadData->ethread->requestTerminate();
 
-#ifndef MKXPZ_RUBY_GEM
     SharedState::finiInstance();
-#endif
 
     if (alcCtx != nullptr)
         alcDestroyContext(alcCtx);
