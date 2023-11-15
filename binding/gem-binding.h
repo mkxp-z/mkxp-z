@@ -21,35 +21,35 @@
 struct ALCcontext;
 struct RGSSThreadData;
 
+using ALCcontextPtr = std::unique_ptr<ALCcontext, void (*)(ALCcontext *)>;
+
 class GemBinding {
 private:
     GemBinding();
+
     ~GemBinding();
 
 public:
     static GemBinding &getInstance();
 
     void stopEventThread();
+
     void runEventThread(std::string windowName, std::vector<std::string> args, bool windowVisible);
 
     inline bool isEventThreadKilled() const {
         return eventThreadKilled;
     }
 
-    inline void setEventThread(std::unique_ptr<std::jthread> &&thread){
+    inline void setEventThread(std::unique_ptr<std::jthread> &&thread) {
         eventThread = std::move(thread);
     }
 
-    inline ALCcontext *getAlcContext() const {
-        return alcCtx;
-    }
-
-    inline void setAlcContext(ALCcontext *ctx) {
-        alcCtx = ctx;
+    inline void setAlcContext(ALCcontextPtr &&ctx) {
+        alcCtx = std::move(ctx);
     }
 
 private:
     std::unique_ptr<std::jthread> eventThread;
-    ALCcontext *alcCtx = nullptr;
+    ALCcontextPtr alcCtx;
     bool eventThreadKilled = false;
 };

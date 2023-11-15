@@ -129,7 +129,7 @@ static SDL_GLContext initGL(SDL_Window *win, const Config &conf,
                             RGSSThreadData *threadData);
 
 #ifdef MKXPZ_RUBY_GEM
-ALCcontext *startRgssThread(RGSSThreadData *threadData) {
+std::unique_ptr<ALCcontext, void (*)(ALCcontext *)> startRgssThread(RGSSThreadData *threadData) {
     RgssThreadManager::getInstance().lockRgssThread();
 #else
     int rgssThreadFun(void *userdata) {
@@ -186,7 +186,7 @@ ALCcontext *startRgssThread(RGSSThreadData *threadData) {
     return alcCtx;
 }
 
-int killRgssThread(RGSSThreadData *threadData, ALCcontext *alcCtx) {
+int killRgssThread(RGSSThreadData *threadData) {
 #endif
     threadData->rqTermAck.set();
     threadData->ethread->requestTerminate();
