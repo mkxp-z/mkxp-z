@@ -113,19 +113,24 @@ struct SharedState
 
 	void checkReset();
 
-	static SharedState *instance;
-	static int rgssVersion;
+	static std::unique_ptr<SharedState> instance;
+    static int rgssVersion;
 
-	/* This function will throw an Exception instance
-	 * on initialization error */
-	static void initInstance(RGSSThreadData *threadData);
-	static void finiInstance();
+    /* This function will throw an Exception instance
+     * on initialization error */
+    static void initInstance(RGSSThreadData *threadData);
+
+    static void finiInstance();
 
 private:
-	SharedState(RGSSThreadData *threadData);
-	~SharedState();
+    SharedState(RGSSThreadData *threadData);
 
-	SharedStatePrivate *p;
+    ~SharedState();
+
+    std::unique_ptr<SharedStatePrivate> p;
+    static std::unique_ptr<GlobalIBO> _globalIBO;
+
+    friend std::unique_ptr<SharedState>::deleter_type;
 };
 
 #endif // SHAREDSTATE_H

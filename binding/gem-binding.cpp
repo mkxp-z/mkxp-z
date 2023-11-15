@@ -10,8 +10,12 @@
 #include <ruby.h>
 #include <alc.h>
 
-ALCcontext *startRgssThread(RGSSThreadData *threadData);
-int killRgssThread(RGSSThreadData *threadData, ALCcontext *alcCtx);
+#include "eventthread.h"
+
+ALCcontextPtr startRgssThread(RGSSThreadData *threadData);
+
+int killRgssThread(RGSSThreadData *threadData);
+
 int startGameWindow(int argc, char *argv[], bool showWindow = true);
 
 void killGameState(VALUE);
@@ -68,8 +72,10 @@ RB_METHOD(initGameState) {
 
 void killGameState(VALUE) {
     auto &gemBinding = GemBinding::getInstance();
-    if (const auto &threadManager = RgssThreadManager::getInstance(); threadManager.getThreadData() != nullptr)
-        killRgssThread(threadManager.getThreadData(), gemBinding.getAlcContext());
+    if (const auto &threadManager = RgssThreadManager::getInstance(); threadManager.getThreadData() != nullptr) {
+        killRgssThread(threadManager.getThreadData());
+        gemBinding.clearAlcContext();
+    }
     gemBinding.stopEventThread();
 }
 
@@ -84,7 +90,9 @@ MKXPZ_GEM_EXPORT void Init_mkxpz() {
 }
 }
 
-GemBinding::GemBinding() = default;
+GemBinding::GemBinding() : alcCtx(nullptr, alcDestroyContext) {
+
+}
 
 GemBinding::~GemBinding() = default;
 
@@ -95,7 +103,7 @@ GemBinding &GemBinding::getInstance() {
 
 void GemBinding::stopEventThread() {
     if (eventThread != nullptr && !eventThreadKilled)
-        eventThread->request_stop();
+        eventThread->join();
 }
 
 void GemBinding::runEventThread(std::string windowName, std::vector<std::string> args, bool windowVisible) {

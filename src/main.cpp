@@ -129,7 +129,7 @@ static SDL_GLContext initGL(SDL_Window *win, const Config &conf,
                             RGSSThreadData *threadData);
 
 #ifdef MKXPZ_RUBY_GEM
-ALCcontext *startRgssThread(RGSSThreadData *threadData) {
+std::unique_ptr<ALCcontext, void (*)(ALCcontext *)> startRgssThread(RGSSThreadData *threadData) {
     RgssThreadManager::getInstance().lockRgssThread();
 #else
     int rgssThreadFun(void *userdata) {
@@ -149,8 +149,9 @@ ALCcontext *startRgssThread(RGSSThreadData *threadData) {
     SDL_GL_MakeCurrent(threadData->window, threadData->glContext);
 #endif
 
-    /* Setup AL context */
-    ALCcontext *alcCtx = alcCreateContext(threadData->alcDev, nullptr);
+  /* Setup AL context */
+  std::unique_ptr<ALCcontext, void (*)(ALCcontext *)> alcCtx(alcCreateContext(threadData->alcDev, 0),
+                                                             alcDestroyContext);
 
     if (!alcCtx) {
         rgssThreadError(threadData, "Error creating OpenAL context");
@@ -162,13 +163,12 @@ ALCcontext *startRgssThread(RGSSThreadData *threadData) {
 #endif
     }
 
-    alcMakeContextCurrent(alcCtx);
+    alcMakeContextCurrent(alcCtx.get());
 
-    try {
-        SharedState::initInstance(threadData);
-    } catch (const Exception &exc) {
-        rgssThreadError(threadData, exc.msg);
-        alcDestroyContext(alcCtx);
+  try {
+    SharedState::initInstance(threadData);
+  } catch (const Exception &exc) {
+    rgssThreadError(threadData, exc.msg);
 
 
 #ifdef MKXPZ_RUBY_GEM
@@ -186,20 +186,18 @@ ALCcontext *startRgssThread(RGSSThreadData *threadData) {
     return alcCtx;
 }
 
-int killRgssThread(RGSSThreadData *threadData, ALCcontext *alcCtx) {
+int killRgssThread(RGSSThreadData *threadData) {
 #endif
     threadData->rqTermAck.set();
     threadData->ethread->requestTerminate();
 
     SharedState::finiInstance();
 
-    if (alcCtx != nullptr)
-        alcDestroyContext(alcCtx);
-
 #ifdef MKXPZ_RUBY_GEM
     RgssThreadManager::getInstance().unlockRgssThread();
 #endif
-    return 0;
+
+  return 0;
 }
 
 static void printRgssVersion(int ver) {
