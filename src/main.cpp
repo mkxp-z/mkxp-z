@@ -193,8 +193,7 @@ int killRgssThread(RGSSThreadData *threadData, ALCcontext *alcCtx) {
 
     SharedState::finiInstance();
 
-    if (alcCtx != nullptr)
-        alcDestroyContext(alcCtx);
+    //alcDestroyContext(alcCtx);
 
 #ifdef MKXPZ_RUBY_GEM
     RgssThreadManager::getInstance().unlockRgssThread();
