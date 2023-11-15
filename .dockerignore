@@ -92,3 +92,4 @@ Dockerfile
 .git
 .gitattributes
 .github
+mkxp-z-*.gem
