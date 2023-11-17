@@ -109,7 +109,7 @@ static const CtrlBindingData defaultCtrlBindings[] =
 {
 	{ SDL_CONTROLLER_BUTTON_X, Input::A  },
 	{ SDL_CONTROLLER_BUTTON_B, Input::B  },
-	{ SDL_CONTROLLER_BUTTON_A, Input::C },
+	{ SDL_CONTROLLER_BUTTON_A, Input::C  },
 	{ SDL_CONTROLLER_BUTTON_Y, Input::X  },
 	{ SDL_CONTROLLER_BUTTON_LEFTSTICK, Input::Y  },
 	{ SDL_CONTROLLER_BUTTON_RIGHTSTICK, Input::Z },
