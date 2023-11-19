@@ -107,11 +107,13 @@ static elementsN(defaultKbBindings);
 
 static const CtrlBindingData defaultCtrlBindings[] =
 {
-	{ SDL_CONTROLLER_BUTTON_X, Input::A  },
-	{ SDL_CONTROLLER_BUTTON_B, Input::B  },
 	{ SDL_CONTROLLER_BUTTON_A, Input::C  },
+	{ SDL_CONTROLLER_BUTTON_B, Input::B  },
+	{ SDL_CONTROLLER_BUTTON_X, Input::Y  },
 	{ SDL_CONTROLLER_BUTTON_Y, Input::X  },
-	{ SDL_CONTROLLER_BUTTON_LEFTSTICK, Input::Y  },
+	{ SDL_CONTROLLER_BUTTON_START, Input::A  },
+	// Left stick is mapped to Mute / Unmute in scripts
+	// { SDL_CONTROLLER_BUTTON_LEFTSTICK, Input::Y  },
 	{ SDL_CONTROLLER_BUTTON_RIGHTSTICK, Input::Z },
 	{ SDL_CONTROLLER_BUTTON_LEFTSHOULDER, Input::L  },
 	{ SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, Input::R  },
