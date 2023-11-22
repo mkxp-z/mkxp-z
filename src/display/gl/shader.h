@@ -346,6 +346,9 @@ class BicubicShader : public Lanczos3Shader
 public:
 	BicubicShader();
 
+	// Sharpness ranges from 0 to 100.
+	void setSharpness(int sharpness);
+
 protected:
 	GLint u_bc;
 };

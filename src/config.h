@@ -44,6 +44,7 @@ struct Config {
     bool fullscreen;
     bool fixedAspectRatio;
     int smoothScaling;
+    int bicubicSharpness;
     bool enableHires;
     double textureScalingFactor;
     double framebufferScalingFactor;

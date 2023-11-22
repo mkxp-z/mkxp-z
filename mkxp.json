@@ -88,6 +88,12 @@
     // "smoothScaling": 0,
 
 
+    // Sharpness when using Bicubic scaling (0 to 100)
+    // (default: 100)
+    //
+    // "bicubicSharpness": 100,
+
+
     // Replace the game's Bitmap files with external high-res files
     // provided in the "Hires" directory.
     // (You'll also need to set the below Scaling Factors.)
