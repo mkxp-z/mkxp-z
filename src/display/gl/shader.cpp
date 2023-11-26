@@ -792,10 +792,16 @@ Lanczos3Shader::Lanczos3Shader()
 
 	GET_U(texOffsetX);
 	GET_U(sourceSize);
+	GET_U(window);
 }
 
 void Lanczos3Shader::setTexSize(const Vec2i &value)
 {
 	ShaderBase::setTexSize(value);
 	gl.Uniform2f(u_sourceSize, (float)value.x, (float)value.y);
+}
+
+void Lanczos3Shader::setSharpness(double sharpness)
+{
+	gl.Uniform1f(u_window, (float)sharpness);
 }

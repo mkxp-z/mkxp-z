@@ -11,12 +11,13 @@ uniform sampler2D texture;
 uniform vec2 sourceSize;
 uniform vec2 texSizeInv;
 varying vec2 v_texCoord;
+uniform float window;
 
 float lanczos3(float x)
 {
 	x = max(abs(x), 0.00001);
 	float val = x * 3.141592654;
-	return sin(val) * sin(val / 3.0) / (val * val);
+	return sin(val) * sin(val / window) / (val * val);
 }
 
 void main()

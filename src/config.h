@@ -45,6 +45,7 @@ struct Config {
     bool fixedAspectRatio;
     int smoothScaling;
     int bicubicSharpness;
+    double lanczosSharpness;
     bool enableHires;
     double textureScalingFactor;
     double framebufferScalingFactor;

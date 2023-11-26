@@ -336,9 +336,11 @@ public:
 	Lanczos3Shader();
 
 	void setTexSize(const Vec2i &value);
+	void setSharpness(double sharpness);
 
 protected:
 	GLint u_sourceSize;
+	GLint u_window;
 };
 
 class BicubicShader : public Lanczos3Shader
