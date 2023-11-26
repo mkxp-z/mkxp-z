@@ -94,6 +94,13 @@
     // "bicubicSharpness": 100,
 
 
+    // Kernel radius when using Lanczos scaling.
+    // Higher values typically look better but are slower.
+    // (default: 3)
+    //
+    // "lanczosRadius": 3,
+
+
     // Replace the game's Bitmap files with external high-res files
     // provided in the "Hires" directory.
     // (You'll also need to set the below Scaling Factors.)

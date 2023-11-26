@@ -10,44 +10,51 @@
 uniform sampler2D texture;
 uniform vec2 sourceSize;
 uniform vec2 texSizeInv;
+// Max diameter is 32, i.e. max radius is 16.
+// You can change this by grepping for "32".
+uniform int radius;
 varying vec2 v_texCoord;
 
-float lanczos3(float x)
+float lanczos(float x)
 {
 	x = max(abs(x), 0.00001);
 	float val = x * 3.141592654;
-	return sin(val) * sin(val / 3.0) / (val * val);
+	return sin(val) * sin(val / float(radius)) / (val * val);
 }
 
 void main()
 {
+	int diameter = 2 * radius;
+	int radiusMinus = radius - 1;
+	int radiusMinusNeg = -1 * radiusMinus;
+
 	vec2 pixel = v_texCoord * sourceSize + 0.5;
 	vec2 frac = fract(pixel);
 	vec2 onePixel = texSizeInv;
-	pixel = floor(pixel) * texSizeInv - onePixel / 2.0;
+	pixel = floor(pixel) * texSizeInv - onePixel / float(radiusMinus);
 
-	float lanczosX[6];
+	float lanczosX[32];
 	float sum = 0.0;
-	for(int x = 0; x < 6; x++)
+	for(int x = 0; x < diameter; x++)
 	{
-		lanczosX[x] = lanczos3(float(x) - 2.0 - frac.x);
+		lanczosX[x] = lanczos(float(x) - float(radiusMinus) - frac.x);
 		sum += lanczosX[x];
 	}
-	for(int x = 0; x < 6; x++) lanczosX[x] /= sum;
+	for(int x = 0; x < diameter; x++) lanczosX[x] /= sum;
 	sum = 0.0;
-	float lanczosY[6];
-	for(int y = 0; y < 6; y++)
+	float lanczosY[32];
+	for(int y = 0; y < diameter; y++)
 	{
-		lanczosY[y] = lanczos3(float(y) - 2.0 - frac.y);
+		lanczosY[y] = lanczos(float(y) - float(radiusMinus) - frac.y);
 		sum += lanczosY[y];
 	}
-	for(int y = 0; y < 6; y++) lanczosY[y] /= sum;
+	for(int y = 0; y < diameter; y++) lanczosY[y] /= sum;
 	gl_FragColor = vec4(0);
-	for(int y = -2; y <= 3; y++)
+	for(int y = radiusMinusNeg; y <= radius; y++)
 	{
 		vec4 colour = vec4(0);
-		for(int x = -2; x <= 3; x++)
-				colour += texture2D(texture, pixel + vec2(float(x) * onePixel.x, float(y) * onePixel.y)).rgba * lanczosX[x + 2];
-		gl_FragColor += colour * lanczosY[y + 2];
+		for(int x = radiusMinusNeg; x <= radius; x++)
+			colour += texture2D(texture, pixel + vec2(float(x) * onePixel.x, float(y) * onePixel.y)).rgba * lanczosX[x + radiusMinus];
+		gl_FragColor += colour * lanczosY[y + radiusMinus];
 	}
 }

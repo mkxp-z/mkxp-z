@@ -337,8 +337,12 @@ public:
 
 	void setTexSize(const Vec2i &value);
 
+	// Kernel radius; typically 3 or 4.
+	void setRadius(int radius);
+
 protected:
 	GLint u_sourceSize;
+	GLint u_radius;
 };
 
 class BicubicShader : public Lanczos3Shader
