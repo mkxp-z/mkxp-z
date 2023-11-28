@@ -727,7 +727,7 @@ struct InputPrivate
         int active;
     } dir8Data;
     
-    void recalcRepeatTime(unsigned int fps) {
+    void recalcRepeatTime(unsigned int fps, double start, double delay) {
         // 0 fps would cause a divide by zero segfault later.
         // Bail in that case.
         if (fps == 0)
@@ -738,8 +738,8 @@ struct InputPrivate
         double framems = 1.f / fps;
         
         // Approximate time in milliseconds
-        double start = (rgssVer >= 2) ? 0.375 : 0.400;
-        double delay = 0.100;
+//        double start = (rgssVer >= 2) ? 0.375 : 0.400;
+//        double delay = 0.100;
         
         repeatStart = ceil(start / framems);
         repeatDelay = ceil(delay / framems);
@@ -757,7 +757,7 @@ struct InputPrivate
         
         int fps = rtData.config.fixedFramerate;
         if (!fps) fps = (rgssVer >= 2) ? 60 : 40;
-        recalcRepeatTime(fps);
+        recalcRepeatTime(fps, rtData.config.inputRepeatStart, rtData.config.inputRepeatDelay);
         
         states    = stateArray;
         statesOld = stateArray + BUTTON_CODE_COUNT;
@@ -1195,7 +1195,7 @@ double Input::getDelta() {
 }
 
 void Input::recalcRepeat(unsigned int fps) {
-    p->recalcRepeatTime(fps);
+    p->recalcRepeatTime(fps, shState->config().inputRepeatStart, shState->config().inputRepeatDelay);
 }
 
 void Input::update()

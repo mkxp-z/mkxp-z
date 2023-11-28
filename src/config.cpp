@@ -187,6 +187,8 @@ void Config::read(int argc, char *argv[]) {
         {"JITMaxCache", 100},
         {"JITMinCalls", 10000},
         {"YJITEnable", false},
+        {"inputRepeatStart", 0.4},
+        {"inputRepeatDelay", 0.1},
         {"bindingNames", json::object({
             {"a", "A"},
             {"b", "B"},
@@ -295,7 +297,10 @@ try { exp } catch (...) {}
     SET_OPT_CUSTOMKEY(BGM.trackCount, BGMTrackCount, integer);
     SET_STRINGOPT(customScript, customScript);
     SET_OPT(useScriptNames, boolean);
-    
+
+    SET_OPT(inputRepeatStart, number);
+    SET_OPT(inputRepeatDelay, number);
+
     fillStringVec(opts["preloadScript"], preloadScripts);
     fillStringVec(opts["RTP"], rtps);
     fillStringVec(opts["fontSub"], fontSubs);

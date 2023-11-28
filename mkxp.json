@@ -450,6 +450,9 @@
     //  "c": "Confirm",
     //  "b": "Cancel",
     //  "x": ...
-    // }
+    // },
 
+    // You can make menus faster by lowering these delays.
+    // "inputRepeatStart": 0.4,
+    // "inputRepeatDelay": 0.1
 }
