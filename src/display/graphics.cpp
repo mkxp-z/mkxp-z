@@ -1327,7 +1327,7 @@ DEF_ATTR_RD_SIMPLE(Graphics, FrameRate, int, p->frameRate)
 DEF_ATTR_SIMPLE(Graphics, FrameCount, int, p->frameCount)
 
 void Graphics::setFrameRate(int value) {
-    p->frameRate = clamp(value, 10, 200);
+    p->frameRate = clamp(value, 10, 400);
     
     if (p->threadData->config.syncToRefreshrate)
         return;
