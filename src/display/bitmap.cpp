@@ -2055,8 +2055,29 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
     const Color &fontColor = p->font->getColor();
     const Color &outColor = p->font->getOutColor();
     
+    // RGSS crops the the text slightly if there's an outline
+    int scaledOutlineSize = 0;
+    if (p->font->getOutline()) {
+        // Handle high-res for outline.
+        if (p->selfLores) {
+            scaledOutlineSize = OUTLINE_SIZE * width() / p->selfLores->width();
+        } else {
+            scaledOutlineSize = OUTLINE_SIZE;
+        }
+    }
+    int doubleOutlineSize = scaledOutlineSize * 2;
+    
     SDL_Color c = fontColor.toSDLColor();
-    c.a = 255;
+    int txtAlpha;
+    if(scaledOutlineSize)
+    {
+        c.a = 255;
+        txtAlpha = fontColor.alpha;
+    }
+    else
+    {
+        txtAlpha = 255;
+    }
     
     // Trim the text to only fill double the rect width
     int charLimit = 0;
@@ -2096,40 +2117,8 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
     
     p->ensureFormat(txtSurf, SDL_PIXELFORMAT_ABGR8888);
     
-    int rawTxtSurfH = txtSurf->h;
-    
     if (p->font->getShadow())
         applyShadow(txtSurf, *p->format, c);
-    
-    /* outline using TTF_Outline and blending it together with SDL_BlitSurface
-     * FIXME: outline is forced to have the same opacity as the font color */
-    if (p->font->getOutline())
-    {
-        SDL_Color co = outColor.toSDLColor();
-        co.a = 255;
-        SDL_Surface *outline;
-        // Handle high-res for outline.
-        int scaledOutlineSize = OUTLINE_SIZE;
-        if (p->selfLores) {
-            scaledOutlineSize = scaledOutlineSize * width() / p->selfLores->width();
-        }
-        /* set the next font render to render the outline */
-        TTF_SetFontOutline(font, scaledOutlineSize);
-        if (p->font->isSolid())
-            outline = TTF_RenderUTF8_Solid(font, str, co);
-        else
-            outline = TTF_RenderUTF8_Blended(font, str, co);
-        
-        p->ensureFormat(outline, SDL_PIXELFORMAT_ABGR8888);
-        SDL_Rect outRect = {scaledOutlineSize, scaledOutlineSize, txtSurf->w, txtSurf->h};
-        
-        SDL_SetSurfaceBlendMode(txtSurf, SDL_BLENDMODE_BLEND);
-        SDL_BlitSurface(txtSurf, NULL, outline, &outRect);
-        SDL_FreeSurface(txtSurf);
-        txtSurf = outline;
-        /* reset outline to 0 */
-        TTF_SetFontOutline(font, 0);
-    }
     
     int alignX = rect.x;
     
@@ -2140,18 +2129,20 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
             break;
             
         case Center :
-            alignX += (rect.w - txtSurf->w) / 2;
+            // Yes, half of the outline size.
+            alignX += (rect.w - (txtSurf->w + scaledOutlineSize)) / 2;
             break;
             
         case Right :
-            alignX += rect.w - txtSurf->w;
+            // I don't know why it's double the outline size, but it is.
+            alignX += rect.w - txtSurf->w - doubleOutlineSize;
             break;
     }
     
     if (alignX < rect.x)
         alignX = rect.x;
     
-    int alignY = rect.y + (rect.h - rawTxtSurfH) / 2;
+    int alignY = rect.y + ((rect.h - txtSurf->h) / 2) - scaledOutlineSize;
     
     alignY = std::max(alignY, rect.y);
     
@@ -2162,20 +2153,47 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
     
     squeeze = clamp(squeeze, squeezeLimit, 1.0f);
     
-    IntRect destRect(alignX, alignY, 0, 0);
-    destRect.w = std::min(rect.w, (int)(txtSurf->w * squeeze));
-    destRect.h = std::min(rect.h, txtSurf->h);
+    /* outline using TTF_Outline and blending it together with SDL_BlitSurface
+     * FIXME: RGSS's "outline" includes a complete set of text behind the regular text
+     * which loses opacity at a different rate than you'd expect.
+     * I gave up on trying to figure out the algorithm, so our transparent text will
+     * generally be paler than it should be. */
+    if (scaledOutlineSize)
+    {
+        SDL_Color co = outColor.toSDLColor();
+        SDL_Surface *outline;
+        /* set the next font render to render the outline */
+        TTF_SetFontOutline(font, scaledOutlineSize);
+        if (p->font->isSolid())
+            outline = TTF_RenderUTF8_Solid(font, str, co);
+        else
+            outline = TTF_RenderUTF8_Blended(font, str, co);
+        
+        p->ensureFormat(outline, SDL_PIXELFORMAT_ABGR8888);
+        SDL_Rect inRect = {scaledOutlineSize, scaledOutlineSize,
+                           (int)(rect.w / squeeze) - doubleOutlineSize, rect.h - doubleOutlineSize};
+        SDL_Rect outRect = {doubleOutlineSize, doubleOutlineSize, txtSurf->w, txtSurf->h};
+        
+        SDL_SetSurfaceBlendMode(txtSurf, SDL_BLENDMODE_BLEND);
+        SDL_BlitSurface(txtSurf, &inRect, outline, &outRect);
+        SDL_FreeSurface(txtSurf);
+        txtSurf = outline;
+        /* reset outline to 0 */
+        TTF_SetFontOutline(font, 0);
+    }
+    
+    IntRect destRect(alignX, alignY,
+                    std::min(rect.w, (int)(txtSurf->w * squeeze)),
+                    std::min(rect.h, txtSurf->h));
     
     destRect.w = std::min(destRect.w, width() - destRect.x);
     destRect.h = std::min(destRect.h, height() - destRect.y);
     
-    IntRect sourceRect;
-    sourceRect.w = destRect.w / squeeze;
-    sourceRect.h = destRect.h;
+    IntRect sourceRect(scaledOutlineSize, scaledOutlineSize, destRect.w / squeeze, destRect.h);
     
     Bitmap txtBitmap(txtSurf, nullptr, true);
     bool smooth = squeeze != 1.0f;
-    stretchBlt(destRect, txtBitmap, sourceRect, fontColor.alpha, smooth);
+    stretchBlt(destRect, txtBitmap, sourceRect, txtAlpha, smooth);
 }
 
 /* http://www.lemoda.net/c/utf8-to-ucs2/index.html */
