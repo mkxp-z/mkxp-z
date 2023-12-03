@@ -2058,6 +2058,15 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
     SDL_Color c = fontColor.toSDLColor();
     c.a = 255;
     
+    // Trim the text to only fill double the rect width
+    int charLimit = 0;
+    float squeezeLimit = 0.5f;
+    if (TTF_MeasureUTF8(font, str, std::min(width() - rect.x, rect.w) / squeezeLimit, &charLimit, nullptr) == 0)
+    {
+        fixed = fixed.substr(0, charLimit + 1);
+        str = fixed.c_str();
+    }
+    
     SDL_Surface *txtSurf;
     
     if (p->font->isSolid())
@@ -2131,7 +2140,7 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
      * have made the rects bigger to compensate, so we should probably match it */
     float squeeze = (float) rect.w / txtSurf->w;
     
-    squeeze = clamp(squeeze, 0.5f, 1.0f);
+    squeeze = clamp(squeeze, squeezeLimit, 1.0f);
     
     IntRect destRect(alignX, alignY, 0, 0);
     destRect.w = std::min(rect.w, (int)(txtSurf->w * squeeze));
