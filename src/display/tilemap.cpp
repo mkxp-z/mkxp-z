@@ -26,6 +26,7 @@
 #include "table.h"
 
 #include "sharedstate.h"
+#include "graphics.h"
 #include "config.h"
 #include "debugwriter.h"
 #include "glstate.h"
@@ -366,7 +367,7 @@ struct TilemapPrivate
 		atlas.efTilesetH = 0;
 
 		tiles.animated = false;
-		tiles.aniIdx = 0;
+		tiles.aniIdx = shState->graphics()->FrameCount();
 
 		/* Init tile buffers */
 		tiles.vbo = VBO::gen();
