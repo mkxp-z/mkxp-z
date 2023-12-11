@@ -232,6 +232,7 @@ jobs:
           zip -r ../mkxp-z.windows.zip Game.exe *.dll stdlib
           cd ../linux
           mv mkxp-z-x86_64.AppImage Game.AppImage
+          chmod +x Game.AppImage
           mv local/stdlib stdlib
           zip -r ../mkxp-z.linux.zip Game.AppImage stdlib
           cd ..
