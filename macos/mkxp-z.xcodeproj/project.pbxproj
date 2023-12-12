@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		02054AB6B60F49E3DF366CBD /* libjxl_dec.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 672947DA8FC50921A7ED814A /* libjxl_dec.a */; };
+		319D403193F13F7989325EEA /* bicubic.frag in CopyFiles */ = {isa = PBXBuildFile; fileRef = CBEA4C45BE737EE0FF5A8A4C /* bicubic.frag */; };
 		3389416F9825F408A40824F3 /* libbrotlicommon-static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A8AA4AE49BB66C97EFAE3055 /* libbrotlicommon-static.a */; };
 		3B10EC5C2568D40500372D13 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3BE081562568D3A60006849F /* CoreGraphics.framework */; };
 		3B10EC5D2568D40C00372D13 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3BE081552568D3A60006849F /* Carbon.framework */; };
@@ -505,6 +506,7 @@
 		3BF5B4BF2685883B00A3B240 /* libSDL2_sound.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3BF5B4BE2685883B00A3B240 /* libSDL2_sound.a */; };
 		3BF5B4C02685883B00A3B240 /* libSDL2_sound.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3BF5B4BE2685883B00A3B240 /* libSDL2_sound.a */; };
 		3E2542219A9FD2B16781B1F5 /* libbrotlidec-static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C4B4BA780D4407F24279700 /* libbrotlidec-static.a */; };
+		3F7F41D98CEDE6F418AAB0D2 /* bicubic.frag in CopyFiles */ = {isa = PBXBuildFile; fileRef = CBEA4C45BE737EE0FF5A8A4C /* bicubic.frag */; };
 		74E9471FB1A876B0D9F2ABFF /* libbrotlidec-static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5C254B088D8B18C7E957DE30 /* libbrotlidec-static.a */; };
 		96563582279A5ABD003D6A75 /* libtheora.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 96563581279A5ABD003D6A75 /* libtheora.a */; };
 		96563583279A5ABD003D6A75 /* libtheora.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 96563581279A5ABD003D6A75 /* libtheora.a */; };
@@ -763,6 +765,7 @@
 				3B10ECE82568E83D00372D13 /* tilemapvx.vert in CopyFiles */,
 				3B10ECE92568E83D00372D13 /* trans.frag in CopyFiles */,
 				3B10ECEA2568E83D00372D13 /* transSimple.frag in CopyFiles */,
+				3F7F41D98CEDE6F418AAB0D2 /* bicubic.frag in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -773,6 +776,7 @@
 			dstSubfolderSpec = 7;
 			files = (
 				3B10ECF52568E86B00372D13 /* liberation.ttf in CopyFiles */,
+				319D403193F13F7989325EEA /* bicubic.frag in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1134,6 +1138,7 @@
 		96573E80279152DC002C3E77 /* TouchBar.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = TouchBar.xcassets; path = views/TouchBar.xcassets; sourceTree = "<group>"; };
 		96D8EDD028728DCA00A331EA /* gamecontrollerdb.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = gamecontrollerdb.txt; path = ../assets/gamecontrollerdb.txt; sourceTree = "<group>"; };
 		A8AA4AE49BB66C97EFAE3055 /* libbrotlicommon-static.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libbrotlicommon-static.a"; path = "Dependencies/build-macosx-universal/lib/libbrotlicommon-static.a"; sourceTree = "<group>"; };
+		CBEA4C45BE737EE0FF5A8A4C /* bicubic.frag */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.glsl; name = bicubic.frag; path = ../shader/bicubic.frag; sourceTree = "<group>"; };
 		FE5204152A08E27D0070038A /* CoreHaptics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreHaptics.framework; path = System/Library/Frameworks/CoreHaptics.framework; sourceTree = SDKROOT; };
 		FE52041A2A08E58D0070038A /* lanczos3.frag */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.glsl; name = lanczos3.frag; path = ../shader/lanczos3.frag; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -1386,6 +1391,7 @@
 				3B10EC982568E7B500372D13 /* sprite.vert */,
 				3B10ECA02568E7B600372D13 /* tilemap.vert */,
 				3B10EC962568E7B500372D13 /* tilemapvx.vert */,
+				CBEA4C45BE737EE0FF5A8A4C /* bicubic.frag */,
 			);
 			name = Shaders;
 			sourceTree = "<group>";
@@ -2069,7 +2075,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 3BDB22EF25644FBF00C4A63D /* Build configuration list for PBXProject "mkxp-z" */;
+			buildConfigurationList = 3BDB22EF25644FBF00C4A63D /* Build configuration list for PBXProject "Assets" */;
 			compatibilityVersion = "Xcode 9.3";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -3690,7 +3696,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		3BDB22EF25644FBF00C4A63D /* Build configuration list for PBXProject "mkxp-z" */ = {
+		3BDB22EF25644FBF00C4A63D /* Build configuration list for PBXProject "Assets" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				3BDB22F025644FBF00C4A63D /* Debug */,

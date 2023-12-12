@@ -618,49 +618,10 @@ Bitmap::Bitmap(const char *filename)
         p->addTaintedArea(rect());
         return;
     }
-    
+
     SDL_Surface *imgSurf = handler.surface;
-    
-    
-    p->ensureFormat(imgSurf, SDL_PIXELFORMAT_ABGR8888);
-    
-    if (imgSurf->w > glState.caps.maxTexSize || imgSurf->h > glState.caps.maxTexSize)
-    {
-        /* Mega surface */
-        p = new BitmapPrivate(this);
-        p->selfHires = hiresBitmap;
-        p->megaSurface = imgSurf;
-        SDL_SetSurfaceBlendMode(p->megaSurface, SDL_BLENDMODE_NONE);
-    }
-    else
-    {
-        /* Regular surface */
-        TEXFBO tex;
-        
-        try
-        {
-            tex = shState->texPool().request(imgSurf->w, imgSurf->h);
-        }
-        catch (const Exception &e)
-        {
-            SDL_FreeSurface(imgSurf);
-            throw e;
-        }
-        
-        p = new BitmapPrivate(this);
-        p->selfHires = hiresBitmap;
-        p->gl = tex;
-        if (p->selfHires != nullptr) {
-            p->gl.selfHires = &p->selfHires->getGLTypes();
-        }
-        
-        TEX::bind(p->gl.tex);
-        TEX::uploadImage(p->gl.width, p->gl.height, imgSurf->pixels, GL_RGBA);
-        
-        SDL_FreeSurface(imgSurf);
-    }
-    
-    p->addTaintedArea(rect());
+
+    initFromSurface(imgSurf, hiresBitmap, true);
 }
 
 Bitmap::Bitmap(int width, int height, bool isHires)
@@ -683,10 +644,10 @@ Bitmap::Bitmap(int width, int height, bool isHires)
     
     p = new BitmapPrivate(this);
     p->gl = tex;
+    p->selfHires = hiresBitmap;
     if (p->selfHires != nullptr) {
         p->gl.selfHires = &p->selfHires->getGLTypes();
     }
-    p->selfHires = hiresBitmap;
     
     clear();
 }
@@ -798,9 +759,102 @@ Bitmap::Bitmap(const Bitmap &other, int frame)
     p->addTaintedArea(rect());
 }
 
+Bitmap::Bitmap(TEXFBO &other)
+{
+    Bitmap *hiresBitmap = nullptr;
+
+    if (other.selfHires != nullptr) {
+        // Create a high-res version as well.
+        hiresBitmap = new Bitmap(*other.selfHires);
+        hiresBitmap->setLores(this);
+    }
+
+    p = new BitmapPrivate(this);
+
+    p->gl = shState->texPool().request(other.width, other.height);
+
+    p->selfHires = hiresBitmap;
+    if (p->selfHires != nullptr) {
+        p->gl.selfHires = &p->selfHires->getGLTypes();
+    }
+
+    // Skip blitting to lores texture, since only the hires one will be displayed.
+    if (p->selfHires == nullptr) {
+        GLMeta::blitBegin(p->gl);
+        GLMeta::blitSource(other);
+        GLMeta::blitRectangle(rect(), rect(), true);
+        GLMeta::blitEnd();
+    }
+
+    p->addTaintedArea(rect());
+}
+
+Bitmap::Bitmap(SDL_Surface *imgSurf, SDL_Surface *imgSurfHires)
+{
+    Bitmap *hiresBitmap = nullptr;
+
+    if (imgSurfHires != nullptr) {
+        // Create a high-res version as well.
+        hiresBitmap = new Bitmap(imgSurfHires, nullptr);
+        hiresBitmap->setLores(this);
+    }
+
+    initFromSurface(imgSurf, hiresBitmap, false);
+}
+
 Bitmap::~Bitmap()
 {
     dispose();
+}
+
+void Bitmap::initFromSurface(SDL_Surface *imgSurf, Bitmap *hiresBitmap, bool freeSurface)
+{
+    p->ensureFormat(imgSurf, SDL_PIXELFORMAT_ABGR8888);
+    
+    if (imgSurf->w > glState.caps.maxTexSize || imgSurf->h > glState.caps.maxTexSize)
+    {
+        /* Mega surface */
+
+        if(!freeSurface) {
+            throw Exception(Exception::RGSSError, "Cloning Mega Bitmap from Surface not supported");
+        }
+
+        p = new BitmapPrivate(this);
+        p->selfHires = hiresBitmap;
+        p->megaSurface = imgSurf;
+        SDL_SetSurfaceBlendMode(p->megaSurface, SDL_BLENDMODE_NONE);
+    }
+    else
+    {
+        /* Regular surface */
+        TEXFBO tex;
+        
+        try
+        {
+            tex = shState->texPool().request(imgSurf->w, imgSurf->h);
+        }
+        catch (const Exception &e)
+        {
+            SDL_FreeSurface(imgSurf);
+            throw e;
+        }
+        
+        p = new BitmapPrivate(this);
+        p->selfHires = hiresBitmap;
+        p->gl = tex;
+        if (p->selfHires != nullptr) {
+            p->gl.selfHires = &p->selfHires->getGLTypes();
+        }
+        
+        TEX::bind(p->gl.tex);
+        TEX::uploadImage(p->gl.width, p->gl.height, imgSurf->pixels, GL_RGBA);
+        
+        if (freeSurface) {
+            SDL_FreeSurface(imgSurf);
+        }
+    }
+    
+    p->addTaintedArea(rect());
 }
 
 int Bitmap::width() const

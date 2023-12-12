@@ -125,6 +125,9 @@ struct SharedStatePrivate
 
 		std::string archPath = config.execName + gameArchExt();
 
+		for (size_t i = 0; i < config.patches.size(); ++i)
+			fileSystem.addPath(config.patches[i].c_str());
+
 		/* Check if a game archive exists */
 		FILE *tmp = fopen(archPath.c_str(), "rb");
 		if (tmp)

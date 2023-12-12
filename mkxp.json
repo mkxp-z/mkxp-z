@@ -331,6 +331,14 @@
     //         "/path/to/rtp2.zip",
     //         "/path/to/game.rgssad"],
 
+    // Similar to the RTP option, except items are loaded before
+    // the game archive and folder, for incremental game updates
+    // or modding.
+    // (default: none)
+    //
+    // "patches": ["/path/to/patch1.zip",
+    //         "/path/to/patch2"],
+
 
     // Use the script's name as filename in warnings and error messages
     // (default: enabled)
@@ -451,6 +459,13 @@
     //  "b": "Cancel",
     //  "x": ...
     // },
+
+
+    // Dump tile atlas (for debugging purposes)
+    // (default: false)
+    //
+    // "dumpAtlas": false,
+
 
     // You can make menus faster by lowering these delays.
     // "inputRepeatStart": 0.4,
