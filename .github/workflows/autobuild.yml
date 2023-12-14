@@ -74,7 +74,7 @@ jobs:
           cp ../mkxp-z.exe .
           cp ../../mkxp.json .
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}
           path: |
@@ -138,7 +138,7 @@ jobs:
           mv ./3.1.0 ./stdlib
           cp ../../mkxp.json .
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}
           path: |
@@ -190,7 +190,7 @@ jobs:
         run: ditto -c -k --sequesterRsrc --keepParent Z-universal.app Z-universal.app.zip
 
       - name: Upload archive
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}
           path: build/Build/Products/Release/Z-universal.app.zip
@@ -203,17 +203,17 @@ jobs:
       - build-linux
       - build-macos
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: build-windows
           path: windows
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: build-linux
           path: linux
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: build-macos
           path: macos
