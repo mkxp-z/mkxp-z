@@ -21,11 +21,11 @@ jobs:
             git
             ruby
             vim
+            unzip
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-meson
             mingw-w64-x86_64-autotools
             mingw-w64-x86_64-gcc
-
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -60,6 +60,23 @@ jobs:
           ninja
           strip ./mkxp-z.exe
 
+      - name: Discord
+        uses: actions/checkout@v4
+        with:
+          repository: enumag/ruby_discord_sdk
+          path: ruby_discord_sdk
+          ref: main
+
+      - name: Build Discord Gem
+        shell: msys2 {0}
+        working-directory: ruby_discord_sdk
+        run: |
+          curl -O https://dl-game-sdk.discordapp.net/3.2.1/discord_game_sdk.zip
+          unzip -o discord_game_sdk.zip -d .
+          cp lib/x86_64/discord_game_sdk.dll .
+          ../windows/build-mingw64/bin/ruby.exe ./extconf.rb
+          make
+
       - name: Prepare archive
         shell: msys2 {0}
         run: |
@@ -73,6 +90,9 @@ jobs:
           mv ./3.1.0 ./stdlib
           cp ../mkxp-z.exe .
           cp ../../mkxp.json .
+          mkdir gems
+          cp ../../ruby_discord_sdk/discord.so gems
+          cp ../../ruby_discord_sdk/lib/x86_64/discord_game_sdk.dll .
 
       - uses: actions/upload-artifact@v4
         with:
@@ -82,6 +102,8 @@ jobs:
             build/artifact/*.exe
             build/artifact/mkxp.json
             build/artifact/stdlib/
+            build/artifact/gems/
+
 
   build-linux:
     name: Ubuntu 22.04
@@ -131,12 +153,31 @@ jobs:
           ninja
           ninja install
 
+      - name: Discord
+        uses: actions/checkout@v4
+        with:
+          repository: enumag/ruby_discord_sdk
+          path: ruby_discord_sdk
+          ref: main
+
+      - name: Build Discord Gem
+        working-directory: ruby_discord_sdk
+        run: |
+          curl -O https://dl-game-sdk.discordapp.net/3.2.1/discord_game_sdk.zip
+          unzip -o discord_game_sdk.zip -d .
+          cp lib/x86_64/discord_game_sdk.so .
+          ../linux/build-x86_64/bin/ruby ./extconf.rb
+          make
+
       - name: Prepare archive
         run: |
           cd build/local
           cp -r ../../linux/build-x86_64/lib/ruby/3.1.0 .
           mv ./3.1.0 ./stdlib
           cp ../../mkxp.json .
+          mkdir gems
+          cp ../../ruby_discord_sdk/discord.so gems
+          cp ../../ruby_discord_sdk/lib/x86_64/discord_game_sdk.so .
 
       - uses: actions/upload-artifact@v4
         with:
@@ -144,6 +185,7 @@ jobs:
           path: |
             build/local/**
             build/mkxp-z-x86_64.AppImage
+
 
   build-macos:
     name: macOS
@@ -185,6 +227,26 @@ jobs:
         working-directory: macos
         run: xcodebuild -project mkxp-z.xcodeproj -configuration "Release" -scheme "Universal" -derivedDataPath "$GITHUB_WORKSPACE/build"
 
+      - name: Discord
+        uses: actions/checkout@v4
+        with:
+          repository: enumag/ruby_discord_sdk
+          path: ruby_discord_sdk
+          ref: main
+
+      - name: Build Discord Gem
+        working-directory: ruby_discord_sdk
+        run: |
+          curl -O https://dl-game-sdk.discordapp.net/3.2.1/discord_game_sdk.zip
+          unzip -o discord_game_sdk.zip -d .
+          lipo -output libdiscord_game_sdk.dylib -create lib/x86_64/discord_game_sdk.dylib lib/aarch64/discord_game_sdk.dylib 
+          cp ../macos/Dependencies/build-macosx-universal/lib/libruby.3.1.dylib .
+          ../macos/Dependencies/build-macosx-x86_64/bin/ruby ./extconf.rb
+          make
+          mkdir ../build/Build/Products/Release/Z-universal.app/Contents/Game/gems
+          cp discord.bundle ../build/Build/Products/Release/Z-universal.app/Contents/Game/gems
+          cp libdiscord_game_sdk.dylib ../build/Build/Products/Release/Z-universal.app/Contents/Frameworks/discord_game_sdk.dylib
+
       - name: Compress app
         working-directory: build/Build/Products/Release
         run: ditto -c -k --sequesterRsrc --keepParent Z-universal.app Z-universal.app.zip
@@ -194,6 +256,7 @@ jobs:
         with:
           name: ${{ github.job }}
           path: build/Build/Products/Release/Z-universal.app.zip
+
 
   release:
     name: Release
@@ -223,12 +286,14 @@ jobs:
           cd windows
           rm -f mkxp.json
           mv mkxp-z.exe Game.exe
-          zip -r ../mkxp-z.windows.zip Game.exe *.dll stdlib
+          zip -r ../mkxp-z.windows.zip Game.exe *.dll stdlib gems
           cd ../linux
           mv mkxp-z-x86_64.AppImage Game.AppImage
           chmod +x Game.AppImage
+          mv local/discord_game_sdk.so discord_game_sdk.so
           mv local/stdlib stdlib
-          zip -r ../mkxp-z.linux.zip Game.AppImage stdlib
+          mv local/gems gems
+          zip -r ../mkxp-z.linux.zip Game.AppImage discord_game_sdk.so stdlib gems
           cd ..
           mv macos/Z-universal.app.zip mkxp-z.macos.zip
 
