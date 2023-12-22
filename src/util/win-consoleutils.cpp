@@ -7,7 +7,7 @@
 // Extended error information can be received via GetLastError().
 bool setupWindowsConsole()
 {
-    if (!AllocConsole())
+    if (!AttachConsole(-1) && !AllocConsole())
         return false;
         
     const HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
