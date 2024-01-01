@@ -6,7 +6,10 @@ uniform lowp vec4 tone;
 uniform lowp float opacity;
 uniform lowp vec4 color;
 
-uniform float bushDepth;
+uniform bool bushY;
+uniform bool bushUnder;
+uniform float bushSlope;
+uniform float bushIntercept;
 uniform lowp float bushOpacity;
 
 uniform sampler2D pattern;
@@ -102,8 +105,9 @@ void main()
     }
 
 	/* Apply bush alpha by mathematical if */
-	lowp float underBush = float(v_texCoord.y < bushDepth);
-	frag.a *= clamp(bushOpacity + underBush, 0.0, 1.0);
+	bool underBush = (float(bushY) * v_texCoord.y + float(!bushY) * v_texCoord.x) <
+	                 (bushSlope * (float(bushY) * v_texCoord.x + float(!bushY) * v_texCoord.y) + bushIntercept);
+	frag.a *= clamp(bushOpacity + float(underBush == bushUnder), 0.0, 1.0);
 	
 	gl_FragColor = frag;
 }
