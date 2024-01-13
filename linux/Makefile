@@ -320,9 +320,9 @@ $(DOWNLOADS)/openssl/Configure:
 	$(CLONE) $(GITHUB)/openssl/openssl $(DOWNLOADS)/openssl --single-branch --branch openssl-3.0.12 --depth 1
 
 # Standard ruby
-ruby: init_dirs openssl $(LIBDIR)/libruby.so.3.2
+ruby: init_dirs openssl $(LIBDIR)/libruby.so.3.3
 
-$(LIBDIR)/libruby.so.3.2: $(DOWNLOADS)/ruby/Makefile
+$(LIBDIR)/libruby.so.3.3: $(DOWNLOADS)/ruby/Makefile
 	cd $(DOWNLOADS)/ruby; \
 	make -j$(NPROC); make install DESTDIR="$(BUILD_PREFIX)"
 
@@ -337,7 +337,7 @@ $(DOWNLOADS)/ruby/configure: $(DOWNLOADS)/ruby/configure.ac
 	cd $(DOWNLOADS)/ruby; autoreconf -i
 
 $(DOWNLOADS)/ruby/configure.ac:
-	$(CLONE) $(GITHUB)/Nathan-MV/ruby $(DOWNLOADS)/ruby --single-branch --branch ruby_3_2 --depth 1;
+	$(CLONE) $(GITHUB)/Nathan-MV/ruby $(DOWNLOADS)/ruby --single-branch --branch ruby_3_3 --depth 1;
 
 # ====
 init_dirs:
