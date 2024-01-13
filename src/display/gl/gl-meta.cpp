@@ -161,6 +161,7 @@ static void _blitBegin(FBO::ID fbo, const Vec2i &size)
 			shader.applyViewportProj();
 			shader.setTranslation(Vec2i());
 			shader.setTexSize(Vec2i(size.x, size.y));
+			shader.setSharpness(shState->config().bicubicSharpness);
 		}
 
 			break;

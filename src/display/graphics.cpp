@@ -179,7 +179,9 @@ struct Movie
                 SDL_Delay(VIDEO_DELAY);
             }
         }
-        videoBitmap = new Bitmap(video->width, video->height);
+        // Create this Bitmap without a hires replacement, because we don't
+        // support hires replacement for Movies yet.
+        videoBitmap = new Bitmap(video->width, video->height, true);
         audioQueueHead = NULL;
         audioQueueTail = NULL;
         
@@ -1401,17 +1403,17 @@ void Graphics::fadein(int duration) {
 }
 
 Bitmap *Graphics::snapToBitmap() {
-    Bitmap *bitmap = new Bitmap(width(), height());
-    
-    if (bitmap->hasHires()) {
-        p->compositeToBufferScaled(bitmap->getHires()->getGLTypes(), bitmap->getHires()->width(), bitmap->getHires()->height());
+    if (shState->config().enableHires) {
+        // TODO: Maybe don't reconstruct this struct every time?
+        TEXFBO tf;
+        tf.width = width();
+        tf.height = height();
+        tf.selfHires = &p->screen.getPP().frontBuffer();
+
+        return new Bitmap(tf);
     }
 
-    p->compositeToBufferScaled(bitmap->getGLTypes(), bitmap->width(), bitmap->height());
-    
-    /* Taint entire bitmap */
-    bitmap->taintArea(IntRect(0, 0, width(), height()));
-    return bitmap;
+    return new Bitmap(p->screen.getPP().frontBuffer());
 }
 
 int Graphics::width() const { return p->scResLores.x; }

@@ -190,6 +190,16 @@ struct TilemapVXPrivate : public ViewportElement, TileAtlasVX::Reader
 	void rebuildAtlas()
 	{
 		TileAtlasVX::build(atlas, bitmaps);
+
+		if (shState->config().dumpAtlas)
+		{
+			Bitmap dump(atlas);
+			dump.saveToFile("dumped_atlas.png");
+			if (dump.hasHires())
+			{
+				dump.getHires()->saveToFile("dumped_atlas_hires.png");
+			}
+		}
 	}
 
 	void updateMapViewport()

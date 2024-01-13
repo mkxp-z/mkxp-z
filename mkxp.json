@@ -88,6 +88,14 @@
     // "smoothScaling": 0,
 
 
+    // Sharpness when using Bicubic scaling.
+    // A good starting range is 0 to 100,
+    // but you may wish to go outside that range in either direction.
+    // (default: 100)
+    //
+    // "bicubicSharpness": 100,
+
+
     // Replace the game's Bitmap files with external high-res files
     // provided in the "Hires" directory.
     // (You'll also need to set the below Scaling Factors.)
@@ -310,7 +318,7 @@
     // execution starts
     // (default: none)
     //
-    // "preloadScript": ["scripts/preload/ruby18_wrap.rb",
+    // "preloadScript": ["scripts/preload/ruby_classic_wrap.rb",
     //                   "scripts/preload/mkxp_wrap.rb",
     //                   "scripts/preload/win32_wrap.rb"],
 
@@ -330,6 +338,14 @@
     // "RTP": ["/path/to/rtp1",
     //         "/path/to/rtp2.zip",
     //         "/path/to/game.rgssad"],
+
+    // Similar to the RTP option, except items are loaded before
+    // the game archive and folder, for incremental game updates
+    // or modding.
+    // (default: none)
+    //
+    // "patches": ["/path/to/patch1.zip",
+    //         "/path/to/patch2"],
 
 
     // Use the script's name as filename in warnings and error messages
@@ -451,5 +467,11 @@
     //  "b": "Cancel",
     //  "x": ...
     // }
+
+
+    // Dump tile atlas (for debugging purposes)
+    // (default: false)
+    //
+    // "dumpAtlas": false,
 
 }

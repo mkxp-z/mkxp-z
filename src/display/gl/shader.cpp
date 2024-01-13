@@ -777,9 +777,11 @@ BicubicShader::BicubicShader()
 	GET_U(texOffsetX);
 	GET_U(sourceSize);
 	GET_U(bc);
+}
 
-	// TODO: Maybe expose this as a setting?
-	gl.Uniform2f(u_bc, 0.0, 0.5);
+void BicubicShader::setSharpness(int sharpness)
+{
+	gl.Uniform2f(u_bc, 1.f - sharpness * 0.01f, sharpness * 0.005f);
 }
 
 Lanczos3Shader::Lanczos3Shader()

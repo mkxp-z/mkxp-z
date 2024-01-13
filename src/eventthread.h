@@ -124,6 +124,7 @@ private:
 	void setFullscreen(SDL_Window *, bool mode);
 	void updateCursorState(bool inWindow,
 	                       const SDL_Rect &screen);
+	void cursorTimer();
 
 	bool fullscreen;
 	bool showCursor;

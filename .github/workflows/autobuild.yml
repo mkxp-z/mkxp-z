@@ -70,6 +70,7 @@ jobs:
           cp ../mkxp-z.exe .
           cp ../../mkxp.json .
           cp -r ../../scripts .
+          cp ../../assets/LICENSE.mkxp-z-with-https.txt .
 
       - uses: actions/upload-artifact@v3
         with:
@@ -78,6 +79,7 @@ jobs:
             build/artifact/*.dll
             build/artifact/*.exe
             build/artifact/mkxp.json
+            build/artifact/LICENSE.mkxp-z-with-https.txt
             build/artifact/scripts/
             build/artifact/stdlib/
 
@@ -125,6 +127,7 @@ jobs:
           mv ./3.2.0 ./stdlib
           cp ../../mkxp.json .
           cp -r ../../scripts .
+          cp ../../assets/LICENSE.mkxp-z-with-https.txt .
           cd ..
           zip -r local.zip local
 
@@ -175,6 +178,7 @@ jobs:
       - name: Compress app
         run: |
           cd build/Build/Products/Release
+          cp ../../../../assets/LICENSE.mkxp-z-with-https.txt ./Z-universal.app/
           ditto -c -k --sequesterRsrc --keepParent Z-universal.app Z-universal.app.zip
 
       - name: Upload archive

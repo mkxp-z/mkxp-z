@@ -3,7 +3,10 @@
 // mkxp-z modifications Copyright 2022-2023 Splendide Imaginarius.
 // MIT license.
 
-precision highp float;
+#ifdef GLSLES
+	precision highp float;
+#endif
+
 uniform sampler2D texture;
 uniform vec2 sourceSize;
 uniform vec2 texSizeInv;
