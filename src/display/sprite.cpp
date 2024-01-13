@@ -48,6 +48,8 @@ struct SpritePrivate
 {
     Bitmap *bitmap;
     
+    sigslot::connection bitmapDispCon;
+    
     Quad quad;
     Transform trans;
     
@@ -137,8 +139,16 @@ struct SpritePrivate
     {
         srcRectCon.disconnect();
         prepareCon.disconnect();
+        
+        bitmapDisposal();
     }
     
+    void bitmapDisposal()
+    {
+        bitmap = 0;
+        bitmapDispCon.disconnect();
+    }
+
     void recomputeBushDepth()
     {
         if (nullOrDisposed(bitmap))
@@ -187,9 +197,6 @@ struct SpritePrivate
         isVisible = false;
         
         if (nullOrDisposed(bitmap))
-            return;
-        
-        if (bitmap->invalid())
             return;
         
         if (!opacity)
@@ -372,8 +379,15 @@ void Sprite::setBitmap(Bitmap *bitmap)
     
     p->bitmap = bitmap;
     
+    p->bitmapDispCon.disconnect();
+    
     if (nullOrDisposed(bitmap))
+    {
+        p->bitmap = 0;
         return;
+    }
+    
+    p->bitmapDispCon = bitmap->wasDisposed.connect(&SpritePrivate::bitmapDisposal, p);
     
     bitmap->ensureNonMega();
     

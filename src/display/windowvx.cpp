@@ -153,6 +153,9 @@ struct WindowVXPrivate
 	Bitmap *windowskin;
 
 	Bitmap *contents;
+	
+	sigslot::connection windowskinDispCon;
+	sigslot::connection contentsDispCon;
 
 	Rect *cursorRect;
 	bool active;
@@ -278,6 +281,21 @@ struct WindowVXPrivate
 		cursorRectCon.disconnect();
 		toneCon.disconnect();
 		prepareCon.disconnect();
+
+		windowskinDisposal();
+		contentsDisposal();
+	}
+
+	void windowskinDisposal()
+	{
+		windowskin = 0;
+		windowskinDispCon.disconnect();
+	}
+
+	void contentsDisposal()
+	{
+		contents = 0;
+		contentsDispCon.disconnect();
 	}
 
 	void invalidateCursorVert()
@@ -908,6 +926,16 @@ void WindowVX::setWindowskin(Bitmap *value)
 
 	p->windowskin = value;
 	p->base.texDirty = true;
+
+	p->windowskinDispCon.disconnect();
+
+	if (nullOrDisposed(value))
+	{
+		p->windowskin = 0;
+		return;
+	}
+
+	p->windowskinDispCon = value->wasDisposed.connect(&WindowVXPrivate::windowskinDisposal, p);
 }
 
 void WindowVX::setContents(Bitmap *value)
@@ -919,8 +947,15 @@ void WindowVX::setContents(Bitmap *value)
 
 	p->contents = value;
 
+	p->contentsDispCon.disconnect();
+
 	if (nullOrDisposed(value))
+	{
+		p->contents = 0;
 		return;
+	}
+
+	p->contentsDispCon = value->wasDisposed.connect(&WindowVXPrivate::contentsDisposal, p);
 
 	FloatRect rect = p->contents->rect();
 	p->contentsQuad.setTexPosRect(rect, rect);

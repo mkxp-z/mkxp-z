@@ -46,6 +46,8 @@ struct PlanePrivate
 {
 	Bitmap *bitmap;
 
+	sigslot::connection bitmapDispCon;
+
 	NormValue opacity;
 	BlendType blendType;
 	Color *color;
@@ -83,6 +85,14 @@ struct PlanePrivate
 	~PlanePrivate()
 	{
 		prepareCon.disconnect();
+		
+		bitmapDisposal();
+	}
+
+	void bitmapDisposal()
+	{
+		bitmap = 0;
+		bitmapDispCon.disconnect();
 	}
 
 	void updateQuadSource()
@@ -138,6 +148,9 @@ struct PlanePrivate
 
 	void prepare()
 	{
+		if (nullOrDisposed(bitmap))
+			return;
+		
 		if (quadSourceDirty)
 		{
 			updateQuadSource();
@@ -176,8 +189,15 @@ void Plane::setBitmap(Bitmap *value)
 
 	p->bitmap = value;
 
-	if (!value)
+	p->bitmapDispCon.disconnect();
+
+	if (nullOrDisposed(value))
+	{
+		p->bitmap = 0;
 		return;
+	}
+
+	p->bitmapDispCon = value->wasDisposed.connect(&PlanePrivate::bitmapDisposal, p);
 
 	value->ensureNonMega();
 }

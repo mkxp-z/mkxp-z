@@ -182,6 +182,14 @@ struct TilemapVXPrivate : public ViewportElement, TileAtlasVX::Reader
 		atlasDirty = true;
 	}
 
+	void atlasDisposal(int i)
+	{
+		// Guard against deleted bitmaps
+		bitmaps[i] = 0;
+		
+		invalidateAtlas();
+	}
+
 	void invalidateBuffers()
 	{
 		buffersDirty = true;
@@ -415,12 +423,18 @@ void TilemapVX::BitmapArray::set(int i, Bitmap *bitmap)
 	p->atlasDirty = true;
 
 	p->bmChangedCons[i].disconnect();
+	p->bmDisposedCons[i].disconnect();
+
+	if (nullOrDisposed(bitmap))
+	{
+		p->bitmaps[i] = 0;
+		return;
+	}
+
 	p->bmChangedCons[i] = bitmap->modified.connect
         (&TilemapVXPrivate::invalidateAtlas, p);
 
-	p->bmDisposedCons[i].disconnect();
-	p->bmDisposedCons[i] = bitmap->wasDisposed.connect
-		(&TilemapVXPrivate::invalidateAtlas, p);
+	p->bmDisposedCons[i] = bitmap->wasDisposed.connect( [i, this] { p->atlasDisposal(i); } );
 }
 
 Bitmap *TilemapVX::BitmapArray::get(int i) const
