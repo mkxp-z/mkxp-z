@@ -2079,6 +2079,12 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
         txtAlpha = 255;
     }
     
+    // Use the output of textSize to determine squeezing, since textSize tends to be used to determine
+    // rect dimensions.
+    // Also use it to determine position, because freetype sometimes treats the last character as
+    // being a pixel wider than it should be, and which textSize is currently set to compensate for.
+    int alignmentWidth = textSize(str).w;
+    
     // Trim the text to only fill double the rect width
     int charLimit = 0;
     float squeezeLimit = 0.5f;
@@ -2130,12 +2136,12 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
             
         case Center :
             // Yes, half of the outline size.
-            alignX += (rect.w - (txtSurf->w + scaledOutlineSize)) / 2;
+            alignX += (rect.w - (alignmentWidth + scaledOutlineSize)) / 2;
             break;
             
         case Right :
             // I don't know why it's double the outline size, but it is.
-            alignX += rect.w - txtSurf->w - doubleOutlineSize;
+            alignX += rect.w - alignmentWidth - doubleOutlineSize;
             break;
     }
     
@@ -2149,7 +2155,7 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
     /* FIXME: RGSS begins squeezing the text before it fills the rect.
      * While this is extremely undesirable, a number of games will understandably
      * have made the rects bigger to compensate, so we should probably match it */
-    float squeeze = (float) rect.w / txtSurf->w;
+    float squeeze = (float) rect.w / alignmentWidth;
     
     squeeze = clamp(squeeze, squeezeLimit, 1.0f);
     
@@ -2252,11 +2258,18 @@ IntRect Bitmap::textSize(const char *str)
 
     TTF_Font *font = p->font->getSdlFont();
     
-    std::string fixed = fixupString(str);
-    str = fixed.c_str();
+    // freetype sometimes treats the last character of the string as being
+    // a pixel wider than it should be. Adding a space at the end and then
+    // removing it's width should make character-by-character text
+    // more accurate.
+    std::string fixed = fixupString(str) + " ";
     
     int w, h;
-    TTF_SizeUTF8(font, str, &w, &h);
+    TTF_SizeUTF8(font, fixed.c_str(), &w, &h);
+    
+    int ws;
+    TTF_SizeUTF8(font, " ", &ws, 0);
+    w -= ws;
     
     /* If str is one character long, *endPtr == 0 */
     const char *endPtr;
