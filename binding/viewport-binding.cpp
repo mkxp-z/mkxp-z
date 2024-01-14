@@ -68,27 +68,8 @@ RB_METHOD(viewportInitialize) {
     wrapProperty(self, &v->getColor(), "color", ColorType);
     wrapProperty(self, &v->getTone(), "tone", ToneType);
     
-    /* 'elements' holds all SceneElements that become children
-     * of this viewport, so we can dispose them when the viewport
-     * is disposed */
-    rb_iv_set(self, "elements", rb_ary_new());
     GFX_UNLOCK;
     return self;
-}
-
-RB_METHOD(viewportSpriteFinalize)
-{
-    RB_UNUSED_PARAM;
-    
-    VALUE objectid;
-    
-    rb_get_args(argc, argv, "o", &objectid RB_ARG_END);
-    
-    if (rgssVer == 1) {
-        disposableForgetChild(self, objectid);
-    }
-    
-    return Qnil;
 }
 
 DEF_GFX_PROP_OBJ_VAL(Viewport, Rect, Rect, "rect")
@@ -111,7 +92,6 @@ void viewportBindingInit() {
     sceneElementBindingInit<Viewport>(klass);
     
     _rb_define_method(klass, "initialize", viewportInitialize);
-    _rb_define_method(klass, "_sprite_finalizer", viewportSpriteFinalize);
     
     INIT_PROP_BIND(Viewport, Rect, "rect");
     INIT_PROP_BIND(Viewport, OX, "ox");
