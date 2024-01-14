@@ -113,6 +113,10 @@ struct SharedFontStatePrivate
     /* Internal default font family that is used anytime an
      * empty/invalid family is requested */
     std::string defaultFamily;
+
+	int fontSizeMethod;
+	float fontScale;
+	bool fontKerning;
 };
 
 SharedFontState::SharedFontState(const Config &conf)
@@ -133,6 +137,24 @@ SharedFontState::SharedFontState(const Config &conf)
 
 		p->subs.insert(from, to);
 	}
+	
+	p->fontSizeMethod = conf.fontSizeMethod;
+	if (!p->fontSizeMethod)
+	{
+		if (rgssVer == 1)
+			p->fontSizeMethod = 1;
+		else
+			p->fontSizeMethod = 2;
+	}
+	p->fontScale = conf.fontScale;
+	if (p->fontScale < 0.1f)
+	{
+		if (p->fontSizeMethod == 1)
+			p->fontScale = 0.9f;
+		else
+			p->fontScale = 1.0f;
+	}
+	p->fontKerning = conf.fontKerning;
 }
 
 SharedFontState::~SharedFontState()
@@ -474,42 +496,59 @@ _TTF_Font *SharedFontState::getFont(std::string family,
 		}
 	}
 
-	/* Try to compute the size the same way Windows does. */
-	font = TTF_OpenFontRW(ops, 1, 0);
-
-	if (!font)
-		throw Exception(Exception::SDLError, "%s", SDL_GetError());
-
-	/* Dirty hack to get the FT_Face.
-	 * SDL_ttf will probably never move it from the beginning of the struct. */
-	FT_Face face= *(reinterpret_cast<FT_Face *>( font ));
-	/* This is should always be true, but we may as well check... */
-	if (FT_IS_SCALABLE( face ))
+	// Pokemon Essentials games were made with the old font size method in mind,
+	// so we default to it for all XP games.
+	if(p->fontSizeMethod == 1)
 	{
-		Font_Container c = { 0 };
-		c.font = font;
-		c.ppem = load_VDMX(&c, size);
-		if (!c.ppem)
-		{
-			c.ppem = calc_ppem_for_height( &c, size );
-		}
-		if (TTF_SetFontSize(font, c.ppem))
-		{
-			TTF_CloseFont(font);
+		font = TTF_OpenFontRW(ops, 1, std::max<int>(size * p->fontScale, 5));
+
+		if (!font)
 			throw Exception(Exception::SDLError, "%s", SDL_GetError());
-		}
-	} else {
-		/* Someone must have renamed a non-scalable font file to ttf or otf.
-		 * Wine has a scaling setup for these, but I'll just leave it alone for now. */
-		if (TTF_SetFontSize(font, size))
-		{
-			TTF_CloseFont(font);
-			throw Exception(Exception::SDLError, "%s", SDL_GetError());
-		}
 	}
-	/* RGSS doesn't use font hinting */
-	TTF_SetFontHinting(font, TTF_HINTING_NONE);
-	
+	else
+	{
+		/* Try to compute the size the same way Windows does. */
+		font = TTF_OpenFontRW(ops, 1, 0);
+
+		if (!font)
+			throw Exception(Exception::SDLError, "%s", SDL_GetError());
+
+		/* Dirty hack to get the FT_Face.
+		 * SDL_ttf will probably never move it from the beginning of the struct. */
+		FT_Face face= *(reinterpret_cast<FT_Face *>( font ));
+		/* This is should always be true, but we may as well check... */
+		if (FT_IS_SCALABLE( face ))
+		{
+			Font_Container c = { 0 };
+			c.font = font;
+			c.ppem = load_VDMX(&c, size);
+			if (!c.ppem)
+			{
+				c.ppem = calc_ppem_for_height( &c, size );
+			}
+			c.ppem = std::max<int>(c.ppem * p->fontScale, 1);
+			if (TTF_SetFontSize(font, c.ppem))
+			{
+				TTF_CloseFont(font);
+				throw Exception(Exception::SDLError, "%s", SDL_GetError());
+			}
+		} else {
+			/* Someone must have renamed a non-scalable font file to ttf or otf.
+			 * Wine has a scaling setup for these, but I'll just fall back to
+			 * the old mkxp method for now. */
+			if (TTF_setFontSize(font, std::max<int>(size * p->fontScale, 5)))
+			{
+				TTF_CloseFont(font);
+				throw Exception(Exception::SDLError, "%s", SDL_GetError());
+			}
+		}
+		/* RGSS doesn't use font hinting */
+		TTF_SetFontHinting(font, TTF_HINTING_NONE);
+	}
+
+	if (!p->fontKerning)
+		TTF_SetFontKerning(font, 0);
+
 	p->pool.insert(key, font);
 
 	return font;
