@@ -52,6 +52,10 @@
 #include <math.h>
 #include <string.h>
 
+#ifndef M_PI
+# define M_PI 3.14159265358979323846
+#endif
+
 class Transform
 {
 public:
@@ -68,6 +72,7 @@ public:
 
 	Vec2 &getPosition() { return position; }
 	Vec2 &getOrigin()   { return origin;   }
+	Vec2 &getSrcRectOrigin()   { return srcRectOrigin;   }
 	Vec2 &getScale()    { return scale;    }
 	float getRotation() { return rotation; }
 
@@ -76,9 +81,9 @@ public:
 		return Vec2i(position.x, position.y);
 	}
 
-	Vec2i getOriginI() const
+	Vec2i getAdjustedOriginI() const
 	{
-		return Vec2i(origin.x, origin.y);
+		return Vec2i(adjustedOrigin.x, adjustedOrigin.y);
 	}
 
 	void setPosition(const Vec2 &value)
@@ -90,6 +95,16 @@ public:
 	void setOrigin(const Vec2 &value)
 	{
 		origin = value;
+		adjustedOrigin.x = origin.x + srcRectOrigin.x;
+		adjustedOrigin.y = origin.y + srcRectOrigin.y;
+		dirty = true;
+	}
+
+	void setSrcRectOrigin(const Vec2 &value)
+	{
+		srcRectOrigin = value;
+		adjustedOrigin.x = origin.x + srcRectOrigin.x;
+		adjustedOrigin.y = origin.y + srcRectOrigin.y;
 		dirty = true;
 	}
 
@@ -139,8 +154,8 @@ private:
 		float syc    = scale.y * cosine;
 		float sxs    = scale.x * sine;
 		float sys    = scale.y * sine;
-		float tx     = -origin.x * sxc - origin.y * sys + position.x + offset.x;
-		float ty     =  origin.x * sxs - origin.y * syc + position.y + offset.y;
+		float tx     = -adjustedOrigin.x * sxc - adjustedOrigin.y * sys + position.x + offset.x;
+		float ty     =  adjustedOrigin.x * sxs - adjustedOrigin.y * syc + position.y + offset.y;
 
 		matrix[0]  =  sxc;
 		matrix[1]  = -sxs;
@@ -152,6 +167,8 @@ private:
 
 	Vec2 position;
 	Vec2 origin;
+	Vec2 srcRectOrigin;
+	Vec2 adjustedOrigin;
 	Vec2 scale;
 	float rotation;
 
@@ -162,5 +179,49 @@ private:
 
 	bool dirty;
 };
+
+// Rotates a point around an origin point, counter-clockwise
+// https://stackoverflow.com/a/2259502
+static Vec2 rotate_point(const Vec2 &origin, const float &angle, Vec2 point)
+{
+    float s = sin(angle);
+    float c = cos(angle);
+    // translate point back to origin:
+    point.x -= origin.x;
+    point.y -= origin.y;
+    // rotate point
+    float xnew = point.x * c - point.y * s;
+    float ynew = point.x * s + point.y * c;
+    // translate point back:
+    point.x = xnew + origin.x;
+    point.y = ynew + origin.y;
+    return point;
+}
+
+// Returns the rect that contains the source rect after rotating it around a point
+static FloatRect rotate_rect(const Vec2i &origin, float rotation, const IntRect &sourceRect)
+{
+	// We use a "left-handed" coordinate system, with positive y values being below the x-axis,
+	// so we need to use the negative of the angle to get the proper y values.
+	float angle  = -rotation * M_PI / 180.0f;
+	
+	Vec2i pos = sourceRect.pos();
+	Vec2i size = sourceRect.size();
+	Vec2 p1 = rotate_point(origin, angle, pos);
+	Vec2 p2 = rotate_point(origin, angle, Vec2i(pos.x + size.x, pos.y));
+	Vec2 p3 = rotate_point(origin, angle, Vec2i(pos.x, pos.y + size.y));
+	Vec2 p4 = rotate_point(origin, angle, pos + size);
+	
+	FloatRect result;
+	
+	float x = std::min(std::min(p1.x, p2.x), std::min(p3.x, p4.x));
+	float y = std::min(std::min(p1.y, p2.y), std::min(p3.y, p4.y));
+	result.x = x;
+	result.y = y;
+	result.w = ceil(std::max(std::max(p1.x, p2.x), std::max(p3.x, p4.x))) - floor(x);
+	result.h = ceil(std::max(std::max(p1.y, p2.y), std::max(p3.y, p4.y))) - floor(y);
+	
+	return result;
+}
 
 #endif // TRANSFORM_H

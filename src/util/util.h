@@ -30,13 +30,16 @@
 static inline int
 wrapRange(int value, int min, int max)
 {
-	if (value >= min && value <= max)
+	if (value >= min && value < max)
 		return value;
 
-	while (value < min)
-		value += (max - min);
+	value -= min;
+	max -= min;
 
-	return value % (max - min);
+	while (value < 0)
+		value += max;
+
+	return (value % max) + min;
 }
 
 template<typename T>

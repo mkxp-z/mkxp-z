@@ -331,6 +331,8 @@ struct TilemapPrivate
 	/* Dispose watches */
 	sigslot::connection autotilesDispCon[autotileCount];
 
+	sigslot::connection tilesetDispCon;
+
 	/* Draw prepare call */
 	sigslot::connection prepareCon;
 
@@ -403,6 +405,7 @@ struct TilemapPrivate
 
 		/* Disconnect signal handlers */
 		tilesetCon.disconnect();
+		tilesetDispCon.disconnect();
 		for (int i = 0; i < autotileCount; ++i)
 		{
 			autotilesCon[i].disconnect();
@@ -488,6 +491,20 @@ struct TilemapPrivate
 	void invalidateAtlasContents()
 	{
 		atlasDirty = true;
+	}
+
+	void atlasContentsDisposal(int i)
+	{
+		// Guard against deleted bitmaps
+		autotiles[i] = 0;
+		
+		invalidateAtlasContents();
+	}
+
+	void tilesetDisposal()
+	{
+		tileset = 0;
+		tilesetDispCon.disconnect();
 	}
 
 	void invalidateBuffers()
@@ -1189,12 +1206,18 @@ void Tilemap::Autotiles::set(int i, Bitmap *bitmap)
 	p->invalidateAtlasContents();
 
 	p->autotilesCon[i].disconnect();
+	p->autotilesDispCon[i].disconnect();
+
+	if (nullOrDisposed(bitmap))
+	{
+		p->autotiles[i] = 0;
+		return;
+	}
+
 	p->autotilesCon[i] = bitmap->modified.connect
 	        (&TilemapPrivate::invalidateAtlasContents, p);
 
-	p->autotilesDispCon[i].disconnect();
-	p->autotilesDispCon[i] = bitmap->wasDisposed.connect
-	        (&TilemapPrivate::invalidateAtlasContents, p);
+	p->autotilesDispCon[i] = bitmap->wasDisposed.connect( [i, this] { p->atlasContentsDisposal(i); } );
 
 	p->updateAutotileInfo();
 }
@@ -1269,13 +1292,22 @@ void Tilemap::setTileset(Bitmap *value)
 
 	p->tileset = value;
 
-	if (!value)
+	p->tilesetDispCon.disconnect();
+	p->tilesetCon.disconnect();
+
+	if (nullOrDisposed(value))
+	{
+		p->tileset = 0;
 		return;
+	}
 
 	p->invalidateAtlasSize();
-	p->tilesetCon.disconnect();
+
 	p->tilesetCon = value->modified.connect
 	        (&TilemapPrivate::invalidateAtlasSize, p);
+
+	p->tilesetDispCon = value->wasDisposed.connect
+	        (&TilemapPrivate::tilesetDisposal, p);
 
 	p->updateAtlasInfo();
 }

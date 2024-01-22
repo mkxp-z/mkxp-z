@@ -190,7 +190,7 @@ public:
 	void setTone(const Vec4 &value);
 	void setColor(const Vec4 &value);
 	void setOpacity(float value);
-	void setBushDepth(float value);
+	void setBushDepth(bool bushY, bool bushUnder, float bushSlope, float bushIntercept);
 	void setBushOpacity(float value);
     void setPattern(const TEX::ID pattern, const Vec2 &dimensions);
     void setPatternBlendType(int blendType);
@@ -202,7 +202,8 @@ public:
     void setInvert(bool value);
 
 private:
-	GLint u_spriteMat, u_tone, u_opacity, u_color, u_bushDepth, u_bushOpacity, u_pattern, u_renderPattern,
+	GLint u_spriteMat, u_tone, u_opacity, u_color,
+    u_bushY, u_bushUnder, u_bushSlope, u_bushIntercept, u_bushOpacity, u_pattern, u_renderPattern,
     u_patternBlendType, u_patternSizeInv, u_patternTile, u_patternOpacity, u_patternScroll, u_patternZoom, u_invert;
 };
 

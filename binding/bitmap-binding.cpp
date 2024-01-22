@@ -51,10 +51,12 @@ void bitmapInitProps(Bitmap *b, VALUE self) {
     rb_iv_set(self, "font", fontObj);
 
     // Leave property as default nil if hasHires() is false.
-    if (b->hasHires()) {
-        b->assumeRubyGC();
-        wrapProperty(self, b->getHires(), "hires", BitmapType);
-    }
+    GFX_GUARD_EXC(
+        if (b->hasHires()) {
+            b->assumeRubyGC();
+            wrapProperty(self, b->getHires(), "hires", BitmapType);
+        }
+    );
 }
 
 RB_METHOD(bitmapInitialize) {
@@ -375,9 +377,7 @@ RB_METHOD(bitmapBlur) {
     
     Bitmap *b = getPrivateData<Bitmap>(self);
     
-    GFX_LOCK;
-    b->blur();
-    GFX_UNLOCK;
+    GFX_GUARD_EXC(b->blur(););
     
     return Qnil;
 }
@@ -388,9 +388,7 @@ RB_METHOD(bitmapRadialBlur) {
     int angle, divisions;
     rb_get_args(argc, argv, "ii", &angle, &divisions RB_ARG_END);
     
-    GFX_LOCK;
-    b->radialBlur(angle, divisions);
-    GFX_UNLOCK;
+    GFX_GUARD_EXC(b->radialBlur(angle, divisions););
     
     return Qnil;
 }
@@ -470,7 +468,11 @@ RB_METHOD(bitmapGetPlaying){
     
     Bitmap *b = getPrivateData<Bitmap>(self);
     
-    return rb_bool_new(b->isPlaying());
+    VALUE ret;
+    
+    GFX_GUARD_EXC(ret = rb_bool_new(b->isPlaying()););
+    
+    return ret;
 }
 
 RB_METHOD(bitmapSetPlaying){
@@ -544,7 +546,11 @@ RB_METHOD(bitmapFrames){
     
     Bitmap *b = getPrivateData<Bitmap>(self);
     
-    return INT2NUM(b->numFrames());
+    int ret;
+    
+    GFX_GUARD_EXC(ret = b->numFrames(););
+    
+    return INT2NUM(ret);
 }
 
 RB_METHOD(bitmapCurrentFrame){
@@ -554,7 +560,11 @@ RB_METHOD(bitmapCurrentFrame){
     
     Bitmap *b = getPrivateData<Bitmap>(self);
     
-    return INT2NUM(b->currentFrameI());
+    int ret;
+    
+    GFX_GUARD_EXC(ret = b->currentFrameI(););
+    
+    return INT2NUM(ret);
 }
 
 RB_METHOD(bitmapAddFrame){
@@ -611,7 +621,11 @@ RB_METHOD(bitmapNextFrame){
     
     GFX_GUARD_EXC(b->nextFrame(););
     
-    return INT2NUM(b->currentFrameI());
+    int ret;
+    
+    GFX_GUARD_EXC(ret = b->currentFrameI(););
+    
+    return INT2NUM(ret);
 }
 
 RB_METHOD(bitmapPreviousFrame){
@@ -623,7 +637,11 @@ RB_METHOD(bitmapPreviousFrame){
     
     GFX_GUARD_EXC(b->previousFrame(););
     
-    return INT2NUM(b->currentFrameI());
+    int ret;
+    
+    GFX_GUARD_EXC(ret = b->currentFrameI(););
+    
+    return INT2NUM(ret);
 }
 
 RB_METHOD(bitmapSetFPS){
