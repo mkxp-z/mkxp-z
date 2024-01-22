@@ -187,6 +187,7 @@ jobs:
             build/mkxp-z-x86_64.AppImage
 
   build-linux-cross:
+    if: "false"
     name: Ubuntu 22.04 ${{matrix.arch_mkxpz}}
     runs-on: ubuntu-22.04
     continue-on-error: ${{ matrix.experimental }}
