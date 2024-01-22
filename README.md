@@ -23,7 +23,7 @@ This is a fork of mkxp intended to be a little more than just a barebones recrea
 
 Despite the fact that it was made with Essentials games in mind, there is nothing connected to it contained in this repository, and it should still be compatible with anything that runs in the upstream version of MKXP. You can think of it as MKXP but a bit supercharged --  it should be able to run all but the most demanding of RGSS projects, given a bit of porting work.
 
-It supports Windows, Linux and both Intel and Apple Silicon versions of macOS.
+It supports Windows, Linux (x86, ARM, and POWER), and both Intel and Apple Silicon versions of macOS.
 
 mkxp-z is licensed under the GNU General Public License v2+. However, if you build mkxp-z with the `enable-https` option turned on (which is the default), you will also need to comply with OpenSSL's Apache v2 license, which in practice means that the resulting binaries are licensed under GPLv3.
 

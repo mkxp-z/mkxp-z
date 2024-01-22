@@ -927,30 +927,94 @@ IntRect Bitmap::rect() const
 }
 
 void Bitmap::blt(int x, int y,
-                 const Bitmap &source, IntRect rect,
+                 const Bitmap &source, const IntRect &rect,
                  int opacity)
 {
     if (source.isDisposed())
         return;
     
-    // FIXME: RGSS allows the source rect to both lie outside
-    // the bitmap rect and be inverted in both directions;
-    // clamping only covers a subset of these cases (and
-    // doesn't fix anything for a direct stretch_blt call).
-    
-    /* Clamp rect to source bitmap size */
-    if (rect.x + rect.w > source.width())
-        rect.w = source.width() - rect.x;
-    
-    if (rect.y + rect.h > source.height())
-        rect.h = source.height() - rect.y;
-    
     stretchBlt(IntRect(x, y, rect.w, rect.h),
                source, rect, opacity);
 }
 
-void Bitmap::stretchBlt(const IntRect &destRect,
-                        const Bitmap &source, const IntRect &sourceRect,
+static bool shrinkRects(float &sourcePos, float &sourceLen, const int &sBitmapLen,
+                         float &destPos, float &destLen, const int &dBitmapLen, bool normalize = false)
+{
+    float sStart = sourceLen > 0 ? sourcePos : sourceLen + sourcePos;
+    float sEnd = sourceLen > 0 ? sourceLen + sourcePos : sourcePos;
+    float sLength = sEnd - sStart;
+    
+    if (sStart >= 0 && sEnd < sBitmapLen)
+        return false;
+    
+    if (sStart >= sBitmapLen || sEnd < 0)
+        return true;
+    
+    float dStart = destLen > 0 ? destPos: destLen + destPos;
+    float dEnd = destLen > 0 ? destLen + destPos : destPos;
+    float dLength = dEnd - dStart;
+    
+    float delta = sEnd - sBitmapLen;
+    float dDelta;
+    if (delta > 0)
+    {
+        dDelta = (delta / sLength) * dLength;
+        sLength -= delta;
+        sEnd = sBitmapLen;
+        dEnd -= dDelta;
+        dLength -= dDelta;
+    }
+    if (sStart < 0)
+    {
+        dDelta = (sStart / sLength) * dLength;
+        sLength += sStart;
+        sStart = 0;
+        dStart -= dDelta;
+        dLength += dDelta;
+    }
+    
+    if (!normalize)
+    {
+        sourcePos = sourceLen > 0 ? sStart : sEnd;
+        sourceLen = sourceLen > 0 ? sLength : -sLength;
+        destPos = destLen > 0  ? dStart : dEnd;
+        destLen = destLen > 0 ? dLength : -dLength;
+    }
+    else
+    {
+        // Ensure the source rect has positive dimensions, for blitting from mega surfaces
+        destPos = (destLen > 0 == sourceLen > 0) ? dStart : dEnd;
+        destLen = (destLen > 0 == sourceLen > 0) ? dLength : -dLength;
+        sourcePos = sStart;
+        sourceLen = sLength;
+    }
+    
+    return false;
+}
+
+static bool shrinkRects(int &sourcePos, int &sourceLen, const int &sBitmapLen,
+                         int &destPos, int &destLen, const int &dBitmapLen)
+{
+    float fSourcePos = sourcePos;
+    float fSourceLen = sourceLen;
+    float fDestPos = destPos;
+    float fDestLen = destLen;
+    
+    bool ret = shrinkRects(fSourcePos, fSourceLen, sBitmapLen, fDestPos, fDestLen, dBitmapLen, true);
+    
+    if (!ret)
+        ret = shrinkRects(fDestPos, fDestLen, dBitmapLen, fSourcePos, fSourceLen, sBitmapLen);
+    
+    sourcePos = round(fSourcePos);
+    sourceLen = round(fSourceLen);
+    destPos = round(fDestPos);
+    destLen = round(fDestLen);
+    
+    return ret || sourceLen == 0 || destLen == 0;
+}
+
+void Bitmap::stretchBlt(IntRect destRect,
+                        const Bitmap &source, IntRect sourceRect,
                         int opacity)
 {
     guardDisposed();
@@ -986,6 +1050,11 @@ void Bitmap::stretchBlt(const IntRect &destRect,
     opacity = clamp(opacity, 0, 255);
     
     if (opacity == 0)
+        return;
+    
+    if(shrinkRects(sourceRect.x, sourceRect.w, source.width(), destRect.x, destRect.w, width()))
+        return;
+    if(shrinkRects(sourceRect.y, sourceRect.h, source.height(), destRect.y, destRect.h, height()))
         return;
     
     SDL_Surface *srcSurf = source.megaSurface();

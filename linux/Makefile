@@ -1,10 +1,13 @@
-ARCH := $(shell uname -m)
+ARCH ?= $(shell uname -m)
+ARCH_OPENSSL ?= $(ARCH)
+ARCH_CFLAGS ?=
+ARCH_CONFIGURE ?= $(shell gcc -dumpmachine)
 
 SDL_FLAGS := ${SDL_FLAGS}
 SDL2_IMAGE_FLAGS := ${SDL2_IMAGE_FLAGS}
 SDL2_TTF_FLAGS := ${SDL2_TTF_FLAGS}
 OPENAL_FLAGS := -DALSOFT_CPUEXT_NEON=no ${OPENAL_FLAGS}
-OPENSSL_FLAGS := linux-$(ARCH) ${OPENSSL_FLAGS}
+OPENSSL_FLAGS := linux-$(ARCH_OPENSSL) ${OPENSSL_FLAGS}
 RUBY_FLAGS := ${RUBY_FLAGS}
 
 BUILD_PREFIX := ${PWD}/build-$(ARCH)
@@ -12,9 +15,9 @@ LIBDIR := $(BUILD_PREFIX)/lib
 INCLUDEDIR := $(BUILD_PREFIX)/include
 DOWNLOADS := ${PWD}/downloads/$(ARCH)
 NPROC := $(shell nproc)
-CFLAGS := -I$(INCLUDEDIR) -flax-vector-conversions -O3
+CFLAGS := -I$(INCLUDEDIR) -flax-vector-conversions -O3 $(ARCH_CFLAGS)
 LDFLAGS := -L$(LIBDIR)
-CC      := gcc
+CC      ?= gcc
 PKG_CONFIG_LIBDIR := $(BUILD_PREFIX)/lib/pkgconfig
 GIT := git
 CLONE := $(GIT) clone -q
@@ -24,14 +27,19 @@ CONFIGURE_ENV := \
 	PKG_CONFIG_LIBDIR=$(PKG_CONFIG_LIBDIR) \
 	CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)"
 
-CONFIGURE_ARGS := --prefix="$(BUILD_PREFIX)"
+CONFIGURE_ARGS := --prefix="$(BUILD_PREFIX)" --host="$(ARCH_CONFIGURE)"
 
+ifdef ARCH_CMAKE_TOOLCHAIN
+	ARCH_CMAKE_ARGS := -DCMAKE_TOOLCHAIN_FILE="${PWD}/$(ARCH_CMAKE_TOOLCHAIN)"
+endif
 CMAKE_ARGS := \
 	-DCMAKE_INSTALL_PREFIX="$(BUILD_PREFIX)" \
 	-DCMAKE_PREFIX_PATH="$(BUILD_PREFIX)" \
 	-DCMAKE_C_FLAGS="$(CFLAGS)" \
-	-DCMAKE_BUILD_TYPE=Release
+	-DCMAKE_BUILD_TYPE=Release \
+	$(ARCH_CMAKE_ARGS)
 
+# TODO: Check if we can disable rubygems, remove prefixes.
 RUBY_CONFIGURE_ARGS := \
 	--enable-install-static-library \
 	--enable-shared \
@@ -316,7 +324,7 @@ ruby: init_dirs openssl $(LIBDIR)/libruby.so.3.1
 
 $(LIBDIR)/libruby.so.3.1: $(DOWNLOADS)/ruby/Makefile
 	cd $(DOWNLOADS)/ruby; \
-	make -j$(NPROC); make install
+	make -j$(NPROC); make install DESTDIR="$(BUILD_PREFIX)"
 
 $(DOWNLOADS)/ruby/Makefile: $(DOWNLOADS)/ruby/configure
 	cd $(DOWNLOADS)/ruby; \

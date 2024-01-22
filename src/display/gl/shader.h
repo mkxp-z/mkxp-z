@@ -352,6 +352,19 @@ protected:
 	GLint u_bc;
 };
 
+#ifdef MKXPZ_SSL
+class XbrzShader : public Lanczos3Shader
+{
+public:
+	XbrzShader();
+
+	void setTargetScale(const Vec2 &value);
+
+protected:
+	GLint u_targetScale;
+};
+#endif
+
 /* Global object containing all available shaders */
 struct ShaderSet
 {
@@ -375,6 +388,9 @@ struct ShaderSet
 	TilemapVXShader tilemapVX;
 	BicubicShader bicubic;
 	Lanczos3Shader lanczos3;
+#ifdef MKXPZ_SSL
+	XbrzShader xbrz;
+#endif
 };
 
 #endif // SHADER_H

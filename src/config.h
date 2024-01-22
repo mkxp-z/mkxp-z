@@ -45,6 +45,9 @@ struct Config {
     bool fixedAspectRatio;
     int smoothScaling;
     int bicubicSharpness;
+#ifdef MKXPZ_SSL
+    double xbrzScalingFactor;
+#endif
     bool enableHires;
     double textureScalingFactor;
     double framebufferScalingFactor;

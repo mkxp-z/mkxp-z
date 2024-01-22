@@ -105,8 +105,8 @@ jobs:
             build/artifact/gems/
 
 
-  build-linux:
-    name: Ubuntu 22.04
+  build-linux-native:
+    name: Ubuntu 22.04 x86_64
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout repository
@@ -126,7 +126,7 @@ jobs:
           path: |
             linux/build-x86_64
             linux/downloads
-          key: lin-${{ hashFiles('linux/Makefile') }}
+          key: lin-x86_64-${{ hashFiles('linux/Makefile') }}
 
       - name: Install apt dependencies
         run: |
@@ -186,6 +186,110 @@ jobs:
             build/local/**
             build/mkxp-z-x86_64.AppImage
 
+  build-linux-cross:
+    name: Ubuntu 22.04 ${{matrix.arch_mkxpz}}
+    runs-on: ubuntu-22.04
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_mkxpz: armv6
+            arch_debian: armhf
+            arch_gcc: arm-linux-gnueabihf
+            # GCC doesn't like the -mcpu flags, TODO investigate.
+            experimental: true
+          - arch_mkxpz: armv7
+            arch_debian: armhf
+            arch_gcc: arm-linux-gnueabihf
+            # GCC doesn't like the -mcpu flags, TODO investigate.
+            experimental: true
+          - arch_mkxpz: armv7-neon
+            arch_debian: armhf
+            arch_gcc: arm-linux-gnueabihf
+            experimental: false
+          - arch_mkxpz: arm64
+            arch_debian: arm64
+            arch_gcc: aarch64-linux-gnu
+            experimental: false
+          - arch_mkxpz: power8le
+            arch_debian: ppc64el
+            arch_gcc: powerpc64le-linux-gnu
+            experimental: false
+          - arch_mkxpz: power9le
+            arch_debian: ppc64el
+            arch_gcc: powerpc64le-linux-gnu
+            experimental: false
+          - arch_mkxpz: riscv64
+            arch_debian: riscv64
+            arch_gcc: riscv64-linux-gnu
+            # libjxl/highway compatibility issue, TODO check if fixed in later SDL_image.
+            # Also probably an OpenSSL arch name issue.
+            experimental: true
+    steps:
+      - uses: benjlevesque/short-sha@v2.2
+        id: short-sha
+        with:
+          length: 7
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - uses: actions/cache@v3
+        with:
+          path: |
+            linux/build-${{matrix.arch_mkxpz}}
+            linux/downloads
+          key: lin-${{matrix.arch_mkxpz}}-${{ hashFiles('linux/Makefile', 'linux/target*', 'linux/toolchain*') }}
+
+      - name: Install apt dependencies
+        run: |
+          sudo sed -i "s/deb /deb [arch=amd64] /g" /etc/apt/sources.list
+          sudo dpkg --add-architecture ${{matrix.arch_debian}}
+          echo "deb [arch=${{matrix.arch_debian}}] http://ports.ubuntu.com/ jammy main restricted" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=${{matrix.arch_debian}}] http://ports.ubuntu.com/ jammy-updates main restricted" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=${{matrix.arch_debian}}] http://ports.ubuntu.com/ jammy universe" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=${{matrix.arch_debian}}] http://ports.ubuntu.com/ jammy-updates universe" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=${{matrix.arch_debian}}] http://ports.ubuntu.com/ jammy multiverse" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=${{matrix.arch_debian}}] http://ports.ubuntu.com/ jammy-updates multiverse" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=${{matrix.arch_debian}}] http://ports.ubuntu.com/ jammy-backports main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          sudo apt update
+          sudo apt install git build-essential cmake meson autoconf automake libtool pkg-config ruby bison -y
+          sudo apt install libdmx-dev:${{matrix.arch_debian}} libfontenc-dev:${{matrix.arch_debian}} libfs-dev:${{matrix.arch_debian}} libice-dev:${{matrix.arch_debian}} libsm-dev:${{matrix.arch_debian}} libx11-dev:${{matrix.arch_debian}} libxau-dev:${{matrix.arch_debian}} libxaw7-dev:${{matrix.arch_debian}} libxcomposite-dev:${{matrix.arch_debian}} libxcursor-dev:${{matrix.arch_debian}} libxdamage-dev:${{matrix.arch_debian}} libxdmcp-dev:${{matrix.arch_debian}} libxext-dev:${{matrix.arch_debian}} libxfixes-dev:${{matrix.arch_debian}} libxfont-dev:${{matrix.arch_debian}} libxft-dev:${{matrix.arch_debian}} libxi-dev:${{matrix.arch_debian}} libxinerama-dev:${{matrix.arch_debian}} libxkbfile-dev:${{matrix.arch_debian}} libxmu-dev:${{matrix.arch_debian}} libxmuu-dev:${{matrix.arch_debian}} libxpm-dev:${{matrix.arch_debian}} libxrandr-dev:${{matrix.arch_debian}} libxrender-dev:${{matrix.arch_debian}} libxres-dev:${{matrix.arch_debian}} libxss-dev:${{matrix.arch_debian}} libxt-dev:${{matrix.arch_debian}} libxtst-dev:${{matrix.arch_debian}} libxv-dev:${{matrix.arch_debian}} libxvmc-dev:${{matrix.arch_debian}} libxxf86dga-dev:${{matrix.arch_debian}} libxxf86vm-dev:${{matrix.arch_debian}} x11proto-dev:${{matrix.arch_debian}} xserver-xorg-dev:${{matrix.arch_debian}} xtrans-dev:${{matrix.arch_debian}} -y
+          sudo apt install gcc-${{matrix.arch_gcc}} g++-${{matrix.arch_gcc}} zlib1g-dev:${{matrix.arch_debian}} libbz2-dev:${{matrix.arch_debian}} libgl1-mesa-dev:${{matrix.arch_debian}} libasound2-dev:${{matrix.arch_debian}} libpulse-dev:${{matrix.arch_debian}} -y
+
+      - name: Build everything else
+        run: |
+          cd linux
+          source target-${{matrix.arch_mkxpz}}.sh
+          make
+
+      - name: Build executable
+        run: |
+          source linux/target-${{matrix.arch_mkxpz}}.sh
+          source linux/vars.sh
+          meson setup --cross-file linux/$ARCH_MESON_TOOLCHAIN build --bindir=. --prefix=$GITHUB_WORKSPACE/build/local
+          cd build
+          ninja
+          ninja install
+          cp "$MKXPZ_PREFIX/lib/$("$ARCH_CONFIGURE-objdump" -p local/mkxp-z* | grep -i NEEDED | grep -Eo 'libruby.so.[0-9\.]+')" local/lib*/
+          cp "/usr/lib/$ARCH_CONFIGURE/$("$ARCH_CONFIGURE-objdump" -p local/lib*/libruby.so* | grep -i NEEDED | grep -Eo 'libcrypt.so.[0-9\.]+')" local/lib*/
+
+      - name: Prepare archive
+        run: |
+          cd build/local
+          cp -r ../../linux/build-${{matrix.arch_mkxpz}}/lib/ruby/3.1.0 .
+          mv ./3.1.0 ./stdlib
+          cp ../../mkxp.json .
+          cp -r ../../scripts .
+          cp ../../assets/LICENSE.mkxp-z-with-https.txt .
+          cd ..
+          zip -r local.zip local
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: mkxp-z.linux.${{matrix.arch_mkxpz}}.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          path: build/local.zip
 
   build-macos:
     name: macOS

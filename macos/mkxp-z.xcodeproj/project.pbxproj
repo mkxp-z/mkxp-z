@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		02054AB6B60F49E3DF366CBD /* libjxl_dec.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 672947DA8FC50921A7ED814A /* libjxl_dec.a */; };
+		21B74169A8853D63648093D5 /* xbrz.frag in CopyFiles */ = {isa = PBXBuildFile; fileRef = 88734C4B8039751FD0A59FA7 /* xbrz.frag */; };
 		319D403193F13F7989325EEA /* bicubic.frag in CopyFiles */ = {isa = PBXBuildFile; fileRef = CBEA4C45BE737EE0FF5A8A4C /* bicubic.frag */; };
 		3389416F9825F408A40824F3 /* libbrotlicommon-static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A8AA4AE49BB66C97EFAE3055 /* libbrotlicommon-static.a */; };
 		3B10EC5C2568D40500372D13 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3BE081562568D3A60006849F /* CoreGraphics.framework */; };
@@ -505,6 +506,7 @@
 		3BF5B4BD2685881D00A3B240 /* libSDL2_sound.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3BF5B4BC2685881C00A3B240 /* libSDL2_sound.a */; };
 		3BF5B4BF2685883B00A3B240 /* libSDL2_sound.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3BF5B4BE2685883B00A3B240 /* libSDL2_sound.a */; };
 		3BF5B4C02685883B00A3B240 /* libSDL2_sound.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3BF5B4BE2685883B00A3B240 /* libSDL2_sound.a */; };
+		3D094509A210271690AF48F7 /* xbrz.frag in CopyFiles */ = {isa = PBXBuildFile; fileRef = 88734C4B8039751FD0A59FA7 /* xbrz.frag */; };
 		3E2542219A9FD2B16781B1F5 /* libbrotlidec-static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C4B4BA780D4407F24279700 /* libbrotlidec-static.a */; };
 		3F7F41D98CEDE6F418AAB0D2 /* bicubic.frag in CopyFiles */ = {isa = PBXBuildFile; fileRef = CBEA4C45BE737EE0FF5A8A4C /* bicubic.frag */; };
 		74E9471FB1A876B0D9F2ABFF /* libbrotlidec-static.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5C254B088D8B18C7E957DE30 /* libbrotlidec-static.a */; };
@@ -766,6 +768,7 @@
 				3B10ECE92568E83D00372D13 /* trans.frag in CopyFiles */,
 				3B10ECEA2568E83D00372D13 /* transSimple.frag in CopyFiles */,
 				3F7F41D98CEDE6F418AAB0D2 /* bicubic.frag in CopyFiles */,
+				3D094509A210271690AF48F7 /* xbrz.frag in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -777,6 +780,7 @@
 			files = (
 				3B10ECF52568E86B00372D13 /* liberation.ttf in CopyFiles */,
 				319D403193F13F7989325EEA /* bicubic.frag in CopyFiles */,
+				21B74169A8853D63648093D5 /* xbrz.frag in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1128,6 +1132,7 @@
 		5C254B088D8B18C7E957DE30 /* libbrotlidec-static.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libbrotlidec-static.a"; path = "Dependencies/build-macosx-x86_64/lib/libbrotlidec-static.a"; sourceTree = "<group>"; };
 		667B4E3FBC5B03611D5C334E /* libhwy.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libhwy.a; path = "Dependencies/build-macosx-universal/lib/libhwy.a"; sourceTree = "<group>"; };
 		672947DA8FC50921A7ED814A /* libjxl_dec.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libjxl_dec.a; path = "Dependencies/build-macosx-universal/lib/libjxl_dec.a"; sourceTree = "<group>"; };
+		88734C4B8039751FD0A59FA7 /* xbrz.frag */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.glsl; name = xbrz.frag; path = ../shader/xbrz.frag; sourceTree = "<group>"; };
 		96563581279A5ABD003D6A75 /* libtheora.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libtheora.a; path = "Dependencies/build-macosx-x86_64/lib/libtheora.a"; sourceTree = "<group>"; };
 		96563584279A5ADA003D6A75 /* libtheora.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libtheora.a; path = "Dependencies/build-macosx-universal/lib/libtheora.a"; sourceTree = "<group>"; };
 		9656358E279A5B74003D6A75 /* theoraplay_cvtrgb.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = theoraplay_cvtrgb.h; sourceTree = "<group>"; };
@@ -1392,6 +1397,7 @@
 				3B10ECA02568E7B600372D13 /* tilemap.vert */,
 				3B10EC962568E7B500372D13 /* tilemapvx.vert */,
 				CBEA4C45BE737EE0FF5A8A4C /* bicubic.frag */,
+				88734C4B8039751FD0A59FA7 /* xbrz.frag */,
 			);
 			name = Shaders;
 			sourceTree = "<group>";

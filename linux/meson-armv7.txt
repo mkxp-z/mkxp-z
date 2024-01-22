@@ -1,0 +1,13 @@
+[binaries]
+c = 'arm-linux-gnueabihf-gcc'
+cpp = 'arm-linux-gnueabihf-g++'
+ar = 'arm-linux-gnueabihf-ar'
+strip = 'arm-linux-gnueabihf-strip'
+pkgconfig = 'pkg-config'
+cmake = 'cmake'
+
+[host_machine]
+system = 'linux'
+cpu_family = 'arm'
+cpu = 'generic-armv7-a+fp'
+endian = 'little'
