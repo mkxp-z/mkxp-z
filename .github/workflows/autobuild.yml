@@ -368,7 +368,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build-windows
-      - build-linux
+      - build-linux-native
       - build-macos
     steps:
       - uses: actions/download-artifact@v4
@@ -378,7 +378,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: build-linux
+          name: build-linux-native
           path: linux
 
       - uses: actions/download-artifact@v4
