@@ -396,6 +396,9 @@ struct CacheEnumData {
 
 static PHYSFS_EnumerateCallbackResult cacheEnumCB(void *d, const char *origdir,
                                                   const char *fname) {
+  if (shState && shState->rtData().rqTerm)
+    throw Exception(Exception::MKXPError, "Game close requested. Aborting path cache enumeration.");
+
   CacheEnumData &data = *static_cast<CacheEnumData *>(d);
   char fullPath[512];
 
