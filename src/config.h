@@ -145,6 +145,7 @@ struct Config {
         bool enabled;
     } yjit;
 
+    int tilemapVersion;
     bool dumpAtlas;
 
     // Keybinding action name mappings

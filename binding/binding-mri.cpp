@@ -160,13 +160,23 @@ static void mriBindingInit() {
     spriteBindingInit();
     viewportBindingInit();
     planeBindingInit();
-    
+
     if (rgssVer == 1) {
         windowBindingInit();
-        tilemapBindingInit();
     } else {
         windowVXBindingInit();
+    }
+
+    if (shState->config().tilemapVersion == 1) {
+        tilemapBindingInit();
+    } else if (shState->config().tilemapVersion == 2) {
         tilemapVXBindingInit();
+    } else {
+        if (rgssVer == 1) {
+            tilemapBindingInit();
+        } else {
+            tilemapVXBindingInit();
+        }
     }
     
     inputBindingInit();

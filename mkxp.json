@@ -522,6 +522,15 @@
     // },
 
 
+    // Use alternate tilemap class independent of RGSS version.
+    // 0: Match RGSS version 
+    // 1: XP
+    // 2: VX/Ace
+    // (default: 0)
+    //
+    // "tilemapVersion": 0
+
+
     // Dump tile atlas (for debugging purposes)
     // (default: false)
     //
