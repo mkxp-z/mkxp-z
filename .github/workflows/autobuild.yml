@@ -94,6 +94,10 @@ jobs:
           cp ../../ruby_discord_sdk/discord.so gems
           cp ../../ruby_discord_sdk/lib/x86_64/discord_game_sdk.dll .
 
+      - name: Disable specifications
+        working-directory: build/artifact/stdlib
+        run: sed -i "s~Gem::Specification\.load_defaults~#Gem::Specification\.load_defaults~g" rubygems.rb
+
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}
@@ -178,6 +182,10 @@ jobs:
           mkdir gems
           cp ../../ruby_discord_sdk/discord.so gems
           cp ../../ruby_discord_sdk/lib/x86_64/discord_game_sdk.so .
+
+      - name: Disable specifications
+        working-directory: build/local/stdlib
+        run: sed -i "s~Gem::Specification\.load_defaults~#Gem::Specification\.load_defaults~g" rubygems.rb
 
       - uses: actions/upload-artifact@v4
         with:
@@ -351,6 +359,10 @@ jobs:
           mkdir ../build/Build/Products/Release/Z-universal.app/Contents/Game/gems
           cp discord.bundle ../build/Build/Products/Release/Z-universal.app/Contents/Game/gems
           cp libdiscord_game_sdk.dylib ../build/Build/Products/Release/Z-universal.app/Contents/Frameworks/discord_game_sdk.dylib
+
+      - name: Disable specifications
+        working-directory: build/Build/Products/Release/Z-universal.app/Contents/Resources/Ruby/3.1.0
+        run: sed -i '' "s~Gem::Specification\.load_defaults~#Gem::Specification\.load_defaults~g" rubygems.rb
 
       - name: Compress app
         working-directory: build/Build/Products/Release
