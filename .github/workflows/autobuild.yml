@@ -39,7 +39,7 @@ jobs:
           cp icons/${{ steps.game.outputs.game }}.ico windows/icon.ico
           cp icons/${{ steps.game.outputs.game }}.png assets/icon.png
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: |
             windows/build-mingw64
@@ -125,7 +125,7 @@ jobs:
           cp icons/${{ steps.game.outputs.game }}.png linux/mkxp-z.png
           cp icons/${{ steps.game.outputs.game }}.png assets/icon.png
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: |
             linux/build-x86_64
@@ -244,7 +244,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: |
             linux/build-${{matrix.arch_mkxpz}}
@@ -319,7 +319,7 @@ jobs:
           cp icons/${{ steps.game.outputs.game }}.icns macos/icon.icns
           cp icons/${{ steps.game.outputs.game }}.png assets/icon.png
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: |
             macos/Dependencies/build-macosx-x86_64
