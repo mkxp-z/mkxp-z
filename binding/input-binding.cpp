@@ -459,6 +459,12 @@ RB_METHOD(inputSaveBindings) {
     return Qnil;
 }
 
+RB_METHOD(inputResetBindings) {
+    BDescVec binds = genDefaultBindings(shState->config());
+	shState->rtData().bindingUpdateMsg.post(binds);
+    return Qnil;
+}
+
 RB_METHOD(inputClearLast) {
     shState->eThread().clearLastInput();
     return Qnil;
@@ -740,6 +746,7 @@ void inputBindingInit() {
     _rb_define_module_function(module, "bindings", inputGetBindings);
     _rb_define_module_function(module, "apply_bindings", inputApplyBindings);
     _rb_define_module_function(module, "save_bindings", inputSaveBindings);
+    _rb_define_module_function(module, "reset_bindings", inputResetBindings);
     
     if (rgssVer >= 3) {
         VALUE symHash = rb_hash_new();
