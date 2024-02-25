@@ -94,6 +94,31 @@ static int getControllerButtonArg(VALUE *argv) {
     return btn;
 }
 
+static VALUE sourceDescToRubyArray(SourceDesc input) {
+    SourceType inputType = input.type;
+    VALUE inputValue;
+
+    VALUE binding = rb_ary_new();
+    rb_ary_push(binding, rb_int_new(inputType)); // Input binding type (keyboard, gamepad, etc.)
+    switch(inputType) {
+        case Key:
+            inputValue = rb_int_new(input.d.scan);
+            break;
+        case CButton:
+            inputValue = rb_int_new(input.d.cb);
+            break;
+        case CAxis:
+            inputValue = rb_ary_new();
+            rb_ary_push(inputValue, rb_int_new(input.d.ca.axis));
+            rb_ary_push(inputValue, rb_int_new(input.d.ca.dir));
+            break;
+        default:
+            inputValue = Qnil;
+    }
+    rb_ary_push(binding, inputValue); // Input value (scancode, button index, etc.)
+    return binding;
+}
+
 RB_METHOD(inputPress) {
     RB_UNUSED_PARAM;
     
@@ -349,6 +374,101 @@ RB_METHOD(inputControllerPowerLevel) {
     }
     
     return ret;
+}
+
+RB_METHOD(inputGetBindings) {
+    RB_UNUSED_PARAM;
+    
+    rb_check_argc(argc, 1);
+    
+    VALUE button;
+    rb_scan_args(argc, argv, "1", &button);
+    // Convert Input symbol to the enum used by buttonCodeHash
+    int num = getButtonArg(&button);
+    
+    VALUE bindings = rb_ary_new();
+
+    BDescVec binds;
+	shState->rtData().bindingUpdateMsg.get(binds);
+
+    for (size_t i = 0; i < binds.size(); ++i)
+    {
+        if(binds[i].target != num) continue;
+
+        VALUE binding = sourceDescToRubyArray(binds[i].src);
+        rb_ary_push(bindings, binding);
+    }
+
+    return bindings;
+}
+
+RB_METHOD(inputApplyBindings) {
+    RB_UNUSED_PARAM;
+
+    rb_check_argc(argc, 2);
+
+    VALUE button, inputArray;
+    rb_scan_args(argc, argv, "11", &button, &inputArray);
+
+    // Convert Input symbol to the enum used by buttonCodeHash
+    Input::ButtonCode num = (Input::ButtonCode) getButtonArg(&button);
+
+    BDescVec binds;
+	shState->rtData().bindingUpdateMsg.get(binds);
+
+    // Clear existing bindings for this input
+    binds.erase(std::remove_if(binds.begin(), binds.end(), [num](BindingDesc x) { return x.target == num; }), binds.end());
+
+    // Add new bindings
+    long length = rb_array_len(inputArray);
+    for(long i = 0; i < length; i++)
+    {
+        VALUE binding = rb_ary_entry(inputArray, i);
+        SourceType inputType = (SourceType) NUM2INT(rb_ary_entry(binding, 0)); // First element tells the type
+        BindingDesc newBinding;
+        newBinding.src.type = inputType;
+        newBinding.target = num;
+        switch(inputType) {
+            case Invalid:
+                break;
+            case Key:
+                newBinding.src.d.scan = (SDL_Scancode) NUM2INT(rb_ary_entry(binding, 1));
+                break;
+            case CButton:
+                newBinding.src.d.cb = (SDL_GameControllerButton) NUM2INT(rb_ary_entry(binding, 1));
+                break;
+            case CAxis:
+                VALUE axis = rb_ary_entry(binding, 1);
+                newBinding.src.d.ca.axis = (SDL_GameControllerAxis) NUM2INT(rb_ary_entry(axis, 0));
+                newBinding.src.d.ca.dir = (AxisDir) NUM2INT(rb_ary_entry(axis, 1));
+                break;
+        }
+        binds.push_back(newBinding);
+    }
+
+    // Update the bindings in memory
+    shState->rtData().bindingUpdateMsg.post(binds);
+
+    return Qnil;
+}
+
+RB_METHOD(inputSaveBindings) {
+    BDescVec binds;
+	shState->rtData().bindingUpdateMsg.get(binds);
+    storeBindings(binds, shState->config());
+    return Qnil;
+}
+
+RB_METHOD(inputClearLast) {
+    shState->eThread().clearLastInput();
+    return Qnil;
+}
+
+RB_METHOD(inputLast) {
+    RB_UNUSED_PARAM;
+
+    SourceDesc lastInput = shState->eThread().getLastInput();
+    return sourceDescToRubyArray(lastInput);
 }
 
 #define AXISFUNC(n, ax1, ax2) \
@@ -614,6 +734,12 @@ void inputBindingInit() {
     
     _rb_define_module_function(module, "clipboard", inputGetClipboard);
     _rb_define_module_function(module, "clipboard=", inputSetClipboard);
+
+    _rb_define_module_function(module, "last", inputLast);
+    _rb_define_module_function(module, "clear_last", inputClearLast);
+    _rb_define_module_function(module, "bindings", inputGetBindings);
+    _rb_define_module_function(module, "apply_bindings", inputApplyBindings);
+    _rb_define_module_function(module, "save_bindings", inputSaveBindings);
     
     if (rgssVer >= 3) {
         VALUE symHash = rb_hash_new();
