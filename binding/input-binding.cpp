@@ -102,15 +102,14 @@ static VALUE sourceDescToRubyArray(SourceDesc input) {
     rb_ary_push(binding, rb_int_new(inputType)); // Input binding type (keyboard, gamepad, etc.)
     switch(inputType) {
         case Key:
-            inputValue = rb_int_new(input.d.scan);
+            inputValue = rb_str_new_cstr(SDL_GetScancodeName(input.d.scan));
             break;
         case CButton:
-            inputValue = rb_int_new(input.d.cb);
+            inputValue = rb_str_new_cstr(SDL_GameControllerGetStringForButton(input.d.cb));
             break;
         case CAxis:
-            inputValue = rb_ary_new();
-            rb_ary_push(inputValue, rb_int_new(input.d.ca.axis));
-            rb_ary_push(inputValue, rb_int_new(input.d.ca.dir));
+            inputValue = rb_str_new_cstr(SDL_GameControllerGetStringForAxis(input.d.ca.axis));
+            rb_str_concat(inputValue, rb_str_new_cstr(input.d.ca.dir == Negative ? "-" : "+"));
             break;
         default:
             inputValue = Qnil;
@@ -389,7 +388,7 @@ RB_METHOD(inputGetBindings) {
     VALUE bindings = rb_ary_new();
 
     BDescVec binds;
-	shState->rtData().bindingUpdateMsg.get(binds);
+    shState->rtData().bindingUpdateMsg.get(binds);
 
     for (size_t i = 0; i < binds.size(); ++i)
     {
@@ -414,7 +413,7 @@ RB_METHOD(inputApplyBindings) {
     Input::ButtonCode num = (Input::ButtonCode) getButtonArg(&button);
 
     BDescVec binds;
-	shState->rtData().bindingUpdateMsg.get(binds);
+    shState->rtData().bindingUpdateMsg.get(binds);
 
     // Clear existing bindings for this input
     binds.erase(std::remove_if(binds.begin(), binds.end(), [num](BindingDesc x) { return x.target == num; }), binds.end());
@@ -432,15 +431,19 @@ RB_METHOD(inputApplyBindings) {
             case Invalid:
                 break;
             case Key:
-                newBinding.src.d.scan = (SDL_Scancode) NUM2INT(rb_ary_entry(binding, 1));
+                newBinding.src.d.scan = SDL_GetScancodeFromName(RSTRING_PTR(rb_ary_entry(binding, 1)));
                 break;
             case CButton:
-                newBinding.src.d.cb = (SDL_GameControllerButton) NUM2INT(rb_ary_entry(binding, 1));
+                newBinding.src.d.cb = SDL_GameControllerGetButtonFromString(RSTRING_PTR(rb_ary_entry(binding, 1)));
                 break;
             case CAxis:
                 VALUE axis = rb_ary_entry(binding, 1);
-                newBinding.src.d.ca.axis = (SDL_GameControllerAxis) NUM2INT(rb_ary_entry(axis, 0));
-                newBinding.src.d.ca.dir = (AxisDir) NUM2INT(rb_ary_entry(axis, 1));
+                // Get the axis direction (last character is either + or -)
+                VALUE direction = rb_str_substr(axis, RSTRING_LEN(axis) - 1, 1);
+                // Get the axis name, sans direction
+                axis = rb_funcall(axis, rb_intern("chop"), 0);
+                newBinding.src.d.ca.axis = SDL_GameControllerGetAxisFromString(RSTRING_PTR(axis));
+                newBinding.src.d.ca.dir = (AxisDir) (RSTRING_PTR(direction)[0] == '-' ? Negative : Positive);
                 break;
         }
         binds.push_back(newBinding);
@@ -454,14 +457,14 @@ RB_METHOD(inputApplyBindings) {
 
 RB_METHOD(inputSaveBindings) {
     BDescVec binds;
-	shState->rtData().bindingUpdateMsg.get(binds);
+    shState->rtData().bindingUpdateMsg.get(binds);
     storeBindings(binds, shState->config());
     return Qnil;
 }
 
 RB_METHOD(inputResetBindings) {
     BDescVec binds = genDefaultBindings(shState->config());
-	shState->rtData().bindingUpdateMsg.post(binds);
+    shState->rtData().bindingUpdateMsg.post(binds);
     return Qnil;
 }
 
