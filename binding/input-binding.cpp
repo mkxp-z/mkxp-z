@@ -94,28 +94,30 @@ static int getControllerButtonArg(VALUE *argv) {
     return btn;
 }
 
-static VALUE sourceDescToRubyArray(SourceDesc input) {
-    SourceType inputType = input.type;
-    VALUE inputValue;
+const char* prefixButton = "pad_";
+const char* prefixAxis = "axis_";
 
-    VALUE binding = rb_ary_new();
-    rb_ary_push(binding, rb_int_new(inputType)); // Input binding type (keyboard, gamepad, etc.)
-    switch(inputType) {
+static VALUE sourceDescToRubyString(SourceDesc input) {
+    VALUE inputValue;
+    switch(input.type) {
         case Key:
             inputValue = rb_str_new_cstr(SDL_GetScancodeName(input.d.scan));
             break;
         case CButton:
-            inputValue = rb_str_new_cstr(SDL_GameControllerGetStringForButton(input.d.cb));
+            // Concatenate button prefix to name
+            inputValue = rb_str_new_cstr(prefixButton);
+            rb_str_concat(inputValue, rb_str_new_cstr(SDL_GameControllerGetStringForButton(input.d.cb)));
             break;
         case CAxis:
-            inputValue = rb_str_new_cstr(SDL_GameControllerGetStringForAxis(input.d.ca.axis));
+            // Concatenate axis prefix to name
+            inputValue = rb_str_new_cstr(prefixAxis);
+            rb_str_concat(inputValue, rb_str_new_cstr(SDL_GameControllerGetStringForAxis(input.d.ca.axis)));
             rb_str_concat(inputValue, rb_str_new_cstr(input.d.ca.dir == Negative ? "-" : "+"));
             break;
         default:
             inputValue = Qnil;
     }
-    rb_ary_push(binding, inputValue); // Input value (scancode, button index, etc.)
-    return binding;
+    return inputValue;
 }
 
 RB_METHOD(inputPress) {
@@ -394,7 +396,7 @@ RB_METHOD(inputGetBindings) {
     {
         if(binds[i].target != num) continue;
 
-        VALUE binding = sourceDescToRubyArray(binds[i].src);
+        VALUE binding = sourceDescToRubyString(binds[i].src);
         rb_ary_push(bindings, binding);
     }
 
@@ -423,28 +425,30 @@ RB_METHOD(inputApplyBindings) {
     for(long i = 0; i < length; i++)
     {
         VALUE binding = rb_ary_entry(inputArray, i);
-        SourceType inputType = (SourceType) NUM2INT(rb_ary_entry(binding, 0)); // First element tells the type
         BindingDesc newBinding;
-        newBinding.src.type = inputType;
         newBinding.target = num;
-        switch(inputType) {
-            case Invalid:
-                break;
-            case Key:
-                newBinding.src.d.scan = SDL_GetScancodeFromName(RSTRING_PTR(rb_ary_entry(binding, 1)));
-                break;
-            case CButton:
-                newBinding.src.d.cb = SDL_GameControllerGetButtonFromString(RSTRING_PTR(rb_ary_entry(binding, 1)));
-                break;
-            case CAxis:
-                VALUE axis = rb_ary_entry(binding, 1);
-                // Get the axis direction (last character is either + or -)
-                VALUE direction = rb_str_substr(axis, RSTRING_LEN(axis) - 1, 1);
-                // Get the axis name, sans direction
-                axis = rb_funcall(axis, rb_intern("chop"), 0);
-                newBinding.src.d.ca.axis = SDL_GameControllerGetAxisFromString(RSTRING_PTR(axis));
-                newBinding.src.d.ca.dir = (AxisDir) (RSTRING_PTR(direction)[0] == '-' ? Negative : Positive);
-                break;
+
+        char* bindingString = RSTRING_PTR(binding);
+        if(strncmp(prefixAxis, bindingString, strlen(prefixAxis)) == 0) {
+            newBinding.src.type = CAxis;
+            // Treat last character as direction
+            size_t len = strlen(bindingString);
+            newBinding.src.d.ca.dir = (AxisDir) (bindingString[len - 1] == '-' ? Negative : Positive);
+            // Cut out the direction character
+            bindingString[len - 1] = '\0';
+            // Skip the prefix, leaving behind the SDL-compatible axis name
+            newBinding.src.d.ca.axis = SDL_GameControllerGetAxisFromString(bindingString + strlen(prefixAxis));
+            // Restore the original direction character in case someone wants to use the information fed into this
+            bindingString[len - 1] = newBinding.src.d.ca.dir == Negative ? '-' : '+';
+        } else if(strncmp(prefixButton, bindingString, strlen(prefixButton)) == 0) {
+            // Gamepad Input
+            newBinding.src.type = CButton;
+            // Skip the prefix, leaving behind the SDL-compatible button name
+            newBinding.src.d.cb = SDL_GameControllerGetButtonFromString(bindingString + strlen(prefixButton));
+        } else {
+            // No prefix, assume regular key
+            newBinding.src.type = Key;
+            newBinding.src.d.scan = SDL_GetScancodeFromName(bindingString);
         }
         binds.push_back(newBinding);
     }
@@ -477,7 +481,7 @@ RB_METHOD(inputLast) {
     RB_UNUSED_PARAM;
 
     SourceDesc lastInput = shState->eThread().getLastInput();
-    return sourceDescToRubyArray(lastInput);
+    return sourceDescToRubyString(lastInput);
 }
 
 #define AXISFUNC(n, ax1, ax2) \
