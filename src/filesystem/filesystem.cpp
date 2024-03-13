@@ -336,7 +336,9 @@ void FileSystem::addPath(const char *path, const char *mountpoint, bool reload) 
   }
     if (!state) {
         PHYSFS_ErrorCode err = PHYSFS_getLastErrorCode();
-        throw Exception(Exception::PHYSFSError, "Failed to mount %s (%s)", path, PHYSFS_getErrorByCode(err));
+        // Commented out because we don't want the game to crash if patch directory doesn't exist.
+        // It is still reported to dev console by createSDLRWIo.
+        // throw Exception(Exception::PHYSFSError, "Failed to mount %s (%s)", path, PHYSFS_getErrorByCode(err));
     }
     
     if (reload) reloadPathCache();
