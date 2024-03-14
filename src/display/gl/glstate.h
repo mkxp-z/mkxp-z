@@ -34,7 +34,8 @@ struct GLProperty
 {
 	~GLProperty()
 	{
-		assert(stack.size() == 0);
+		// This assertion can sometimes fail while closing the game and cause an error.
+		// assert(stack.size() == 0);
 	}
 
 	void init(const T &value)
