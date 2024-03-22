@@ -211,6 +211,14 @@ enum InterpolationMethod
 #endif
 };
 
+enum SpecialScale
+{
+	// If the X and Y scales would yield different results, it's considered UpScale.
+	UpScale = 0,
+	SameScale = 1,
+	DownScale = 2,
+};
+
 /* For internal use.
  * All drawable classes have properties of one or more of the above
  * types, which in an interpreted environment act as independent

@@ -207,7 +207,9 @@ inline uint8_t formatSampleSize(int sdlFormat)
 	case AUDIO_S16LSB :
 	case AUDIO_S16MSB :
 		return 2;
-            
+
+    case AUDIO_S32LSB :
+    case AUDIO_S32MSB :
     case AUDIO_F32LSB :
     case AUDIO_F32MSB :
         return 4;

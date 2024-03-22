@@ -204,10 +204,11 @@ struct ALStreamOpenHandler : FileSystem::OpenHandler
 	SDL_RWops *srcOps;
 	bool looped;
 	ALDataSource *source;
+	int fallbackMode;
 	std::string errorMsg;
 
 	ALStreamOpenHandler(SDL_RWops &srcOps, bool looped)
-	    : srcOps(&srcOps), looped(looped), source(0)
+	    : srcOps(&srcOps), looped(looped), source(0), fallbackMode(0)
 	{}
 
 	bool tryRead(SDL_RWops &ops, const char *ext)
@@ -240,7 +241,7 @@ struct ALStreamOpenHandler : FileSystem::OpenHandler
 				}
 			}
 
-			source = createSDLSource(*srcOps, ext, STREAM_BUF_SIZE, looped);
+			source = createSDLSource(*srcOps, ext, STREAM_BUF_SIZE, looped, fallbackMode);
 		}
 		catch (const Exception &e)
 		{
@@ -260,6 +261,15 @@ void ALStream::openSource(const std::string &filename)
 	shState->fileSystem().openRead(handler, filename.c_str());
 	source = handler.source;
 	needsRewind.clear();
+
+	// Try fallback mode, e.g. for handling S32->F32 sample format conversion
+	if (!source)
+	{
+		handler.fallbackMode = 1;
+		shState->fileSystem().openRead(handler, filename.c_str());
+		source = handler.source;
+		needsRewind.clear();
+	}
 
 	if (!source)
 	{

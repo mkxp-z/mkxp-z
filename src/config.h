@@ -44,6 +44,8 @@ struct Config {
     bool fullscreen;
     bool fixedAspectRatio;
     int smoothScaling;
+    int smoothScalingDown;
+    bool smoothScalingMipmaps;
     int bicubicSharpness;
 #ifdef MKXPZ_SSL
     double xbrzScalingFactor;
