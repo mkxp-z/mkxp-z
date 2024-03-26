@@ -109,6 +109,8 @@ struct Config {
     
     std::string customScript;
     
+    std::map<std::string, std::string> replaceScripts;
+    
     std::vector<std::string> launchArgs;
     std::vector<std::string> preloadScripts;
     std::vector<std::string> rtps;

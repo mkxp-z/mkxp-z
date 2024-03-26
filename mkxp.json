@@ -341,6 +341,17 @@
     // "customScript": "/path/to/script.rb",
 
 
+    // Replace game scripts with custom scripts.
+    // Game script may be identified either by its index in
+    // the script list or by the script name (must match exactly)
+    // (default: none)
+    //
+    // "replaceScripts": {
+    //     "123": "path/to/script.rb",
+    //     "Scene_Title": "path/to/script.rb"
+    // },
+
+
     // Define raw scripts (e.g. compatibility wrappers)
     // to be executed before the actual Scripts.rxdata
     // execution starts
