@@ -39,6 +39,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <vector>
+#include <set>
 
 #ifdef __APPLE__
 #include <iconv.h>
@@ -278,6 +279,8 @@ struct FileSystemPrivate {
   /* This is for compatibility with games that take Windows'
    * case insensitivity for granted */
   bool havePathCache;
+  
+  bool pathCacheDirty;
 };
 
 static void throwPhysfsError(const char *desc) {
@@ -311,6 +314,7 @@ FileSystem::FileSystem(const char *argv0, bool allowSymlinks) {
 
   p = new FileSystemPrivate;
   p->havePathCache = false;
+  p->pathCacheDirty = true;
 
   if (allowSymlinks)
     PHYSFS_permitSymbolicLinks(1);
@@ -323,16 +327,23 @@ FileSystem::~FileSystem() {
     Debug() << "PhyFS failed to deinit.";
 }
 
-void FileSystem::addPath(const char *path, const char *mountpoint, bool reload) {
-  /* Try the normal mount first */
-    int state = PHYSFS_mount(path, mountpoint, 1);
+void FileSystem::addPath(const char *path, const char *mountpoint, bool reload, bool prepend, bool partialReload) {
+    /* Check if it's already mounted */
+    if (PHYSFS_getMountPoint(path)) {
+        if (reload && p->pathCacheDirty)
+            reloadPathCache();
+        return;
+    }
+    
+    /* Try the normal mount first */
+    int state = PHYSFS_mount(path, mountpoint, prepend ? 0 : 1);
     if (!state) {
         /* If it didn't work, try mounting via a wrapped
          * SDL_RWops */
         PHYSFS_Io *io = createSDLRWIo(path);
         
         if (io)
-            state = PHYSFS_mountIo(io, path, mountpoint, 1);
+            state = PHYSFS_mountIo(io, path, mountpoint, prepend ? 0 : 1);
         
         if (!state) {
             if (io)
@@ -343,7 +354,12 @@ void FileSystem::addPath(const char *path, const char *mountpoint, bool reload) 
     }
     
     if (reload){
-        reloadPathCache();
+        if (!partialReload || p->pathCacheDirty)
+            reloadPathCache();
+        else
+            createPathCache(prepend ? -1 : 1, path);
+    } else {
+        p->pathCacheDirty = true;
     }
 }
 
@@ -354,6 +370,7 @@ void FileSystem::removePath(const char *path, bool reload) {
         throw Exception(Exception::PHYSFSError, "Failed to unmount %s (%s)", path, PHYSFS_getErrorByCode(err));
     }
     
+    p->pathCacheDirty = true;
     if (reload) reloadPathCache();
 }
 
@@ -361,6 +378,11 @@ struct CacheEnumData {
   FileSystemPrivate *p;
   std::stack<std::vector<std::string> *> fileLists;
   std::stack<std::string *> directoryList;
+  // A pointer to p->fileLists when building or appending, or to a temporary fileList when prepending
+  BoostHash<std::string, std::vector<std::string>> *pFileLists;
+  // A pointer to p->pathCache when building or appending, or to a temporary pathCache when prepending
+  BoostHash<std::string, std::string> *pPathCache;
+  bool prepend;
   const char *path;
 
 #ifdef __APPLE__
@@ -372,6 +394,7 @@ struct CacheEnumData {
 #ifdef __APPLE__
     nfc2nfd = iconv_open("utf-8-mac", "utf-8");
 #endif
+    prepend = false;
     path = 0;
   }
 
@@ -433,7 +456,7 @@ static PHYSFS_EnumerateCallbackResult cacheEnumCB(void *d, const char *origdir,
 
   if (stat.filetype == PHYSFS_FILETYPE_DIRECTORY) {
     /* Create a new list for this directory */
-    std::vector<std::string> &list = data.p->fileLists[lowerCase];
+    std::vector<std::string> &list = (*data.pFileLists)[lowerCase];
 
     /* Iterate over its contents */
     data.fileLists.push(&list);
@@ -442,7 +465,7 @@ static PHYSFS_EnumerateCallbackResult cacheEnumCB(void *d, const char *origdir,
     PHYSFS_enumerateFromMountPoint(mixedCase.c_str(), cacheEnumCB, d, data.path);
     data.fileLists.pop();
     data.directoryList.pop();
-  } else if (!data.p->pathCache.contains(lowerCase)) {
+  } else if (!data.pPathCache->contains(lowerCase)) {
     /* Get the file list for the directory we're currently
      * traversing and append this filename to it */
     std::vector<std::string> &list = *data.fileLists.top();
@@ -451,6 +474,9 @@ static PHYSFS_EnumerateCallbackResult cacheEnumCB(void *d, const char *origdir,
 
     /* Add the lower -> mixed mapping of the file's full path */
     data.p->pathCache.insert(lowerCase, mixedCase);
+    
+    if (data.prepend)
+        data.pPathCache->insert(lowerCase, mixedCase);
   }
 
   return PHYSFS_ENUM_OK;
@@ -462,14 +488,58 @@ static void populatePathCache(void *d, const char *pathItem) {
     PHYSFS_enumerateFromMountPoint("", cacheEnumCB, &data, pathItem);
 }
 
-void FileSystem::createPathCache() {
+void FileSystem::createPathCache(int update, const char *path) {
     CacheEnumData data(p);
     
     p->havePathCache = true;
     
-    data.fileLists.push(&p->fileLists[""]);
+    if (update == -1)
+    {
+        data.prepend = true;
+        data.pFileLists = new BoostHash<std::string, std::vector<std::string>>();
+        data.pPathCache = new BoostHash<std::string, std::string>();
+    } else {
+        data.pFileLists = &p->fileLists;
+        data.pPathCache = &p->pathCache;
+    }
     
-    PHYSFS_getSearchPathCallback(populatePathCache, &data);
+    data.fileLists.push(&(*data.pFileLists)[""]);
+    
+    if (update != 0)
+    {
+        data.path = path;
+        PHYSFS_enumerateFromMountPoint("", cacheEnumCB, &data, path);
+        
+        if (update == -1)
+        {
+            // Merge the fileLists, placing the prepended list at the start and removing any duplicates.
+            // FIXME: Maybe add begin and end functions to BoostHash so we can just use
+            // iter->second instead of (*data.pFileLists)[iter->first]
+            BoostHash<std::string, std::vector<std::string>>::const_iterator iter;
+            for (iter = data.pFileLists->cbegin(); iter != data.pFileLists->cend(); ++iter)
+            {
+                std::vector<std::string> &updated_list = (*data.pFileLists)[iter->first];
+                if (!updated_list.empty())
+                {
+                    std::vector<std::string> &old_list = p->fileLists[iter->first];
+                    if (!old_list.empty())
+                    {
+                        const std::set<std::string> newItems(updated_list.begin(), updated_list.end());
+                        for (size_t i = 0; i < old_list.size(); ++i) {
+                            if (newItems.find(old_list[i]) == newItems.cend())
+                                updated_list.push_back(old_list[i]);
+                        }
+                    }
+                    old_list.assign(updated_list.begin(), updated_list.end());
+                }
+            }
+            delete data.pFileLists;
+            delete data.pPathCache;
+        }
+    } else {
+        PHYSFS_getSearchPathCallback(populatePathCache, &data);
+    }
+    p->pathCacheDirty = false;
 }
 
 void FileSystem::reloadPathCache() {
