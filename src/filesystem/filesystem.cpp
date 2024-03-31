@@ -327,7 +327,7 @@ FileSystem::~FileSystem() {
     Debug() << "PhyFS failed to deinit.";
 }
 
-void FileSystem::addPath(const char *path, const char *mountpoint, bool reload, bool prepend, bool partialReload) {
+void FileSystem::addPath(const char *path, const char *mountpoint, bool reload, bool prepend) {
     /* Check if it's already mounted */
     if (PHYSFS_getMountPoint(path)) {
         if (reload && p->pathCacheDirty)
@@ -354,7 +354,7 @@ void FileSystem::addPath(const char *path, const char *mountpoint, bool reload, 
     }
     
     if (reload){
-        if (!partialReload || p->pathCacheDirty)
+        if (p->pathCacheDirty)
             reloadPathCache();
         else
             createPathCache(prepend ? -1 : 1, path);

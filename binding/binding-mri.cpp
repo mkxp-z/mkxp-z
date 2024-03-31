@@ -553,14 +553,10 @@ RB_METHOD(mkxpAddPath) {
             rb_bool_arg(reload, &rl);
         
         bool pp = false;
-        bool partialReload = false;
         if (prepend != Qnil)
-        {
             rb_bool_arg(prepend, &pp);
-            partialReload = true;
-        }
         
-        shState->fileSystem().addPath(RSTRING_PTR(path), mp, rl, pp, partialReload);
+        shState->fileSystem().addPath(RSTRING_PTR(path), mp, rl, pp);
     } catch (Exception &e) {
         raiseRbExc(e);
     }
