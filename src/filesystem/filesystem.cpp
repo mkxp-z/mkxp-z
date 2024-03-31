@@ -326,20 +326,25 @@ FileSystem::~FileSystem() {
 void FileSystem::addPath(const char *path, const char *mountpoint, bool reload) {
   /* Try the normal mount first */
     int state = PHYSFS_mount(path, mountpoint, 1);
-  if (!state) {
-    /* If it didn't work, try mounting via a wrapped
-     * SDL_RWops */
-    PHYSFS_Io *io = createSDLRWIo(path);
-
-    if (io)
-      state = PHYSFS_mountIo(io, path, 0, 1);
-  }
     if (!state) {
-        PHYSFS_ErrorCode err = PHYSFS_getLastErrorCode();
-        throw Exception(Exception::PHYSFSError, "Failed to mount %s (%s)", path, PHYSFS_getErrorByCode(err));
+        /* If it didn't work, try mounting via a wrapped
+         * SDL_RWops */
+        PHYSFS_Io *io = createSDLRWIo(path);
+        
+        if (io)
+            state = PHYSFS_mountIo(io, path, mountpoint, 1);
+        
+        if (!state) {
+            if (io)
+                io->destroy(io);
+            PHYSFS_ErrorCode err = PHYSFS_getLastErrorCode();
+            throw Exception(Exception::PHYSFSError, "Failed to mount %s (%s)", path, PHYSFS_getErrorByCode(err));
+        }
     }
     
-    if (reload) reloadPathCache();
+    if (reload){
+        reloadPathCache();
+    }
 }
 
 void FileSystem::removePath(const char *path, bool reload) {
@@ -356,7 +361,7 @@ struct CacheEnumData {
   FileSystemPrivate *p;
   std::stack<std::vector<std::string> *> fileLists;
   std::stack<std::string *> directoryList;
-  std::set<std::string> seenDirs;
+  const char *path;
 
 #ifdef __APPLE__
   iconv_t nfc2nfd;
@@ -367,6 +372,7 @@ struct CacheEnumData {
 #ifdef __APPLE__
     nfc2nfd = iconv_open("utf-8-mac", "utf-8");
 #endif
+    path = 0;
   }
 
   ~CacheEnumData() {
@@ -410,11 +416,6 @@ static PHYSFS_EnumerateCallbackResult cacheEnumCB(void *d, const char *origdir,
   }
   
 
-  /* If we've already seen this mixed-case path, then we don't need to reenumerate it 
-   * A different case could have new stuff, though */
-  if (data.seenDirs.count(mixedCase))
-    return PHYSFS_ENUM_OK;
-
   /* FileSystem::normalize ensures that paths are NFD when looking for files on macOS 
    * Unfortunately, there's no guarantee the path actually is that,
    * especially when loading files from archives,
@@ -428,20 +429,17 @@ static PHYSFS_EnumerateCallbackResult cacheEnumCB(void *d, const char *origdir,
   lowerCase += lowerFilename;
 
   PHYSFS_Stat stat;
-  PHYSFS_stat(mixedCase.c_str(), &stat);
+  PHYSFS_statFromMountPoint(mixedCase.c_str(), &stat, data.path);
 
   if (stat.filetype == PHYSFS_FILETYPE_DIRECTORY) {
     /* Create a new list for this directory */
     std::vector<std::string> &list = data.p->fileLists[lowerCase];
 
-    /* Record that we've seen this directory */
-    data.seenDirs.insert(mixedCase);
-
     /* Iterate over its contents */
     data.fileLists.push(&list);
     lowerCase += "/";
     data.directoryList.push(&lowerCase);
-    PHYSFS_enumerate(mixedCase.c_str(), cacheEnumCB, d);
+    PHYSFS_enumerateFromMountPoint(mixedCase.c_str(), cacheEnumCB, d, data.path);
     data.fileLists.pop();
     data.directoryList.pop();
   } else if (!data.p->pathCache.contains(lowerCase)) {
@@ -458,12 +456,20 @@ static PHYSFS_EnumerateCallbackResult cacheEnumCB(void *d, const char *origdir,
   return PHYSFS_ENUM_OK;
 }
 
-void FileSystem::createPathCache() {
-  CacheEnumData data(p);
-  data.fileLists.push(&p->fileLists[""]);
-  PHYSFS_enumerate("", cacheEnumCB, &data);
+static void populatePathCache(void *d, const char *pathItem) {
+    CacheEnumData &data = *static_cast<CacheEnumData *>(d);
+    data.path = pathItem;
+    PHYSFS_enumerateFromMountPoint("", cacheEnumCB, &data, pathItem);
+}
 
-  p->havePathCache = true;
+void FileSystem::createPathCache() {
+    CacheEnumData data(p);
+    
+    p->havePathCache = true;
+    
+    data.fileLists.push(&p->fileLists[""]);
+    
+    PHYSFS_getSearchPathCallback(populatePathCache, &data);
 }
 
 void FileSystem::reloadPathCache() {
