@@ -750,8 +750,9 @@ void FileSystem::openRead(OpenHandler &handler, const char *filename) {
 
 void FileSystem::openReadRaw(SDL_RWops &ops, const char *filename,
                              bool freeOnClose) {
+  std::string fileString = normalize(filename, 0, 0);
 
-  PHYSFS_File *handle = PHYSFS_openRead(normalize(filename, 0, 0).c_str());
+  PHYSFS_File *handle = PHYSFS_openRead(desensitize(fileString.c_str()));
 
   if (!handle)
     throw Exception(Exception::NoFileError, "%s", filename);
@@ -770,12 +771,14 @@ bool FileSystem::exists(const char *filename) {
 }
 
 const char *FileSystem::desensitize(const char *filename) {
-  std::string fn_lower(filename);
+  if (p->havePathCache) {
+    std::string fn_lower = normalize(filename, 0, 0);
     
-  std::transform(fn_lower.begin(), fn_lower.end(), fn_lower.begin(), [](unsigned char c){
-      return std::tolower(c);
-  });
-  if (p->havePathCache && p->pathCache.contains(fn_lower))
-    return p->pathCache[fn_lower].c_str();
+    std::transform(fn_lower.begin(), fn_lower.end(), fn_lower.begin(), [](unsigned char c){
+        return std::tolower(c);
+    });
+    if (p->pathCache.contains(fn_lower))
+      return p->pathCache[fn_lower].c_str();
+  }
   return filename;
 }
