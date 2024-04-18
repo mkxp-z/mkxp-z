@@ -39,6 +39,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <vector>
+#include <set>
 
 #ifdef __APPLE__
 #include <iconv.h>
@@ -278,6 +279,8 @@ struct FileSystemPrivate {
   /* This is for compatibility with games that take Windows'
    * case insensitivity for granted */
   bool havePathCache;
+  
+  bool pathCacheDirty;
 };
 
 static void throwPhysfsError(const char *desc) {
@@ -311,6 +314,7 @@ FileSystem::FileSystem(const char *argv0, bool allowSymlinks) {
 
   p = new FileSystemPrivate;
   p->havePathCache = false;
+  p->pathCacheDirty = true;
 
   if (allowSymlinks)
     PHYSFS_permitSymbolicLinks(1);
@@ -323,23 +327,40 @@ FileSystem::~FileSystem() {
     Debug() << "PhyFS failed to deinit.";
 }
 
-void FileSystem::addPath(const char *path, const char *mountpoint, bool reload) {
-  /* Try the normal mount first */
-    int state = PHYSFS_mount(path, mountpoint, 1);
-  if (!state) {
-    /* If it didn't work, try mounting via a wrapped
-     * SDL_RWops */
-    PHYSFS_Io *io = createSDLRWIo(path);
-
-    if (io)
-      state = PHYSFS_mountIo(io, path, 0, 1);
-  }
-    if (!state) {
-        PHYSFS_ErrorCode err = PHYSFS_getLastErrorCode();
-        throw Exception(Exception::PHYSFSError, "Failed to mount %s (%s)", path, PHYSFS_getErrorByCode(err));
+void FileSystem::addPath(const char *path, const char *mountpoint, bool reload, bool prepend) {
+    /* Check if it's already mounted */
+    if (PHYSFS_getMountPoint(path)) {
+        if (reload && p->pathCacheDirty)
+            reloadPathCache();
+        return;
     }
     
-    if (reload) reloadPathCache();
+    /* Try the normal mount first */
+    int state = PHYSFS_mount(path, mountpoint, prepend ? 0 : 1);
+    if (!state) {
+        /* If it didn't work, try mounting via a wrapped
+         * SDL_RWops */
+        PHYSFS_Io *io = createSDLRWIo(path);
+        
+        if (io)
+            state = PHYSFS_mountIo(io, path, mountpoint, prepend ? 0 : 1);
+        
+        if (!state) {
+            if (io)
+                io->destroy(io);
+            PHYSFS_ErrorCode err = PHYSFS_getLastErrorCode();
+            throw Exception(Exception::PHYSFSError, "Failed to mount %s (%s)", path, PHYSFS_getErrorByCode(err));
+        }
+    }
+    
+    if (reload){
+        if (p->pathCacheDirty)
+            reloadPathCache();
+        else
+            createPathCache(prepend ? -1 : 1, path);
+    } else {
+        p->pathCacheDirty = true;
+    }
 }
 
 void FileSystem::removePath(const char *path, bool reload) {
@@ -349,45 +370,55 @@ void FileSystem::removePath(const char *path, bool reload) {
         throw Exception(Exception::PHYSFSError, "Failed to unmount %s (%s)", path, PHYSFS_getErrorByCode(err));
     }
     
+    p->pathCacheDirty = true;
     if (reload) reloadPathCache();
 }
 
 struct CacheEnumData {
   FileSystemPrivate *p;
   std::stack<std::vector<std::string> *> fileLists;
+  std::stack<std::string *> directoryList;
+  // A pointer to p->fileLists when building or appending, or to a temporary fileList when prepending
+  BoostHash<std::string, std::vector<std::string>> *pFileLists;
+  // A pointer to p->pathCache when building or appending, or to a temporary pathCache when prepending
+  BoostHash<std::string, std::string> *pPathCache;
+  bool prepend;
+  const char *path;
 
 #ifdef __APPLE__
-  iconv_t nfd2nfc;
-  char buf[512];
+  iconv_t nfc2nfd;
+  char buf[1024];
 #endif
 
   CacheEnumData(FileSystemPrivate *p) : p(p) {
 #ifdef __APPLE__
-    nfd2nfc = iconv_open("utf-8", "utf-8-mac");
+    nfc2nfd = iconv_open("utf-8-mac", "utf-8");
 #endif
+    prepend = false;
+    path = 0;
   }
 
   ~CacheEnumData() {
 #ifdef __APPLE__
-    iconv_close(nfd2nfc);
+    iconv_close(nfc2nfd);
 #endif
   }
 
   /* Converts in-place */
-  void toNFC(char *inout) {
+  void toNFD(std::string &inout) {
 #ifdef __APPLE__
-    size_t srcSize = strlen(inout);
+    size_t srcSize = inout.size();
     size_t bufSize = sizeof(buf);
     char *bufPtr = buf;
-    char *inoutPtr = inout;
+    char *inoutPtr = &inout[0];
 
     /* Reserve room for null terminator */
     --bufSize;
 
-    iconv(nfd2nfc, &inoutPtr, &srcSize, &bufPtr, &bufSize);
+    iconv(nfc2nfd, &inoutPtr, &srcSize, &bufPtr, &bufSize);
     /* Null-terminate */
     *bufPtr = 0;
-    strcpy(inout, buf);
+    inout = buf;
 #else
     (void)inout;
 #endif
@@ -397,53 +428,118 @@ struct CacheEnumData {
 static PHYSFS_EnumerateCallbackResult cacheEnumCB(void *d, const char *origdir,
                                                   const char *fname) {
   CacheEnumData &data = *static_cast<CacheEnumData *>(d);
-  char fullPath[512];
 
-  if (!*origdir)
-    snprintf(fullPath, sizeof(fullPath), "%s", fname);
-  else
-    snprintf(fullPath, sizeof(fullPath), "%s/%s", origdir, fname);
+  std::string mixedCase;
+  if (!*origdir) {
+    mixedCase = fname;
+  } else {
+    mixedCase = origdir;
+    mixedCase += "/";
+    mixedCase += fname;
+  }
+  
 
-  /* Deal with OSX' weird UTF-8 standards */
-  data.toNFC(fullPath);
-
-  std::string mixedCase(fullPath);
-  std::string lowerCase = mixedCase;
-  strTolower(lowerCase);
+  /* FileSystem::normalize ensures that paths are NFD when looking for files on macOS 
+   * Unfortunately, there's no guarantee the path actually is that,
+   * especially when loading files from archives,
+   *  so we need to convert fname and fullPath in the path cache. */
+  std::string lowerFilename(fname);
+  data.toNFD(lowerFilename);
+  strTolower(lowerFilename);
+  std::string lowerCase;
+  if (!data.directoryList.empty())
+    lowerCase = *data.directoryList.top();
+  lowerCase += lowerFilename;
 
   PHYSFS_Stat stat;
-  PHYSFS_stat(fullPath, &stat);
+  PHYSFS_statFromMountPoint(mixedCase.c_str(), &stat, data.path);
 
   if (stat.filetype == PHYSFS_FILETYPE_DIRECTORY) {
     /* Create a new list for this directory */
-    std::vector<std::string> &list = data.p->fileLists[lowerCase];
+    std::vector<std::string> &list = (*data.pFileLists)[lowerCase];
 
     /* Iterate over its contents */
     data.fileLists.push(&list);
-    PHYSFS_enumerate(fullPath, cacheEnumCB, d);
+    lowerCase += "/";
+    data.directoryList.push(&lowerCase);
+    PHYSFS_enumerateFromMountPoint(mixedCase.c_str(), cacheEnumCB, d, data.path);
     data.fileLists.pop();
-  } else {
+    data.directoryList.pop();
+  } else if (!data.pPathCache->contains(lowerCase)) {
     /* Get the file list for the directory we're currently
      * traversing and append this filename to it */
     std::vector<std::string> &list = *data.fileLists.top();
 
-    std::string lowerFilename(fname);
-    strTolower(lowerFilename);
     list.push_back(lowerFilename);
 
     /* Add the lower -> mixed mapping of the file's full path */
     data.p->pathCache.insert(lowerCase, mixedCase);
+    
+    if (data.prepend)
+        data.pPathCache->insert(lowerCase, mixedCase);
   }
 
   return PHYSFS_ENUM_OK;
 }
 
-void FileSystem::createPathCache() {
-  CacheEnumData data(p);
-  data.fileLists.push(&p->fileLists[""]);
-  PHYSFS_enumerate("", cacheEnumCB, &data);
+static void populatePathCache(void *d, const char *pathItem) {
+    CacheEnumData &data = *static_cast<CacheEnumData *>(d);
+    data.path = pathItem;
+    PHYSFS_enumerateFromMountPoint("", cacheEnumCB, &data, pathItem);
+}
 
-  p->havePathCache = true;
+void FileSystem::createPathCache(int update, const char *path) {
+    CacheEnumData data(p);
+    
+    p->havePathCache = true;
+    
+    if (update == -1)
+    {
+        data.prepend = true;
+        data.pFileLists = new BoostHash<std::string, std::vector<std::string>>();
+        data.pPathCache = new BoostHash<std::string, std::string>();
+    } else {
+        data.pFileLists = &p->fileLists;
+        data.pPathCache = &p->pathCache;
+    }
+    
+    data.fileLists.push(&(*data.pFileLists)[""]);
+    
+    if (update != 0)
+    {
+        data.path = path;
+        PHYSFS_enumerateFromMountPoint("", cacheEnumCB, &data, path);
+        
+        if (update == -1)
+        {
+            // Merge the fileLists, placing the prepended list at the start and removing any duplicates.
+            // FIXME: Maybe add begin and end functions to BoostHash so we can just use
+            // iter->second instead of (*data.pFileLists)[iter->first]
+            BoostHash<std::string, std::vector<std::string>>::const_iterator iter;
+            for (iter = data.pFileLists->cbegin(); iter != data.pFileLists->cend(); ++iter)
+            {
+                std::vector<std::string> &updated_list = (*data.pFileLists)[iter->first];
+                if (!updated_list.empty())
+                {
+                    std::vector<std::string> &old_list = p->fileLists[iter->first];
+                    if (!old_list.empty())
+                    {
+                        const std::set<std::string> newItems(updated_list.begin(), updated_list.end());
+                        for (size_t i = 0; i < old_list.size(); ++i) {
+                            if (newItems.find(old_list[i]) == newItems.cend())
+                                updated_list.push_back(old_list[i]);
+                        }
+                    }
+                    old_list.assign(updated_list.begin(), updated_list.end());
+                }
+            }
+            delete data.pFileLists;
+            delete data.pPathCache;
+        }
+    } else {
+        PHYSFS_getSearchPathCallback(populatePathCache, &data);
+    }
+    p->pathCacheDirty = false;
 }
 
 void FileSystem::reloadPathCache() {
@@ -553,7 +649,7 @@ struct OpenReadEnumData {
 static PHYSFS_EnumerateCallbackResult
 openReadEnumCB(void *d, const char *dirpath, const char *filename) {
   OpenReadEnumData &data = *static_cast<OpenReadEnumData *>(d);
-  char buffer[512];
+  char buffer[1024];
   const char *fullPath;
 
   if (data.stopSearching)
@@ -654,8 +750,9 @@ void FileSystem::openRead(OpenHandler &handler, const char *filename) {
 
 void FileSystem::openReadRaw(SDL_RWops &ops, const char *filename,
                              bool freeOnClose) {
+  std::string fileString = normalize(filename, 0, 0);
 
-  PHYSFS_File *handle = PHYSFS_openRead(normalize(filename, 0, 0).c_str());
+  PHYSFS_File *handle = PHYSFS_openRead(desensitize(fileString.c_str()));
 
   if (!handle)
     throw Exception(Exception::NoFileError, "%s", filename);
@@ -674,12 +771,14 @@ bool FileSystem::exists(const char *filename) {
 }
 
 const char *FileSystem::desensitize(const char *filename) {
-  std::string fn_lower(filename);
+  if (p->havePathCache) {
+    std::string fn_lower = normalize(filename, 0, 0);
     
-  std::transform(fn_lower.begin(), fn_lower.end(), fn_lower.begin(), [](unsigned char c){
-      return std::tolower(c);
-  });
-  if (p->havePathCache && p->pathCache.contains(fn_lower))
-    return p->pathCache[fn_lower].c_str();
+    std::transform(fn_lower.begin(), fn_lower.end(), fn_lower.begin(), [](unsigned char c){
+        return std::tolower(c);
+    });
+    if (p->pathCache.contains(fn_lower))
+      return p->pathCache[fn_lower].c_str();
+  }
   return filename;
 }

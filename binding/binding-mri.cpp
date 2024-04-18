@@ -135,6 +135,7 @@ RB_METHOD(mkxpAddPath);
 RB_METHOD(mkxpRemovePath);
 RB_METHOD(mkxpFileExists);
 RB_METHOD(mkxpLaunch);
+RB_METHOD(mkxpRegenerateScriptsArr);
 
 RB_METHOD(mkxpGetJSONSetting);
 RB_METHOD(mkxpSetJSONSetting);
@@ -246,6 +247,7 @@ static void mriBindingInit() {
     _rb_define_module_function(mod, "unmount", mkxpRemovePath);
     _rb_define_module_function(mod, "file_exist?", mkxpFileExists);
     _rb_define_module_function(mod, "launch", mkxpLaunch);
+    _rb_define_module_function(mod, "regenerate_scripts", mkxpRegenerateScriptsArr);
     
     _rb_define_module_function(mod, "default_font_family=", mkxpSetDefaultFontFamily);
     
@@ -538,8 +540,8 @@ RB_METHOD(mkxpReloadPathCache) {
 RB_METHOD(mkxpAddPath) {
     RB_UNUSED_PARAM;
     
-    VALUE path, mountpoint, reload;
-    rb_scan_args(argc, argv, "12", &path, &mountpoint, &reload);
+    VALUE path, mountpoint, reload, prepend;
+    rb_scan_args(argc, argv, "13", &path, &mountpoint, &reload, &prepend);
     SafeStringValue(path);
     if (mountpoint != Qnil) SafeStringValue(mountpoint);
     
@@ -550,7 +552,11 @@ RB_METHOD(mkxpAddPath) {
         if (reload != Qnil)
             rb_bool_arg(reload, &rl);
         
-        shState->fileSystem().addPath(RSTRING_PTR(path), mp, rl);
+        bool pp = false;
+        if (prepend != Qnil)
+            rb_bool_arg(prepend, &pp);
+        
+        shState->fileSystem().addPath(RSTRING_PTR(path), mp, rl, pp);
     } catch (Exception &e) {
         raiseRbExc(e);
     }
@@ -884,45 +890,45 @@ bool evalScript(VALUE string, const char *filename)
 
 #define SCRIPT_SECTION_FMT (rgssVer >= 3 ? "{%04ld}" : "Section%03ld")
 
-static void runRMXPScripts(BacktraceData &btData) {
+static VALUE scriptArray = Qnil;
+static bool preloadScriptsExecuted = true;
+static VALUE createScriptsArray() {
+    if (preloadScriptsExecuted)
+        return scriptArray;
+    
     const Config &conf = shState->rtData().config;
     const std::string &scriptPack = conf.game.scripts;
     
     if (scriptPack.empty()) {
-        showMsg("No script file has been specified. Check the game's INI and try again.");
-        return;
+        throw Exception(Exception::MKXPError,
+                        "No script file has been specified. Check the game's INI and try again.");
     }
     
     if (!shState->fileSystem().exists(scriptPack.c_str())) {
-        showMsg("Unable to load scripts from '" + scriptPack + "'");
-        return;
+        throw Exception(Exception::MKXPError, "Unable to load scripts from '%s'", scriptPack.c_str());
     }
     
-    VALUE scriptArray;
+    VALUE scriptArrayTmp;
     
     /* We checked if Scripts.rxdata exists, but something might
      * still go wrong */
     try {
-        scriptArray = kernelLoadDataInt(scriptPack.c_str(), false, false);
+        scriptArrayTmp = kernelLoadDataInt(scriptPack.c_str(), false, false);
     } catch (const Exception &e) {
-        showMsg(std::string("Failed to read script data: ") + e.msg);
-        return;
+        throw Exception(Exception::MKXPError, "Failed to read script data: ", e.msg.c_str());
     }
     
-    if (!RB_TYPE_P(scriptArray, RUBY_T_ARRAY)) {
-        showMsg("Failed to read script data");
-        return;
+    if (!RB_TYPE_P(scriptArrayTmp, RUBY_T_ARRAY)) {
+        throw Exception(Exception::MKXPError, "Failed to read script data");
     }
     
-    rb_gv_set("$RGSS_SCRIPTS", scriptArray);
-    
-    long scriptCount = RARRAY_LEN(scriptArray);
+    long scriptCount = RARRAY_LEN(scriptArrayTmp);
     
     std::string decodeBuffer;
     decodeBuffer.resize(0x1000);
     
     for (long i = 0; i < scriptCount; ++i) {
-        VALUE script = rb_ary_entry(scriptArray, i);
+        VALUE script = rb_ary_entry(scriptArrayTmp, i);
         
         if (!RB_TYPE_P(script, RUBY_T_ARRAY))
             continue;
@@ -957,7 +963,7 @@ static void runRMXPScripts(BacktraceData &btData) {
             snprintf(buffer, sizeof(buffer), "Error decoding script %ld: '%s'", i,
                      RSTRING_PTR(scriptName));
             
-            showMsg(buffer);
+            throw Exception(Exception::MKXPError, buffer);
             
             break;
         }
@@ -965,10 +971,42 @@ static void runRMXPScripts(BacktraceData &btData) {
         rb_ary_store(script, 3, rb_utf8_str_new_cstr(decodeBuffer.c_str()));
     }
     
+    scriptArray = scriptArrayTmp;
+    rb_gv_set("$RGSS_SCRIPTS", scriptArray);
+    rb_iv_set(rb_mKernel, "RGSS_SCRIPTS", scriptArray);
+    return scriptArray;
+}
+
+RB_METHOD(mkxpRegenerateScriptsArr) {
+    RB_UNUSED_PARAM;
+    
+    try {
+        return createScriptsArray();
+    } catch (Exception &e) {
+        raiseRbExc(e);
+        return RUBY_Qnil;
+    }
+}
+
+static void runRMXPScripts(BacktraceData &btData) {
+    const Config &conf = shState->rtData().config;
+    
+    preloadScriptsExecuted = false;
+    try {
+        createScriptsArray();
+    } catch (Exception &e) {
+        showMsg(e.msg);
+        return;
+    }
+    
     /* Execute preloaded scripts */
     for (std::vector<std::string>::const_iterator i = conf.preloadScripts.begin();
          i != conf.preloadScripts.end(); ++i)
         runCustomScript(*i);
+    
+    preloadScriptsExecuted = true;
+    
+    long scriptCount = RARRAY_LEN(scriptArray);
     
     VALUE exc = rb_gv_get("$!");
     if (exc != Qnil)

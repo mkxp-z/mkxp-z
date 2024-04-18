@@ -39,11 +39,11 @@ public:
 	           bool allowSymlinks);
 	~FileSystem();
 
-	void addPath(const char *path, const char *mountpoint = 0, bool reload = false);
+	void addPath(const char *path, const char *mountpoint = 0, bool reload = false, bool prepend = false);
     void removePath(const char *path, bool reload = false);
 
 	/* Call these after the last 'addPath()' */
-	void createPathCache();
+	void createPathCache(int update = 0, const char *path = 0);
     
     void reloadPathCache();
 
