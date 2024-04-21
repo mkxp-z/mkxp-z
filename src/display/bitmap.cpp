@@ -337,7 +337,7 @@ struct BitmapPrivate
     void bindTexture(ShaderBase &shader, bool substituteLoresSize = true)
     {
         if (selfHires) {
-            selfHires->bindTex(shader);
+            selfHires->bindTex(shader, substituteLoresSize);
             return;
         }
 
@@ -2566,11 +2566,11 @@ bool Bitmap::getLooping() const
     return p->animation.loop;
 }
 
-void Bitmap::bindTex(ShaderBase &shader)
+void Bitmap::bindTex(ShaderBase &shader, bool substituteLoresSize)
 {
     // Hires mode is handled by p->bindTexture.
 
-    p->bindTexture(shader);
+    p->bindTexture(shader, substituteLoresSize);
 }
 
 void Bitmap::taintArea(const IntRect &rect)

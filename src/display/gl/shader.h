@@ -137,7 +137,7 @@ public:
 
 	void setSpriteMat(const float value[16]);
 
-private:
+protected:
 	GLint u_spriteMat;
 };
 
@@ -365,6 +365,39 @@ protected:
 };
 #endif
 
+class Lanczos3SpriteShader : public SimpleSpriteShader
+{
+public:
+	Lanczos3SpriteShader();
+
+	void setTexSize(const Vec2i &value);
+
+protected:
+	GLint u_sourceSize;
+};
+
+class BicubicSpriteShader : public Lanczos3SpriteShader
+{
+public:
+	BicubicSpriteShader();
+
+	void setSharpness(int sharpness);
+
+protected:
+	GLint u_bc;
+};
+
+class XbrzSpriteShader : public Lanczos3SpriteShader
+{
+public:
+	XbrzSpriteShader();
+
+	void setTargetScale(const Vec2 &value);
+
+protected:
+	GLint u_targetScale;
+};
+
 /* Global object containing all available shaders */
 struct ShaderSet
 {
@@ -390,6 +423,11 @@ struct ShaderSet
 	Lanczos3Shader lanczos3;
 #ifdef MKXPZ_SSL
 	XbrzShader xbrz;
+#endif
+	Lanczos3SpriteShader lanczos3Sprite;
+	BicubicSpriteShader bicubicSprite;
+#ifdef MKXPZ_SSL
+	XbrzSpriteShader xbrzSprite;
 #endif
 };
 

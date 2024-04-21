@@ -96,8 +96,23 @@
     // "smoothScalingDown": 0,
 
 
+    // Apply smooth interpolation when bitmaps
+    // are upscaled (same values as smoothScaling)
+    // (default: 0)
+    //
+    // "bitmapSmoothScaling": 0,
+
+
+    // Apply smooth interpolation when bitmaps
+    // are downscaled (same values as smoothScaling)
+    // (default: 0)
+    //
+    // "bitmapSmoothScalingDown": 0,
+
+
     // Apply mipmap interpolation when game screen
-    // is downscaled (requires "smoothScalingDown": 1)
+    // or bitmaps are downscaled (requires
+    // "smoothScalingDown": 1 or "bitmapSmoothScalingDown": 1)
     // (default: false)
     //
     // "smoothScalingMipmaps": false,

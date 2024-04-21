@@ -24,6 +24,7 @@
 #include "sharedstate.h"
 #include "bitmap.h"
 #include "debugwriter.h"
+#include "config.h"
 #include "etc.h"
 #include "etc-internal.h"
 #include "util.h"
@@ -166,16 +167,34 @@ struct SpritePrivate
     {
         FloatRect rect = srcRect->toFloatRect();
         Vec2i bmSize;
+        Vec2i bmSizeHires;
         
         if (!nullOrDisposed(bitmap))
+        {
             bmSize = Vec2i(bitmap->width(), bitmap->height());
+            if (bitmap->hasHires())
+            {
+                bmSizeHires = Vec2i(bitmap->getHires()->width(), bitmap->getHires()->height());
+            }
+        }
         
         /* Clamp the rectangle so it doesn't reach outside
          * the bitmap bounds */
         rect.w = clamp<int>(rect.w, 0, bmSize.x-rect.x);
         rect.h = clamp<int>(rect.h, 0, bmSize.y-rect.y);
         
-        quad.setTexRect(mirrored ? rect.hFlipped() : rect);
+        if (bmSizeHires.x && bmSizeHires.y && bmSize.x && bmSize.y)
+        {
+            FloatRect rectHires(rect.x * bmSizeHires.x / bmSize.x,
+                                rect.y * bmSizeHires.y / bmSize.y,
+                                rect.w * bmSizeHires.x / bmSize.x,
+                                rect.h * bmSizeHires.y / bmSize.y);
+            quad.setTexRect(mirrored ? rectHires.hFlipped() : rectHires);
+        }
+        else
+        {
+            quad.setTexRect(mirrored ? rect.hFlipped() : rect);
+        }
         
         quad.setPosRect(FloatRect(0, 0, rect.w, rect.h));
         recomputeBushDepth();
@@ -606,6 +625,8 @@ void Sprite::draw()
     p->invert             ||
     (p->pattern && !p->pattern->isDisposed());
     
+    int scalingMethod = NearestNeighbor;
+
     if (renderEffect)
     {
         SpriteShader &shader = shState->shaders().sprite;
@@ -659,23 +680,115 @@ void Sprite::draw()
     }
     else
     {
-        SimpleSpriteShader &shader = shState->shaders().simpleSprite;
-        shader.bind();
-        
-        shader.setSpriteMat(p->trans.getMatrix());
-        shader.applyViewportProj();
-        base = &shader;
+        int sourceWidthHires = p->bitmap->hasHires() ? p->bitmap->getHires()->width() : p->bitmap->width();
+        int sourceHeightHires = p->bitmap->hasHires() ? p->bitmap->getHires()->height() : p->bitmap->height();
+
+        double framebufferScalingFactor = shState->config().enableHires ? shState->config().framebufferScalingFactor : 1.0;
+
+        int targetWidthHires = (int)lround(framebufferScalingFactor * p->bitmap->width() * p->trans.getScale().x);
+        int targetHeightHires = (int)lround(framebufferScalingFactor * p->bitmap->height() * p->trans.getScale().y);
+
+        int scaleIsSpecial = UpScale;
+
+        if (targetWidthHires == sourceWidthHires && targetHeightHires == sourceHeightHires)
+        {
+            scaleIsSpecial = SameScale;
+        }
+
+        if (targetWidthHires < sourceWidthHires && targetHeightHires < sourceHeightHires)
+        {
+            scaleIsSpecial = DownScale;
+        }
+
+        switch (scaleIsSpecial)
+        {
+        case SameScale:
+            scalingMethod = NearestNeighbor;
+            break;
+        case DownScale:
+            scalingMethod = shState->config().bitmapSmoothScalingDown;
+            break;
+        default:
+            scalingMethod = shState->config().bitmapSmoothScaling;
+	}
+
+        if (p->trans.getRotation() != 0.0)
+        {
+            scalingMethod = shState->config().bitmapSmoothScaling;
+        }
+
+        switch (scalingMethod)
+        {
+        case Bicubic:
+        {
+            BicubicSpriteShader &shader = shState->shaders().bicubicSprite;
+            shader.bind();
+
+            shader.setTexSize(Vec2i(sourceWidthHires, sourceHeightHires));
+            shader.setSharpness(shState->config().bicubicSharpness);
+            shader.setSpriteMat(p->trans.getMatrix());
+            shader.applyViewportProj();
+            base = &shader;
+        }
+            break;
+        case Lanczos3:
+        {
+            Lanczos3SpriteShader &shader = shState->shaders().lanczos3Sprite;
+            shader.bind();
+            
+            shader.setTexSize(Vec2i(sourceWidthHires, sourceHeightHires));
+            shader.setSpriteMat(p->trans.getMatrix());
+            shader.applyViewportProj();
+            base = &shader;
+        }
+            break;
+#ifdef MKXPZ_SSL
+        case xBRZ:
+        {
+            XbrzSpriteShader &shader = shState->shaders().xbrzSprite;
+            shader.bind();
+
+            shader.setTexSize(Vec2i(sourceWidthHires, sourceHeightHires));
+            shader.setTargetScale(Vec2((float)(shState->config().xbrzScalingFactor), (float)(shState->config().xbrzScalingFactor)));
+            shader.setSpriteMat(p->trans.getMatrix());
+            shader.applyViewportProj();
+            base = &shader;
+        }
+            break;
+#endif
+        default:
+        {
+            SimpleSpriteShader &shader = shState->shaders().simpleSprite;
+            shader.bind();
+
+            shader.setSpriteMat(p->trans.getMatrix());
+            shader.applyViewportProj();
+            base = &shader;
+        }
+        }        
     }
     
     glState.blendMode.pushSet(p->blendType);
     
-    p->bitmap->bindTex(*base);
+    p->bitmap->bindTex(*base, false);
+
+#ifdef MKXPZ_SSL
+    if (scalingMethod == xBRZ)
+    {
+        XbrzShader &shader = shState->shaders().xbrz;
+        shader.setTargetScale(Vec2((float)(shState->config().xbrzScalingFactor), (float)(shState->config().xbrzScalingFactor)));
+    }
+#endif
     
+    TEX::setSmooth(scalingMethod == Bilinear);
+
     if (p->wave.active)
         p->wave.qArray.draw();
     else
         p->quad.draw();
     
+    TEX::setSmooth(false);
+
     glState.blendMode.pop();
 }
 

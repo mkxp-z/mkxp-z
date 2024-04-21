@@ -68,7 +68,17 @@ dump(bmp, spr, "Substituted")
 bmp = Bitmap.new("Graphics/Pictures/OST_009")
 spr.zoom_x = 1.5
 spr.zoom_y = 1.5
-dump(bmp, spr, "Substituted-Zoomed")
+dump(bmp, spr, "Substituted-ZoomedIn")
+
+bmp = Bitmap.new("Graphics/Pictures/OST_009")
+spr.zoom_x = 0.5
+spr.zoom_y = 0.5
+dump(bmp, spr, "Substituted-ZoomedOut2x")
+
+bmp = Bitmap.new("Graphics/Pictures/OST_009")
+spr.zoom_x = 0.25
+spr.zoom_y = 0.25
+dump(bmp, spr, "Substituted-ZoomedOut4x")
 
 bmp = Bitmap.new("Graphics/Pictures/OST_009")
 spr.zoom_x = 448.0 / 1792.0
