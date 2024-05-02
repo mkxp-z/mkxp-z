@@ -77,7 +77,7 @@ static const KbBindingData defaultKbBindings[] =
 	{ SDL_SCANCODE_SPACE,    Input::C   },
 	{ SDL_SCANCODE_ESCAPE,   Input::B   },
 	{ SDL_SCANCODE_KP_0,     Input::B   },
-	{ SDL_SCANCODE_LSHIFT,   Input::A   },
+	{ SDL_SCANCODE_Z,        Input::A   },
 	{ SDL_SCANCODE_X,        Input::B   },
 	{ SDL_SCANCODE_D,        Input::Z   },
 	{ SDL_SCANCODE_Q,        Input::L   },
