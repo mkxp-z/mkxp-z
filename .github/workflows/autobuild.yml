@@ -306,7 +306,7 @@ jobs:
 
   build-macos:
     name: macOS
-    runs-on: macos-latest
+    runs-on: macos-12
     steps:
       - name: Remove pre-existing homebrew packages
         run: brew remove --force $(brew list)
