@@ -2061,10 +2061,30 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
     // Trim the text to only fill double the rect width
     int charLimit = 0;
     float squeezeLimit = 0.5f;
-    if (TTF_MeasureUTF8(font, str, std::min(width() - rect.x, rect.w) / squeezeLimit, &charLimit, nullptr) == 0)
+    if (TTF_MeasureUTF8(font, str, std::min(width() - rect.x, rect.w) / squeezeLimit, nullptr, &charLimit) == 0)
     {
-        fixed = fixed.substr(0, charLimit + 1);
-        str = fixed.c_str();
+        if (charLimit != fixed.size())
+        {
+            /* TTF_MeasureUTF8 returns the charLimit in codepoints, not bytes,
+             * so we have to calculate where that limit is ourselves.
+             * Grabbing a few codepoints past the limit in case the next
+             * character is a multi codepoint character.*/
+            charLimit += 4;
+            for(std::string::iterator it=fixed.begin(); it!=fixed.end() && *it != '\0'; ++it)
+            {
+                /* The first byte of a multibyte character starts with the first
+                 * two bits set to 11, with subsequent bytes starting with 10.
+                 * Single byte characters start with 0.*/
+                if ((*it & 0xC0) != 0x80)
+                {
+                    if (charLimit-- == 0)
+                    {
+                        *it = '\0';
+                        break;
+                    }
+                }
+            }
+        }
     }
     
     SDL_Surface *txtSurf;
