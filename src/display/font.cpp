@@ -505,6 +505,7 @@ void Font::initDefaults(const SharedFontState &sfs)
 	default:
 	case 3 :
 		names.push_back("VL Gothic");
+		FontPrivate::defaultSize = 24;
 	}
 
 	setDefaultName(names, sfs);
