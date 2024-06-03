@@ -66,9 +66,6 @@
 #include <climits>
 
 
-#define DEF_SCREEN_W (rgssVer == 1 ? 640 : 544)
-#define DEF_SCREEN_H (rgssVer == 1 ? 480 : 416)
-
 #define DEF_FRAMERATE (rgssVer == 1 ? 40 : 60)
 
 #define DEF_MAX_VIDEO_FRAMES 30
@@ -834,9 +831,9 @@ struct GraphicsPrivate {
     IntruList<Disposable> dispList;
     
     GraphicsPrivate(RGSSThreadData *rtData)
-    : scResLores(DEF_SCREEN_W, DEF_SCREEN_H),
-    scRes(rtData->config.enableHires ? (int)lround(rtData->config.framebufferScalingFactor * DEF_SCREEN_W) : DEF_SCREEN_W,
-        rtData->config.enableHires ? (int)lround(rtData->config.framebufferScalingFactor * DEF_SCREEN_H) : DEF_SCREEN_H),
+    : scResLores(rtData->config.defInternalScreenW, rtData->config.defInternalScreenH),
+    scRes(rtData->config.enableHires ? (int)lround(rtData->config.framebufferScalingFactor * rtData->config.defInternalScreenW) : rtData->config.defInternalScreenW,
+        rtData->config.enableHires ? (int)lround(rtData->config.framebufferScalingFactor * rtData->config.defInternalScreenH) : rtData->config.defInternalScreenH),
     scSize(scRes),
     winSize(rtData->config.defScreenW, rtData->config.defScreenH),
     screen(scRes.x, scRes.y), threadData(rtData),
