@@ -500,13 +500,16 @@ void EventThread::process(RGSSThreadData &rtData)
                         rtData.rqWindowAdjust.clear();
                         break;
                         
-                    case REQUEST_WINCENTER :
-                        rc = SDL_GetDesktopDisplayMode(SDL_GetWindowDisplayIndex(win), &dm);
-                        if (!rc)
-                            SDL_SetWindowPosition(win,
-                                                  (dm.w / 2) - (winW / 2),
-                                                  (dm.h / 2) - (winH / 2));
-                        rtData.rqWindowAdjust.clear();
+                    case REQUEST_WINCENTER : {
+                            rc = SDL_GetDesktopDisplayMode(SDL_GetWindowDisplayIndex(win), &dm);
+                            SDL_Rect rect;
+                            SDL_GetDisplayUsableBounds(SDL_GetWindowDisplayIndex(win), &rect);
+                            if (!rc)
+                                SDL_SetWindowPosition(win,
+                                                    rect.x + (dm.w / 2) - (winW / 2),
+                                                    rect.y + (dm.h / 2) - (winH / 2));
+                            rtData.rqWindowAdjust.clear();
+                        }
                         break;
                         
                     case REQUEST_WINRENAME :
