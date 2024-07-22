@@ -1422,6 +1422,8 @@ int Graphics::widthHires() const { return p->scRes.x; }
 
 int Graphics::heightHires() const { return p->scRes.y; }
 
+int Graphics::frameCount() const { return p->frameCount; }
+
 bool Graphics::isPingPongFramebufferActive() const {
     return p->screen.getPP().frontBuffer().fbo == FBO::boundFramebufferID || p->screen.getPP().backBuffer().fbo == FBO::boundFramebufferID;
 }

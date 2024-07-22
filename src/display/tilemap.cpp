@@ -367,7 +367,7 @@ struct TilemapPrivate
 		atlas.efTilesetH = 0;
 
 		tiles.animated = false;
-		tiles.aniIdx = shState->graphics()->FrameCount();
+		tiles.aniIdx = shState->graphics().frameCount();
 
 		/* Init tile buffers */
 		tiles.vbo = VBO::gen();
