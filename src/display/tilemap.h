@@ -84,4 +84,11 @@ private:
 	const char *klassName() const { return "tilemap"; }
 };
 
+class TilemapUtils
+{
+public:
+
+	static int  autotileAniIdx;
+};
+
 #endif // TILEMAP_H

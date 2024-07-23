@@ -367,7 +367,7 @@ struct TilemapPrivate
 		atlas.efTilesetH = 0;
 
 		tiles.animated = false;
-		tiles.aniIdx = shState->graphics().frameCount();
+		tiles.aniIdx = TilemapUtils::autotileAniIdx;
 
 		/* Init tile buffers */
 		tiles.vbo = VBO::gen();
@@ -1056,6 +1056,8 @@ struct TilemapPrivate
 		tilemapReady = true;
 	}
 };
+
+int TilemapUtils::autotileAniIdx = 0;
 
 GroundLayer::GroundLayer(TilemapPrivate *p, Viewport *viewport)
     : ViewportElement(viewport, 0),

@@ -158,6 +158,14 @@ DEF_GFX_PROP_I(Tilemap, OY)
 DEF_GFX_PROP_I(Tilemap, Opacity)
 DEF_GFX_PROP_I(Tilemap, BlendType)
 
+RB_METHOD(tilemapUtilsUpdateAutoTiles) {
+    RB_UNUSED_PARAM;
+    
+    TilemapUtils::autotileAniIdx++;
+
+    return Qnil;
+}
+
 void tilemapBindingInit() {
     VALUE klass = rb_define_class("TilemapAutotiles", rb_cObject);
 #if RAPI_FULL > 187
@@ -194,4 +202,8 @@ void tilemapBindingInit() {
     INIT_PROP_BIND(Tilemap, BlendType, "blend_type");
     INIT_PROP_BIND(Tilemap, Color, "color");
     INIT_PROP_BIND(Tilemap, Tone, "tone");
+
+    VALUE module = rb_define_module("TilemapUtils");
+
+    _rb_define_module_function(module, "updateAutoTiles", tilemapUtilsUpdateAutoTiles);
 }
