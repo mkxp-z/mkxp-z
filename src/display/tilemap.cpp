@@ -26,7 +26,6 @@
 #include "table.h"
 
 #include "sharedstate.h"
-#include "graphics.h"
 #include "config.h"
 #include "debugwriter.h"
 #include "glstate.h"
@@ -291,9 +290,6 @@ struct TilemapPrivate
 		GLMeta::VAO vao;
 		VBO::ID vbo;
 		bool animated;
-
-		/* Animation state */
-		uint32_t aniIdx;
 	} tiles;
 
 	FlashMap flashMap;
@@ -367,7 +363,6 @@ struct TilemapPrivate
 		atlas.efTilesetH = 0;
 
 		tiles.animated = false;
-		tiles.aniIdx = TilemapUtils::autotileAniIdx;
 
 		/* Init tile buffers */
 		tiles.vbo = VBO::gen();
@@ -870,7 +865,7 @@ struct TilemapPrivate
 			tilemapShader.setTone(tone->norm);
 			tilemapShader.setColor(color->norm);
 			tilemapShader.setOpacity(opacity.norm);
-			tilemapShader.setAniIndex(tiles.aniIdx / atFrameDur);
+			tilemapShader.setAniIndex(TilemapUtils::autotileAniIdx / atFrameDur);
 			tilemapShader.setATFrames(atlas.nATFrames);
 			shaderVar = &tilemapShader;
 		}
@@ -1236,10 +1231,9 @@ void Tilemap::update()
 		p->flashAlphaIdx = 0;
 
 	/* Animate autotiles */
-	if (!p->tiles.animated)
-		return;
-
-	++p->tiles.aniIdx;
+	// Perry: This is now handled in the ruby code by calling 
+	//		  TilemapUtils::updateAutotileAniIdx because the autotile animation
+	//        index is shared between all tilemaps.
 }
 
 Tilemap::Autotiles &Tilemap::getAutotiles()
