@@ -290,9 +290,6 @@ struct TilemapPrivate
 		GLMeta::VAO vao;
 		VBO::ID vbo;
 		bool animated;
-
-		/* Animation state */
-		uint32_t aniIdx;
 	} tiles;
 
 	FlashMap flashMap;
@@ -368,7 +365,6 @@ struct TilemapPrivate
 		atlas.efTilesetH = 0;
 
 		tiles.animated = false;
-		tiles.aniIdx = 0;
 
 		/* Init tile buffers */
 		tiles.vbo = VBO::gen();
@@ -886,7 +882,7 @@ struct TilemapPrivate
 			tilemapShader.setTone(tone->norm);
 			tilemapShader.setColor(color->norm);
 			tilemapShader.setOpacity(opacity.norm);
-			tilemapShader.setAniIndex(tiles.aniIdx / atFrameDur);
+			tilemapShader.setAniIndex(TilemapUtils::autotileAniIdx / atFrameDur);
 			tilemapShader.setATFrames(atlas.nATFrames);
 			shaderVar = &tilemapShader;
 		}
@@ -1073,6 +1069,8 @@ struct TilemapPrivate
 	}
 };
 
+int TilemapUtils::autotileAniIdx = 0;
+
 GroundLayer::GroundLayer(TilemapPrivate *p, Viewport *viewport)
     : ViewportElement(viewport, 0),
       vboCount(0),
@@ -1256,10 +1254,8 @@ void Tilemap::update()
 		p->flashAlphaIdx = 0;
 
 	/* Animate autotiles */
-	if (!p->tiles.animated)
-		return;
-
-	++p->tiles.aniIdx;
+	// Perry: This is now handled in the ruby code by calling `TilemapUtils::updateAutotileAniIdx`
+	// because the autotile animation index is shared between all tilemaps to avoid desync on map connection.
 }
 
 Tilemap::Autotiles &Tilemap::getAutotiles()
