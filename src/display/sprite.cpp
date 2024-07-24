@@ -627,8 +627,51 @@ void Sprite::draw()
     
     int scalingMethod = NearestNeighbor;
 
+    int sourceWidthHires = p->bitmap->hasHires() ? p->bitmap->getHires()->width() : p->bitmap->width();
+    int sourceHeightHires = p->bitmap->hasHires() ? p->bitmap->getHires()->height() : p->bitmap->height();
+
+    double framebufferScalingFactor = shState->config().enableHires ? shState->config().framebufferScalingFactor : 1.0;
+
+    int targetWidthHires = (int)lround(framebufferScalingFactor * p->bitmap->width() * p->trans.getScale().x);
+    int targetHeightHires = (int)lround(framebufferScalingFactor * p->bitmap->height() * p->trans.getScale().y);
+
+    int scaleIsSpecial = UpScale;
+
+    if (targetWidthHires == sourceWidthHires && targetHeightHires == sourceHeightHires)
+    {
+        scaleIsSpecial = SameScale;
+    }
+
+    if (targetWidthHires < sourceWidthHires && targetHeightHires < sourceHeightHires)
+    {
+        scaleIsSpecial = DownScale;
+    }
+
+    switch (scaleIsSpecial)
+    {
+    case SameScale:
+        scalingMethod = NearestNeighbor;
+        break;
+    case DownScale:
+        scalingMethod = shState->config().bitmapSmoothScalingDown;
+        break;
+    default:
+        scalingMethod = shState->config().bitmapSmoothScaling;
+    }
+
+    if (p->trans.getRotation() != 0.0)
+    {
+        scalingMethod = shState->config().bitmapSmoothScaling;
+    }
+
     if (renderEffect)
     {
+        if (scalingMethod != NearestNeighbor)
+        {
+            Debug() << "BUG: Smooth SpriteShader not implemented:" << scalingMethod;
+            scalingMethod = NearestNeighbor;
+        }
+
         SpriteShader &shader = shState->shaders().sprite;
         
         shader.bind();
@@ -670,6 +713,12 @@ void Sprite::draw()
     }
     else if (p->opacity != 255)
     {
+        if (scalingMethod != NearestNeighbor)
+        {
+            Debug() << "BUG: Smooth AlphaSpriteShader not implemented:" << scalingMethod;
+            scalingMethod = NearestNeighbor;
+        }
+
         AlphaSpriteShader &shader = shState->shaders().alphaSprite;
         shader.bind();
         
@@ -680,43 +729,6 @@ void Sprite::draw()
     }
     else
     {
-        int sourceWidthHires = p->bitmap->hasHires() ? p->bitmap->getHires()->width() : p->bitmap->width();
-        int sourceHeightHires = p->bitmap->hasHires() ? p->bitmap->getHires()->height() : p->bitmap->height();
-
-        double framebufferScalingFactor = shState->config().enableHires ? shState->config().framebufferScalingFactor : 1.0;
-
-        int targetWidthHires = (int)lround(framebufferScalingFactor * p->bitmap->width() * p->trans.getScale().x);
-        int targetHeightHires = (int)lround(framebufferScalingFactor * p->bitmap->height() * p->trans.getScale().y);
-
-        int scaleIsSpecial = UpScale;
-
-        if (targetWidthHires == sourceWidthHires && targetHeightHires == sourceHeightHires)
-        {
-            scaleIsSpecial = SameScale;
-        }
-
-        if (targetWidthHires < sourceWidthHires && targetHeightHires < sourceHeightHires)
-        {
-            scaleIsSpecial = DownScale;
-        }
-
-        switch (scaleIsSpecial)
-        {
-        case SameScale:
-            scalingMethod = NearestNeighbor;
-            break;
-        case DownScale:
-            scalingMethod = shState->config().bitmapSmoothScalingDown;
-            break;
-        default:
-            scalingMethod = shState->config().bitmapSmoothScaling;
-	}
-
-        if (p->trans.getRotation() != 0.0)
-        {
-            scalingMethod = shState->config().bitmapSmoothScaling;
-        }
-
         switch (scalingMethod)
         {
         case Bicubic:

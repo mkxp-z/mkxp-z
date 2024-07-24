@@ -50,9 +50,16 @@ public:
 		if (disposed)
 			return;
 
-		releaseResources();
-		disposed = true;
-		wasDisposed();
+		GFX_LOCK;
+		try {
+			releaseResources();
+			disposed = true;
+			wasDisposed();
+		} catch (Exception &e) {
+			GFX_UNLOCK;
+			throw e;
+		}
+		GFX_UNLOCK;
 	}
 
 	bool isDisposed() const

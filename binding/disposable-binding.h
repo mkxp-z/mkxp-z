@@ -36,13 +36,7 @@ RB_METHOD(disposableDispose)
 	if (!d)
 		return Qnil;
 
-	/* Nothing to do if already disposed */
-	if (d->isDisposed())
-		return Qnil;
-
-    GFX_LOCK;
 	d->dispose();
-    GFX_UNLOCK;
 
 	return Qnil;
 }

@@ -444,11 +444,15 @@ static PHYSFS_EnumerateCallbackResult cacheEnumCB(void *d, const char *origdir,
 }
 
 void FileSystem::createPathCache() {
+  Debug() << "Loading path cache...";
+
   CacheEnumData data(p);
   data.fileLists.push(&p->fileLists[""]);
   PHYSFS_enumerate("", cacheEnumCB, &data);
 
   p->havePathCache = true;
+
+  Debug() << "Path cache completed.";
 }
 
 void FileSystem::reloadPathCache() {

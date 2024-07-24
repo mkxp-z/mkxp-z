@@ -509,27 +509,35 @@ Bitmap::Bitmap(const char *filename)
     }
 
     BitmapOpenHandler handler;
-    shState->fileSystem().openRead(handler, filename);
-    
-    if (!handler.error.empty()) {
-        // Not loaded with SDL, but I want it to be caught with the same exception type
-        throw Exception(Exception::SDLError, "Error loading image '%s': %s", filename, handler.error.c_str());
-    }
-    else if (!handler.gif && !handler.surface) {
-        throw Exception(Exception::SDLError, "Error loading image '%s': %s",
-                        filename, SDL_GetError());
+    try {
+        shState->fileSystem().openRead(handler, filename);
+        
+        if (!handler.error.empty()) {
+            // Not loaded with SDL, but I want it to be caught with the same exception type
+            throw Exception(Exception::SDLError, "Error loading image '%s': %s", filename, handler.error.c_str());
+        }
+        else if (!handler.gif && !handler.surface) {
+            throw Exception(Exception::SDLError, "Error loading image '%s': %s",
+                            filename, SDL_GetError());
+        }
+    } catch (const Exception &e) {
+        if (hiresBitmap)
+            delete hiresBitmap;
+        throw e;
     }
     
     if (handler.gif) {
-        p = new BitmapPrivate(this);
-
-        p->selfHires = hiresBitmap;
-        
         if (handler.gif->width >= (uint32_t)glState.caps.maxTexSize || handler.gif->height > (uint32_t)glState.caps.maxTexSize)
         {
+            if (hiresBitmap)
+                delete hiresBitmap;
             throw new Exception(Exception::MKXPError, "Animation too large (%ix%i, max %ix%i)",
                                 handler.gif->width, handler.gif->height, glState.caps.maxTexSize, glState.caps.maxTexSize);
         }
+        
+        p = new BitmapPrivate(this);
+        
+        p->selfHires = hiresBitmap;
         
         if (handler.gif->frame_count == 1) {
             TEXFBO texfbo;
@@ -541,6 +549,10 @@ Bitmap::Bitmap(const char *filename)
                 gif_finalise(handler.gif);
                 delete handler.gif;
                 delete handler.gif_data;
+                
+                delete p;
+                if (hiresBitmap)
+                    delete hiresBitmap;
                 
                 throw e;
             }
@@ -579,8 +591,7 @@ Bitmap::Bitmap(const char *filename)
             if (i > 0) {
                 int status = gif_decode_frame(handler.gif, i);
                 if (status != GIF_OK && status != GIF_WORKING) {
-                    for (TEXFBO &frame : p->animation.frames)
-                        shState->texPool().release(frame);
+                    releaseResources();
                     
                     gif_finalise(handler.gif);
                     delete handler.gif;
@@ -597,8 +608,7 @@ Bitmap::Bitmap(const char *filename)
             }
             catch (const Exception &e)
             {
-                for (TEXFBO &frame : p->animation.frames)
-                    shState->texPool().release(frame);
+                releaseResources();
                 
                 gif_finalise(handler.gif);
                 delete handler.gif;
@@ -621,7 +631,7 @@ Bitmap::Bitmap(const char *filename)
 
     SDL_Surface *imgSurf = handler.surface;
 
-    initFromSurface(imgSurf, hiresBitmap, true);
+    initFromSurface(imgSurf, hiresBitmap, false);
 }
 
 Bitmap::Bitmap(int width, int height, bool isHires)
@@ -640,7 +650,14 @@ Bitmap::Bitmap(int width, int height, bool isHires)
         hiresBitmap->setLores(this);
     }
 
-    TEXFBO tex = shState->texPool().request(width, height);
+    TEXFBO tex;
+    try {
+        tex = shState->texPool().request(width, height);
+    } catch (const Exception &e) {
+        if (hiresBitmap)
+            delete hiresBitmap;
+        throw e;
+    }
     
     p = new BitmapPrivate(this);
     p->gl = tex;
@@ -713,7 +730,12 @@ Bitmap::Bitmap(const Bitmap &other, int frame)
     
     // TODO: Clean me up
     if (!other.isAnimated() || frame >= -1) {
-        p->gl = shState->texPool().request(other.width(), other.height());
+        try {
+            p->gl = shState->texPool().request(other.width(), other.height());
+        } catch (const Exception &e) {
+            delete p;
+            throw e;
+        }
         
         GLMeta::blitBegin(p->gl);
         // Blit just the current frame of the other animated bitmap
@@ -742,8 +764,7 @@ Bitmap::Bitmap(const Bitmap &other, int frame)
             try {
                 newframe = shState->texPool().request(p->animation.width, p->animation.height);
             } catch(const Exception &e) {
-                for (TEXFBO &f : p->animation.frames)
-                    shState->texPool().release(f);
+                releaseResources();
                 throw e;
             }
             
@@ -770,10 +791,15 @@ Bitmap::Bitmap(TEXFBO &other)
     }
 
     p = new BitmapPrivate(this);
-
-    p->gl = shState->texPool().request(other.width, other.height);
-
     p->selfHires = hiresBitmap;
+
+    try {
+        p->gl = shState->texPool().request(other.width, other.height);
+    } catch (const Exception &e) {
+        delete p;
+        throw e;
+    }
+
     if (p->selfHires != nullptr) {
         p->gl.selfHires = &p->selfHires->getGLTypes();
     }
@@ -789,7 +815,7 @@ Bitmap::Bitmap(TEXFBO &other)
     p->addTaintedArea(rect());
 }
 
-Bitmap::Bitmap(SDL_Surface *imgSurf, SDL_Surface *imgSurfHires)
+Bitmap::Bitmap(SDL_Surface *imgSurf, SDL_Surface *imgSurfHires, bool forceMega)
 {
     Bitmap *hiresBitmap = nullptr;
 
@@ -799,25 +825,23 @@ Bitmap::Bitmap(SDL_Surface *imgSurf, SDL_Surface *imgSurfHires)
         hiresBitmap->setLores(this);
     }
 
-    initFromSurface(imgSurf, hiresBitmap, false);
+    initFromSurface(imgSurf, hiresBitmap, forceMega);
 }
 
 Bitmap::~Bitmap()
 {
     dispose();
+
+    loresDispCon.disconnect();
 }
 
-void Bitmap::initFromSurface(SDL_Surface *imgSurf, Bitmap *hiresBitmap, bool freeSurface)
+void Bitmap::initFromSurface(SDL_Surface *imgSurf, Bitmap *hiresBitmap, bool forceMega)
 {
     p->ensureFormat(imgSurf, SDL_PIXELFORMAT_ABGR8888);
     
-    if (imgSurf->w > glState.caps.maxTexSize || imgSurf->h > glState.caps.maxTexSize)
+    if (imgSurf->w > glState.caps.maxTexSize || imgSurf->h > glState.caps.maxTexSize || forceMega)
     {
         /* Mega surface */
-
-        if(!freeSurface) {
-            throw Exception(Exception::RGSSError, "Cloning Mega Bitmap from Surface not supported");
-        }
 
         p = new BitmapPrivate(this);
         p->selfHires = hiresBitmap;
@@ -835,6 +859,8 @@ void Bitmap::initFromSurface(SDL_Surface *imgSurf, Bitmap *hiresBitmap, bool fre
         }
         catch (const Exception &e)
         {
+            if (hiresBitmap)
+                delete hiresBitmap;
             SDL_FreeSurface(imgSurf);
             throw e;
         }
@@ -849,9 +875,7 @@ void Bitmap::initFromSurface(SDL_Surface *imgSurf, Bitmap *hiresBitmap, bool fre
         TEX::bind(p->gl.tex);
         TEX::uploadImage(p->gl.width, p->gl.height, imgSurf->pixels, GL_RGBA);
         
-        if (freeSurface) {
-            SDL_FreeSurface(imgSurf);
-        }
+        SDL_FreeSurface(imgSurf);
     }
     
     p->addTaintedArea(rect());
@@ -905,6 +929,7 @@ void Bitmap::setLores(Bitmap *lores) {
     guardDisposed();
 
     p->selfLores = lores;
+    loresDispCon = lores->wasDisposed.connect(&Bitmap::loresDisposal, this);
 }
 
 bool Bitmap::isMega() const{
@@ -933,7 +958,7 @@ void Bitmap::blt(int x, int y,
     if (source.isDisposed())
         return;
     
-    stretchBlt(IntRect(x, y, rect.w, rect.h),
+    stretchBlt(IntRect(x, y, abs(rect.w), abs(rect.h)),
                source, rect, opacity);
 }
 
@@ -1015,7 +1040,7 @@ static bool shrinkRects(int &sourcePos, int &sourceLen, const int &sBitmapLen,
 
 void Bitmap::stretchBlt(IntRect destRect,
                         const Bitmap &source, IntRect sourceRect,
-                        int opacity)
+                        int opacity, bool smooth)
 {
     guardDisposed();
 
@@ -1058,128 +1083,234 @@ void Bitmap::stretchBlt(IntRect destRect,
         return;
     
     SDL_Surface *srcSurf = source.megaSurface();
+    SDL_Surface *blitTemp = 0;
+    bool touchesTaintedArea = p->touchesTaintedArea(destRect);
+    bool unpack_subimage = srcSurf && gl.unpack_subimage;
     
-    if (srcSurf && shState->config().subImageFix)
-    {
-        /* Blit from software surface, for broken GL drivers */
-        Vec2i gpTexSize;
-        shState->ensureTexSize(sourceRect.w, sourceRect.h, gpTexSize);
-        shState->bindTex();
-        
-        GLMeta::subRectImageUpload(srcSurf->w, sourceRect.x, sourceRect.y, 0, 0,
-                                   sourceRect.w, sourceRect.h, srcSurf, GL_RGBA);
-        GLMeta::subRectImageEnd();
-        
-        SimpleShader &shader = shState->shaders().simple;
-        shader.bind();
-        shader.setTranslation(Vec2i());
-        shader.setTexSize(gpTexSize);
-        
-        p->pushSetViewport(shader);
-        p->bindFBO();
-        
-        Quad &quad = shState->gpQuad();
-        quad.setTexRect(FloatRect(0, 0, sourceRect.w, sourceRect.h));
-        quad.setPosRect(destRect);
-        
-        p->blitQuad(quad);
-        p->popViewport();
-        
-        p->addTaintedArea(destRect);
-        p->onModified();
-        
-        return;
-    }
-    else if (srcSurf)
-    {
-        /* Blit from software surface */
-        /* Don't do transparent blits for now */
-        if (opacity < 255)
-            source.ensureNonMega();
-        
-        SDL_Rect srcRect = sourceRect;
-        SDL_Rect dstRect = destRect;
-        SDL_Rect btmRect = { 0, 0, width(), height() };
-        SDL_Rect bltRect;
-        
-        if (SDL_IntersectRect(&btmRect, &dstRect, &bltRect) != SDL_TRUE)
-            return;
-        
-        int bpp;
-        Uint32 rMask, gMask, bMask, aMask;
-        SDL_PixelFormatEnumToMasks(SDL_PIXELFORMAT_ABGR8888,
-                                   &bpp, &rMask, &gMask, &bMask, &aMask);
-        SDL_Surface *blitTemp =
-        SDL_CreateRGBSurface(0, destRect.w, destRect.h, bpp, rMask, gMask, bMask, aMask);
-        
-        SDL_BlitScaled(srcSurf, &srcRect, blitTemp, 0);
-        
-        TEX::bind(getGLTypes().tex);
-        
-        if (bltRect.w == dstRect.w && bltRect.h == dstRect.h)
-        {
-            /* Dest rectangle lies within bounding box */
-            TEX::uploadSubImage(destRect.x, destRect.y,
-                                destRect.w, destRect.h,
-                                blitTemp->pixels, GL_RGBA);
-        }
-        else
-        {
-            /* Clipped blit */
-            GLMeta::subRectImageUpload(blitTemp->w, bltRect.x - dstRect.x, bltRect.y - dstRect.y,
-                                       bltRect.x, bltRect.y, bltRect.w, bltRect.h, blitTemp, GL_RGBA);
-            GLMeta::subRectImageEnd();
-        }
-        
-        SDL_FreeSurface(blitTemp);
-        
-        p->onModified();
-        return;
-    }
-    
-    if (opacity == 255 && !p->touchesTaintedArea(destRect))
+    if (!srcSurf && opacity == 255 && !touchesTaintedArea)
     {
         /* Fast blit */
         GLMeta::blitBegin(getGLTypes());
         GLMeta::blitSource(source.getGLTypes());
-        GLMeta::blitRectangle(sourceRect, destRect);
+        GLMeta::blitRectangle(sourceRect, destRect, smooth);
         GLMeta::blitEnd();
     }
     else
     {
-        /* Fragment pipeline */
-        float normOpacity = (float) opacity / 255.0f;
-        
-        TEXFBO &gpTex = shState->gpTexFBO(destRect.w, destRect.h);
-        
-        GLMeta::blitBegin(gpTex);
-        GLMeta::blitSource(getGLTypes());
-        GLMeta::blitRectangle(destRect, Vec2i());
-        GLMeta::blitEnd();
-        
-        FloatRect bltSubRect((float) sourceRect.x / source.width(),
-                             (float) sourceRect.y / source.height(),
-                             ((float) source.width() / sourceRect.w) * ((float) destRect.w / gpTex.width),
-                             ((float) source.height() / sourceRect.h) * ((float) destRect.h / gpTex.height));
-        
-        BltShader &shader = shState->shaders().blt;
-        shader.bind();
-        shader.setDestination(gpTex.tex);
-        shader.setSubRect(bltSubRect);
-        shader.setOpacity(normOpacity);
-        
-        Quad &quad = shState->gpQuad();
-        quad.setTexPosRect(sourceRect, destRect);
-        quad.setColor(Vec4(1, 1, 1, normOpacity));
-        
-        source.p->bindTexture(shader, false);
-        p->bindFBO();
-        p->pushSetViewport(shader);
-        
-        p->blitQuad(quad);
-        
-        p->popViewport();
+        if (srcSurf)
+        {
+            SDL_Rect srcRect = sourceRect;
+            bool subImageFix = shState->config().subImageFix;
+            bool srcRectTooBig = srcRect.w > glState.caps.maxTexSize ||
+                                 srcRect.h > glState.caps.maxTexSize;
+            bool srcSurfTooBig = !unpack_subimage && (
+                                     srcSurf->w > glState.caps.maxTexSize || 
+                                     srcSurf->h > glState.caps.maxTexSize
+                                 );
+            
+            if (srcRectTooBig || srcSurfTooBig)
+            {
+                int error;
+                if (srcRectTooBig)
+                {
+                    /* We have to resize it here anyway, so use software resizing */
+                    blitTemp =
+                        SDL_CreateRGBSurface(0, abs(destRect.w), abs(destRect.h), p->format->BitsPerPixel,
+                                             p->format->Rmask, p->format->Gmask,
+                                             p->format->Bmask, p->format->Amask);
+                    if (!blitTemp)
+                        throw Exception(Exception::SDLError, "Error creating temporary surface for blitting: %s",
+                                        SDL_GetError());
+                    
+                    if (smooth)
+                    {
+                        error = SDL_SoftStretchLinear(srcSurf, &srcRect, blitTemp, 0);
+                        smooth = false;
+                    }
+                    else
+                    {
+                        SDL_Rect tmpRect = {0, 0, blitTemp->w, blitTemp->h};
+                        error = SDL_LowerBlitScaled(srcSurf, &srcRect, blitTemp, &tmpRect);
+                    }
+                    unpack_subimage = false;
+                }
+                else
+                {
+                    /* Just crop it, let the shader resize it later */
+                    blitTemp =
+                        SDL_CreateRGBSurface(0, sourceRect.w, sourceRect.h, p->format->BitsPerPixel,
+                                             p->format->Rmask, p->format->Gmask,
+                                             p->format->Bmask, p->format->Amask);
+                    if (!blitTemp)
+                        throw Exception(Exception::SDLError, "Error creating temporary surface for blitting: %s",
+                                        SDL_GetError());
+                    
+                    SDL_Rect tmpRect = {0, 0, blitTemp->w, blitTemp->h};
+                    error = SDL_LowerBlit(srcSurf, &srcRect, blitTemp, &tmpRect);
+                }
+                
+                if (error)
+                {
+                    SDL_FreeSurface(blitTemp);
+                    throw Exception(Exception::SDLError, "Failed to blit surface: %s", SDL_GetError());
+                }
+                
+                srcSurf = blitTemp;
+                
+                sourceRect.w = srcSurf->w;
+                sourceRect.h = srcSurf->h;
+                sourceRect.x = 0;
+                sourceRect.y = 0;
+            }
+            
+            if (opacity == 255 && !touchesTaintedArea)
+            {
+                if (!subImageFix &&
+                    sourceRect.w == destRect.w && sourceRect.h == destRect.h &&
+                    (unpack_subimage || (srcSurf->w == sourceRect.w && srcSurf->h == sourceRect.h))
+                   )
+                {
+                    /* No scaling needed */
+                    TEX::bind(getGLTypes().tex);
+                    if (unpack_subimage)
+                    {
+                        gl.PixelStorei(GL_UNPACK_ROW_LENGTH, srcSurf->w);
+                        gl.PixelStorei(GL_UNPACK_SKIP_PIXELS, sourceRect.x);
+                        gl.PixelStorei(GL_UNPACK_SKIP_ROWS, sourceRect.y);
+                    }
+                    TEX::uploadSubImage(destRect.x, destRect.y,
+                                        destRect.w, destRect.h,
+                                        srcSurf->pixels, GL_RGBA);
+                    
+                    if (unpack_subimage)
+                        GLMeta::subRectImageEnd();
+                }
+                else
+                {
+                    /* Resizing or subImageFix involved: need to use intermediary TexFBO */
+                    TEXFBO *gpTF;
+                    if (unpack_subimage)
+                        gpTF = &shState->gpTexFBO(sourceRect.w, sourceRect.h);
+                    else
+                        gpTF = &shState->gpTexFBO(srcSurf->w, srcSurf->h);
+                    TEX::bind(gpTF->tex);
+                    
+                    if (unpack_subimage)
+                    {
+                        gl.PixelStorei(GL_UNPACK_ROW_LENGTH, srcSurf->w);
+                        gl.PixelStorei(GL_UNPACK_SKIP_PIXELS, sourceRect.x);
+                        gl.PixelStorei(GL_UNPACK_SKIP_ROWS, sourceRect.y);
+                        sourceRect.x = 0;
+                        sourceRect.y = 0;
+                        TEX::uploadSubImage(0, 0, sourceRect.w, sourceRect.h, srcSurf->pixels, GL_RGBA);
+                        GLMeta::subRectImageEnd();
+                    }
+                    else
+                    {
+                        TEX::uploadSubImage(0, 0, srcSurf->w, srcSurf->h, srcSurf->pixels, GL_RGBA);
+                    }
+                    
+                    GLMeta::blitBegin(getGLTypes());
+                    GLMeta::blitSource(*gpTF);
+                    GLMeta::blitRectangle(sourceRect, destRect, smooth);
+                    GLMeta::blitEnd();
+                }
+            }
+        }
+        if (opacity < 255 || touchesTaintedArea)
+        {
+            /* We're touching a tainted area or still need to reduce opacity */
+             
+            /* Fragment pipeline */
+            float normOpacity = (float) opacity / 255.0f;
+            
+            TEXFBO &gpTex = shState->gpTexFBO(abs(destRect.w), abs(destRect.h));
+            Vec2i gpTexSize;
+            
+            GLMeta::blitBegin(gpTex);
+            GLMeta::blitSource(getGLTypes());
+            GLMeta::blitRectangle(destRect, IntRect(0, 0, abs(destRect.w), abs(destRect.h)));
+            GLMeta::blitEnd();
+            
+            int sourceWidth, sourceHeight;
+            FloatRect bltSubRect;
+            if (srcSurf)
+            {
+                if (unpack_subimage)
+                {
+                    shState->ensureTexSize(sourceRect.w, sourceRect.h, gpTexSize);
+                }
+                else
+                {
+                    shState->ensureTexSize(srcSurf->w, srcSurf->h, gpTexSize);
+                }
+                sourceWidth = gpTexSize.x;
+                sourceHeight = gpTexSize.y;
+                
+                shState->bindTex();
+                
+                if (unpack_subimage)
+                {
+                    gl.PixelStorei(GL_UNPACK_ROW_LENGTH, srcSurf->w);
+                    gl.PixelStorei(GL_UNPACK_SKIP_PIXELS, sourceRect.x);
+                    gl.PixelStorei(GL_UNPACK_SKIP_ROWS, sourceRect.y);
+                    sourceRect.x = 0;
+                    sourceRect.y = 0;
+                    
+                    TEX::uploadSubImage(0, 0, sourceRect.w, sourceRect.h, srcSurf->pixels, GL_RGBA);
+                    GLMeta::subRectImageEnd();
+                }
+                else
+                {
+                    TEX::uploadSubImage(0, 0, srcSurf->w, srcSurf->h, srcSurf->pixels, GL_RGBA);
+                }
+            }
+            else
+            {
+                sourceWidth = source.width();
+                sourceHeight = source.height();
+            }
+            bltSubRect = FloatRect((float) sourceRect.x / sourceWidth,
+                                   (float) sourceRect.y / sourceHeight,
+                                   ((float) sourceWidth / sourceRect.w) * ((float) abs(destRect.w) / gpTex.width),
+                                   ((float) sourceHeight / sourceRect.h) * ((float) abs(destRect.h) / gpTex.height));
+            
+            BltShader &shader = shState->shaders().blt;
+            shader.bind();
+            if (srcSurf)
+            {
+                shader.setTexSize(gpTexSize);
+            }
+            else
+            {
+                source.p->bindTexture(shader, false);
+            }
+            shader.setSource();
+            shader.setDestination(gpTex.tex);
+            shader.setSubRect(bltSubRect);
+            shader.setOpacity(normOpacity);
+            
+            Quad &quad = shState->gpQuad();
+            quad.setTexPosRect(sourceRect, destRect);
+            quad.setColor(Vec4(1, 1, 1, normOpacity));
+            
+            p->bindFBO();
+            p->pushSetViewport(shader);
+            
+            if (smooth)
+                TEX::setSmooth(true);
+            
+            p->blitQuad(quad);
+            
+            p->popViewport();
+            
+            if (smooth)
+                TEX::setSmooth(false);
+        }
     }
+    
+    if (blitTemp)
+        SDL_FreeSurface(blitTemp);
     
     p->addTaintedArea(destRect);
     p->onModified();
@@ -1902,6 +2033,8 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
         int rectHeight = rect.h * p->selfHires->height() / height();
 
         p->selfHires->drawText(IntRect(rectX, rectY, rectWidth, rectHeight), str, align);
+
+        return;
     }
 
     std::string fixed = fixupString(str);
@@ -1919,8 +2052,6 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
     
     SDL_Color c = fontColor.toSDLColor();
     c.a = 255;
-    
-    float txtAlpha = fontColor.norm.w;
     
     SDL_Surface *txtSurf;
     
@@ -1993,131 +2124,20 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
     if (squeeze > 1)
         squeeze = 1;
     
-    FloatRect posRect(alignX, alignY, txtSurf->w * squeeze, txtSurf->h);
+    IntRect destRect(alignX, alignY, 0, 0);
+    destRect.w = std::min(rect.w, (int)(txtSurf->w * squeeze));
+    destRect.h = std::min(rect.h, txtSurf->h);
     
-    Vec2i gpTexSize;
-    shState->ensureTexSize(txtSurf->w, txtSurf->h, gpTexSize);
+    destRect.w = std::min(destRect.w, width() - destRect.x);
+    destRect.h = std::min(destRect.h, height() - destRect.y);
     
-    bool fastBlit = !p->touchesTaintedArea(posRect) && txtAlpha == 1.0f;
+    IntRect sourceRect;
+    sourceRect.w = destRect.w / squeeze;
+    sourceRect.h = destRect.h;
     
-    if (fastBlit)
-    {
-        if (squeeze == 1.0f && !shState->config().subImageFix)
-        {
-            /* Even faster: upload directly to bitmap texture.
-             * We have to make sure the posRect lies within the texture
-             * boundaries or texSubImage will generate errors.
-             * If it partly lies outside bounds we have to upload
-             * the clipped visible part of it. */
-            SDL_Rect btmRect;
-            btmRect.x = btmRect.y = 0;
-            btmRect.w = width();
-            btmRect.h = height();
-            
-            SDL_Rect txtRect;
-            txtRect.x = posRect.x;
-            txtRect.y = posRect.y;
-            txtRect.w = posRect.w;
-            txtRect.h = posRect.h;
-            
-            SDL_Rect inters;
-            
-            /* If we have no intersection at all,
-             * there's nothing to upload to begin with */
-            if (SDL_IntersectRect(&btmRect, &txtRect, &inters))
-            {
-                bool subImage = false;
-                int subSrcX = 0, subSrcY = 0;
-                
-                if (inters.w != txtRect.w || inters.h != txtRect.h)
-                {
-                    /* Clip the text surface */
-                    subSrcX = inters.x - txtRect.x;
-                    subSrcY = inters.y - txtRect.y;
-                    subImage = true;
-                    
-                    posRect.x = inters.x;
-                    posRect.y = inters.y;
-                    posRect.w = inters.w;
-                    posRect.h = inters.h;
-                }
-                
-                TEX::bind(p->gl.tex);
-                
-                if (!subImage)
-                {
-                    TEX::uploadSubImage(posRect.x, posRect.y,
-                                        posRect.w, posRect.h,
-                                        txtSurf->pixels, GL_RGBA);
-                }
-                else
-                {
-                    GLMeta::subRectImageUpload(txtSurf->w, subSrcX, subSrcY,
-                                               posRect.x, posRect.y,
-                                               posRect.w, posRect.h,
-                                               txtSurf, GL_RGBA);
-                    GLMeta::subRectImageEnd();
-                }
-            }
-        }
-        else
-        {
-            /* Squeezing involved: need to use intermediary TexFBO */
-            TEXFBO &gpTF = shState->gpTexFBO(txtSurf->w, txtSurf->h);
-            
-            TEX::bind(gpTF.tex);
-            TEX::uploadSubImage(0, 0, txtSurf->w, txtSurf->h, txtSurf->pixels, GL_RGBA);
-            
-            GLMeta::blitBegin(p->gl);
-            GLMeta::blitSource(gpTF);
-            GLMeta::blitRectangle(IntRect(0, 0, txtSurf->w, txtSurf->h),
-                                  posRect, true);
-            GLMeta::blitEnd();
-        }
-    }
-    else
-    {
-        /* Aquire a partial copy of the destination
-         * buffer we're about to render to */
-        TEXFBO &gpTex2 = shState->gpTexFBO(posRect.w, posRect.h);
-        
-        GLMeta::blitBegin(gpTex2);
-        GLMeta::blitSource(p->gl);
-        GLMeta::blitRectangle(posRect, Vec2i());
-        GLMeta::blitEnd();
-        
-        FloatRect bltRect(0, 0,
-                          (float) (gpTexSize.x * squeeze) / gpTex2.width,
-                          (float) gpTexSize.y / gpTex2.height);
-        
-        BltShader &shader = shState->shaders().blt;
-        shader.bind();
-        shader.setTexSize(gpTexSize);
-        shader.setSource();
-        shader.setDestination(gpTex2.tex);
-        shader.setSubRect(bltRect);
-        shader.setOpacity(txtAlpha);
-        
-        shState->bindTex();
-        TEX::uploadSubImage(0, 0, txtSurf->w, txtSurf->h, txtSurf->pixels, GL_RGBA);
-        TEX::setSmooth(true);
-        
-        Quad &quad = shState->gpQuad();
-        quad.setTexRect(FloatRect(0, 0, txtSurf->w, txtSurf->h));
-        quad.setPosRect(posRect);
-        
-        p->bindFBO();
-        p->pushSetViewport(shader);
-        
-        p->blitQuad(quad);
-        
-        p->popViewport();
-    }
-    
-    SDL_FreeSurface(txtSurf);
-    p->addTaintedArea(posRect);
-    
-    p->onModified();
+    Bitmap txtBitmap(txtSurf, nullptr, true);
+    bool smooth = squeeze != 1.0f;
+    stretchBlt(destRect, txtBitmap, sourceRect, fontColor.alpha, smooth);
 }
 
 /* http://www.lemoda.net/c/utf8-to-ucs2/index.html */
@@ -2205,10 +2225,12 @@ void Bitmap::setFont(Font &value)
 void Bitmap::setInitFont(Font *value)
 {
     if (hasHires()) {
-        Font *hiresFont = new Font(*value);
-        // Disable the illegal font size check when creating a high-res font.
-        hiresFont->setSize(hiresFont->getSize() * p->selfHires->width() / width(), false);
-        p->selfHires->setInitFont(hiresFont);
+        Font *hiresFont = p->selfHires->p->font;
+        if (hiresFont && hiresFont != &shState->defaultFont())
+        {
+            // Disable the illegal font size check when creating a high-res font.
+            hiresFont->setSize(hiresFont->getSize() * p->selfHires->width() / width(), false);
+        }
     }
 
     p->font = value;
@@ -2615,4 +2637,10 @@ void Bitmap::releaseResources()
         shState->texPool().release(p->gl);
     
     delete p;
+}
+
+void Bitmap::loresDisposal()
+{
+    loresDispCon.disconnect();
+    dispose();
 }

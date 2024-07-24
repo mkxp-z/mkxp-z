@@ -21,6 +21,8 @@
 
 #include "tilemapvx.h"
 
+#include "util/debugwriter.h"
+
 #include "tileatlasvx.h"
 #include "etc-internal.h"
 #include "bitmap.h"
@@ -201,12 +203,19 @@ struct TilemapVXPrivate : public ViewportElement, TileAtlasVX::Reader
 
 		if (shState->config().dumpAtlas)
 		{
+			Debug() << "Dumping tile atlas...";
+
 			Bitmap dump(atlas);
-			dump.saveToFile("dumped_atlas.png");
 			if (dump.hasHires())
 			{
 				dump.getHires()->saveToFile("dumped_atlas_hires.png");
 			}
+			else
+			{
+				dump.saveToFile("dumped_atlas.png");
+			}
+
+			Debug() << "Tile atlas dump completed.";
 		}
 	}
 
