@@ -1231,9 +1231,8 @@ void Tilemap::update()
 		p->flashAlphaIdx = 0;
 
 	/* Animate autotiles */
-	// Perry: This is now handled in the ruby code by calling 
-	//		  TilemapUtils::updateAutotileAniIdx because the autotile animation
-	//        index is shared between all tilemaps.
+	// Perry: This is now handled in the ruby code by calling `TilemapUtils::updateAutotileAniIdx`
+	// because the autotile animation index is shared between all tilemaps to avoid desync on map connection.
 }
 
 Tilemap::Autotiles &Tilemap::getAutotiles()
