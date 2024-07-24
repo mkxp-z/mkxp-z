@@ -83,9 +83,55 @@
     // 1: Bilinear
     // 2: Bicubic
     // 3: Lanczos3
+    // 4: xBRZ
     // (default: 0)
     //
     // "smoothScaling": 0,
+
+
+    // Apply smooth interpolation when game screen
+    // is downscaled (same values as smoothScaling)
+    // (default: 0)
+    //
+    // "smoothScalingDown": 0,
+
+
+    // Apply smooth interpolation when bitmaps
+    // are upscaled (same values as smoothScaling)
+    // (default: 0)
+    //
+    // "bitmapSmoothScaling": 0,
+
+
+    // Apply smooth interpolation when bitmaps
+    // are downscaled (same values as smoothScaling)
+    // (default: 0)
+    //
+    // "bitmapSmoothScalingDown": 0,
+
+
+    // Apply mipmap interpolation when game screen
+    // or bitmaps are downscaled (requires
+    // "smoothScalingDown": 1 or "bitmapSmoothScalingDown": 1)
+    // (default: false)
+    //
+    // "smoothScalingMipmaps": false,
+
+
+    // Sharpness when using Bicubic scaling.
+    // A good starting range is 0 to 100,
+    // but you may wish to go outside that range in either direction.
+    // (default: 100)
+    //
+    // "bicubicSharpness": 100,
+
+
+    // Scaling factor for xBRZ interpolation
+    // (set to at least the ratio of your window size
+    // to the game's native resolution)
+    // (default: 1.0)
+    //
+    // "xbrzScalingFactor": 4.0,
 
 
     // Replace the game's Bitmap files with external high-res files
@@ -176,7 +222,10 @@
     // A list of fonts to render without alpha blending.
     // (default: none)
     //
-    // "solidFonts": ["Arial", "Times New Roman"]
+    // "solidFonts": [
+    //     "Arial",
+    //     "Times New Roman",
+    // ],
 
 
     // Prefer the use of Metal over OpenGL on macOS.
@@ -209,7 +258,9 @@
     // capable of it. Some drivers carry buggy
     // implementations of this functionality, so
     // disabling it can be used as a workaround.
-    // Does nothing on macOS.
+    // Does nothing on macOS. Force-disabled when
+    // smoothScaling or smoothScalingDown isn't
+    // Nearest-Neighbor or Bilinear.
     // (default: disabled)
     //
     // "enableBlitting": false,
@@ -310,9 +361,11 @@
     // execution starts
     // (default: none)
     //
-    // "preloadScript": ["scripts/preload/ruby18_wrap.rb",
-    //                   "scripts/preload/mkxp_wrap.rb",
-    //                   "scripts/preload/win32_wrap.rb"],
+    // "preloadScript": [
+    //     "scripts/preload/ruby_classic_wrap.rb",
+    //     "scripts/preload/mkxp_wrap.rb",
+    //     "scripts/preload/win32_wrap.rb",
+    // ],
 
 
     // Index all accesible assets via their lower case path
@@ -327,9 +380,21 @@
     // https://www.icculus.org/physfs/docs/html/
     // (default: none)
     //
-    // "RTP": ["/path/to/rtp1",
-    //         "/path/to/rtp2.zip",
-    //         "/path/to/game.rgssad"],
+    // "RTP": [
+    //     "/path/to/rtp1",
+    //     "/path/to/rtp2.zip",
+    //     "/path/to/game.rgssad",
+    // ],
+
+    // Similar to the RTP option, except items are loaded before
+    // the game archive and folder, for incremental game updates
+    // or modding.
+    // (default: none)
+    //
+    // "patches": [
+    //     "/path/to/patch1.zip",
+    //     "/path/to/patch2",
+    // ],
 
 
     // Use the script's name as filename in warnings and error messages
@@ -349,8 +414,10 @@
     // requested by RGSS.
     // (default: none)
     //
-    // "fontSub": ["Arial>Open Sans",
-    //             "Times New Roman>Liberation Serif"]
+    // "fontSub": [
+    //     "Arial>Open Sans",
+    //     "Times New Roman>Liberation Serif",
+    // ],
 
 
     // Because mkxp is usually distributed as a stand alone
@@ -361,8 +428,10 @@
     // link all required gems into libruby.so.
     // (default: none)
     //
-    // "rubyLoadpath": ["/usr/lib64/ruby/",
-    //                  "/usr/local/share/ruby/site_ruby"],
+    // "rubyLoadpath": [
+    //     "/usr/lib64/ruby/",
+    //     "/usr/local/share/ruby/site_ruby",
+    // ],
 
     // Determines whether MJIT is enabled. This probably
     // won't work unless you also have the header file
@@ -419,13 +488,13 @@
     // and audibly cutting each other off, try increasing
     // this number. Maximum: 64.
     //
-    // "SESourceCount": 6
+    // "SESourceCount": 6,
     
     // Number of streams to open for BGM tracks. If the game
     // needs multitrack audio, this should be set to as many
     // available tracks as the game needs. Maximum: 16.
     //
-    // "BGMTrackCount": 1
+    // "BGMTrackCount": 1,
 
 
     // The Windows game executable name minus ".exe". By default
@@ -438,7 +507,7 @@
     // "Game.rgssad", but specifying the executable name here
     // is a tiny bit less intrusive.
     //
-    // "execName": "Game"
+    // "execName": "Game",
     
     // You can define alternate terminology for the different
     // inputs recognized by RPG Maker. A, B, C, X, Y, Z, L, and R
@@ -449,10 +518,17 @@
     // "bindingNames": {
     //  "c": "Confirm",
     //  "b": "Cancel",
-    //  "x": ...
+    //  "x": ...,
     // },
+
+
+    // Dump tile atlas (for debugging purposes)
+    // (default: false)
+    //
+    // "dumpAtlas": false,
+
 
     // You can make menus faster by lowering these delays.
     // "inputRepeatStart": 0.4,
-    // "inputRepeatDelay": 0.1
+    // "inputRepeatDelay": 0.1,
 }

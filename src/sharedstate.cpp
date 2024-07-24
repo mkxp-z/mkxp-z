@@ -115,6 +115,9 @@ struct SharedStatePrivate
 	      _glState(threadData->config),
 	      fontState(threadData->config),
 	      stampCounter(0)
+	{}
+	
+	void init(RGSSThreadData *threadData)
 	{
         
         startupTime = std::chrono::steady_clock::now();
@@ -124,6 +127,9 @@ struct SharedStatePrivate
 			gl.ReleaseShaderCompiler();
 
 		std::string archPath = config.execName + gameArchExt();
+
+		for (size_t i = 0; i < config.patches.size(); ++i)
+			fileSystem.addPath(config.patches[i].c_str());
 
 		/* Check if a game archive exists */
 		FILE *tmp = fopen(archPath.c_str(), "rb");
@@ -377,7 +383,24 @@ unsigned int SharedState::genTimeStamp()
 SharedState::SharedState(RGSSThreadData *threadData)
 {
 	p = new SharedStatePrivate(threadData);
-	p->screen = p->graphics.getScreen();
+	SharedState::instance = this;
+	try
+	{
+		p->init(threadData);
+		p->screen = p->graphics.getScreen();
+	}
+	catch (const Exception &exc)
+	{
+		// If the "error" was the user quitting the game before the path cache finished building,
+		// then just return
+		if (rtData().rqTerm)
+			return;
+		
+		delete p;
+		SharedState::instance = 0;
+		
+		throw exc;
+	}
 }
 
 SharedState::~SharedState()

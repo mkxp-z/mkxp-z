@@ -135,6 +135,14 @@ void Config::read(int argc, char *argv[]) {
         {"fullscreen", false},
         {"fixedAspectRatio", true},
         {"smoothScaling", 0},
+        {"smoothScalingDown", 0},
+        {"bitmapSmoothScaling", 0},
+        {"bitmapSmoothScalingDown", 0},
+        {"smoothScalingMipmaps", false},
+        {"bicubicSharpness", 100},
+#ifdef MKXPZ_SSL
+        {"xbrzScalingFactor", 1.},
+#endif
         {"enableHires", false},
         {"textureScalingFactor", 1.},
         {"framebufferScalingFactor", 1.},
@@ -180,6 +188,7 @@ void Config::read(int argc, char *argv[]) {
         {"useScriptNames", true},
         {"preloadScript", json::array({})},
         {"RTP", json::array({})},
+        {"patches", json::array({})},
         {"fontSub", json::array({})},
         {"rubyLoadpath", json::array({})},
         {"JITEnable", false},
@@ -187,6 +196,7 @@ void Config::read(int argc, char *argv[]) {
         {"JITMaxCache", 100},
         {"JITMinCalls", 10000},
         {"YJITEnable", false},
+        {"dumpAtlas", false},
         {"inputRepeatStart", 0.4},
         {"inputRepeatDelay", 0.1},
         {"bindingNames", json::object({
@@ -265,6 +275,14 @@ try { exp } catch (...) {}
     SET_OPT(fullscreen, boolean);
     SET_OPT(fixedAspectRatio, boolean);
     SET_OPT(smoothScaling, integer);
+    SET_OPT(smoothScalingDown, integer);
+    SET_OPT(bitmapSmoothScaling, integer);
+    SET_OPT(bitmapSmoothScalingDown, integer);
+    SET_OPT(smoothScalingMipmaps, boolean);
+    SET_OPT(bicubicSharpness, integer);
+#ifdef MKXPZ_SSL
+    SET_OPT(xbrzScalingFactor, integer);
+#endif
     SET_OPT(enableHires, boolean);
     SET_OPT(textureScalingFactor, number);
     SET_OPT(framebufferScalingFactor, number);
@@ -297,12 +315,14 @@ try { exp } catch (...) {}
     SET_OPT_CUSTOMKEY(BGM.trackCount, BGMTrackCount, integer);
     SET_STRINGOPT(customScript, customScript);
     SET_OPT(useScriptNames, boolean);
+    SET_OPT(dumpAtlas, boolean);
 
     SET_OPT(inputRepeatStart, number);
     SET_OPT(inputRepeatDelay, number);
 
     fillStringVec(opts["preloadScript"], preloadScripts);
     fillStringVec(opts["RTP"], rtps);
+    fillStringVec(opts["patches"], patches);
     fillStringVec(opts["fontSub"], fontSubs);
     for (std::string & fontSub : fontSubs)
         std::transform(fontSub.begin(), fontSub.end(), fontSub.begin(),

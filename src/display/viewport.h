@@ -71,6 +71,7 @@ class ViewportElement : public SceneElement
 {
 public:
 	ViewportElement(Viewport *viewport = 0, int z = 0, int spriteY = 0);
+	~ViewportElement();
 
 	DECL_ATTR( Viewport,  Viewport* )
 
@@ -79,6 +80,9 @@ protected:
 
 private:
 	Viewport *m_viewport;
+	sigslot::connection viewportDispCon;
+	sigslot::connection viewportElementDispCon;
+	void viewportElementDisposal();
 };
 
 #endif // VIEWPORT_H

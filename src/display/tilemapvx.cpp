@@ -21,6 +21,8 @@
 
 #include "tilemapvx.h"
 
+#include "util/debugwriter.h"
+
 #include "tileatlasvx.h"
 #include "etc-internal.h"
 #include "bitmap.h"
@@ -182,6 +184,14 @@ struct TilemapVXPrivate : public ViewportElement, TileAtlasVX::Reader
 		atlasDirty = true;
 	}
 
+	void atlasDisposal(int i)
+	{
+		// Guard against deleted bitmaps
+		bitmaps[i] = 0;
+		
+		invalidateAtlas();
+	}
+
 	void invalidateBuffers()
 	{
 		buffersDirty = true;
@@ -190,6 +200,23 @@ struct TilemapVXPrivate : public ViewportElement, TileAtlasVX::Reader
 	void rebuildAtlas()
 	{
 		TileAtlasVX::build(atlas, bitmaps);
+
+		if (shState->config().dumpAtlas)
+		{
+			Debug() << "Dumping tile atlas...";
+
+			Bitmap dump(atlas);
+			if (dump.hasHires())
+			{
+				dump.getHires()->saveToFile("dumped_atlas_hires.png");
+			}
+			else
+			{
+				dump.saveToFile("dumped_atlas.png");
+			}
+
+			Debug() << "Tile atlas dump completed.";
+		}
 	}
 
 	void updateMapViewport()
@@ -405,12 +432,18 @@ void TilemapVX::BitmapArray::set(int i, Bitmap *bitmap)
 	p->atlasDirty = true;
 
 	p->bmChangedCons[i].disconnect();
+	p->bmDisposedCons[i].disconnect();
+
+	if (nullOrDisposed(bitmap))
+	{
+		p->bitmaps[i] = 0;
+		return;
+	}
+
 	p->bmChangedCons[i] = bitmap->modified.connect
         (&TilemapVXPrivate::invalidateAtlas, p);
 
-	p->bmDisposedCons[i].disconnect();
-	p->bmDisposedCons[i] = bitmap->wasDisposed.connect
-		(&TilemapVXPrivate::invalidateAtlas, p);
+	p->bmDisposedCons[i] = bitmap->wasDisposed.connect( [i, this] { p->atlasDisposal(i); } );
 }
 
 Bitmap *TilemapVX::BitmapArray::get(int i) const

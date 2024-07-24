@@ -137,7 +137,7 @@ public:
 
 	void setSpriteMat(const float value[16]);
 
-private:
+protected:
 	GLint u_spriteMat;
 };
 
@@ -346,8 +346,56 @@ class BicubicShader : public Lanczos3Shader
 public:
 	BicubicShader();
 
+	void setSharpness(int sharpness);
+
 protected:
 	GLint u_bc;
+};
+
+#ifdef MKXPZ_SSL
+class XbrzShader : public Lanczos3Shader
+{
+public:
+	XbrzShader();
+
+	void setTargetScale(const Vec2 &value);
+
+protected:
+	GLint u_targetScale;
+};
+#endif
+
+class Lanczos3SpriteShader : public SimpleSpriteShader
+{
+public:
+	Lanczos3SpriteShader();
+
+	void setTexSize(const Vec2i &value);
+
+protected:
+	GLint u_sourceSize;
+};
+
+class BicubicSpriteShader : public Lanczos3SpriteShader
+{
+public:
+	BicubicSpriteShader();
+
+	void setSharpness(int sharpness);
+
+protected:
+	GLint u_bc;
+};
+
+class XbrzSpriteShader : public Lanczos3SpriteShader
+{
+public:
+	XbrzSpriteShader();
+
+	void setTargetScale(const Vec2 &value);
+
+protected:
+	GLint u_targetScale;
 };
 
 /* Global object containing all available shaders */
@@ -373,6 +421,14 @@ struct ShaderSet
 	TilemapVXShader tilemapVX;
 	BicubicShader bicubic;
 	Lanczos3Shader lanczos3;
+#ifdef MKXPZ_SSL
+	XbrzShader xbrz;
+#endif
+	Lanczos3SpriteShader lanczos3Sprite;
+	BicubicSpriteShader bicubicSprite;
+#ifdef MKXPZ_SSL
+	XbrzSpriteShader xbrzSprite;
+#endif
 };
 
 #endif // SHADER_H

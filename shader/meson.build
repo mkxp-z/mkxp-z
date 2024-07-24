@@ -29,6 +29,11 @@ embedded_shaders = [
     'simpleMatrix.vert'
 ]
 
+# xBRZ shader is GPLv3.
+if get_option('enable-https') == true
+    embedded_shaders += 'xbrz.frag'
+endif
+
 embedded_shaders_f = files(embedded_shaders)
 
 count = 0

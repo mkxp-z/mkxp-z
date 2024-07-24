@@ -232,7 +232,10 @@ void Viewport::releaseResources()
 ViewportElement::ViewportElement(Viewport *viewport, int z, int spriteY)
     : SceneElement(viewport ? *viewport : *shState->screen(), z, spriteY),
       m_viewport(viewport)
-{}
+{
+	if (rgssVer == 1 && viewport)
+		viewportDispCon = viewport->wasDisposed.connect(&ViewportElement::viewportElementDisposal, this);
+}
 
 Viewport *ViewportElement::getViewport() const
 {
@@ -242,7 +245,25 @@ Viewport *ViewportElement::getViewport() const
 void ViewportElement::setViewport(Viewport *viewport)
 {
 	m_viewport = viewport;
+	
+	viewportDispCon.disconnect();
+	if (rgssVer == 1 && viewport)
+		viewportDispCon = viewport->wasDisposed.connect(&ViewportElement::viewportElementDisposal, this);
+	
 	setScene(viewport ? *viewport : *shState->screen());
 	onViewportChange();
 	onGeometryChange(scene->getGeometry());
+}
+
+void ViewportElement::viewportElementDisposal()
+{
+	viewportDispCon.disconnect();
+	Disposable *self = dynamic_cast<Disposable*>(this);
+	if(self != nullptr)
+		self->dispose();
+}
+
+ViewportElement::~ViewportElement()
+{
+	viewportDispCon.disconnect();
 }

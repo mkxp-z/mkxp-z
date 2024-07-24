@@ -172,6 +172,9 @@ struct WindowPrivate
 
 	Bitmap *contents;
 
+	sigslot::connection windowskinDispCon;
+	sigslot::connection contentsDispCon;
+
 	bool bgStretch;
 	Rect *cursorRect;
 	bool active;
@@ -282,6 +285,21 @@ struct WindowPrivate
 		shState->texPool().release(baseTex);
 		cursorRectCon.disconnect();
 		prepareCon.disconnect();
+
+		windowskinDisposal();
+		contentsDisposal();
+	}
+
+	void windowskinDisposal()
+	{
+		windowskin = 0;
+		windowskinDispCon.disconnect();
+	}
+
+	void contentsDisposal()
+	{
+		contents = 0;
+		contentsDispCon.disconnect();
 	}
 
 	void markControlVertDirty()
@@ -720,10 +738,17 @@ void Window::setWindowskin(Bitmap *value)
 
 	p->windowskin = value;
 
+	p->windowskinDispCon.disconnect();
+
 	if (nullOrDisposed(value))
+	{
+		p->windowskin = 0;
 		return;
+	}
 
 	value->ensureNonMega();
+	
+	p->windowskinDispCon = value->wasDisposed.connect(&WindowPrivate::windowskinDisposal, p);
 }
 
 void Window::setContents(Bitmap *value)
@@ -736,10 +761,18 @@ void Window::setContents(Bitmap *value)
 	p->contents = value;
 	p->controlsVertDirty = true;
 
+	p->contentsDispCon.disconnect();
+
 	if (nullOrDisposed(value))
+	{
+		p->contents = 0;
 		return;
+	}
+
+	p->contentsDispCon = value->wasDisposed.connect(&WindowPrivate::contentsDisposal, p);
 
 	value->ensureNonMega();
+
 	p->contentsQuad.setTexPosRect(value->rect(), value->rect());
 }
 

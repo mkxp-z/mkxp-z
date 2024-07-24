@@ -395,6 +395,25 @@ dump(bmp, spr, "draw-text-green-outline")
 
 # TODO: Animation tests, if we can find a good way to test them.
 
+bmp = Bitmap.new(640, 480)
+fnt = Font.new("Liberation Sans", 100)
+fnt.out_color = Color.new(0, 255, 0)
+bmp.font = fnt
+bmp.draw_text(100, 200, 450, 300, "Now testing dispose for memory leaks...", 1)
+dump(bmp, spr, "memory-leak")
+
+def allocate()
+	bmp_allocate = Bitmap.new("Graphics/Pictures/children-alpha")
+	bmp_allocate.dispose
+end
+
+for i in (1...100)
+	for j in (1...10)
+		allocate
+	end
+	System::puts("Memory leak test #{i}/100")
+end
+
 # Tests are finished, show exit screen
 
 bmp = Bitmap.new(640, 480)

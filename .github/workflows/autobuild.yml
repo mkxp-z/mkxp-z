@@ -7,6 +7,8 @@ on:
       - 'reborn-[0-9]+.[0-9]+.[0-9]+'
       - 'rejuvenation-[0-9]+.[0-9]+.[0-9]+'
       - 'desolation-[0-9]+.[0-9]+.[0-9]+'
+      - 'ashenfrost-[0-9]+.[0-9]+.[0-9]+'
+      - 'default-[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
   build-windows:
@@ -21,27 +23,26 @@ jobs:
             git
             ruby
             vim
+            unzip
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-meson
             mingw-w64-x86_64-autotools
             mingw-w64-x86_64-gcc
 
-
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Game
         id: game
         run: echo ("game=" + $env:GITHUB_REF.replace('refs/tags/', '').split('-')[0]) >> $env:GITHUB_OUTPUT
 
       - name: Icon
+        if: "steps.game.outputs.game != 'default'"
         run: |
           cp icons/${{ steps.game.outputs.game }}.ico windows/icon.ico
           cp icons/${{ steps.game.outputs.game }}.png assets/icon.png
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: |
             windows/build-mingw64
@@ -62,6 +63,23 @@ jobs:
           ninja
           strip ./mkxp-z.exe
 
+      - name: Discord
+        uses: actions/checkout@v4
+        with:
+          repository: enumag/ruby_discord_sdk
+          path: ruby_discord_sdk
+          ref: main
+
+      - name: Build Discord Gem
+        shell: msys2 {0}
+        working-directory: ruby_discord_sdk
+        run: |
+          curl -O https://dl-game-sdk.discordapp.net/3.2.1/discord_game_sdk.zip
+          unzip -o discord_game_sdk.zip -d .
+          cp lib/x86_64/discord_game_sdk.dll .
+          ../windows/build-mingw64/bin/ruby.exe ./extconf.rb
+          make
+
       - name: Prepare archive
         shell: msys2 {0}
         run: |
@@ -75,8 +93,15 @@ jobs:
           mv ./3.1.0 ./stdlib
           cp ../mkxp-z.exe .
           cp ../../mkxp.json .
+          mkdir gems
+          cp ../../ruby_discord_sdk/discord.so gems
+          cp ../../ruby_discord_sdk/lib/x86_64/discord_game_sdk.dll .
 
-      - uses: actions/upload-artifact@v3
+      - name: Disable specifications
+        working-directory: build/artifact/stdlib
+        run: sed -i "s~Gem::Specification\.load_defaults~#Gem::Specification\.load_defaults~g" rubygems.rb
+
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}
           path: |
@@ -84,31 +109,32 @@ jobs:
             build/artifact/*.exe
             build/artifact/mkxp.json
             build/artifact/stdlib/
+            build/artifact/gems/
 
-  build-linux:
-    name: Ubuntu 22.04
+
+  build-linux-native:
+    name: Ubuntu 22.04 x86_64
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Game
         id: game
         run: echo game=$(echo ${{ github.ref_name }}| cut -d- -f1) >> $GITHUB_OUTPUT
 
       - name: Icon
+        if: "steps.game.outputs.game != 'default'"
         run: |
           cp icons/${{ steps.game.outputs.game }}.png linux/mkxp-z.png
           cp icons/${{ steps.game.outputs.game }}.png assets/icon.png
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: |
             linux/build-x86_64
             linux/downloads
-          key: lin-${{ hashFiles('linux/Makefile') }}
+          key: lin-x86_64-${{ hashFiles('linux/Makefile') }}
 
       - name: Install apt dependencies
         run: |
@@ -135,42 +161,170 @@ jobs:
           ninja
           ninja install
 
+      - name: Discord
+        uses: actions/checkout@v4
+        with:
+          repository: enumag/ruby_discord_sdk
+          path: ruby_discord_sdk
+          ref: main
+
+      - name: Build Discord Gem
+        working-directory: ruby_discord_sdk
+        run: |
+          curl -O https://dl-game-sdk.discordapp.net/3.2.1/discord_game_sdk.zip
+          unzip -o discord_game_sdk.zip -d .
+          cp lib/x86_64/discord_game_sdk.so .
+          ../linux/build-x86_64/bin/ruby ./extconf.rb
+          make
+
       - name: Prepare archive
         run: |
           cd build/local
           cp -r ../../linux/build-x86_64/lib/ruby/3.1.0 .
           mv ./3.1.0 ./stdlib
           cp ../../mkxp.json .
+          mkdir gems
+          cp ../../ruby_discord_sdk/discord.so gems
+          cp ../../ruby_discord_sdk/lib/x86_64/discord_game_sdk.so .
 
-      - uses: actions/upload-artifact@v3
+      - name: Disable specifications
+        working-directory: build/local/stdlib
+        run: sed -i "s~Gem::Specification\.load_defaults~#Gem::Specification\.load_defaults~g" rubygems.rb
+
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}
           path: |
             build/local/**
             build/mkxp-z-x86_64.AppImage
 
+  build-linux-cross:
+    if: "false"
+    name: Ubuntu 22.04 ${{matrix.arch_mkxpz}}
+    runs-on: ubuntu-22.04
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_mkxpz: armv6
+            arch_debian: armhf
+            arch_gcc: arm-linux-gnueabihf
+            # GCC doesn't like the -mcpu flags, TODO investigate.
+            experimental: true
+          - arch_mkxpz: armv7
+            arch_debian: armhf
+            arch_gcc: arm-linux-gnueabihf
+            # GCC doesn't like the -mcpu flags, TODO investigate.
+            experimental: true
+          - arch_mkxpz: armv7-neon
+            arch_debian: armhf
+            arch_gcc: arm-linux-gnueabihf
+            experimental: false
+          - arch_mkxpz: arm64
+            arch_debian: arm64
+            arch_gcc: aarch64-linux-gnu
+            experimental: false
+          - arch_mkxpz: power8le
+            arch_debian: ppc64el
+            arch_gcc: powerpc64le-linux-gnu
+            experimental: false
+          - arch_mkxpz: power9le
+            arch_debian: ppc64el
+            arch_gcc: powerpc64le-linux-gnu
+            experimental: false
+          - arch_mkxpz: riscv64
+            arch_debian: riscv64
+            arch_gcc: riscv64-linux-gnu
+            # libjxl/highway compatibility issue, TODO check if fixed in later SDL_image.
+            # Also probably an OpenSSL arch name issue.
+            experimental: true
+    steps:
+      - uses: benjlevesque/short-sha@v2.2
+        id: short-sha
+        with:
+          length: 7
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            linux/build-${{matrix.arch_mkxpz}}
+            linux/downloads
+          key: lin-${{matrix.arch_mkxpz}}-${{ hashFiles('linux/Makefile', 'linux/target*', 'linux/toolchain*') }}
+
+      - name: Install apt dependencies
+        run: |
+          sudo sed -i "s/deb /deb [arch=amd64] /g" /etc/apt/sources.list
+          sudo dpkg --add-architecture ${{matrix.arch_debian}}
+          echo "deb [arch=${{matrix.arch_debian}}] http://ports.ubuntu.com/ jammy main restricted" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=${{matrix.arch_debian}}] http://ports.ubuntu.com/ jammy-updates main restricted" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=${{matrix.arch_debian}}] http://ports.ubuntu.com/ jammy universe" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=${{matrix.arch_debian}}] http://ports.ubuntu.com/ jammy-updates universe" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=${{matrix.arch_debian}}] http://ports.ubuntu.com/ jammy multiverse" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=${{matrix.arch_debian}}] http://ports.ubuntu.com/ jammy-updates multiverse" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=${{matrix.arch_debian}}] http://ports.ubuntu.com/ jammy-backports main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          sudo apt update
+          sudo apt install git build-essential cmake meson autoconf automake libtool pkg-config ruby bison -y
+          sudo apt install libdmx-dev:${{matrix.arch_debian}} libfontenc-dev:${{matrix.arch_debian}} libfs-dev:${{matrix.arch_debian}} libice-dev:${{matrix.arch_debian}} libsm-dev:${{matrix.arch_debian}} libx11-dev:${{matrix.arch_debian}} libxau-dev:${{matrix.arch_debian}} libxaw7-dev:${{matrix.arch_debian}} libxcomposite-dev:${{matrix.arch_debian}} libxcursor-dev:${{matrix.arch_debian}} libxdamage-dev:${{matrix.arch_debian}} libxdmcp-dev:${{matrix.arch_debian}} libxext-dev:${{matrix.arch_debian}} libxfixes-dev:${{matrix.arch_debian}} libxfont-dev:${{matrix.arch_debian}} libxft-dev:${{matrix.arch_debian}} libxi-dev:${{matrix.arch_debian}} libxinerama-dev:${{matrix.arch_debian}} libxkbfile-dev:${{matrix.arch_debian}} libxmu-dev:${{matrix.arch_debian}} libxmuu-dev:${{matrix.arch_debian}} libxpm-dev:${{matrix.arch_debian}} libxrandr-dev:${{matrix.arch_debian}} libxrender-dev:${{matrix.arch_debian}} libxres-dev:${{matrix.arch_debian}} libxss-dev:${{matrix.arch_debian}} libxt-dev:${{matrix.arch_debian}} libxtst-dev:${{matrix.arch_debian}} libxv-dev:${{matrix.arch_debian}} libxvmc-dev:${{matrix.arch_debian}} libxxf86dga-dev:${{matrix.arch_debian}} libxxf86vm-dev:${{matrix.arch_debian}} x11proto-dev:${{matrix.arch_debian}} xserver-xorg-dev:${{matrix.arch_debian}} xtrans-dev:${{matrix.arch_debian}} -y
+          sudo apt install gcc-${{matrix.arch_gcc}} g++-${{matrix.arch_gcc}} zlib1g-dev:${{matrix.arch_debian}} libbz2-dev:${{matrix.arch_debian}} libgl1-mesa-dev:${{matrix.arch_debian}} libasound2-dev:${{matrix.arch_debian}} libpulse-dev:${{matrix.arch_debian}} -y
+
+      - name: Build everything else
+        run: |
+          cd linux
+          source target-${{matrix.arch_mkxpz}}.sh
+          make
+
+      - name: Build executable
+        run: |
+          source linux/target-${{matrix.arch_mkxpz}}.sh
+          source linux/vars.sh
+          meson setup --cross-file linux/$ARCH_MESON_TOOLCHAIN build --bindir=. --prefix=$GITHUB_WORKSPACE/build/local
+          cd build
+          ninja
+          ninja install
+          cp "$MKXPZ_PREFIX/lib/$("$ARCH_CONFIGURE-objdump" -p local/mkxp-z* | grep -i NEEDED | grep -Eo 'libruby.so.[0-9\.]+')" local/lib*/
+          cp "/usr/lib/$ARCH_CONFIGURE/$("$ARCH_CONFIGURE-objdump" -p local/lib*/libruby.so* | grep -i NEEDED | grep -Eo 'libcrypt.so.[0-9\.]+')" local/lib*/
+
+      - name: Prepare archive
+        run: |
+          cd build/local
+          cp -r ../../linux/build-${{matrix.arch_mkxpz}}/lib/ruby/3.1.0 .
+          mv ./3.1.0 ./stdlib
+          cp ../../mkxp.json .
+          cp -r ../../scripts .
+          cp ../../assets/LICENSE.mkxp-z-with-https.txt .
+          cd ..
+          zip -r local.zip local
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: mkxp-z.linux.${{matrix.arch_mkxpz}}.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          path: build/local.zip
+
   build-macos:
     name: macOS
-    runs-on: macos-latest
+    runs-on: macos-12
     steps:
       - name: Remove pre-existing homebrew packages
         run: brew remove --force $(brew list)
 
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Game
         id: game
         run: echo game=$(echo ${{ github.ref_name }}| cut -d- -f1) >> $GITHUB_OUTPUT
 
       - name: Icon
+        if: "steps.game.outputs.game != 'default'"
         run: |
           cp icons/${{ steps.game.outputs.game }}.icns macos/icon.icns
           cp icons/${{ steps.game.outputs.game }}.png assets/icon.png
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: |
             macos/Dependencies/build-macosx-x86_64
@@ -191,35 +345,60 @@ jobs:
         working-directory: macos
         run: xcodebuild -project mkxp-z.xcodeproj -configuration "Release" -scheme "Universal" -derivedDataPath "$GITHUB_WORKSPACE/build"
 
+      - name: Discord
+        uses: actions/checkout@v4
+        with:
+          repository: enumag/ruby_discord_sdk
+          path: ruby_discord_sdk
+          ref: main
+
+      - name: Build Discord Gem
+        working-directory: ruby_discord_sdk
+        run: |
+          curl -O https://dl-game-sdk.discordapp.net/3.2.1/discord_game_sdk.zip
+          unzip -o discord_game_sdk.zip -d .
+          lipo -output libdiscord_game_sdk.dylib -create lib/x86_64/discord_game_sdk.dylib lib/aarch64/discord_game_sdk.dylib 
+          cp ../macos/Dependencies/build-macosx-universal/lib/libruby.3.1.dylib .
+          ../macos/Dependencies/build-macosx-x86_64/bin/ruby ./extconf.rb
+          make
+          mkdir ../build/Build/Products/Release/Z-universal.app/Contents/Game/gems
+          cp discord.bundle ../build/Build/Products/Release/Z-universal.app/Contents/Game/gems
+          cp libdiscord_game_sdk.dylib ../build/Build/Products/Release/Z-universal.app/Contents/Frameworks/discord_game_sdk.dylib
+
+      - name: Disable specifications
+        working-directory: build/Build/Products/Release/Z-universal.app/Contents/Resources/Ruby/3.1.0
+        run: sed -i '' "s~Gem::Specification\.load_defaults~#Gem::Specification\.load_defaults~g" rubygems.rb
+
       - name: Compress app
         working-directory: build/Build/Products/Release
         run: ditto -c -k --sequesterRsrc --keepParent Z-universal.app Z-universal.app.zip
 
       - name: Upload archive
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}
           path: build/Build/Products/Release/Z-universal.app.zip
+
 
   release:
     name: Release
     runs-on: ubuntu-latest
     needs:
       - build-windows
-      - build-linux
+      - build-linux-native
       - build-macos
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: build-windows
           path: windows
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
-          name: build-linux
+          name: build-linux-native
           path: linux
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: build-macos
           path: macos
@@ -229,16 +408,19 @@ jobs:
           cd windows
           rm -f mkxp.json
           mv mkxp-z.exe Game.exe
-          zip -r ../mkxp-z.windows.zip Game.exe *.dll stdlib
+          zip -r ../mkxp-z.windows.zip Game.exe *.dll stdlib gems
           cd ../linux
           mv mkxp-z-x86_64.AppImage Game.AppImage
+          chmod +x Game.AppImage
+          mv local/discord_game_sdk.so discord_game_sdk.so
           mv local/stdlib stdlib
-          zip -r ../mkxp-z.linux.zip Game.AppImage stdlib
+          mv local/gems gems
+          zip -r ../mkxp-z.linux.zip Game.AppImage discord_game_sdk.so stdlib gems
           cd ..
           mv macos/Z-universal.app.zip mkxp-z.macos.zip
 
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           draft: false
           fail_on_unmatched_files: true

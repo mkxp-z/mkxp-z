@@ -336,7 +336,9 @@ void FileSystem::addPath(const char *path, const char *mountpoint, bool reload) 
   }
     if (!state) {
         PHYSFS_ErrorCode err = PHYSFS_getLastErrorCode();
-        throw Exception(Exception::PHYSFSError, "Failed to mount %s (%s)", path, PHYSFS_getErrorByCode(err));
+        // Commented out because we don't want the game to crash if patch directory doesn't exist.
+        // It is still reported to dev console by createSDLRWIo.
+        // throw Exception(Exception::PHYSFSError, "Failed to mount %s (%s)", path, PHYSFS_getErrorByCode(err));
     }
     
     if (reload) reloadPathCache();
@@ -396,6 +398,9 @@ struct CacheEnumData {
 
 static PHYSFS_EnumerateCallbackResult cacheEnumCB(void *d, const char *origdir,
                                                   const char *fname) {
+  if (shState && shState->rtData().rqTerm)
+    throw Exception(Exception::MKXPError, "Game close requested. Aborting path cache enumeration.");
+
   CacheEnumData &data = *static_cast<CacheEnumData *>(d);
   char fullPath[512];
 
@@ -439,11 +444,15 @@ static PHYSFS_EnumerateCallbackResult cacheEnumCB(void *d, const char *origdir,
 }
 
 void FileSystem::createPathCache() {
+  Debug() << "Loading path cache...";
+
   CacheEnumData data(p);
   data.fileLists.push(&p->fileLists[""]);
   PHYSFS_enumerate("", cacheEnumCB, &data);
 
   p->havePathCache = true;
+
+  Debug() << "Path cache completed.";
 }
 
 void FileSystem::reloadPathCache() {

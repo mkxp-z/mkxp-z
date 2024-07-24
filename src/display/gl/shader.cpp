@@ -48,6 +48,9 @@
 #include "flashMap.frag.xxd"
 #include "bicubic.frag.xxd"
 #include "lanczos3.frag.xxd"
+#ifdef MKXPZ_SSL
+#include "xbrz.frag.xxd"
+#endif
 #include "minimal.vert.xxd"
 #include "simple.vert.xxd"
 #include "simpleColor.vert.xxd"
@@ -382,6 +385,55 @@ void SimpleSpriteShader::setSpriteMat(const float value[16])
 	gl.UniformMatrix4fv(u_spriteMat, 1, GL_FALSE, value);
 }
 
+BicubicSpriteShader::BicubicSpriteShader()
+{
+	INIT_SHADER(sprite, bicubic, BicubicSpriteShader);
+
+	ShaderBase::init();
+
+	GET_U(spriteMat);
+	GET_U(sourceSize);
+	GET_U(bc);
+}
+
+void BicubicSpriteShader::setSharpness(int sharpness)
+{
+	gl.Uniform2f(u_bc, 1.f - sharpness * 0.01f, sharpness * 0.005f);
+}
+
+Lanczos3SpriteShader::Lanczos3SpriteShader()
+{
+	INIT_SHADER(sprite, lanczos3, Lanczos3SpriteShader);
+
+	ShaderBase::init();
+
+	GET_U(spriteMat);
+	GET_U(sourceSize);
+}
+
+void Lanczos3SpriteShader::setTexSize(const Vec2i &value)
+{
+	ShaderBase::setTexSize(value);
+	gl.Uniform2f(u_sourceSize, (float)value.x, (float)value.y);
+}
+
+#ifdef MKXPZ_SSL
+XbrzSpriteShader::XbrzSpriteShader()
+{
+	INIT_SHADER(sprite, xbrz, XbrzSpriteShader);
+
+	ShaderBase::init();
+
+	GET_U(spriteMat);
+	GET_U(sourceSize);
+	GET_U(targetScale);
+}
+
+void XbrzSpriteShader::setTargetScale(const Vec2 &value)
+{
+	gl.Uniform2f(u_targetScale, value.x, value.y);
+}
+#endif
 
 AlphaSpriteShader::AlphaSpriteShader()
 {
@@ -777,9 +829,11 @@ BicubicShader::BicubicShader()
 	GET_U(texOffsetX);
 	GET_U(sourceSize);
 	GET_U(bc);
+}
 
-	// TODO: Maybe expose this as a setting?
-	gl.Uniform2f(u_bc, 0.0, 0.5);
+void BicubicShader::setSharpness(int sharpness)
+{
+	gl.Uniform2f(u_bc, 1.f - sharpness * 0.01f, sharpness * 0.005f);
 }
 
 Lanczos3Shader::Lanczos3Shader()
@@ -797,3 +851,21 @@ void Lanczos3Shader::setTexSize(const Vec2i &value)
 	ShaderBase::setTexSize(value);
 	gl.Uniform2f(u_sourceSize, (float)value.x, (float)value.y);
 }
+
+#ifdef MKXPZ_SSL
+XbrzShader::XbrzShader()
+{
+	INIT_SHADER(simple, xbrz, XbrzShader);
+
+	ShaderBase::init();
+
+	GET_U(texOffsetX);
+	GET_U(sourceSize);
+	GET_U(targetScale);
+}
+
+void XbrzShader::setTargetScale(const Vec2 &value)
+{
+	gl.Uniform2f(u_targetScale, value.x, value.y);
+}
+#endif

@@ -46,7 +46,6 @@ void bitmapInitProps(Bitmap *b, VALUE self) {
     rb_obj_call_init(fontObj, 0, 0);
     
     Font *font = getPrivateData<Font>(fontObj);
-    b->setInitFont(font);
     
     rb_iv_set(self, "font", fontObj);
 
@@ -54,7 +53,15 @@ void bitmapInitProps(Bitmap *b, VALUE self) {
     if (b->hasHires()) {
         b->assumeRubyGC();
         wrapProperty(self, b->getHires(), "hires", BitmapType);
+        
+        VALUE hiresFontObj = rb_obj_alloc(fontKlass);
+        rb_obj_call_init(hiresFontObj, 0, 0);
+        Font *hiresFont = getPrivateData<Font>(hiresFontObj);
+        rb_iv_set(rb_iv_get(self, "hires"), "font", hiresFontObj);
+        b->getHires()->setInitFont(hiresFont);
+        
     }
+    b->setInitFont(font);
 }
 
 RB_METHOD(bitmapInitialize) {

@@ -24,6 +24,8 @@
 
 #include "gl-fun.h"
 #include "etc-internal.h"
+#include "sharedstate.h"
+#include "config.h"
 
 /* Struct wrapping GLuint for some light type safety */
 #define DEF_GL_ID \
@@ -99,7 +101,13 @@ namespace TEX
 
 	static inline void setSmooth(bool mode)
 	{
-		gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, mode ? GL_LINEAR : GL_NEAREST);
+		if (mode && shState->config().smoothScalingMipmaps) {
+			gl.GenerateMipmap(GL_TEXTURE_2D);
+			gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		} else {
+			gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, mode ? GL_LINEAR : GL_NEAREST);
+		}
+
 		gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mode ? GL_LINEAR : GL_NEAREST);
 	}
 }

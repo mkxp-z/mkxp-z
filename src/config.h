@@ -44,6 +44,14 @@ struct Config {
     bool fullscreen;
     bool fixedAspectRatio;
     int smoothScaling;
+    int smoothScalingDown;
+    int bitmapSmoothScaling;
+    int bitmapSmoothScalingDown;
+    bool smoothScalingMipmaps;
+    int bicubicSharpness;
+#ifdef MKXPZ_SSL
+    double xbrzScalingFactor;
+#endif
     bool enableHires;
     double textureScalingFactor;
     double framebufferScalingFactor;
@@ -109,11 +117,12 @@ struct Config {
     std::vector<std::string> launchArgs;
     std::vector<std::string> preloadScripts;
     std::vector<std::string> rtps;
+    std::vector<std::string> patches;
     
     std::vector<std::string> fontSubs;
     
     std::vector<std::string> rubyLoadpaths;
-    
+
     /* Editor flags */
     struct {
         bool debug;
@@ -138,6 +147,8 @@ struct Config {
     struct {
         bool enabled;
     } yjit;
+
+    bool dumpAtlas;
 
     // Keybinding action name mappings
     struct {

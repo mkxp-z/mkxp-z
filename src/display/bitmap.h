@@ -40,12 +40,17 @@ class Bitmap : public Disposable
 public:
 	Bitmap(const char *filename);
 	Bitmap(int width, int height, bool isHires = false);
-    Bitmap(void *pixeldata, int width, int height);
+	Bitmap(void *pixeldata, int width, int height);
+	Bitmap(TEXFBO &other);
+	Bitmap(SDL_Surface *imgSurf, SDL_Surface *imgSurfHires, bool forceMega = false);
+
 	/* Clone constructor */
     
     // frame is -2 for "any and all", -1 for "current", anything else for a specific frame
 	Bitmap(const Bitmap &other, int frame = -2);
 	~Bitmap();
+
+	void initFromSurface(SDL_Surface *imgSurf, Bitmap *hiresBitmap, bool forceMega = false);
 
 	int width()  const;
 	int height() const;
@@ -58,12 +63,12 @@ public:
 	IntRect rect() const;
 
 	void blt(int x, int y,
-	         const Bitmap &source, IntRect rect,
+	         const Bitmap &source, const IntRect &rect,
 	         int opacity = 255);
 
-	void stretchBlt(const IntRect &destRect,
-	                const Bitmap &source, const IntRect &sourceRect,
-	                int opacity = 255);
+	void stretchBlt(IntRect destRect,
+	                const Bitmap &source, IntRect sourceRect,
+	                int opacity = 255, bool smooth = false);
 
 	void fillRect(int x, int y,
 	              int width, int height,
@@ -153,7 +158,7 @@ public:
     
 	/* Binds the backing texture and sets the correct
 	 * texture size uniform in shader */
-	void bindTex(ShaderBase &shader);
+	void bindTex(ShaderBase &shader, bool substituteLoresSize = true);
 
 	/* Adds 'rect' to tainted area */
 	void taintArea(const IntRect &rect);
@@ -161,16 +166,17 @@ public:
 	sigslot::signal<> modified;
 
 	static int maxSize();
-    
-    bool invalid() const;
 
     void assumeRubyGC();
 
 private:
 	void releaseResources();
+	sigslot::connection loresDispCon;
 	const char *klassName() const { return "bitmap"; }
 
 	BitmapPrivate *p;
+
+	void loresDisposal();
 };
 
 #endif // BITMAP_H

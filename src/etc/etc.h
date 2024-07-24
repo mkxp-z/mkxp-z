@@ -206,6 +206,17 @@ enum InterpolationMethod
 	Bilinear = 1,
 	Bicubic = 2,
 	Lanczos3 = 3,
+#ifdef MKXPZ_SSL
+	xBRZ = 4,
+#endif
+};
+
+enum SpecialScale
+{
+	// If the X and Y scales would yield different results, it's considered UpScale.
+	UpScale = 0,
+	SameScale = 1,
+	DownScale = 2,
 };
 
 /* For internal use.
