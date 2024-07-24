@@ -60,7 +60,6 @@ public:
 	int height() const;
 	int widthHires() const;
 	int heightHires() const;
-	int frameCount() const;
 	bool isPingPongFramebufferActive() const;
     int displayContentWidth() const;
     int displayContentHeight() const;
