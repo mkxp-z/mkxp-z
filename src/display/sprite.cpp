@@ -309,7 +309,7 @@ struct SpritePrivate
         /* The length of the sprite as it appears on screen */
         int visibleLength = height * zoom.y;
         
-        if (!visibleLength || !width || wave.amp <= -(srcRect->width / 2))
+        if (!visibleLength || !width)
         {
             wave.qArray.resize(0);
             wave.qArray.commit();
@@ -320,10 +320,15 @@ struct SpritePrivate
         /* RMVX does this, and I have no fucking clue why */
         if (wave.amp < 0)
         {
-            int x = std::max<int>(-wave.amp + trans.getSrcRectOrigin().x, 0);
-            int w = std::min<int>(srcRect->width + wave.amp + trans.getSrcRectOrigin().x, width) - x;
+            float scaledAmp = wave.amp / zoom.x;
             
-            if (x >= width || w <= 0)
+            FloatRect tex = mirrored ? adjustedSrcRect.hFlipped() : adjustedSrcRect;
+            FloatRect pos(0, 0, 0, adjustedSrcRect.h);
+            float mult = (scaledAmp * 2) / (float)srcRect->width;
+            pos.x = -scaledAmp - (trans.getSrcRectOrigin().x * mult);
+            pos.w = tex.w * (1 + mult);
+            
+            if ((pos.w * zoom.x) < 0.5f)
             {
                 wave.qArray.resize(0);
                 wave.qArray.commit();
@@ -331,13 +336,6 @@ struct SpritePrivate
                 return;
             }
             
-            FloatRect pos(x, 0, w, adjustedSrcRect.h);
-            FloatRect tex = mirrored ? adjustedSrcRect.hFlipped() : adjustedSrcRect;
-            tex.x += mirrored ? -pos.x : pos.x;
-            tex.w = mirrored ? -pos.w : pos.w;
-            
-            // FIXME: This is supposed to squish the sprite, not crop it.
-            //        The squishing also applies to negative positions or overflowing dimensions.
             wave.qArray.resize(1);
             Quad::setTexPosRect(&wave.qArray.vertices[0], tex, pos);
             wave.qArray.commit();
