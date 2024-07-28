@@ -282,6 +282,18 @@ struct SpritePrivate
         
         tex.y += pos.y;
         tex.h = pos.h;
+        if (bitmap->hasHires())
+        {
+            Vec2 bmSize = Vec2(bitmap->width(), bitmap->height());
+            Vec2 bmSizeHires = Vec2(bitmap->getHires()->width(), bitmap->getHires()->height());
+            if (bmSizeHires.x && bmSizeHires.y && bmSize.x && bmSize.y)
+            {
+                tex.x *= bmSizeHires.x / bmSize.x;
+                tex.y *= bmSizeHires.y / bmSize.y;
+                tex.w *= bmSizeHires.x / bmSize.x;
+                tex.h *= bmSizeHires.y / bmSize.y;
+            }
+        }
         
         Quad::setTexPosRect(vert, tex, pos);
         vert += 4;
@@ -336,6 +348,18 @@ struct SpritePrivate
                 return;
             }
             
+            if (bitmap->hasHires())
+            {
+                Vec2 bmSize = Vec2(bitmap->width(), bitmap->height());
+                Vec2 bmSizeHires = Vec2(bitmap->getHires()->width(), bitmap->getHires()->height());
+                if (bmSizeHires.x && bmSizeHires.y && bmSize.x && bmSize.y)
+                {
+                    tex.x *= bmSizeHires.x / bmSize.x;
+                    tex.y *= bmSizeHires.y / bmSize.y;
+                    tex.w *= bmSizeHires.x / bmSize.x;
+                    tex.h *= bmSizeHires.y / bmSize.y;
+                }
+            }
             wave.qArray.resize(1);
             Quad::setTexPosRect(&wave.qArray.vertices[0], tex, pos);
             wave.qArray.commit();
