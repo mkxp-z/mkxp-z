@@ -41,6 +41,10 @@
 
 #include <SDL_ttf.h>
 
+#include <ft2build.h>
+#include FT_FREETYPE_H
+#include FT_TRUETYPE_TABLES_H
+
 #ifndef MKXPZ_BUILD_XCODE
 #ifndef MKXPZ_CJK_FONT
 #include "liberation.ttf.xxd"
@@ -164,6 +168,259 @@ void SharedFontState::initFontSetCB(SDL_RWops &ops,
 		set.other = filename;
 }
 
+/* The following code was taken from Wine to emulate
+ * Windows's font size selection behavior. */
+ 
+/* We're not currently using yMax and yMin for anything,
+ * but it could be useful later. */
+typedef struct {
+	TTF_Font *font;
+	int ppem;
+	short yMax;
+	short yMin;
+} Font_Container;
+
+#define BYTE uint8_t
+#define WORD uint16_t
+#define DWORD uint32_t
+#define UINT unsigned int
+#define SHORT short
+#define USHORT unsigned short
+#define GDI_ERROR ~0u
+
+#define MS_MAKE_TAG(ch0, ch1, ch2, ch3)                                                 \
+                    ((uint32_t)(uint8_t)(ch0) | ((uint32_t)(uint8_t)(ch1) << 8) |       \
+                    ((uint32_t)(uint8_t)(ch2) << 16) | ((uint32_t)(uint8_t)(ch3) << 24))
+#define MS_VDMX_TAG MS_MAKE_TAG('V', 'D', 'M', 'X')
+
+/* Wine's code suggests the tables are stored in big endian format. */
+#define RTLUSHORTBYTESWAP(x) (uint16_t)((x >> 8) | (x << 8))
+#define RTLULONGBYTESWAP(x) (((uint32_t)RTLUSHORTBYTESWAP((uint16_t)x) << 16) | RTLUSHORTBYTESWAP((uint16_t)(x >> 16)))
+
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+#define GET_BE_WORD(x) (x)
+#else
+#define GET_BE_WORD(x) RTLUSHORTBYTESWAP(x)
+#endif
+
+static unsigned int freetype_get_font_data( Font_Container *font, uint32_t table,
+                                            unsigned int offset, void *buf, unsigned int cbData)
+{
+	FT_Face ft_face = *(reinterpret_cast<FT_Face *>( font->font ));
+	FT_ULong len;
+	FT_Error err;
+
+	if (!FT_IS_SFNT(ft_face)) return GDI_ERROR;
+
+	if(!buf)
+		len = 0;
+	else
+		len = cbData;
+
+	/* MS tags differ in endianness from FT ones */
+	table = RTLULONGBYTESWAP( table );
+
+	/* make sure value of len is the value freetype says it needs */
+	if (buf && len)
+	{
+		FT_ULong needed = 0;
+		err = FT_Load_Sfnt_Table(ft_face, table, offset, NULL, &needed);
+		if(!err && needed < len)
+			len = needed;
+	}
+	err = FT_Load_Sfnt_Table(ft_face, table, offset, (FT_Byte*)buf, &len);
+	if (err) /* Can't find table */
+		return GDI_ERROR;
+	return (int)len;
+}
+
+typedef struct {
+	uint16_t version;
+	uint16_t numRecs;
+	uint16_t numRatios;
+} VDMX_Header;
+
+typedef struct {
+	uint8_t bCharSet;
+	uint8_t xRatio;
+	uint8_t yStartRatio;
+	uint8_t yEndRatio;
+} Ratios;
+
+typedef struct {
+	uint16_t recs;
+	uint8_t startsz;
+	uint8_t endsz;
+} VDMX_group;
+
+typedef struct {
+	uint16_t yPelHeight;
+	uint16_t yMax;
+	uint16_t yMin;
+} VDMX_vTable;
+
+static int load_VDMX(Font_Container *font, int height)
+{
+	VDMX_Header hdr;
+	VDMX_group group;
+	uint8_t devXRatio, devYRatio;
+	unsigned short numRatios;
+	unsigned int result, offset = -1;
+	int i, ppem = 0;
+
+	result = freetype_get_font_data(font, MS_VDMX_TAG, 0, &hdr, sizeof(hdr));
+
+	if(result == GDI_ERROR) /* no vdmx table present, use linear scaling */
+		return ppem;
+
+	/* FIXME: need the real device aspect ratio */
+	devXRatio = 1;
+	devYRatio = 1;
+
+	numRatios = GET_BE_WORD(hdr.numRatios);
+
+	for(i = 0; i < numRatios; i++) {
+		Ratios ratio;
+
+		offset = sizeof(hdr) + (i * sizeof(Ratios));
+		freetype_get_font_data(font, MS_VDMX_TAG, offset, &ratio, sizeof(Ratios));
+		offset = -1;
+
+		if (!ratio.bCharSet)
+			continue;
+
+		if((ratio.xRatio == 0 &&
+			ratio.yStartRatio == 0 &&
+			ratio.yEndRatio == 0) ||
+		   (devXRatio == ratio.xRatio &&
+			devYRatio >= ratio.yStartRatio &&
+			devYRatio <= ratio.yEndRatio))
+		{
+			uint16_t group_offset;
+
+			offset = sizeof(hdr) + numRatios * sizeof(ratio) + i * sizeof(group_offset);
+			freetype_get_font_data(font, MS_VDMX_TAG, offset, &group_offset, sizeof(group_offset));
+			offset = GET_BE_WORD(group_offset);
+			break;
+		}
+	}
+
+	if(offset == -1) return 0;
+
+	if(freetype_get_font_data(font, MS_VDMX_TAG, offset, &group, sizeof(group)) != GDI_ERROR) {
+		uint16_t recs;
+		std::vector<VDMX_vTable> vTable;
+
+		recs = GET_BE_WORD(group.recs);
+
+		vTable.resize(recs);
+		result = freetype_get_font_data(font, MS_VDMX_TAG, offset + sizeof(group), &vTable[0], recs * sizeof(VDMX_vTable));
+		if(result == GDI_ERROR) /* Failed to retrieve vTable */
+			return 0;
+
+		for(i = 0; i < recs; i++) {
+			VDMX_vTable &entry = vTable[i];
+			short yMax = GET_BE_WORD(entry.yMax);
+			short yMin = GET_BE_WORD(entry.yMin);
+			ppem = GET_BE_WORD(entry.yPelHeight);
+
+			if(yMax + -yMin == height) {
+				font->yMax = yMax;
+				font->yMin = yMin;
+				break;
+			}
+			if(yMax + -yMin > height) {
+				if(--i < 0) {
+					ppem = 0;
+					return 0; /* failed */
+				}
+				VDMX_vTable &entry = vTable[i];
+				font->yMax = GET_BE_WORD(entry.yMax);
+				font->yMin = GET_BE_WORD(entry.yMin);
+				ppem = GET_BE_WORD(entry.yPelHeight);
+				break;
+			}
+		}
+		if(!font->yMax) /* ppem not found for height */
+			ppem = 0;
+	}
+
+	return ppem;
+}
+
+/* Some fonts have large usWinDescent values, as a result of storing signed short
+   in unsigned field. That's probably caused by sTypoDescent vs usWinDescent confusion in
+   some font generation tools. */
+static inline USHORT get_fixed_windescent(USHORT windescent)
+{
+    return abs((SHORT)windescent);
+}
+
+static int calc_ppem_for_height(Font_Container *font, int height)
+{
+	FT_Face ft_face = *(reinterpret_cast<FT_Face *>( font->font ));
+	TT_OS2 *pOS2;
+	TT_HoriHeader *pHori;
+
+	int ppem;
+	const int MAX_PPEM = (1 << 16) - 1;
+
+	pOS2 = (TT_OS2 *)FT_Get_Sfnt_Table(ft_face, FT_SFNT_OS2);
+	pHori = (TT_HoriHeader *)FT_Get_Sfnt_Table(ft_face, FT_SFNT_HHEA);
+
+	if(height == 0)
+		height = 16;
+
+	/* Calc. height of EM square:
+	 *
+	 * For +ve lfHeight we have
+	 * lfHeight = (winAscent + winDescent) * ppem / units_per_em
+	 * Re-arranging gives:
+	 * ppem = units_per_em * lfheight / (winAscent + winDescent)
+	 *
+	 * For -ve lfHeight we have
+	 * |lfHeight| = ppem
+	 * [i.e. |lfHeight| = (winAscent + winDescent - il) * ppem / units_per_em
+	 * with il = winAscent + winDescent - units_per_em]
+	 *
+	 */
+
+	if(height > 0) {
+		USHORT windescent = get_fixed_windescent(pOS2->usWinDescent);
+		int units;
+
+		if(pOS2->usWinAscent + windescent == 0)
+		{
+			font->yMax = pHori->Ascender;
+			font->yMin = pHori->Descender;
+			units = pHori->Ascender - pHori->Descender;
+		} else {
+			font->yMax = pOS2->usWinAscent;
+			font->yMin = -windescent;
+			units = pOS2->usWinAscent + windescent;
+		}
+		ppem = (int)FT_MulDiv(ft_face->units_per_EM, height, units);
+
+		/* If rounding ends up getting a font exceeding height, choose a smaller ppem */
+		if(ppem > 1 && FT_MulDiv(units, ppem, ft_face->units_per_EM) > height)
+			--ppem;
+
+		if(ppem > MAX_PPEM) {
+			//WARN("Ignoring too large height %d, ppem %d\n", height, ppem);
+			ppem = 1;
+		}
+	}
+	else if(height >= -MAX_PPEM)
+		ppem = -height;
+	else {
+		//WARN("Ignoring too large height %d\n", height);
+		ppem = 1;
+	}
+
+	return ppem;
+}
+/* /wine */
+
 _TTF_Font *SharedFontState::getFont(std::string family,
                                     int size)
 {
@@ -217,14 +474,42 @@ _TTF_Font *SharedFontState::getFont(std::string family,
 		}
 	}
 
-	// FIXME 0.9 is guesswork at this point
-//	float gamma = (96.0/45.0)*(5.0/14.0)*(size-5);
-//	font = TTF_OpenFontRW(ops, 1, gamma /** .90*/);
-	font = TTF_OpenFontRW(ops, 1, size* 0.90f);
+	/* Try to compute the size the same way Windows does. */
+	font = TTF_OpenFontRW(ops, 1, 0);
 
 	if (!font)
 		throw Exception(Exception::SDLError, "%s", SDL_GetError());
 
+	/* Dirty hack to get the FT_Face.
+	 * SDL_ttf will probably never move it from the beginning of the struct. */
+	FT_Face face= *(reinterpret_cast<FT_Face *>( font ));
+	/* This is should always be true, but we may as well check... */
+	if (FT_IS_SCALABLE( face ))
+	{
+		Font_Container c = { 0 };
+		c.font = font;
+		c.ppem = load_VDMX(&c, size);
+		if (!c.ppem)
+		{
+			c.ppem = calc_ppem_for_height( &c, size );
+		}
+		if (TTF_SetFontSize(font, c.ppem))
+		{
+			TTF_CloseFont(font);
+			throw Exception(Exception::SDLError, "%s", SDL_GetError());
+		}
+	} else {
+		/* Someone must have renamed a non-scalable font file to ttf or otf.
+		 * Wine has a scaling setup for these, but I'll just leave it alone for now. */
+		if (TTF_SetFontSize(font, size))
+		{
+			TTF_CloseFont(font);
+			throw Exception(Exception::SDLError, "%s", SDL_GetError());
+		}
+	}
+	/* RGSS doesn't use font hinting */
+	TTF_SetFontHinting(font, TTF_HINTING_NONE);
+	
 	p->pool.insert(key, font);
 
 	return font;
