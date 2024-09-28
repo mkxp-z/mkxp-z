@@ -37,6 +37,7 @@ CMAKE_ARGS := \
 	-DCMAKE_PREFIX_PATH="$(BUILD_PREFIX)" \
 	-DCMAKE_C_FLAGS="$(CFLAGS)" \
 	-DCMAKE_BUILD_TYPE=Release \
+	-DCMAKE_POSITION_INDEPENDENT_CODE=ON \
 	$(ARCH_CMAKE_ARGS)
 
 # TODO: Check if we can disable rubygems, remove prefixes.
