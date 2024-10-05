@@ -871,6 +871,34 @@ static VALUE evalString(VALUE string, VALUE filename, int *state) {
     return rb_protect((VALUE(*)(VALUE))evalHelper, (VALUE)&arg, state);
 }
 
+static VALUE findReplacedScript(long index, VALUE name, VALUE script) {
+    std::string scriptName = rb_string_value_cstr(&name);
+    std::string indexKey = std::to_string(index);
+    std::string scriptReplacement = "";
+    std::string scriptData = "";
+    
+    const Config &conf = shState->rtData().config;
+    auto &replacements = conf.replaceScripts;
+    for (auto it : replacements) {
+        if (it.first == indexKey || it.first == scriptName) {
+            scriptReplacement = it.second;
+            break;
+        }
+    }
+    
+    if (scriptReplacement.empty()) {
+        return RUBY_Qnil;
+    }
+    
+    if (!readFileSDL(scriptReplacement.c_str(), scriptData)) {
+        showMsg(std::string("Unable to open '") + scriptReplacement + "'");
+        return RUBY_Qnil;
+    }
+    
+    VALUE ret = newStringUTF8(scriptData.c_str(), scriptData.size());
+    return ret;
+}
+
 static void runCustomScript(const std::string &filename) {
     std::string scriptData;
     
@@ -946,6 +974,12 @@ static void runRMXPScripts(BacktraceData &btData) {
         
         VALUE scriptName = rb_ary_entry(script, 1);
         VALUE scriptString = rb_ary_entry(script, 2);
+        VALUE replacedScript = findReplacedScript(i, scriptName, scriptString);
+        
+        if (replacedScript != RUBY_Qnil) {
+            rb_ary_store(script, 3, replacedScript);
+            continue;
+        }
         
         int result = Z_OK;
         unsigned long bufferLen;

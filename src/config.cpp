@@ -84,6 +84,25 @@ bool copyObject(json::value &dest, json::value &src, const char *objectName = ""
     return true;
 }
 
+bool copyObjectToMap(std::map<std::string, std::string> &dest, json::value &src, const char *objectName = "") {
+    if (src.is_null())
+        return false;
+    
+    if (!src.is_object())
+        return false;
+    
+    auto &srcVec = src.as_object();
+    
+    for (auto it : srcVec) {
+        if (it.second.is_string()) {
+            dest[it.first] = it.second.as_string();
+        } else {
+            Debug() << "Invalid variable in configuration:" << objectName << it.first;
+        }
+    }
+    return true;
+}
+
 bool getEnvironmentBool(const char *env, bool defaultValue) {
     const char *e = SDL_getenv(env);
     if (!e)
@@ -187,6 +206,7 @@ void Config::read(int argc, char *argv[]) {
         {"pathCache", true},
         {"useScriptNames", true},
         {"preloadScript", json::array({})},
+        {"replaceScripts", json::object({})},
         {"RTP", json::array({})},
         {"patches", json::array({})},
         {"fontSub", json::array({})},
@@ -314,6 +334,8 @@ try { exp } catch (...) {}
     SET_STRINGOPT(customScript, customScript);
     SET_OPT(useScriptNames, boolean);
     SET_OPT(dumpAtlas, boolean);
+    
+    copyObjectToMap(replaceScripts, baseConf.as_object()["replaceScripts"], "replaceScripts .");
     
     fillStringVec(opts["preloadScript"], preloadScripts);
     fillStringVec(opts["RTP"], rtps);
