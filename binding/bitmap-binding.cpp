@@ -92,7 +92,18 @@ RB_METHOD_GUARD(bitmapInitialize) {
             forceMega = true;
         }
 
-        GFX_GUARD_EXC(b = new Bitmap(RSTRING_PTR(arg1), forceMega);)
+        if (forceMega) {
+#if RAPI_MAJOR >= 2
+            b = (Bitmap*)drop_gvl_guard([](void* fn) -> void* {
+                Bitmap *bmp = new Bitmap((const char*)fn, true);
+                return (void*)bmp;
+            }, (void*)RSTRING_PTR(arg1), 0, 0);
+#else
+            b = new Bitmap(RSTRING_PTR(arg1), forceMega);
+#endif
+        } else {
+            GFX_GUARD_EXC(b = new Bitmap(RSTRING_PTR(arg1), forceMega);)
+        }
     }
     else {
         // width,height constructor
