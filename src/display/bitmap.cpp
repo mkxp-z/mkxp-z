@@ -60,9 +60,13 @@ extern "C" {
 
 #define GUARD_MEGA \
 { \
-if (p->megaSurface) \
+if (p->megaSurface) { \
+p->ensureNonMega(); \
+if (p->megaSurface) { \
 throw Exception(Exception::MKXPError, \
 "Operation not supported for mega surfaces"); \
+} \
+} \
 }
 
 #define GUARD_ANIMATED \
@@ -407,6 +411,43 @@ struct BitmapPrivate
         SDL_Surface *surfConv = SDL_ConvertSurfaceFormat(surf, format, 0);
         SDL_FreeSurface(surf);
         surf = surfConv;
+    }
+
+    void ensureNonMega()
+    {
+        if (selfHires != nullptr) {
+            if (selfHires->width() > glState.caps.maxTexSize || selfHires->height() > glState.caps.maxTexSize) {
+                return;
+            }
+            selfHires->ensureNonMega();
+        }
+
+        if (megaSurface->w > glState.caps.maxTexSize || megaSurface->h > glState.caps.maxTexSize)
+        {
+            return;
+        }
+
+        TEXFBO tex;
+
+        try
+        {
+            tex = shState->texPool().request(megaSurface->w, megaSurface->h);
+        }
+        catch (const Exception &e)
+        {
+            return;
+        }
+
+        gl = tex;
+        if (selfHires != nullptr) {
+            gl.selfHires = &selfHires->getGLTypes();
+        }
+
+        TEX::bind(gl.tex);
+        TEX::uploadImage(gl.width, gl.height, megaSurface->pixels, GL_RGBA);
+
+        SDL_FreeSurface(megaSurface);
+        megaSurface = nullptr;
     }
     
     void onModified(bool freeSurface = true)
