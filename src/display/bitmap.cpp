@@ -488,7 +488,7 @@ struct BitmapOpenHandler : FileSystem::OpenHandler
     }
 };
 
-Bitmap::Bitmap(const char *filename)
+Bitmap::Bitmap(const char *filename, bool forceMega)
 {
     std::string hiresPrefix = "Hires/";
     std::string filenameStd = filename;
@@ -498,7 +498,7 @@ Bitmap::Bitmap(const char *filename)
         // Look for a high-res version of the file.
         std::string hiresFilename = hiresPrefix + filenameStd;
         try {
-            hiresBitmap = new Bitmap(hiresFilename.c_str());
+            hiresBitmap = new Bitmap(hiresFilename.c_str(), forceMega);
             hiresBitmap->setLores(this);
         }
         catch (const Exception &e)
@@ -631,7 +631,7 @@ Bitmap::Bitmap(const char *filename)
 
     SDL_Surface *imgSurf = handler.surface;
 
-    initFromSurface(imgSurf, hiresBitmap, false);
+    initFromSurface(imgSurf, hiresBitmap, forceMega);
 }
 
 Bitmap::Bitmap(int width, int height, bool isHires)
