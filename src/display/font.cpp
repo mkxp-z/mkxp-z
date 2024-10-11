@@ -454,7 +454,7 @@ static int calc_ppem_for_height(Font_Container *font, int height)
 /* /wine */
 
 _TTF_Font *SharedFontState::getFont(std::string family,
-                                    int size, int outline_size)
+                                    int size, float hiresMult, int outline_size)
 {
 	std::transform(family.begin(), family.end(), family.begin(),
 		[](unsigned char c){ return std::tolower(c); });
@@ -479,10 +479,12 @@ _TTF_Font *SharedFontState::getFont(std::string family,
 
 	TTF_Font *font;
 	int &ppem = p->size_to_ppem[key];
+	int ppemMult;
 	
 	if (ppem != 0)
 	{
-		auto &group = p->ppem_to_font[FontPPEMKey(family, ppem)];
+		ppemMult = std::max<int>(ppem * hiresMult, 1);
+		auto &group = p->ppem_to_font[FontPPEMKey(family, ppemMult)];
 		if(outline_size == 0)
 			font = group[0];
 		else
@@ -526,8 +528,11 @@ _TTF_Font *SharedFontState::getFont(std::string family,
 	if(p->fontSizeMethod == 1)
 	{
 		if (ppem == 0)
+		{
 			ppem = std::max<int>(size * p->fontScale, 5);
-		font = TTF_OpenFontRW(ops, 1, ppem);
+			ppemMult = std::max<int>(ppem * hiresMult, 1);
+		}
+		font = TTF_OpenFontRW(ops, 1, ppemMult);
 	} else {
 		/* Try to compute the size the same way Windows does. */
 		font = TTF_OpenFontRW(ops, 1, 0);
@@ -549,8 +554,9 @@ _TTF_Font *SharedFontState::getFont(std::string family,
 						c.ppem = calc_ppem_for_height( &c, size );
 					
 					ppem = std::max<int>(c.ppem * p->fontScale, 1);
+					ppemMult = std::max<int>(ppem * hiresMult, 1);
 				}
-				if (TTF_SetFontSize(font, ppem))
+				if (TTF_SetFontSize(font, ppemMult))
 				{
 					TTF_CloseFont(font);
 					font = 0;
@@ -560,8 +566,11 @@ _TTF_Font *SharedFontState::getFont(std::string family,
 				 * Wine has a scaling setup for these, but I'll just fall back to
 				 * the mkxp method for now. */
 				if (ppem == 0)
+				{
 					ppem = std::max<int>(size * p->fontScale, 5);
-				if (TTF_SetFontSize(font, ppem))
+					ppemMult = std::max<int>(ppem * hiresMult, 1);
+				}
+				if (TTF_SetFontSize(font, ppemMult))
 				{
 					TTF_CloseFont(font);
 					font = 0;
@@ -581,7 +590,7 @@ _TTF_Font *SharedFontState::getFont(std::string family,
 		throw Exception(Exception::SDLError, "%s", SDL_GetError());
 	}
 	
-	auto &group = p->ppem_to_font[FontPPEMKey(family, std::max<int>(ppem, 1))];
+	auto &group = p->ppem_to_font[FontPPEMKey(family, std::max<int>(ppem * hiresMult, 1))];
 	if(outline_size == 0)
 	{
 		group[0] = font;
@@ -663,6 +672,7 @@ struct FontPrivate
 {
 	std::string name;
 	int size;
+	float hiresMult;
 	bool bold;
 	bool italic;
 	bool outline;
@@ -697,6 +707,7 @@ struct FontPrivate
 
 	FontPrivate(int size)
 	    : size(size),
+	      hiresMult(1.0f),
 	      bold(defaultBold),
 	      italic(defaultItalic),
 	      outline(defaultOutline),
@@ -713,6 +724,7 @@ struct FontPrivate
 	FontPrivate(const FontPrivate &other)
 	    : name(other.name),
 	      size(other.size),
+	      hiresMult(1.0f),
 	      bold(other.bold),
 	      italic(other.italic),
 	      outline(other.outline),
@@ -732,6 +744,11 @@ struct FontPrivate
 		{
 			sdlFont = 0;
 			sdlFontOutline = 0;
+		}
+		if (hiresMult == o.hiresMult)
+		{
+			sdlFont = sdlFont == 0 ? o.sdlFont : sdlFont;
+			sdlFontOutline = sdlFontOutline == 0 ? o.sdlFontOutline : sdlFontOutline;
 		}
 
 		 name     =  o.name;
@@ -828,6 +845,16 @@ void Font::setSize(int value, bool checkIllegal)
 	p->sdlFontOutline = 0;
 }
 
+void Font::setHiresMult(float value)
+{
+	if (p->hiresMult == value)
+		return;
+
+	p->hiresMult = value;
+	p->sdlFont = 0;
+	p->sdlFontOutline = 0;
+}
+
 static void guardDisposed() {}
 
 DEF_ATTR_RD_SIMPLE(Font, Size, int, p->size)
@@ -913,7 +940,7 @@ _TTF_Font *Font::getSdlFont(int outline_size)
 
 	if (!*font)
 		*font = shState->fontState().getFont(p->name.c_str(),
-		                                     p->size, outline_size);
+		                                     p->size, p->hiresMult, outline_size);
 
 	if(outline_size && TTF_GetFontOutline(*font) != outline_size)
 		TTF_SetFontOutline(*font, outline_size);

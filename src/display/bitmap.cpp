@@ -930,6 +930,9 @@ void Bitmap::setLores(Bitmap *lores) {
 
     p->selfLores = lores;
     loresDispCon = lores->wasDisposed.connect(&Bitmap::loresDisposal, this);
+
+    if (p->font && p->font != &shState->defaultFont())
+        p->font->setHiresMult((float)width() / (float)lores->width());
 }
 
 bool Bitmap::isMega() const{
@@ -2097,16 +2100,8 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
         return;
     
     if (hasHires()) {
-        Font &loresFont = getFont();
-        Font &hiresFont = p->selfHires->getFont();
-        // Disable the illegal font size check when creating a high-res font.
-        hiresFont.setSize(loresFont.getSize() * p->selfHires->width() / width(), false);
-        hiresFont.setBold(loresFont.getBold());
-        hiresFont.setColor(loresFont.getColor());
-        hiresFont.setItalic(loresFont.getItalic());
-        hiresFont.setShadow(loresFont.getShadow());
-        hiresFont.setOutline(loresFont.getOutline());
-        hiresFont.setOutColor(loresFont.getOutColor());
+        p->selfHires->guardDisposed();
+        p->selfHires->setFont(getFont());
 
         int rectX = rect.x * p->selfHires->width() / width();
         int rectY = rect.y * p->selfHires->height() / height();
@@ -2429,19 +2424,16 @@ DEF_ATTR_RD_SIMPLE(Bitmap, Font, Font&, *p->font)
 
 void Bitmap::setFont(Font &value)
 {
-    // High-res support handled in drawText, not here.
     *p->font = value;
 }
 
 void Bitmap::setInitFont(Font *value)
 {
-    if (hasHires()) {
-        Font *hiresFont = p->selfHires->p->font;
-        if (hiresFont && hiresFont != &shState->defaultFont())
-        {
-            // Disable the illegal font size check when creating a high-res font.
-            hiresFont->setSize(hiresFont->getSize() * p->selfHires->width() / width(), false);
-        }
+    if (value != &shState->defaultFont()) {
+        if (p->selfLores)
+            value->setHiresMult((float)width() / (float)p->selfLores->width());
+        else
+            value->setHiresMult(1.0f);
     }
 
     p->font = value;
