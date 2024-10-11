@@ -48,7 +48,7 @@ public:
 	                   const std::string &filename);
 
 	_TTF_Font *getFont(std::string family,
-	                   int size);
+	                   int size, int outline_size = 0);
 
 	bool fontPresent(std::string family) const;
 
@@ -116,7 +116,7 @@ public:
 	static void initDefaults(const SharedFontState &sfs);
 
 	/* internal */
-	_TTF_Font *getSdlFont();
+	_TTF_Font *getSdlFont(int outline_size);
 
 private:
 	FontPrivate *p;

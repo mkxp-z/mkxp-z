@@ -34,6 +34,7 @@
 #include <utility>
 #include <algorithm>
 #include <cctype>
+#include <array>
 
 #ifdef MKXPZ_BUILD_XCODE
 #include "filesystem/filesystem.h"
@@ -84,8 +85,10 @@ static SDL_RWops *openBundledFont()
 }
 
 
-
-typedef std::pair<std::string, int> FontKey;
+/* <name, size> */
+typedef std::pair<std::string, int> FontSizeKey;
+/* <name, ppem> */
+typedef std::pair<std::string, int> FontPPEMKey;
 
 struct FontSet
 {
@@ -106,9 +109,12 @@ struct SharedFontStatePrivate
 	 * font filenames located in "Fonts/" */
 	BoostHash<std::string, FontSet> sets;
 
+	/* Pool of font size to ppem values */
+	BoostHash<FontSizeKey, int> size_to_ppem;
+
 	/* Pool of already opened fonts; once opened, they are reused
 	 * and never closed until the termination of the program */
-	BoostHash<FontKey, TTF_Font*> pool;
+	BoostHash<FontPPEMKey, std::array<TTF_Font*, 2>> ppem_to_font;
     
     /* Internal default font family that is used anytime an
      * empty/invalid family is requested */
@@ -159,9 +165,13 @@ SharedFontState::SharedFontState(const Config &conf)
 
 SharedFontState::~SharedFontState()
 {
-	BoostHash<FontKey, TTF_Font*>::const_iterator iter;
-	for (iter = p->pool.cbegin(); iter != p->pool.cend(); ++iter)
-		TTF_CloseFont(iter->second);
+	BoostHash<FontPPEMKey, std::array<TTF_Font*, 2>>::const_iterator iter;
+	for (iter = p->ppem_to_font.cbegin(); iter != p->ppem_to_font.cend(); ++iter)
+	{
+		for (int i=0; i < iter->second.size(); i++)
+			if (iter->second[i] != 0)
+				TTF_CloseFont(iter->second[i]);
+	}
 
 	delete p;
 }
@@ -444,7 +454,7 @@ static int calc_ppem_for_height(Font_Container *font, int height)
 /* /wine */
 
 _TTF_Font *SharedFontState::getFont(std::string family,
-                                    int size)
+                                    int size, int outline_size)
 {
 	std::transform(family.begin(), family.end(), family.begin(),
 		[](unsigned char c){ return std::tolower(c); });
@@ -465,13 +475,27 @@ _TTF_Font *SharedFontState::getFont(std::string family,
 		family = "";
 	}
 
-	FontKey key(family, size);
+	FontSizeKey key(family, size);
 
-	TTF_Font *font = p->pool.value(key);
-
-	if (font)
-		return font;
-
+	TTF_Font *font;
+	int &ppem = p->size_to_ppem[key];
+	
+	if (ppem != 0)
+	{
+		auto &group = p->ppem_to_font[FontPPEMKey(family, ppem)];
+		if(outline_size == 0)
+			font = group[0];
+		else
+			font = group[1];
+		
+		if (font)
+		{
+			if(outline_size && TTF_GetFontOutline(font) != outline_size)
+				TTF_SetFontOutline(font, outline_size);
+			return font;
+		}
+	}
+	
 	/* Not in pool; open new handle */
 	SDL_RWops *ops;
 
@@ -492,6 +516,7 @@ _TTF_Font *SharedFontState::getFont(std::string family,
 			shState->fileSystem().openReadRaw(*ops, path, true);
 		} catch (const Exception &e) {
 			SDL_FreeRW(ops);
+			p->size_to_ppem.remove(key);
 			throw e;
 		}
 	}
@@ -500,57 +525,75 @@ _TTF_Font *SharedFontState::getFont(std::string family,
 	// so we default to it for all XP games.
 	if(p->fontSizeMethod == 1)
 	{
-		font = TTF_OpenFontRW(ops, 1, std::max<int>(size * p->fontScale, 5));
-
-		if (!font)
-			throw Exception(Exception::SDLError, "%s", SDL_GetError());
-	}
-	else
-	{
+		if (ppem == 0)
+			ppem = std::max<int>(size * p->fontScale, 5);
+		font = TTF_OpenFontRW(ops, 1, ppem);
+	} else {
 		/* Try to compute the size the same way Windows does. */
 		font = TTF_OpenFontRW(ops, 1, 0);
 
-		if (!font)
-			throw Exception(Exception::SDLError, "%s", SDL_GetError());
-
-		/* Dirty hack to get the FT_Face.
-		 * SDL_ttf will probably never move it from the beginning of the struct. */
-		FT_Face face= *(reinterpret_cast<FT_Face *>( font ));
-		/* This is should always be true, but we may as well check... */
-		if (FT_IS_SCALABLE( face ))
+		if (font)
 		{
-			Font_Container c = { 0 };
-			c.font = font;
-			c.ppem = load_VDMX(&c, size);
-			if (!c.ppem)
+			/* Dirty hack to get the FT_Face.
+			 * SDL_ttf will probably never move it from the beginning of the struct. */
+			FT_Face face= *(reinterpret_cast<FT_Face *>( font ));
+			/* This is should always be true, but we may as well check... */
+			if (FT_IS_SCALABLE( face ))
 			{
-				c.ppem = calc_ppem_for_height( &c, size );
+				if (ppem == 0)
+				{
+					Font_Container c = { 0 };
+					c.font = font;
+					c.ppem = load_VDMX(&c, size);
+					if (!c.ppem)
+						c.ppem = calc_ppem_for_height( &c, size );
+					
+					ppem = std::max<int>(c.ppem * p->fontScale, 1);
+				}
+				if (TTF_SetFontSize(font, ppem))
+				{
+					TTF_CloseFont(font);
+					font = 0;
+				}
+			} else {
+				/* Someone must have renamed a non-scalable font file to ttf or otf.
+				 * Wine has a scaling setup for these, but I'll just fall back to
+				 * the mkxp method for now. */
+				if (ppem == 0)
+					ppem = std::max<int>(size * p->fontScale, 5);
+				if (TTF_SetFontSize(font, ppem))
+				{
+					TTF_CloseFont(font);
+					font = 0;
+				}
 			}
-			c.ppem = std::max<int>(c.ppem * p->fontScale, 1);
-			if (TTF_SetFontSize(font, c.ppem))
+			if (font)
 			{
-				TTF_CloseFont(font);
-				throw Exception(Exception::SDLError, "%s", SDL_GetError());
-			}
-		} else {
-			/* Someone must have renamed a non-scalable font file to ttf or otf.
-			 * Wine has a scaling setup for these, but I'll just fall back to
-			 * the old mkxp method for now. */
-			if (TTF_setFontSize(font, std::max<int>(size * p->fontScale, 5)))
-			{
-				TTF_CloseFont(font);
-				throw Exception(Exception::SDLError, "%s", SDL_GetError());
+				/* RGSS doesn't use font hinting */
+				TTF_SetFontHinting(font, TTF_HINTING_NONE);
 			}
 		}
-		/* RGSS doesn't use font hinting */
-		TTF_SetFontHinting(font, TTF_HINTING_NONE);
 	}
-
+	
+	if (!font)
+	{
+		p->size_to_ppem.remove(key);
+		throw Exception(Exception::SDLError, "%s", SDL_GetError());
+	}
+	
+	auto &group = p->ppem_to_font[FontPPEMKey(family, std::max<int>(ppem, 1))];
+	if(outline_size == 0)
+	{
+		group[0] = font;
+	} else {
+		if(TTF_GetFontOutline(font) != outline_size)
+			TTF_SetFontOutline(font, outline_size);
+		group[1] = font;
+	}
+	
 	if (!p->fontKerning)
 		TTF_SetFontKerning(font, 0);
-
-	p->pool.insert(key, font);
-
+	
 	return font;
 }
 
@@ -579,7 +622,7 @@ void SharedFontState::setDefaultFontFamily(const std::string &family) {
     p->defaultFamily = family;
 }
 
-void pickExistingFontName(const std::vector<std::string> &names,
+static bool pickExistingFontName(const std::vector<std::string> &names,
                           std::string &out,
                           const SharedFontState &sfs)
 {
@@ -591,8 +634,10 @@ void pickExistingFontName(const std::vector<std::string> &names,
 	{
 		if (sfs.fontPresent(names[i]))
 		{
+			if (out == names[i])
+				return false;
 			out = names[i];
-			return;
+			return true;
 		}
 		else
 		{
@@ -607,7 +652,10 @@ void pickExistingFontName(const std::vector<std::string> &names,
 		}
 	}
 
+	if (out[0] == '\0')
+		return false;
 	out = "";
+	return true;
 }
 
 
@@ -643,6 +691,7 @@ struct FontPrivate
 	 * (when it is queried by a Bitmap), prior it is
 	 * set to null */
 	TTF_Font *sdlFont;
+	TTF_Font *sdlFontOutline;
     
     bool isSolid;
 
@@ -657,6 +706,7 @@ struct FontPrivate
 	      colorTmp(*defaultColor),
 	      outColorTmp(*defaultOutColor),
 	      sdlFont(0),
+	      sdlFontOutline(0),
           isSolid(false)
 	{}
 
@@ -672,11 +722,18 @@ struct FontPrivate
 	      colorTmp(*other.color),
 	      outColorTmp(*other.outColor),
 	      sdlFont(other.sdlFont),
+	      sdlFontOutline(other.sdlFontOutline),
           isSolid(false)
 	{}
 
 	void operator=(const FontPrivate &o)
 	{
+		if (size != o.size || name != o.name)
+		{
+			sdlFont = 0;
+			sdlFontOutline = 0;
+		}
+
 		 name     =  o.name;
 		 size     =  o.size;
 		 bold     =  o.bold;
@@ -686,7 +743,6 @@ struct FontPrivate
 		*color    = *o.color;
 		*outColor = *o.outColor;
 
-		sdlFont = 0;
         isSolid = o.isSolid;
 	}
 };
@@ -747,9 +803,12 @@ const Font &Font::operator=(const Font &o)
 
 void Font::setName(const std::vector<std::string> &names)
 {
-	pickExistingFontName(names, p->name, shState->fontState());
-    p->isSolid = strcmp(p->name.c_str(), "") && shState->config().fontIsSolid(p->name.c_str());
-	p->sdlFont = 0;
+	if (pickExistingFontName(names, p->name, shState->fontState()))
+	{
+		p->sdlFont = 0;
+		p->sdlFontOutline = 0;
+	}
+	p->isSolid = strcmp(p->name.c_str(), "") && shState->config().fontIsSolid(p->name.c_str());
 }
 
 void Font::setSize(int value, bool checkIllegal)
@@ -766,6 +825,7 @@ void Font::setSize(int value, bool checkIllegal)
 
 	p->size = value;
 	p->sdlFont = 0;
+	p->sdlFontOutline = 0;
 }
 
 static void guardDisposed() {}
@@ -843,11 +903,20 @@ void Font::initDefaults(const SharedFontState &sfs)
 	FontPrivate::defaultShadow  = (rgssVer == 2 ? true : false);
 }
 
-_TTF_Font *Font::getSdlFont()
+_TTF_Font *Font::getSdlFont(int outline_size)
 {
-	if (!p->sdlFont)
-		p->sdlFont = shState->fontState().getFont(p->name.c_str(),
-		                                          p->size);
+	_TTF_Font **font;
+	if (outline_size == 0)
+		font = &p->sdlFont;
+	else
+		font = &p->sdlFontOutline;
+
+	if (!*font)
+		*font = shState->fontState().getFont(p->name.c_str(),
+		                                     p->size, outline_size);
+
+	if(outline_size && TTF_GetFontOutline(*font) != outline_size)
+		TTF_SetFontOutline(*font, outline_size);
 
 	int style = TTF_STYLE_NORMAL;
 
@@ -857,7 +926,7 @@ _TTF_Font *Font::getSdlFont()
 	if (p->italic)
 		style |= TTF_STYLE_ITALIC;
 
-	TTF_SetFontStyle(p->sdlFont, style);
+	TTF_SetFontStyle(*font, style);
 
-	return p->sdlFont;
+	return *font;
 }
