@@ -2163,9 +2163,9 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
                 /* Step 2: Compute the opacity of the outline that would have been drawn behind the text.
                  * In RGSS, there's a 1 pixel wide region at the edge of the text that only has
                  * 2 layers of outline instead of the 4 layers that's behind most of the text,
-                 * which noticeably affects the appearance of the text. We can't easily replicate this
-                 * in a way that looks nice in hires mode, however, so as a compromise we'll use the average
-                 * of the 2-layer and 4-layer alphas. */
+                 * which combined with the outlines having less opaque corners from how they're drawn
+                 * slightly affects the appearance of the text. We can't replicate this in a way that
+                 * looks nice in hires mode, however, this will have to be good enough. */
                 uint8_t out_alpha_full = co.a; // compute outline alpha - 4 layers
                 for (int i = 0; i < 2; ++i) {
                     int co1 = out_alpha * 255;
@@ -2176,11 +2176,10 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
                      * RGSS seems to not round, but our blit shader seemingly does. */
                     //out_alpha_full = (fa + 128 + ((fa + 128) >> 8)) >> 8;
                 }
-                out_alpha = (out_alpha + out_alpha_full) / 2;
                 
-                /* Step 3: Calculate the text color using out_alpha in place of co.a. */
+                /* Step 3: Calculate the text color using out_alpha_full in place of co.a. */
                 int co1 = c.a * 255;
-                int co2 = out_alpha * (255 - c.a);
+                int co2 = out_alpha_full * (255 - c.a);
                 int fa = co1 + co2;
                 
                 float faInv = 1.0f / fa;
