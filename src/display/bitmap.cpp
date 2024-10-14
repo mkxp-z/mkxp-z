@@ -2203,7 +2203,15 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
     // rect dimensions.
     // Also use it to determine position, because freetype sometimes treats the last character as
     // being a pixel wider than it should be, and which textSize is currently set to compensate for.
-    int alignmentWidth = textSize(str).w;
+    int alignmentWidth, alignmentHeight;
+    {
+        const IntRect &text_size = textSize(str);
+        alignmentWidth = text_size.w;
+        alignmentHeight = text_size.h;
+        
+        if (!alignmentWidth)
+            return;
+    }
     
     // Trim the text to only fill double the rect width
     int charLimit = 0;
@@ -2272,7 +2280,7 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
     if (alignX < rect.x)
         alignX = rect.x;
     
-    int alignY = rect.y + ((rect.h - txtSurf->h) / 2) - scaledOutlineSize;
+    int alignY = rect.y + ((rect.h - alignmentHeight) / 2) - scaledOutlineSize;
     
     alignY = std::max(alignY, rect.y);
     
@@ -2415,6 +2423,15 @@ IntRect Bitmap::textSize(const char *str)
      * as width yields better results */
     if (p->font->getItalic() && *endPtr == '\0')
         TTF_GlyphMetrics(sdlFont, ucs2, 0, 0, 0, 0, &w);
+    
+    if(!w) {
+        h = 0;
+    } else {
+        /* RGSS normalizes the reported heights.
+         * Note that this may result in the bottoms
+         * of some characters being cut off. */
+         h = TTF_FontHeight(sdlFont);
+    }
     
     return IntRect(0, 0, w, h);
 }
