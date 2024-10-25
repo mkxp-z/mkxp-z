@@ -235,8 +235,8 @@ jobs:
       - name: Prepare archive
         run: |
           cd build/local
-          cp -r ../../linux/build-${{matrix.arch_mkxpz}}/lib/ruby/3.1.0 .
-          mv ./3.1.0 ./stdlib
+          cp -r ../../linux/build-${{matrix.arch_mkxpz}}/lib/ruby/3.3.0 .
+          mv ./3.3.0 ./stdlib
           cp ../../mkxp.json .
           cp -r ../../scripts .
           cp ../../assets/LICENSE.mkxp-z-with-https.txt .
