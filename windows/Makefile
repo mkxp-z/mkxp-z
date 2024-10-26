@@ -329,7 +329,7 @@ $(DOWNLOADS)/libffi/configure: $(DOWNLOADS)/libffi/configure.ac
 	cd $(DOWNLOADS)/libffi; autoreconf -i
 
 $(DOWNLOADS)/libffi/configure.ac:
-	$(CLONE) $(GITHUB)/libffi/libffi $(DOWNLOADS)/libffi --single-branch --branch v3.4.4 --depth 1
+	$(CLONE) $(GITHUB)/libffi/libffi $(DOWNLOADS)/libffi --single-branch --branch v3.4.6 --depth 1
 
 # Standard ruby
 ruby: init_dirs openssl libyaml libffi $(BINDIR)/$(RB_PREFIX)-ruby330.dll
@@ -349,7 +349,7 @@ $(DOWNLOADS)/ruby/configure: $(DOWNLOADS)/ruby/configure.ac
 	cd $(DOWNLOADS)/ruby; autoreconf -i
 
 $(DOWNLOADS)/ruby/configure.ac:
-	$(CLONE) $(GITHUB)/mkxp-z/ruby $(DOWNLOADS)/ruby --single-branch --branch mkxp-z-3.3.4 --depth 1;
+	$(CLONE) $(GITHUB)/mkxp-z/ruby $(DOWNLOADS)/ruby --single-branch --branch mkxp-z-3.3.5 --depth 1;
 
 # ====
 init_dirs:

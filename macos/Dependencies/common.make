@@ -300,13 +300,43 @@ $(DOWNLOADS)/openssl/Makefile: $(DOWNLOADS)/openssl/Configure
 $(DOWNLOADS)/openssl/Configure:
 	$(CLONE) $(GITHUB)/openssl/openssl $(DOWNLOADS)/openssl --single-branch --branch openssl-3.0.12 --depth 1
 
-# Standard ruby
-ruby: init_dirs openssl $(LIBDIR)/libruby.3.1.dylib
+# libyaml
+libyaml: init_dirs $(LIBDIR)/libyaml.a
 
-$(LIBDIR)/libruby.3.1.dylib: $(DOWNLOADS)/ruby/Makefile
+$(LIBDIR)/libyaml.a: $(DOWNLOADS)/libyaml/Makefile
+	cd $(DOWNLOADS)/libyaml; make -j$(NPROC); make install
+
+$(DOWNLOADS)/libyaml/Makefile: $(DOWNLOADS)/libyaml/configure
+	cd $(DOWNLOADS)/libyaml; $(CONFIGURE) --disable-shared --enable-static --disable-docs
+
+$(DOWNLOADS)/libyaml/configure: $(DOWNLOADS)/libyaml/configure.ac
+	cd $(DOWNLOADS)/libyaml; autoreconf -i
+
+$(DOWNLOADS)/libyaml/configure.ac:
+	$(CLONE) $(GITHUB)/yaml/libyaml $(DOWNLOADS)/libyaml --single-branch --branch 0.2.5 --depth 1
+
+# libffi
+libffi: init_dirs $(LIBDIR)/libffi.a
+
+$(LIBDIR)/libffi.a: $(DOWNLOADS)/libffi/Makefile
+	cd $(DOWNLOADS)/libffi; make -j$(NPROC); make install
+
+$(DOWNLOADS)/libffi/Makefile: $(DOWNLOADS)/libffi/configure
+	cd $(DOWNLOADS)/libffi; $(CONFIGURE) --disable-shared --enable-static --disable-docs
+
+$(DOWNLOADS)/libffi/configure: $(DOWNLOADS)/libffi/configure.ac
+	cd $(DOWNLOADS)/libffi; autoreconf -i
+
+$(DOWNLOADS)/libffi/configure.ac:
+	$(CLONE) $(GITHUB)/libffi/libffi $(DOWNLOADS)/libffi --single-branch --branch v3.4.6 --depth 1
+
+# Standard ruby
+ruby: init_dirs openssl libyaml libffi $(LIBDIR)/libruby.3.3.dylib
+
+$(LIBDIR)/libruby.3.3.dylib: $(DOWNLOADS)/ruby/Makefile
 	cd $(DOWNLOADS)/ruby; \
 	$(CONFIGURE_ENV) make -j$(NPROC); $(CONFIGURE_ENV) make install
-	install_name_tool -id @rpath/libruby.3.1.dylib $(LIBDIR)/libruby.3.1.dylib
+	install_name_tool -id @rpath/libruby.3.3.dylib $(LIBDIR)/libruby.3.3.dylib
 
 $(DOWNLOADS)/ruby/Makefile: $(DOWNLOADS)/ruby/configure
 	cd $(DOWNLOADS)/ruby; \
@@ -319,7 +349,7 @@ $(DOWNLOADS)/ruby/configure: $(DOWNLOADS)/ruby/configure.ac
 	cd $(DOWNLOADS)/ruby; autoreconf -i
 
 $(DOWNLOADS)/ruby/configure.ac:
-	$(CLONE) $(GITHUB)/mkxp-z/ruby $(DOWNLOADS)/ruby --single-branch -b mkxp-z-3.3.4 --depth 1;
+	$(CLONE) $(GITHUB)/mkxp-z/ruby $(DOWNLOADS)/ruby --single-branch -b mkxp-z-3.3.5 --depth 1;
 
 # ====
 init_dirs:
