@@ -191,6 +191,9 @@ void Config::read(int argc, char *argv[]) {
         {"RTP", json::array({})},
         {"patches", json::array({})},
         {"fontSub", json::array({})},
+        {"fontSizeMethod", 0},
+        {"fontScale", 0.0f},
+        {"fontKerning", true},
         {"rubyLoadpath", json::array({})},
         {"JITEnable", false},
         {"JITVerboseLevel", 0},
@@ -324,6 +327,9 @@ try { exp } catch (...) {}
     for (std::string & fontSub : fontSubs)
         std::transform(fontSub.begin(), fontSub.end(), fontSub.begin(),
             [](unsigned char c) { return std::tolower(c); });
+    SET_OPT(fontSizeMethod, integer);
+    SET_OPT(fontScale, number);
+    SET_OPT(fontKerning, boolean);
     fillStringVec(opts["rubyLoadpath"], rubyLoadpaths);
     
     auto &bnames = opts["bindingNames"].as_object();

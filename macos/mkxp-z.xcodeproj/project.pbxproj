@@ -3092,6 +3092,7 @@
 					"$(DEPENDENCY_SEARCH_PATH)/include/AL",
 					"$(DEPENDENCY_SEARCH_PATH)/include/openssl",
 					"$(DEPENDENCY_SEARCH_PATH)/include/uchardet",
+					"$(DEPENDENCY_SEARCH_PATH)/include/freetype2",
 					"$(PROJECT_DIR)/Dependencies/Frameworks/ANGLE",
 				);
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -3179,6 +3180,7 @@
 					"$(DEPENDENCY_SEARCH_PATH)/include/AL",
 					"$(DEPENDENCY_SEARCH_PATH)/include/openssl",
 					"$(DEPENDENCY_SEARCH_PATH)/include/uchardet",
+					"$(DEPENDENCY_SEARCH_PATH)/include/freetype2",
 					"$(PROJECT_DIR)/Dependencies/Frameworks/ANGLE",
 				);
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -3265,6 +3267,7 @@
 					"$(DEPENDENCY_SEARCH_PATH)/include/AL",
 					"$(DEPENDENCY_SEARCH_PATH)/include/openssl",
 					"$(DEPENDENCY_SEARCH_PATH)/include/uchardet",
+					"$(DEPENDENCY_SEARCH_PATH)/include/freetype2",
 					"$(PROJECT_DIR)/Dependencies/Frameworks/ANGLE",
 				);
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -3346,6 +3349,7 @@
 					"$(DEPENDENCY_SEARCH_PATH)/include/AL",
 					"$(DEPENDENCY_SEARCH_PATH)/include/openssl",
 					"$(DEPENDENCY_SEARCH_PATH)/include/uchardet",
+					"$(DEPENDENCY_SEARCH_PATH)/include/freetype2",
 					"$(PROJECT_DIR)/Dependencies/Frameworks/ANGLE",
 				);
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -3557,6 +3561,7 @@
 					"$(DEPENDENCY_SEARCH_PATH)/include/AL",
 					"$(DEPENDENCY_SEARCH_PATH)/include/openssl",
 					"$(DEPENDENCY_SEARCH_PATH)/include/uchardet",
+					"$(DEPENDENCY_SEARCH_PATH)/include/freetype2",
 					"$(PROJECT_DIR)/Dependencies/Frameworks/ANGLE",
 				);
 				INFOPLIST_FILE = Info.plist;
@@ -3627,6 +3632,7 @@
 					"$(DEPENDENCY_SEARCH_PATH)/include/AL",
 					"$(DEPENDENCY_SEARCH_PATH)/include/openssl",
 					"$(DEPENDENCY_SEARCH_PATH)/include/uchardet",
+					"$(DEPENDENCY_SEARCH_PATH)/include/freetype2",
 					"$(PROJECT_DIR)/Dependencies/Frameworks/ANGLE",
 				);
 				INFOPLIST_FILE = Info.plist;

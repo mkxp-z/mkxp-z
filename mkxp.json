@@ -428,6 +428,34 @@
     //     "Times New Roman>Liberation Serif",
     // ],
 
+    // RGSS preferentially uses a special table stored some fonts
+    // to determine the size of text.
+    // Historically, however, mkxp used a different method
+    // to determine the size that typically produced different
+    // results. Since this will cause rendering problems with
+    // games that were made for mkxp, this setting can be used
+    // to choose the method.
+    // 0: Defaults to 1 if rgssVersion is 1, 2 if rgssVersion is 2 or 3
+    // 1: The classic mkxp font size method. Recommended for Pokémon Essentials games.
+    // 2: RGSS's method. Recommended for RGSS games, including XP games
+    //    which we can't automatically distinguish from Pokémon Essentials games.
+    // (default: 0)
+    //
+    // "fontSizeMethod": 0,
+
+    // Scales the sizes of all fonts.
+    // If you think text tends to be too large or too small,
+    // try fiddling with this.
+    // For legacy reasons, this defaults to 0.9 when fontSizeMethod is set to 1.
+    // (default: 0.9 with fontSizeMethod 1, 1.0 otherwise)
+    // "fontScale": 1.0,
+
+    // Kerning adjusts the spacing between individual letters or characters.
+    // Enabling it generally looks nicer, but RGSS doesn't use it,
+    // so disabling it should make text appearance more accurate.
+    // (default: true)
+    // "fontKerning": true,
+
 
     // Because mkxp is usually distributed as a stand alone
     // build, no predefined load paths are initialized
