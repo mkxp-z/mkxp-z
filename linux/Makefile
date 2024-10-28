@@ -221,7 +221,8 @@ $(DOWNLOADS)/sdl2_image/cmakebuild/Makefile: $(DOWNLOADS)/sdl2_image/CMakeLists.
 	-DSDL2IMAGE_JPG_SHARED=no \
 	-DSDL2IMAGE_JXL=yes \
 	-DSDL2IMAGE_JXL_SHARED=no \
-	-DSDL2IMAGE_VENDORED=yes
+	-DSDL2IMAGE_VENDORED=yes \
+	-DSDL2IMAGE_SAMPLES=no
 
 $(DOWNLOADS)/sdl2_image/CMakeLists.txt:
 	$(CLONE) $(GITHUB)/mkxp-z/SDL_image $(DOWNLOADS)/sdl2_image -b mkxp-z; \
