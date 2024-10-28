@@ -95,6 +95,32 @@ static int getControllerButtonArg(VALUE *argv) {
     return btn;
 }
 
+const char* prefixButton = "pad_";
+const char* prefixAxis = "axis_";
+
+static VALUE sourceDescToRubyString(SourceDesc input) {
+    VALUE inputValue;
+    switch(input.type) {
+        case Key:
+            inputValue = rb_str_new_cstr(SDL_GetScancodeName(input.d.scan));
+            break;
+        case CButton:
+            // Concatenate button prefix to name
+            inputValue = rb_str_new_cstr(prefixButton);
+            rb_str_concat(inputValue, rb_str_new_cstr(SDL_GameControllerGetStringForButton(input.d.cb)));
+            break;
+        case CAxis:
+            // Concatenate axis prefix to name
+            inputValue = rb_str_new_cstr(prefixAxis);
+            rb_str_concat(inputValue, rb_str_new_cstr(SDL_GameControllerGetStringForAxis(input.d.ca.axis)));
+            rb_str_concat(inputValue, rb_str_new_cstr(input.d.ca.dir == Negative ? "-" : "+"));
+            break;
+        default:
+            inputValue = Qnil;
+    }
+    return inputValue;
+}
+
 RB_METHOD(inputPress) {
     RB_UNUSED_PARAM;
     
@@ -356,6 +382,113 @@ RB_METHOD(inputControllerPowerLevel) {
     }
     
     return ret;
+}
+
+RB_METHOD(inputGetBindings) {
+    RB_UNUSED_PARAM;
+    
+    rb_check_argc(argc, 1);
+    
+    VALUE button;
+    rb_scan_args(argc, argv, "1", &button);
+    // Convert Input symbol to the enum used by buttonCodeHash
+    int num = getButtonArg(&button);
+    
+    VALUE bindings = rb_ary_new();
+
+    BDescVec binds;
+    shState->rtData().bindingUpdateMsg.get(binds);
+
+    for (size_t i = 0; i < binds.size(); ++i)
+    {
+        if(binds[i].target != num) continue;
+
+        VALUE binding = sourceDescToRubyString(binds[i].src);
+        rb_ary_push(bindings, binding);
+    }
+
+    return bindings;
+}
+
+RB_METHOD(inputApplyBindings) {
+    RB_UNUSED_PARAM;
+
+    rb_check_argc(argc, 2);
+
+    VALUE button, inputArray;
+    rb_scan_args(argc, argv, "11", &button, &inputArray);
+
+    // Convert Input symbol to the enum used by buttonCodeHash
+    Input::ButtonCode num = (Input::ButtonCode) getButtonArg(&button);
+
+    BDescVec binds;
+    shState->rtData().bindingUpdateMsg.get(binds);
+
+    // Clear existing bindings for this input
+    binds.erase(std::remove_if(binds.begin(), binds.end(), [num](BindingDesc x) { return x.target == num; }), binds.end());
+
+    // Add new bindings
+    long length = rb_array_len(inputArray);
+    for(long i = 0; i < length; i++)
+    {
+        VALUE binding = rb_ary_entry(inputArray, i);
+        BindingDesc newBinding;
+        newBinding.target = num;
+
+        char* bindingString = RSTRING_PTR(binding);
+        if(strncmp(prefixAxis, bindingString, strlen(prefixAxis)) == 0) {
+            newBinding.src.type = CAxis;
+            // Treat last character as direction
+            size_t len = strlen(bindingString);
+            newBinding.src.d.ca.dir = (AxisDir) (bindingString[len - 1] == '-' ? Negative : Positive);
+            // Cut out the direction character
+            bindingString[len - 1] = '\0';
+            // Skip the prefix, leaving behind the SDL-compatible axis name
+            newBinding.src.d.ca.axis = SDL_GameControllerGetAxisFromString(bindingString + strlen(prefixAxis));
+            // Restore the original direction character in case someone wants to use the information fed into this
+            bindingString[len - 1] = newBinding.src.d.ca.dir == Negative ? '-' : '+';
+        } else if(strncmp(prefixButton, bindingString, strlen(prefixButton)) == 0) {
+            // Gamepad Input
+            newBinding.src.type = CButton;
+            // Skip the prefix, leaving behind the SDL-compatible button name
+            newBinding.src.d.cb = SDL_GameControllerGetButtonFromString(bindingString + strlen(prefixButton));
+        } else {
+            // No prefix, assume regular key
+            newBinding.src.type = Key;
+            newBinding.src.d.scan = SDL_GetScancodeFromName(bindingString);
+        }
+        binds.push_back(newBinding);
+    }
+
+    // Update the bindings in memory
+    shState->rtData().bindingUpdateMsg.post(binds);
+
+    return Qnil;
+}
+
+RB_METHOD(inputSaveBindings) {
+    BDescVec binds;
+    shState->rtData().bindingUpdateMsg.get(binds);
+    storeBindings(binds, shState->config());
+    return Qnil;
+}
+
+RB_METHOD(inputResetBindings) {
+    BDescVec binds = genDefaultBindings(shState->config());
+    shState->rtData().bindingUpdateMsg.post(binds);
+    return Qnil;
+}
+
+RB_METHOD(inputClearLast) {
+    shState->eThread().clearLastInput();
+    return Qnil;
+}
+
+RB_METHOD(inputLast) {
+    RB_UNUSED_PARAM;
+
+    SourceDesc lastInput = shState->eThread().getLastInput();
+    return sourceDescToRubyString(lastInput);
 }
 
 #define AXISFUNC(n, ax1, ax2) \
@@ -620,6 +753,13 @@ void inputBindingInit() {
     
     _rb_define_module_function(module, "clipboard", inputGetClipboard);
     _rb_define_module_function(module, "clipboard=", inputSetClipboard);
+
+    _rb_define_module_function(module, "last", inputLast);
+    _rb_define_module_function(module, "clear_last", inputClearLast);
+    _rb_define_module_function(module, "bindings", inputGetBindings);
+    _rb_define_module_function(module, "apply_bindings", inputApplyBindings);
+    _rb_define_module_function(module, "save_bindings", inputSaveBindings);
+    _rb_define_module_function(module, "reset_bindings", inputResetBindings);
     
     if (rgssVer >= 3) {
         VALUE symHash = rb_hash_new();
