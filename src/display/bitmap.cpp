@@ -60,9 +60,13 @@ extern "C" {
 
 #define GUARD_MEGA \
 { \
-if (p->megaSurface) \
+if (p->megaSurface) { \
+p->ensureNonMega(); \
+if (p->megaSurface) { \
 throw Exception(Exception::MKXPError, \
 "Operation not supported for mega surfaces"); \
+} \
+} \
 }
 
 #define GUARD_ANIMATED \
@@ -408,6 +412,43 @@ struct BitmapPrivate
         SDL_FreeSurface(surf);
         surf = surfConv;
     }
+
+    void ensureNonMega()
+    {
+        if (selfHires != nullptr) {
+            if (selfHires->width() > glState.caps.maxTexSize || selfHires->height() > glState.caps.maxTexSize) {
+                return;
+            }
+            selfHires->ensureNonMega();
+        }
+
+        if (megaSurface->w > glState.caps.maxTexSize || megaSurface->h > glState.caps.maxTexSize)
+        {
+            return;
+        }
+
+        TEXFBO tex;
+
+        try
+        {
+            tex = shState->texPool().request(megaSurface->w, megaSurface->h);
+        }
+        catch (const Exception &e)
+        {
+            return;
+        }
+
+        gl = tex;
+        if (selfHires != nullptr) {
+            gl.selfHires = &selfHires->getGLTypes();
+        }
+
+        TEX::bind(gl.tex);
+        TEX::uploadImage(gl.width, gl.height, megaSurface->pixels, GL_RGBA);
+
+        SDL_FreeSurface(megaSurface);
+        megaSurface = nullptr;
+    }
     
     void onModified(bool freeSurface = true)
     {
@@ -488,7 +529,7 @@ struct BitmapOpenHandler : FileSystem::OpenHandler
     }
 };
 
-Bitmap::Bitmap(const char *filename)
+Bitmap::Bitmap(const char *filename, bool forceMega)
 {
     std::string hiresPrefix = "Hires/";
     std::string filenameStd = filename;
@@ -498,7 +539,7 @@ Bitmap::Bitmap(const char *filename)
         // Look for a high-res version of the file.
         std::string hiresFilename = hiresPrefix + filenameStd;
         try {
-            hiresBitmap = new Bitmap(hiresFilename.c_str());
+            hiresBitmap = new Bitmap(hiresFilename.c_str(), forceMega);
             hiresBitmap->setLores(this);
         }
         catch (const Exception &e)
@@ -631,7 +672,7 @@ Bitmap::Bitmap(const char *filename)
 
     SDL_Surface *imgSurf = handler.surface;
 
-    initFromSurface(imgSurf, hiresBitmap, false);
+    initFromSurface(imgSurf, hiresBitmap, forceMega);
 }
 
 Bitmap::Bitmap(int width, int height, bool isHires)
