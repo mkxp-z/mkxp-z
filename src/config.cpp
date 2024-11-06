@@ -148,6 +148,8 @@ void Config::read(int argc, char *argv[]) {
         {"framebufferScalingFactor", 1.},
         {"atlasScalingFactor", 1.},
         {"vsync", false},
+        {"defInternalScreenW", 0},
+        {"defInternalScreenH", 0},
         {"defScreenW", 0},
         {"defScreenH", 0},
         {"windowTitle", ""},
@@ -251,6 +253,8 @@ try { exp } catch (...) {}
     SET_OPT_CUSTOMKEY(jit.minCalls, JITMinCalls, integer);
     SET_OPT_CUSTOMKEY(yjit.enabled, YJITEnable, boolean);
     SET_OPT(rgssVersion, integer);
+    SET_OPT(defInternalScreenW, integer);
+    SET_OPT(defInternalScreenH, integer);
     SET_OPT(defScreenW, integer);
     SET_OPT(defScreenH, integer);
     
@@ -361,11 +365,17 @@ try { exp } catch (...) {}
 }
 
 static void setupScreenSize(Config &conf) {
+    if (conf.defInternalScreenW <= 0)
+        conf.defInternalScreenW = (conf.rgssVersion == 1 ? 640 : 544);
+    
+    if (conf.defInternalScreenH <= 0)
+        conf.defInternalScreenH = (conf.rgssVersion == 1 ? 480 : 416);
+    
     if (conf.defScreenW <= 0)
-        conf.defScreenW = (conf.rgssVersion == 1 ? 640 : 544);
+        conf.defScreenW = conf.defInternalScreenW;
     
     if (conf.defScreenH <= 0)
-        conf.defScreenH = (conf.rgssVersion == 1 ? 480 : 416);
+        conf.defScreenH = conf.defInternalScreenH;
 }
 
 bool Config::fontIsSolid(const char *fontName) const {

@@ -169,10 +169,27 @@
     // "vsync": false,
 
 
+    // Specify the internal screen width on startup.
+    // If set to 0, it will default to the default
+    // resolution width specific to the RGSS version.
+    // (640 in RGSS1, 544 in RGSS2 or higher)
+    // (default: 0)
+    //
+    // "defInternalScreenW": 640,
+
+
+    // Specify the internal screen height on startup.
+    // If set to 0, it will default to the default
+    // resolution height specific to the RGSS version.
+    // (480 in RGSS1, 416 in RGSS2 or higher)
+    // (default: 0)
+    //
+    // "defInternalScreenH": 480,
+
+
     // Specify the window width on startup. If set to 0,
     // it will default to the default resolution width
-    // specific to the RGSS version (640 in RGSS1, 544
-    // in RGSS2 or higher).
+    // (Refer to defInternalScreenW)
     // (default: 0)
     //
     // "defScreenW": 640,
@@ -180,8 +197,7 @@
 
     // Specify the window height on startup. If set to 0,
     // it will default to the default resolution height
-    // specific to the RGSS version (480 in RGSS1, 416
-    // in RGSS2 or higher).
+    // (Refer to defInternalScreenH)
     // (default: 0)
     //
     // "defScreenH": 480,
