@@ -1717,7 +1717,19 @@ double Graphics::getScale() const {
 
 void Graphics::setScale(double factor) {
     p->threadData->rqWindowAdjust.wait();
-    factor = clamp(factor, 0.5, 4.0);
+    
+    int displayIndex = SDL_GetWindowDisplayIndex(shState->sdlWindow());
+    SDL_Rect displayRect;
+    SDL_GetDisplayUsableBounds(displayIndex, &displayRect);
+    
+    int top, bottom, left, right;
+    SDL_GetWindowBordersSize(shState->sdlWindow(), &top, &bottom, &left, &right);
+    
+    double maxWidth = displayRect.w;
+    double maxHeight = displayRect.h - top;
+    double maxScale = std::min(maxWidth / p->scRes.x, maxHeight / p->scRes.y);
+    
+    factor = clamp(factor, 0.5, maxScale);
     
     if (factor == getScale())
         return;

@@ -427,6 +427,21 @@ int main(int argc, char *argv[]) {
 
     int winW, winH, drwW, drwH;
     SDL_GetWindowSize(win, &winW, &winH);
+
+    int displayIndex = SDL_GetWindowDisplayIndex(win);
+    SDL_Rect displayRect;
+    SDL_GetDisplayUsableBounds(displayIndex, &displayRect);
+    int top, bottom, left, right;
+    SDL_GetWindowBordersSize(win, &top, &bottom, &left, &right);
+    int maxWidth = displayRect.w;
+    int maxHeight = displayRect.h - top;
+    winW = std::min(winW, maxWidth);
+    winH = std::min(winH, maxHeight);
+    SDL_SetWindowSize(win, winW, winH);
+    SDL_SetWindowPosition(win,
+        displayRect.x + ((displayRect.w - winW) / 2),
+        displayRect.y + ((displayRect.h + top - winH) / 2));
+
     rtData.windowSizeMsg.post(Vec2i(winW, winH));
     
     SDL_GL_GetDrawableSize(win, &drwW, &drwH);
