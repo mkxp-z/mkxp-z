@@ -17,6 +17,7 @@ embedded_shaders = [
     'flashMap.frag',
     'bicubic.frag',
     'lanczos3.frag',
+    'area.frag',
     'minimal.vert',
     'simple.vert',
     'simpleColor.vert',
