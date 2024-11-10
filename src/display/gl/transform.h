@@ -68,17 +68,19 @@ public:
 
 	Vec2 &getPosition() { return position; }
 	Vec2 &getOrigin()   { return origin;   }
+	Vec2 &getSrcRectOrigin()   { return srcRectOrigin;   }
 	Vec2 &getScale()    { return scale;    }
 	float getRotation() { return rotation; }
+	Vec2i &getGlobalOffset()  { return offset;   }
 
 	Vec2i getPositionI() const
 	{
 		return Vec2i(position.x, position.y);
 	}
 
-	Vec2i getOriginI() const
+	Vec2i getAdjustedOriginI() const
 	{
-		return Vec2i(origin.x, origin.y);
+		return Vec2i(adjustedOrigin.x, adjustedOrigin.y);
 	}
 
 	void setPosition(const Vec2 &value)
@@ -90,6 +92,18 @@ public:
 	void setOrigin(const Vec2 &value)
 	{
 		origin = value;
+		adjustedOrigin.x = origin.x + srcRectOrigin.x;
+		adjustedOrigin.y = origin.y + srcRectOrigin.y;
+		dirty = true;
+	}
+
+	/* For Sprites. Set to the srcRect's position if it's negative,
+	 * or to 0 if it's positive. */
+	void setSrcRectOrigin(const Vec2 &value)
+	{
+		srcRectOrigin = value;
+		adjustedOrigin.x = origin.x + srcRectOrigin.x;
+		adjustedOrigin.y = origin.y + srcRectOrigin.y;
 		dirty = true;
 	}
 
@@ -139,8 +153,8 @@ private:
 		float syc    = scale.y * cosine;
 		float sxs    = scale.x * sine;
 		float sys    = scale.y * sine;
-		float tx     = -origin.x * sxc - origin.y * sys + position.x + offset.x;
-		float ty     =  origin.x * sxs - origin.y * syc + position.y + offset.y;
+		float tx     = -adjustedOrigin.x * sxc - adjustedOrigin.y * sys + position.x + offset.x;
+		float ty     =  adjustedOrigin.x * sxs - adjustedOrigin.y * syc + position.y + offset.y;
 
 		matrix[0]  =  sxc;
 		matrix[1]  = -sxs;
@@ -152,6 +166,8 @@ private:
 
 	Vec2 position;
 	Vec2 origin;
+	Vec2 srcRectOrigin;
+	Vec2 adjustedOrigin;
 	Vec2 scale;
 	float rotation;
 
