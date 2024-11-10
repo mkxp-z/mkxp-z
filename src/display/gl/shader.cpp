@@ -532,7 +532,10 @@ SpriteShader::SpriteShader()
 	GET_U(tone);
 	GET_U(color);
 	GET_U(opacity);
-	GET_U(bushDepth);
+	GET_U(bushY);
+	GET_U(bushUnder);
+	GET_U(bushSlope);
+	GET_U(bushIntercept);
 	GET_U(bushOpacity);
     GET_U(pattern);
     GET_U(patternBlendType);
@@ -565,9 +568,12 @@ void SpriteShader::setOpacity(float value)
 	gl.Uniform1f(u_opacity, value);
 }
 
-void SpriteShader::setBushDepth(float value)
+void SpriteShader::setBushDepth(bool bushY, bool bushUnder, float bushSlope, float bushIntercept)
 {
-	gl.Uniform1f(u_bushDepth, value);
+	gl.Uniform1f(u_bushY, bushY);
+	gl.Uniform1f(u_bushUnder, bushUnder);
+	gl.Uniform1f(u_bushSlope, bushSlope);
+	gl.Uniform1f(u_bushIntercept, bushIntercept);
 }
 
 void SpriteShader::setBushOpacity(float value)

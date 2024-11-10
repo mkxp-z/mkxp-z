@@ -45,6 +45,12 @@
 
 #include "sigslot/signal.hpp"
 
+static float fwrap(float value, float range)
+{
+    float res = fmod(value, range);
+    return res < 0 ? res + range : res;
+}
+
 struct SpritePrivate
 {
     Bitmap *bitmap;
@@ -60,6 +66,11 @@ struct SpritePrivate
     bool mirrored;
     int bushDepth;
     float efBushDepth;
+    float bushSlope;
+    float bushIntercept;
+    bool bushY;
+    bool bushUnder;
+    bool bushDirty;
     NormValue bushOpacity;
     NormValue opacity;
     BlendType blendType;
@@ -106,7 +117,11 @@ struct SpritePrivate
     srcRect(&tmp.rect),
     mirrored(false),
     bushDepth(0),
-    efBushDepth(0),
+    bushSlope(0),
+    bushIntercept(1.0f),
+    bushY(true),
+    bushUnder(true),
+    bushDirty(true),
     bushOpacity(128),
     opacity(255),
     blendType(BlendNormal),
@@ -155,12 +170,97 @@ struct SpritePrivate
         if (nullOrDisposed(bitmap))
             return;
         
-        /* Calculate effective (normalized) bush depth */
-        float texBushDepth = (bushDepth / trans.getScale().y) -
-        (srcRect->y + srcRect->height) +
-        bitmap->height();
+        bushDirty = false;
         
-        efBushDepth = 1.0f - texBushDepth / bitmap->height();
+        if (bushDepth <= 0)
+        {
+            bushSlope = 0;
+            bushIntercept = 1.0f;
+            bushY = true;
+            bushUnder = true;
+            return;
+        }
+        
+        // Invert the angle if mirrored
+        int mirror = mirrored ? -1 : 1;
+        float angle = fwrap(mirror * trans.getRotation(), 360);
+        
+        // If it's not rotated, then we can skip all of those other calculations.
+        if (angle == 0.0f)
+        {
+            bushSlope = 0;
+            bushIntercept = (srcRect->y + srcRect->height - (bushDepth / trans.getScale().y)) / bitmap->height();
+            bushY = true;
+            bushUnder = true;
+            return;
+        }
+        
+        // Calculate the slope in segments of 45deg, so I don't have to deal with near-infinite slopes
+        bushSlope = tan(abs(fwrap(angle - 45, 90) - 45) * M_PI / 180.0f);
+        // Manually set negative slopes
+        bushSlope *= fwrap(angle, 180) > 90 ? -1 : 1;
+        
+        
+        // If the angle is within 45deg of 90deg or 270deg we use the x-axis instead
+        // Additionally, since the shader's coordinates are percentage based, we need to make
+        // the slope relative to the scaled bitmap's ratio
+        float scaledW = bitmap->width() * trans.getScale().x;
+        float scaledH = bitmap->height() * trans.getScale().y;
+        if (fwrap(angle + 45, 180) < 90)
+        {
+            bushY = true;
+            bushSlope = bushSlope * scaledW / scaledH;
+        }
+        else
+        {
+            bushY = false;
+            bushSlope = bushSlope * scaledH / scaledW;
+        }
+        // Invert the check when we switch from the y-axis to the x-axis
+        bushUnder = angle < 45 || angle >= 225;
+        
+        // Zoom and rotate the srcRect
+        FloatRect src = srcRect->toFloatRect();
+        // Mirrored sprites whose src_rects extend beyond the bounds of the bitmap
+        // need to swap the overflows
+        if (mirrored)
+        {
+            float overflowX = std::max(src.x + src.w - bitmap->width(), 0.0f);
+            
+            if (src.x < 0)
+            {
+                src.x = 0;
+            }
+            src.x -= overflowX;
+        }
+        src.x *= trans.getScale().x;
+        src.y *= trans.getScale().y;
+        src.w *= trans.getScale().x;
+        src.h *= trans.getScale().y;
+        
+        // We use a "left-handed" coordinate system, with positive y values being below the x-axis,
+        // so we need to use the negative of the angle to get the proper y values.
+        float rotation  = -angle * M_PI / 180.0f;
+        
+        // p1 doesn't change, so we can skip rotating it
+        Vec2 p1 = src.topLeft();
+        Vec2 p2 = rotate_point(p1, rotation, src.topRight());
+        Vec2 p3 = rotate_point(p1, rotation, src.bottomLeft());
+        Vec2 p4 = rotate_point(p1, rotation, src.bottomRight());
+        
+        // Find the upper boundary of the bush effect and rotate it back.
+        // The rotated slope is a horizontal line, so any x value will work.
+        Vec2 point(0, std::max(std::max(p1.y, p2.y), std::max(p3.y, p4.y)) - bushDepth);
+        point = rotate_point(p1, -rotation, point);
+        
+        // Unzoom the point and convert it into a percentage
+        point.y = point.y / trans.getScale().y / bitmap->height();
+        point.x = point.x / trans.getScale().x / bitmap->width();
+        
+        if (bushY)
+            bushIntercept = (point.y - (bushSlope * point.x));
+        else
+            bushIntercept = (point.x - (bushSlope * point.y));
     }
     
     void onSrcRectChange()
@@ -197,7 +297,7 @@ struct SpritePrivate
         }
         
         quad.setPosRect(FloatRect(0, 0, rect.w, rect.h));
-        recomputeBushDepth();
+        bushDirty = true;
         
         wave.dirty = true;
     }
@@ -341,6 +441,9 @@ struct SpritePrivate
         }
         
         updateVisibility();
+        
+        if (isVisible && bushDirty)
+            recomputeBushDepth();
     }
 };
 
@@ -481,7 +584,7 @@ void Sprite::setZoomY(float value)
         return;
     
     p->trans.setScale(Vec2(getZoomX(), value));
-    p->recomputeBushDepth();
+    p->bushDirty = true;
     
     if (rgssVer >= 2)
         p->wave.dirty = true;
@@ -495,6 +598,8 @@ void Sprite::setAngle(float value)
         return;
     
     p->trans.setRotation(value);
+    
+    p->bushDirty = true;
 }
 
 void Sprite::setMirror(bool mirrored)
@@ -516,7 +621,7 @@ void Sprite::setBushDepth(int value)
         return;
     
     p->bushDepth = value;
-    p->recomputeBushDepth();
+    p->bushDirty = true;
 }
 
 void Sprite::setBlendType(int type)
@@ -680,7 +785,7 @@ void Sprite::draw()
         
         shader.setTone(p->tone->norm);
         shader.setOpacity(p->opacity.norm);
-        shader.setBushDepth(p->efBushDepth);
+        shader.setBushDepth(p->bushY, p->bushUnder, p->bushSlope, p->bushIntercept);
         shader.setBushOpacity(p->bushOpacity.norm);
         
         if (p->pattern && p->patternOpacity > 0) {

@@ -163,4 +163,22 @@ private:
 	bool dirty;
 };
 
+// Rotates a point around an origin point, counter-clockwise
+// https://stackoverflow.com/a/2259502
+static inline Vec2 rotate_point(const Vec2 &origin, const float &angle, Vec2 point)
+{
+    float s = sin(angle);
+    float c = cos(angle);
+    // translate point back to origin:
+    point.x -= origin.x;
+    point.y -= origin.y;
+    // rotate point
+    float xnew = point.x * c - point.y * s;
+    float ynew = point.x * s + point.y * c;
+    // translate point back:
+    point.x = xnew + origin.x;
+    point.y = ynew + origin.y;
+    return point;
+}
+
 #endif // TRANSFORM_H
