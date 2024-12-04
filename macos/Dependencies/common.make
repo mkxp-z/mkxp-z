@@ -50,7 +50,9 @@ RUBY_CONFIGURE_ARGS := \
 	--disable-rubygems \
 	--disable-install-doc \
 	--build=$(RBUILD) \
-	${EXTRA_RUBY_CONFIG_ARGS}
+	${EXTRA_RUBY_CONFIG_ARGS} \
+	--with-libyaml-dir="$(shell realpath $(PREFIX))" \
+	--with-libffi-dir="$(shell realpath $(PREFIX))"
 
 CONFIGURE := $(CONFIGURE_ENV) ./configure $(CONFIGURE_ARGS)
 AUTOGEN   := $(CONFIGURE_ENV) ./autogen.sh $(CONFIGURE_ARGS)

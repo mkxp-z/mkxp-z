@@ -47,7 +47,9 @@ RUBY_CONFIGURE_ARGS := \
 	--with-out-ext=openssl,readline,dbm,gdbm,pty,syslog \
 	--with-static-linked-ext \
 	--disable-rubygems \
-	--without-gmp
+	--without-gmp \
+	--with-libyaml-dir="$(shell realpath $(PREFIX))" \
+	--with-libffi-dir="$(shell realpath $(PREFIX))"
 
 CONFIGURE := $(CONFIGURE_ENV) ./configure $(CONFIGURE_ARGS)
 AUTOGEN   := $(CONFIGURE_ENV) ./autogen.sh $(CONFIGURE_ARGS)
