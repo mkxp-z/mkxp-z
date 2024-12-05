@@ -47,6 +47,10 @@ bmp = Bitmap.new(640, 480)
 bmp.clear
 dump(bmp, spr, "constructor-dimensions")
 
+bmp = Bitmap.new("Graphics/Pictures/children-alpha")
+bmp2 = bmp.dup
+dump(bmp2, spr, "constructor-dup")
+
 # TODO: Animation constructor
 
 bmp = Bitmap.new("Graphics/Pictures/tree_alpha_16bit")
