@@ -5,7 +5,8 @@ LIBDIR := $(BUILD_PREFIX)/lib
 INCLUDEDIR := $(BUILD_PREFIX)/include
 DOWNLOADS := ${PWD}/downloads/$(HOST)
 NPROC := $(shell sysctl -n hw.ncpu)
-CFLAGS := -I$(INCLUDEDIR) $(TARGETFLAGS) $(DEFINES) -O3
+# Explicitly including freetype2 dir for now. macOS is having weird issues with ft2build.h
+CFLAGS := -I$(INCLUDEDIR) -I$(INCLUDEDIR)/freetype2 $(TARGETFLAGS) $(DEFINES) -O3
 LDFLAGS := -L$(LIBDIR)
 CC      := clang -arch $(ARCH)
 PKG_CONFIG_LIBDIR := $(BUILD_PREFIX)/lib/pkgconfig
