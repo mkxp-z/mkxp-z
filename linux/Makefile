@@ -89,7 +89,7 @@ $(DOWNLOADS)/vorbis/configure: $(DOWNLOADS)/vorbis/autogen.sh
 	./autogen.sh
 
 $(DOWNLOADS)/vorbis/autogen.sh:
-	$(CLONE) $(GITHUB)/mkxp-z/vorbis $(DOWNLOADS)/vorbis
+	$(CLONE) $(GITHUB)/xiph/vorbis $(DOWNLOADS)/vorbis
 
 
 # Ogg, dependency of Vorbis
