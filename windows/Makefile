@@ -279,7 +279,7 @@ $(DOWNLOADS)/fluidsynth/cmakebuild/Makefile: $(DOWNLOADS)/fluidsynth/CMakeLists.
 	$(CMAKE) -DBUILD_SHARED_LIBS=no -Denable-sdl2=no -Denable-readline=no
 
 $(DOWNLOADS)/fluidsynth/CMakeLists.txt:
-	$(CLONE) $(GITHUB)/mkxp-z/fluidsynth-sans-glib $(DOWNLOADS)/fluidsynth
+	$(CLONE) $(GITHUB)/chirs241097/fluidsynth-sans-glib $(DOWNLOADS)/fluidsynth
 
 # OpenSSL
 openssl: init_dirs $(LIBDIR)/libssl.a
