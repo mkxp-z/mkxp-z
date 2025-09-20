@@ -48,12 +48,15 @@ struct ViewportPrivate
 
 	EtcTemps tmp;
 
+	float angle;
+
 	ViewportPrivate(int x, int y, int width, int height, Viewport *self)
 	    : self(self),
 	      rect(&tmp.rect),
 	      color(&tmp.color),
 	      tone(&tmp.tone),
-	      isOnScreen(false)
+	      isOnScreen(false),
+		  angle(0.0f)
 	{
 		rect->set(x, y, width, height);
 		updateRectCon();
@@ -179,7 +182,29 @@ void Viewport::initDynAttribs()
 	p->color = new Color;
 	p->tone = new Tone;
 
+	addDisposableAttr("angle", p->angle);
+
 	p->updateRectCon();
+}
+
+static float normalizeAngle(float angle)
+{
+    // Normalize to 0-360 range
+    angle = fmod(angle, 360.0f);
+    if (angle < 0.0f) {
+        angle += 360.0f;
+    }
+    return angle;
+}
+
+void Viewport::setAngle(float angle)
+{
+    p->angle = normalizeAngle(angle);
+}
+
+float Viewport::getAngle() const
+{
+    return p->angle;
 }
 
 /* Scene */
@@ -189,9 +214,19 @@ void Viewport::composite()
 		return;
 
 	bool renderEffect = p->needsEffectRender(flashing);
+	bool needsRotation = (p->angle != 0.0f);
 
 	if (elements.getSize() == 0 && !renderEffect)
 		return;
+
+	/* Setup rotation */
+	if (needsRotation)
+    {
+        glPushMatrix();
+        glTranslatef(p->rect.width / 2.0f, p->rect.height / 2.0f, 0.0f);
+        glRotatef(p->angle, 0.0f, 0.0f, 1.0f);
+        glTranslatef(-p->rect.width / 2.0f, -p->rect.height / 2.0f, 0.0f);
+    }
 
 	/* Setup scissor */
 	glState.scissorTest.pushSet(true);
@@ -207,6 +242,11 @@ void Viewport::composite()
 
 	glState.scissorBox.pop();
 	glState.scissorTest.pop();
+
+	if (needsRotation)
+    {
+        glPopMatrix();
+    }
 }
 
 /* SceneElement */
@@ -245,11 +285,11 @@ Viewport *ViewportElement::getViewport() const
 void ViewportElement::setViewport(Viewport *viewport)
 {
 	m_viewport = viewport;
-	
+
 	viewportDispCon.disconnect();
 	if (rgssVer == 1 && viewport)
 		viewportDispCon = viewport->wasDisposed.connect(&ViewportElement::viewportElementDisposal, this);
-	
+
 	setScene(viewport ? *viewport : *shState->screen());
 	onViewportChange();
 	onGeometryChange(scene->getGeometry());

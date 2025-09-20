@@ -35,7 +35,7 @@ DEF_ALLOCFUNC(Viewport);
 
 RB_METHOD(viewportInitialize) {
     Viewport *v;
-    
+
     if (argc == 0 && rgssVer >= 3) {
         GFX_LOCK;
         v = new Viewport();
@@ -44,32 +44,61 @@ RB_METHOD(viewportInitialize) {
          * and does NOT replace its 'rect' property */
         VALUE rectObj;
         Rect *rect;
-        
+
         rb_get_args(argc, argv, "o", &rectObj RB_ARG_END);
-        
+
         rect = getPrivateDataCheck<Rect>(rectObj, RectType);
-        
+
         GFX_LOCK;
         v = new Viewport(rect);
     } else {
         int x, y, width, height;
-        
+
         rb_get_args(argc, argv, "iiii", &x, &y, &width, &height RB_ARG_END);
         GFX_LOCK;
         v = new Viewport(x, y, width, height);
     }
-    
+
     setPrivateData(self, v);
-    
+
     /* Wrap property objects */
     v->initDynAttribs();
-    
+
     wrapProperty(self, &v->getRect(), "rect", RectType);
     wrapProperty(self, &v->getColor(), "color", ColorType);
     wrapProperty(self, &v->getTone(), "tone", ToneType);
-    
+
     GFX_UNLOCK;
     return self;
+}
+
+RB_METHOD(viewportGetAngle)
+{
+    RB_UNUSED_PARAM;
+
+    Viewport *v = getPrivateData<Viewport>(self);
+
+    return rb_float_new(v->getAngle());
+}
+
+RB_METHOD(viewportSetAngle)
+{
+    RB_UNUSED_PARAM;
+
+    Viewport *v = getPrivateData<Viewport>(self);
+
+    VALUE angleVal;
+    rb_get_args(argc, argv, "o", &angleVal RB_ARG_END);
+
+    float angle = static_cast<float>(rb_num2dbl(angleVal));
+
+    if (!isfinite(angle)) {
+        rb_raise(rb_eArgError, "angle must be a finite number");
+    }
+
+    v->setAngle(angle);
+
+    return rb_float_new(v->getAngle()); // Return normalized angle
 }
 
 DEF_GFX_PROP_OBJ_VAL(Viewport, Rect, Rect, "rect")
@@ -86,13 +115,16 @@ void viewportBindingInit() {
 #else
     rb_define_alloc_func(klass, ViewportAllocate);
 #endif
-    
+
     disposableBindingInit<Viewport>(klass);
     flashableBindingInit<Viewport>(klass);
     sceneElementBindingInit<Viewport>(klass);
-    
+
     _rb_define_method(klass, "initialize", viewportInitialize);
-    
+
+    rb_define_method(klass, "angle", RUBY_METHOD_FUNC(viewportGetAngle), 0);
+    rb_define_method(klass, "angle=", RUBY_METHOD_FUNC(viewportSetAngle), 1);
+
     INIT_PROP_BIND(Viewport, Rect, "rect");
     INIT_PROP_BIND(Viewport, OX, "ox");
     INIT_PROP_BIND(Viewport, OY, "oy");
