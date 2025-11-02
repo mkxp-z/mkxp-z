@@ -332,12 +332,12 @@ $(DOWNLOADS)/libffi/configure.ac:
 	$(CLONE) $(GITHUB)/libffi/libffi $(DOWNLOADS)/libffi --single-branch --branch v3.4.6 --depth 1
 
 # Standard ruby
-ruby: init_dirs openssl libyaml libffi $(LIBDIR)/libruby.3.3.dylib
+ruby: init_dirs openssl libyaml libffi $(LIBDIR)/libruby.3.4.dylib
 
-$(LIBDIR)/libruby.3.3.dylib: $(DOWNLOADS)/ruby/Makefile
+$(LIBDIR)/libruby.3.4.dylib: $(DOWNLOADS)/ruby/Makefile
 	cd $(DOWNLOADS)/ruby; \
 	$(CONFIGURE_ENV) make -j$(NPROC); $(CONFIGURE_ENV) make install
-	install_name_tool -id @rpath/libruby.3.3.dylib $(LIBDIR)/libruby.3.3.dylib
+	install_name_tool -id @rpath/libruby.3.4.dylib $(LIBDIR)/libruby.3.4.dylib
 
 # -std=gnu99 is needed with GCC 15 and higher (which default to gnu23), for Ruby versions that aren't valid C23.
 # Ruby versions that are valid C23 are 3.2.9+, 3.3.9+, 3.4.5+, and 3.5.0+.
@@ -352,7 +352,7 @@ $(DOWNLOADS)/ruby/configure: $(DOWNLOADS)/ruby/configure.ac
 	cd $(DOWNLOADS)/ruby; autoreconf -i
 
 $(DOWNLOADS)/ruby/configure.ac:
-	$(CLONE) $(GITHUB)/mkxp-z/ruby $(DOWNLOADS)/ruby --single-branch -b mkxp-z-3.3.5 --depth 1;
+	$(CLONE) $(GITHUB)/ruby/ruby $(DOWNLOADS)/ruby --single-branch -b ruby_3_4 --depth 1;
 	sed -i '' '/: $${PRELOADENV=DYLD_INSERT_LIBRARIES}/g' $(DOWNLOADS)/ruby/configure.ac
 
 # ====

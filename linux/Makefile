@@ -351,9 +351,9 @@ $(DOWNLOADS)/libffi/configure.ac:
 	$(CLONE) $(GITHUB)/libffi/libffi $(DOWNLOADS)/libffi --single-branch --branch v3.4.6 --depth 1
 
 # Standard ruby
-ruby: init_dirs openssl libyaml libffi $(LIBDIR)/libruby.so.3.3
+ruby: init_dirs openssl libyaml libffi $(LIBDIR)/libruby.so.3.4
 
-$(LIBDIR)/libruby.so.3.3: $(DOWNLOADS)/ruby/Makefile
+$(LIBDIR)/libruby.so.3.4: $(DOWNLOADS)/ruby/Makefile
 	cd $(DOWNLOADS)/ruby; \
 	make -j$(NPROC); make install DESTDIR="$(BUILD_PREFIX)"
 
@@ -370,7 +370,7 @@ $(DOWNLOADS)/ruby/configure: $(DOWNLOADS)/ruby/configure.ac
 	cd $(DOWNLOADS)/ruby; autoreconf -i
 
 $(DOWNLOADS)/ruby/configure.ac:
-	$(CLONE) $(GITHUB)/mkxp-z/ruby $(DOWNLOADS)/ruby --single-branch --branch mkxp-z-3.3.5 --depth 1;
+	$(CLONE) $(GITHUB)/ruby/ruby $(DOWNLOADS)/ruby --single-branch --branch ruby_3_4 --depth 1;
 
 # ====
 init_dirs:
