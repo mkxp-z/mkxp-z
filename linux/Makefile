@@ -120,7 +120,7 @@ $(DOWNLOADS)/pixman/Makefile: $(DOWNLOADS)/pixman/autogen.sh
 	$(AUTOGEN) --enable-static=yes --enable-shared=no
 
 $(DOWNLOADS)/pixman/autogen.sh:
-	$(CLONE) $(GITHUB)/mkxp-z/pixman $(DOWNLOADS)/pixman
+	$(CLONE) https://gitlab.freedesktop.org/pixman/pixman -b pixman-0.44.0 $(DOWNLOADS)/pixman
 
 
 # iconv
