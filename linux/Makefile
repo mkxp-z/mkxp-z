@@ -23,10 +23,20 @@ GIT := git
 CLONE := $(GIT) clone -q
 GITHUB := https://github.com
 
-CONFIGURE_ENV := \
+# SDL needs system libraries at build time to enable some of its features (e.g.
+# Wayland support), so we don't pass PKG_CONFIG_LIBDIR; this is OK because the
+# resulting binaries don't dynamically link against those libraries.
+# See: https://github.com/libsdl-org/SDL/blob/release-2.28.1/docs/README-linux.md
+CONFIGURE_ENV_SDL := \
 	CMAKE_POLICY_VERSION_MINIMUM=3.10 \
-	PKG_CONFIG_LIBDIR=$(PKG_CONFIG_LIBDIR) \
 	CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)"
+
+# For all other dependencies, we pass PKG_CONFIG_LIBDIR so that the resulting
+# binaries don't try to dynamically link against system libraries from the
+# build machine.
+CONFIGURE_ENV := \
+	$(CONFIGURE_ENV_SDL) \
+	PKG_CONFIG_LIBDIR=$(PKG_CONFIG_LIBDIR)
 
 CONFIGURE_ARGS := --prefix="$(BUILD_PREFIX)" --host="$(ARCH_CONFIGURE)"
 
@@ -53,6 +63,7 @@ RUBY_CONFIGURE_ARGS := \
 CONFIGURE := $(CONFIGURE_ENV) ./configure $(CONFIGURE_ARGS)
 AUTOGEN   := $(CONFIGURE_ENV) ./autogen.sh $(CONFIGURE_ARGS)
 CMAKE     := $(CONFIGURE_ENV) cmake .. $(CMAKE_ARGS)
+CMAKE_SDL := $(CONFIGURE_ENV_SDL) cmake .. $(CMAKE_ARGS)
 
 default: everything
 
@@ -197,7 +208,7 @@ $(LIBDIR)/libSDL2.a: $(DOWNLOADS)/sdl2/cmakebuild/Makefile
 $(DOWNLOADS)/sdl2/cmakebuild/Makefile: $(DOWNLOADS)/sdl2/CMakeLists.txt
 	cd $(DOWNLOADS)/sdl2; \
 	mkdir cmakebuild; cd cmakebuild; \
-	$(CMAKE) -DBUILD_SHARED_LIBS=no
+	$(CMAKE_SDL) -DBUILD_SHARED_LIBS=no
 
 $(DOWNLOADS)/sdl2/CMakeLists.txt:
 	$(CLONE) $(GITHUB)/mkxp-z/SDL $(DOWNLOADS)/sdl2 -b mkxp-z-2.28.1
