@@ -37,6 +37,7 @@ DECL_TYPE(Plane);
 DECL_TYPE(Viewport);
 DECL_TYPE(Tilemap);
 DECL_TYPE(Window);
+DECL_TYPE(Shader);
 
 DECL_TYPE(MiniFFI);
 
@@ -53,6 +54,7 @@ DECL_TYPE(MiniFFI);
 #define ViewportType "Viewport"
 #define TilemapType "Tilemap"
 #define WindowType "Window"
+#define ShaderType "Shader"
 
 #define MiniFFIType "MiniFFI"
 #endif

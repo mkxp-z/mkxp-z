@@ -26,6 +26,7 @@
 #include "sceneelement-binding.h"
 #include "sharedstate.h"
 #include "viewport.h"
+#include "display/customshader.h"
 
 #if RAPI_FULL > 187
 DEF_TYPE(Viewport);
@@ -75,6 +76,7 @@ RB_METHOD(viewportInitialize) {
 DEF_GFX_PROP_OBJ_VAL(Viewport, Rect, Rect, "rect")
 DEF_GFX_PROP_OBJ_VAL(Viewport, Color, Color, "color")
 DEF_GFX_PROP_OBJ_VAL(Viewport, Tone, Tone, "tone")
+DEF_GFX_PROP_OBJ_REF(Viewport, CustomShader, Shader, "@shader")
 
 DEF_GFX_PROP_I(Viewport, OX)
 DEF_GFX_PROP_I(Viewport, OY)
@@ -98,4 +100,5 @@ void viewportBindingInit() {
     INIT_PROP_BIND(Viewport, OY, "oy");
     INIT_PROP_BIND(Viewport, Color, "color");
     INIT_PROP_BIND(Viewport, Tone, "tone");
+    INIT_PROP_BIND(Viewport, Shader, "shader");
 }

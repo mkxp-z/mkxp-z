@@ -27,6 +27,7 @@
 #include "quad.h"
 #include "glstate.h"
 #include "graphics.h"
+#include "customshader.h"
 
 #include <SDL_rect.h>
 
@@ -42,6 +43,7 @@ struct ViewportPrivate
 
 	Color *color;
 	Tone *tone;
+	CustomShader *shader;
 
 	IntRect screenRect;
 	int isOnScreen;
@@ -53,6 +55,7 @@ struct ViewportPrivate
 	      rect(&tmp.rect),
 	      color(&tmp.color),
 	      tone(&tmp.tone),
+	      shader(0),
 	      isOnScreen(false)
 	{
 		rect->set(x, y, width, height);
@@ -150,6 +153,7 @@ DEF_ATTR_RD_SIMPLE(Viewport, OY,   int,   geometry.orig.y)
 DEF_ATTR_SIMPLE(Viewport, Rect,  Rect&,  *p->rect)
 DEF_ATTR_SIMPLE(Viewport, Color, Color&, *p->color)
 DEF_ATTR_SIMPLE(Viewport, Tone,  Tone&,  *p->tone)
+DEF_ATTR_SIMPLE(Viewport, Shader, CustomShader*, p->shader)
 
 void Viewport::setOX(int value)
 {

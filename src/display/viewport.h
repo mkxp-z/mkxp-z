@@ -44,6 +44,7 @@ public:
 	DECL_ATTR( OY,    int    )
 	DECL_ATTR( Color, Color& )
 	DECL_ATTR( Tone,  Tone&  )
+	DECL_ATTR( Shader, class CustomShader* )
 
 	void initDynAttribs();
 
