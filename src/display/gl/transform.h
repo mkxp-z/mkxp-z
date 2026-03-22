@@ -197,4 +197,30 @@ static inline Vec2 rotate_point(const Vec2 &origin, const float &angle, Vec2 poi
     return point;
 }
 
+// Returns the rect that contains the source rect after rotating it around a point
+static FloatRect rotate_rect(const Vec2i &origin, float rotation, const IntRect &sourceRect)
+{
+	// We use a "left-handed" coordinate system, with positive y values being below the x-axis,
+	// so we need to use the negative of the angle to get the proper y values.
+	float angle  = -rotation * M_PI / 180.0f;
+
+	Vec2i pos = sourceRect.pos();
+	Vec2i size = sourceRect.size();
+	Vec2 p1 = rotate_point(origin, angle, pos);
+	Vec2 p2 = rotate_point(origin, angle, Vec2i(pos.x + size.x, pos.y));
+	Vec2 p3 = rotate_point(origin, angle, Vec2i(pos.x, pos.y + size.y));
+	Vec2 p4 = rotate_point(origin, angle, pos + size);
+
+	FloatRect result;
+
+	float x = std::min(std::min(p1.x, p2.x), std::min(p3.x, p4.x));
+	float y = std::min(std::min(p1.y, p2.y), std::min(p3.y, p4.y));
+	result.x = x;
+	result.y = y;
+	result.w = ceil(std::max(std::max(p1.x, p2.x), std::max(p3.x, p4.x))) - floor(x);
+	result.h = ceil(std::max(std::max(p1.y, p2.y), std::max(p3.y, p4.y))) - floor(y);
+
+	return result;
+}
+
 #endif // TRANSFORM_H

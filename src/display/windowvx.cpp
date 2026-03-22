@@ -153,9 +153,12 @@ struct WindowVXPrivate
 	Bitmap *windowskin;
 
 	Bitmap *contents;
+    Bitmap *fakeContents;
 	
 	sigslot::connection windowskinDispCon;
 	sigslot::connection contentsDispCon;
+
+    EtcTemps tmp;
 
 	Rect *cursorRect;
 	bool active;
@@ -185,8 +188,6 @@ struct WindowVXPrivate
 	sigslot::connection cursorRectCon;
 	sigslot::connection toneCon;
 	sigslot::connection prepareCon;
-
-	EtcTemps tmp;
 
 	struct
 	{
@@ -223,10 +224,13 @@ struct WindowVXPrivate
 	uint8_t cursorAlphaIdx;
 
 	Vec2i sceneOffset;
+    bool contentsVisible = false;
 
 	WindowVXPrivate(int x, int y, int w, int h)
 	    : windowskin(0),
+          tmp(),
 	      contents(0),
+          fakeContents(0),
 	      cursorRect(&tmp.rect),
 	      active(true),
 	      arrowsVisible(true),
@@ -294,8 +298,39 @@ struct WindowVXPrivate
 
 	void contentsDisposal()
 	{
-		contents = 0;
+        if (fakeContents != contents)
+		{
+			delete fakeContents;
+		}
+		contents = fakeContents = 0;
 		contentsDispCon.disconnect();
+	}
+
+    void updateChild()
+	{
+		if (!contentsOpacity)
+		{
+			contentsVisible = false;
+			return;
+		}
+
+		if (fakeContents == contents || !fakeContents->getChildInfo())
+		{
+			contentsVisible = true;
+			return;
+		}
+
+		ChildPublic &shared = *fakeContents->getChildInfo();
+
+		shared.realOffset = contentsOff;
+		shared.x = clipRect.x;
+		shared.y = clipRect.y;
+		shared.width = clipRect.w;
+		shared.height = clipRect.h;
+
+		fakeContents->childUpdate();
+
+		contentsVisible = shared.isVisible;
 	}
 
 	void invalidateCursorVert()
@@ -713,6 +748,8 @@ struct WindowVXPrivate
 			clipRectDirty = false;
 		}
 
+        updateChild();
+
 		if (ctrlVertDirty)
 		{
 			rebuildCtrlVert();
@@ -746,7 +783,7 @@ struct WindowVXPrivate
 			return;
 
 		bool windowskinValid = !nullOrDisposed(windowskin);
-		bool contentsValid = !nullOrDisposed(contents);
+		bool contentsValid = !nullOrDisposed(contents) && contentsVisible;
 
 		Vec2i trans = geo.pos() + sceneOffset;
 
@@ -816,11 +853,16 @@ struct WindowVXPrivate
 					glState.scissorBox.setIntersect(clip);
 
 				Vec2i contTrans = pad.pos();
-				contTrans -= contentsOff;
+                if (contents != fakeContents) {
+                    auto& offset = fakeContents->getChildInfo()->offset;
+                    contTrans -= Vec2i(offset.x, offset.y);
+                } else {
+                    contTrans -= contentsOff;
+                }
 				shader.setTranslation(contTrans);
 
 				TEX::setSmooth(false); // XXX
-				contents->bindTex(shader);
+				fakeContents->bindTex(shader);
 				contentsQuad.draw();
 			}
 
@@ -945,19 +987,31 @@ void WindowVX::setContents(Bitmap *value)
 	if (p->contents == value)
 		return;
 
+    if (p->fakeContents != p->contents)
+		delete p->fakeContents;
+
+    p->fakeContents = value;
 	p->contents = value;
 
 	p->contentsDispCon.disconnect();
 
 	if (nullOrDisposed(value))
 	{
-		p->contents = 0;
+		p->contents = p->fakeContents = 0;
 		return;
 	}
 
 	p->contentsDispCon = value->wasDisposed.connect(&WindowVXPrivate::contentsDisposal, p);
 
-	FloatRect rect = p->contents->rect();
+    if (value->isMega()) {
+        p->fakeContents = value->spawnChild();
+
+		ChildPublic &shared = *p->fakeContents->getChildInfo();
+		shared.sceneRect = &scene->getGeometry().rect;
+		shared.sceneOrig = &scene->getGeometry().orig;
+    }
+
+	FloatRect rect = p->fakeContents->rect();
 	p->contentsQuad.setTexPosRect(rect, rect);
 	p->ctrlVertDirty = true;
 }
