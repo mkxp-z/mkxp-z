@@ -66,16 +66,49 @@ void bitmapInitProps(Bitmap *b, VALUE self) {
 
 RB_METHOD_GUARD(bitmapInitialize) {
     Bitmap *b = 0;
-    
-    if (argc == 1) {
-        char *filename;
-        rb_get_args(argc, argv, "z", &filename RB_ARG_END);
-        
-        GFX_GUARD_EXC(b = new Bitmap(filename);)
-    } else {
-        int width, height;
-        rb_get_args(argc, argv, "ii", &width, &height RB_ARG_END);
-        
+
+    VALUE arg1;
+    VALUE arg2;
+
+    VALUE kwargs;
+    rb_scan_args(argc, argv, "11:", &arg1, &arg2, &kwargs);
+
+    ID table[1];
+    table[0] = rb_intern("device_affinity");
+    VALUE deviceAffinity;
+    rb_get_kwargs(kwargs, table, 0, 1, &deviceAffinity);
+
+    if (RB_TYPE_P(arg1, RUBY_T_STRING)) {
+        // filename constructor, arg1 is filename
+        SafeStringValue(arg1);
+
+        int affinity = 0;
+        if (deviceAffinity != Qundef && deviceAffinity != Qnil) {
+            affinity = NUM2INT(deviceAffinity);
+        }
+
+        bool forceMega = false;
+        if (affinity == 1) {
+            forceMega = true;
+        }
+
+        if (forceMega) {
+#if RAPI_MAJOR >= 2
+            b = (Bitmap*)drop_gvl_guard([](void* fn) -> void* {
+                Bitmap *bmp = new Bitmap((const char*)fn, true);
+                return (void*)bmp;
+            }, (void*)RSTRING_PTR(arg1), 0, 0);
+#else
+            b = new Bitmap(RSTRING_PTR(arg1), forceMega);
+#endif
+        } else {
+            GFX_GUARD_EXC(b = new Bitmap(RSTRING_PTR(arg1), forceMega);)
+        }
+    }
+    else {
+        // width,height constructor
+        int width = NUM2INT(arg1);
+        int height = NUM2INT(arg2);
         GFX_GUARD_EXC(b = new Bitmap(width, height);)
     }
     

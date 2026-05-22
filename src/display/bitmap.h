@@ -38,7 +38,7 @@ struct BitmapPrivate;
 class Bitmap : public Disposable
 {
 public:
-	Bitmap(const char *filename);
+	Bitmap(const char *filename, bool forceMega = false);
 	Bitmap(int width, int height, bool isHires = false);
 	Bitmap(void *pixeldata, int width, int height);
 	Bitmap(TEXFBO &other);
