@@ -107,7 +107,7 @@ jobs:
           path: build/artifact
 
   build-windows-mingw32:
-    name: Windows mingw32
+    name: Windows 32 bit
     runs-on: windows-latest
     steps:
       - uses: benjlevesque/short-sha@v2.2
@@ -200,7 +200,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: mkxp-z.windows.mingw32.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          name: mkxp-z.windows.32bit.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: build/artifact
     
   build-linux-native:
