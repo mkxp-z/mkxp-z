@@ -106,6 +106,103 @@ jobs:
           name: mkxp-z.windows.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: build/artifact
 
+  build-windows-mingw32:
+    name: Windows mingw32
+    runs-on: windows-latest
+    steps:
+      - uses: benjlevesque/short-sha@v2.2
+        id: short-sha
+        with:
+          length: 7
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: mingw32
+          install: >-
+            base-devel
+            git
+            ruby
+            vim
+            mingw-w64-i686-cmake
+            mingw-w64-i686-meson
+            mingw-w64-i686-autotools
+            mingw-w64-i686-gcc
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            windows/build-mingw32
+            windows/downloads
+          key: win-mingw32-${{ hashFiles('windows/Makefile') }}
+
+      - name: Build all dependencies
+        shell: msys2 {0}
+        run: |
+          cd windows
+          make
+
+      - name: Build exe
+        shell: msys2 {0}
+        run: |
+          source windows/vars.sh
+          meson setup build
+          cd build
+          ninja
+          strip ./mkxp-z.exe
+
+      - name: Prepare archive
+        shell: msys2 {0}
+        run: |
+          mkdir -p build/artifact
+          cd build/artifact
+          cp /mingw32/bin/zlib1.dll .
+          cp /mingw32/bin/libwinpthread-1.dll .
+          cp /mingw32/bin/libgcc_s_dw2-1.dll .
+          cp ../../windows/build-mingw/bin/msvcrt-ruby310.dll .
+          cp -r ../../windows/build-mingw/lib/ruby/3.1.0 .
+          mv ./3.1.0 ./stdlib
+          cp ../mkxp-z.exe .
+          cp ../../mkxp.json .
+          cp -r ../../scripts .
+          cp ../../assets/LICENSE.mkxp-z-with-https.txt .
+
+      - name: Check for DLLs missing from the artifact
+        shell: msys2 {0}
+        run: |
+          cd build/artifact
+          error_flag=
+
+          for file in *.exe *.dll
+          do
+            ldd_output="$(ldd "$file")"
+            echo "$file"
+            echo "$ldd_output"
+
+            while IFS= read -r line
+            do
+              dll_name="$(echo "$line" | sed -e 's/=>/|/g' | cut -d '|' -f 1 | sed -e 's/^[ \t]*//g' -e 's/[ \t]*$//g')"
+              dll_location="$(echo "$line" | sed -e 's/=>/|/g' | cut -d '|' -f 2 | sed -e 's/^[ \t]*//g' -e 's/[ \t]*$//g')"
+              if [[ "$dll_location" = 'not found'* ]] || [[ "$dll_location" = '/mingw32/bin/'* ]] || [[ "$dll_location" = '/mingw32/lib/'* ]] || [[ "$dll_location" = '/mingw32/usr/bin/'* ]] || [[ "$dll_location" = '/mingw32/usr/lib/'* ]]
+              then
+                error_flag=1
+                echo "::error::$dll_name is missing from the artifact"
+              fi
+            done <<< "$ldd_output"
+          done
+
+          if [ -n "$error_flag" ]
+          then
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mkxp-z.windows.mingw32.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          path: build/artifact
+    
   build-linux-native:
     name: Ubuntu 22.04 x86_64
     runs-on: ubuntu-22.04
