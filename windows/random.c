@@ -540,66 +540,48 @@ fill_random_bytes_syscall(void *buf, size_t size, int unused)
 # define DWORD_MAX (~(DWORD)0UL)
 #endif
 
-#include <windows.h>
-#include <wincrypt.h>
-#include <stdint.h> // For uintptr_t
-#include <ruby.h>   // Include Ruby headers for proper function usage
-
-// Forward declaration of the release_crypt function
-static void release_crypt(void *p);
-
-// Define atomic operations for HCRYPTPROV
-#define ATOMIC_HCRYPTPROV_EXCHANGE(var, val) \
-    (HCRYPTPROV)InterlockedExchangePointer((PVOID *)&(var), (PVOID)(val))
-
-#define ATOMIC_HCRYPTPROV_CAS(var, expected, desired) \
-    (HCRYPTPROV)InterlockedCompareExchangePointer((PVOID *)&(var), (PVOID)(desired), (PVOID)(expected))
-
-#if defined(CRYPT_VERIFYCONTEXT)
+# if defined(CRYPT_VERIFYCONTEXT)
 STATIC_ASSERT(sizeof_HCRYPTPROV, sizeof(HCRYPTPROV) == sizeof(size_t));
 
+/* Although HCRYPTPROV is not a HANDLE, it looks like
+ * INVALID_HANDLE_VALUE is not a valid value */
 static const HCRYPTPROV INVALID_HCRYPTPROV = (HCRYPTPROV)INVALID_HANDLE_VALUE;
 
-// Define the data type for HCRYPTPROV
-static const rb_data_type_t hcryptprov_data_type = {
-    "HCRYPTPROV",
-    {0, release_crypt, 0}, // No free function, just the release function
-    0, 0, 0
-};
-
-static void release_crypt(void *p) {
-    HCRYPTPROV *ptr = (HCRYPTPROV *)p;
-    HCRYPTPROV prov = ATOMIC_HCRYPTPROV_EXCHANGE(*ptr, INVALID_HCRYPTPROV);
+static void
+release_crypt(void *p)
+{
+    HCRYPTPROV *ptr = p;
+    HCRYPTPROV prov = (HCRYPTPROV)rbimpl_atomic_size_exchange((volatile size_t *)ptr, (size_t)INVALID_HCRYPTPROV);
     if (prov && prov != INVALID_HCRYPTPROV) {
-        CryptReleaseContext(prov, 0);
+	CryptReleaseContext(prov, 0);
     }
 }
 
-static int fill_random_bytes_crypt(void *seed, size_t size) {
-    static HCRYPTPROV perm_prov = 0; // Initialize to 0 instead of NULL
+static int
+fill_random_bytes_crypt(void *seed, size_t size)
+{
+    static HCRYPTPROV perm_prov;
     HCRYPTPROV prov = perm_prov, old_prov;
-
     if (!prov) {
-        if (!CryptAcquireContext(&prov, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
-            prov = INVALID_HCRYPTPROV;
-        }
-        old_prov = ATOMIC_HCRYPTPROV_CAS(perm_prov, 0, prov);
-        if (LIKELY(!old_prov)) { // no other threads acquired
-            if (prov != INVALID_HCRYPTPROV) {
-                // Use a pointer to HCRYPTPROV
-                HCRYPTPROV *prov_ptr = &perm_prov;
-                rb_gc_register_mark_object(TypedData_Wrap_Struct(rb_cObject, (void *)prov_ptr, &hcryptprov_data_type));
-            }
-        } else { // another thread acquired
-            if (prov != INVALID_HCRYPTPROV) {
-                CryptReleaseContext(prov, 0);
-            }
-            prov = old_prov;
-        }
+	if (!CryptAcquireContext(&prov, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
+	    prov = INVALID_HCRYPTPROV;
+	}
+	old_prov = (HCRYPTPROV)rbimpl_atomic_size_cas((volatile size_t *)&perm_prov, (size_t)0, (size_t)prov);
+	if (LIKELY(!old_prov)) { /* no other threads acquired */
+	    if (prov != INVALID_HCRYPTPROV) {
+#undef RUBY_UNTYPED_DATA_WARNING
+#define RUBY_UNTYPED_DATA_WARNING 0
+		rb_gc_register_mark_object(Data_Wrap_Struct(0, 0, release_crypt, &perm_prov));
+	    }
+	}
+	else {			/* another thread acquired */
+	    if (prov != INVALID_HCRYPTPROV) {
+		CryptReleaseContext(prov, 0);
+	    }
+	    prov = old_prov;
+	}
     }
-
     if (prov == INVALID_HCRYPTPROV) return -1;
-
     while (size > 0) {
         DWORD n = (size > (size_t)DWORD_MAX) ? DWORD_MAX : (DWORD)size;
         if (!CryptGenRandom(prov, n, seed)) return -1;
@@ -608,18 +590,9 @@ static int fill_random_bytes_crypt(void *seed, size_t size) {
     }
     return 0;
 }
-#else
-#define fill_random_bytes_crypt(seed, size) -1
-#endif
-
-
-
-
-
-
-
-
-
+# else
+#   define fill_random_bytes_crypt(seed, size) -1
+# endif
 
 static int
 fill_random_bytes_bcrypt(void *seed, size_t size)
