@@ -1,0 +1,126 @@
+# Allows FluidSynth to compile with C++ exceptions and RTTI disabled.
+
+--- a/src/midi/fluid_seq_queue.cpp
++++ b/src/midi/fluid_seq_queue.cpp
+@@ -22,7 +22,7 @@
+ #include <deque>
+ #include <algorithm>
+ #include <limits>
+-
++#include "../../../src/mkxp-polyfill.h"
+ /*
+  * This is an implementation of an event queue, sorted according to their timestamp.
+  *
+@@ -118,7 +118,7 @@ int event_compare_for_test(const fluid_event_t* left, const fluid_event_t* right
+ 
+ void* new_fluid_seq_queue(int nb_events)
+ {
+-    try
++    MKXPZ_TRY
+     {
+         // As workaround for a missing deque::reserve(), allocate a deque with a size of nb_events
+         seq_queue_t* queue = new seq_queue_t(nb_events);
+@@ -129,7 +129,7 @@ void* new_fluid_seq_queue(int nb_events)
+ 
+         return queue;
+     }
+-    catch(...)
++    MKXPZ_CATCH(...)
+     {
+         return 0;
+     }
+@@ -142,7 +142,7 @@ void delete_fluid_seq_queue(void *que)
+ 
+ int fluid_seq_queue_push(void *que, const fluid_event_t *evt)
+ {
+-    try
++    MKXPZ_TRY
+     {
+         seq_queue_t& queue = *static_cast<seq_queue_t*>(que);
+ 
+@@ -151,7 +151,7 @@ int fluid_seq_queue_push(void *que, const fluid_event_t *evt)
+ 
+         return FLUID_OK;
+     }
+-    catch(...)
++    MKXPZ_CATCH(...)
+     {
+         return FLUID_FAILED;
+     }
+--- a/src/midi/fluid_seqbind_notes.cpp
++++ b/src/midi/fluid_seqbind_notes.cpp
+@@ -20,7 +20,7 @@
+ #include "fluid_seqbind_notes.h"
+ 
+ #include <set>
+-
++#include "../../../src/mkxp-polyfill.h"
+ /*
+  * This is a hash container allows us to detect overlapping notes, by storing a bunch of unique integers,
+  * that allow us to track noteOn events.
+@@ -62,12 +62,12 @@ fluid_note_id_t fluid_note_compute_id(int chan, short key)
+ 
+ void* new_fluid_note_container()
+ {
+-    try
++    MKXPZ_TRY
+     {
+         note_container_t* cont = new note_container_t;
+         return cont;
+     }
+-    catch(...)
++    MKXPZ_CATCH(...)
+     {
+         return 0;
+     }
+@@ -82,14 +82,14 @@ void delete_fluid_note_container(void *cont)
+ // FLUID_FAILED in case of error.
+ int fluid_note_container_insert(void* cont, fluid_note_id_t id)
+ {
+-    try
++    MKXPZ_TRY
+     {
+         std::pair<note_container_t::iterator, bool> res = static_cast<note_container_t*>(cont)->insert(id);
+         // res.second tells us whether the element was inserted
+         // by inverting it, we know whether it contained the element previously
+         return !res.second;
+     }
+-    catch(...)
++    MKXPZ_CATCH(...)
+     {
+         return FLUID_FAILED;
+     }
+@@ -97,11 +97,11 @@ int fluid_note_container_insert(void* cont, fluid_note_id_t id)
+ 
+ void fluid_note_container_remove(void* cont, fluid_note_id_t id)
+ {
+-    try
++    MKXPZ_TRY
+     {
+         static_cast<note_container_t*>(cont)->erase(id);
+     }
+-    catch(...)
++    MKXPZ_CATCH(...)
+     {
+         // should never happen
+     }
+--- a/src/sfloader/fluid_dls.cpp
++++ b/src/sfloader/fluid_dls.cpp
+@@ -74,7 +74,7 @@ static inline std::string string_format(const char (&format)[N], Args... args)
+ 
+ static inline void log_exception(int level, const std::exception &exc, int nest_level = 0)
+ {
+-    const auto &exc_type = typeid(exc);
++
+     std::string prefix;
+ 
+     if(nest_level > 0)
+@@ -82,7 +82,7 @@ static inline void log_exception(int level, const std::exception &exc, int nest_
+         prefix = std::string(1 * nest_level, ' ');
+     }
+ 
+-    if(exc_type == typeid(std::bad_alloc))
++    if(false)
+     {
+         FLUID_LOG(FLUID_PANIC, "%sOut of memory!!: %s", prefix.c_str(), exc.what());
+     }

@@ -1949,7 +1949,7 @@
 				9656358E279A5B74003D6A75 /* theoraplay_cvtrgb.h */,
 				9656358F279A5B74003D6A75 /* theoraplay.h */,
 			);
-			path = theoraplay;
+			path = "../macos/Dependencies/downloads/theoraplay";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */

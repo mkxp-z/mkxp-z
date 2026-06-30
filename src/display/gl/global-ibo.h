@@ -45,7 +45,13 @@ struct GlobalIBO
 
 	~GlobalIBO()
 	{
-		IBO::del(ibo);
+		if (ibo.gl)
+			IBO::del(ibo);
+	}
+
+	void forget()
+	{
+		ibo.gl = 0;
 	}
 
 	void ensureSize(size_t quadCount)

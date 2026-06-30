@@ -50,8 +50,12 @@ public:
 
 	inline void insert(const K &key, const V &value)
 	{
-        p[key] = value;
-        //p.insert(std::pair<K, V>(key, value));
+		p[key] = value;
+	}
+
+	inline void insert(const K &key, V &&value)
+	{
+		p[key] = std::move(value);
 	}
 
 	inline void remove(const K &key)
@@ -77,6 +81,16 @@ public:
 			return defaultValue;
 
 		return iter->second;
+	}
+
+	inline const V *value_ptr(const K &key) const
+	{
+		const_iterator iter = p.find(key);
+
+		if (iter == p.cend())
+			return nullptr;
+
+		return &iter->second;
 	}
 
 	inline V &operator[](const K &key)

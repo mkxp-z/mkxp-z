@@ -40,6 +40,13 @@
 #include <vector>
 #include "sigslot/signal.hpp"
 
+#ifdef MKXPZ_RETRO
+#  include "sandbox-serial-util.h"
+#endif // MKXPZ_RETRO
+
+#define GUARD_V(value, expression) do { expression; if (exception.is_error()) return value; } while (0)
+#define GUARD(expression) GUARD_V(, expression)
+
 /* Flash tiles pulsing opacity */
 static const uint8_t flashAlpha[] =
 {
@@ -92,10 +99,20 @@ struct TilemapVXPrivate : public ViewportElement, TileAtlasVX::Reader
 	bool mapViewportDirty;
 
 	sigslot::connection mapDataCon;
+#ifdef MKXPZ_RETRO
+	uint64_t deserSavedMapDataId;
+#endif // MKXPZ_RETRO
 	sigslot::connection flagsCon;
+#ifdef MKXPZ_RETRO
+	uint64_t deserSavedFlagsId;
+	uint64_t deserSavedDataId;
+#endif // MKXPZ_RETRO
 
 	sigslot::connection prepareCon;
 	sigslot::connection bmChangedCons[BM_COUNT];
+#ifdef MKXPZ_RETRO
+	uint64_t deserSavedBitmapIds[BM_COUNT];
+#endif // MKXPZ_RETRO
 	sigslot::connection bmDisposedCons[BM_COUNT];
 
 	struct AboveLayer : public ViewportElement
@@ -103,11 +120,11 @@ struct TilemapVXPrivate : public ViewportElement, TileAtlasVX::Reader
 		TilemapVXPrivate *p;
 
 		AboveLayer(TilemapVXPrivate *p, Viewport *viewport)
-		    : ViewportElement(viewport, 200),
+		    : ViewportElement(nullptr, viewport, 200),
 		      p(p)
 		{}
 
-		void draw()
+		void draw(Exception &exception)
 		{
 			p->drawAbove();
 			p->drawFlashLayer();
@@ -119,7 +136,7 @@ struct TilemapVXPrivate : public ViewportElement, TileAtlasVX::Reader
 	AboveLayer above;
 
 	TilemapVXPrivate(Viewport *viewport)
-	    : ViewportElement(viewport),
+	    : ViewportElement(nullptr, viewport),
 	      mapData(0),
 	      flags(0),
 	      allocQuads(0),
@@ -134,22 +151,7 @@ struct TilemapVXPrivate : public ViewportElement, TileAtlasVX::Reader
 	{
 		memset(bitmaps, 0, sizeof(bitmaps));
 
-		shState->requestAtlasTex(ATLASVX_W, ATLASVX_H, atlas);
-
-		if (shState->config().enableHires) {
-			double scalingFactor = shState->config().atlasScalingFactor;
-			int hiresWidth = (int)lround(scalingFactor * ATLASVX_W);
-			int hiresHeight = (int)lround(scalingFactor * ATLASVX_H);
-			shState->requestAtlasTex(hiresWidth, hiresHeight, atlasHires);
-			atlas.selfHires = &atlasHires;
-		}
-
-		vbo = VBO::gen();
-
-		GLMeta::vaoFillInVertexData<SVertex>(vao);
-		vao.vbo = vbo;
-		vao.ibo = shState->globalIBO().ibo;
-		GLMeta::vaoInit(vao);
+		allocateResources();
 
 		onGeometryChange(scene->getGeometry());
 
@@ -179,6 +181,26 @@ struct TilemapVXPrivate : public ViewportElement, TileAtlasVX::Reader
 		}
 	}
 
+	void allocateResources()
+	{
+		shState->requestAtlasTex(ATLASVX_W, ATLASVX_H, atlas);
+
+		if (shState->config().enableHires) {
+			double scalingFactor = shState->config().atlasScalingFactor;
+			int hiresWidth = (int)lround(scalingFactor * ATLASVX_W);
+			int hiresHeight = (int)lround(scalingFactor * ATLASVX_H);
+			shState->requestAtlasTex(hiresWidth, hiresHeight, atlasHires);
+			atlas.selfHires = &atlasHires;
+		}
+
+		vbo = VBO::gen();
+
+		GLMeta::vaoFillInVertexData<SVertex>(vao);
+		vao.vbo = vbo;
+		vao.ibo = SharedState::globalIBO().ibo;
+		GLMeta::vaoInit(vao);
+	}
+
 	void invalidateAtlas()
 	{
 		atlasDirty = true;
@@ -197,7 +219,7 @@ struct TilemapVXPrivate : public ViewportElement, TileAtlasVX::Reader
 		buffersDirty = true;
 	}
 
-	void rebuildAtlas()
+	void rebuildAtlas(Exception &exception)
 	{
 		TileAtlasVX::build(atlas, bitmaps);
 
@@ -205,14 +227,18 @@ struct TilemapVXPrivate : public ViewportElement, TileAtlasVX::Reader
 		{
 			Debug() << "Dumping tile atlas...";
 
-			Bitmap dump(atlas);
+			Bitmap dump(exception, atlas);
+			if (exception.is_error())
+				return;
 			if (dump.hasHires())
 			{
-				dump.getHires()->saveToFile("dumped_atlas_hires.png");
+				Bitmap *hires;
+				GUARD(hires = dump.getHires(exception));
+				GUARD(hires->saveToFile(exception, "dumped_atlas_hires.png"));
 			}
 			else
 			{
-				dump.saveToFile("dumped_atlas.png");
+				GUARD(dump.saveToFile(exception, "dumped_atlas.png"));
 			}
 
 			Debug() << "Tile atlas dump completed.";
@@ -289,7 +315,10 @@ struct TilemapVXPrivate : public ViewportElement, TileAtlasVX::Reader
 
 		if (atlasDirty)
 		{
-			rebuildAtlas();
+			Exception e;
+			rebuildAtlas(e);
+			if (e.is_error())
+				return;
 			atlasDirty = false;
 		}
 
@@ -317,7 +346,7 @@ struct TilemapVXPrivate : public ViewportElement, TileAtlasVX::Reader
 	}
 
 	/* SceneElement */
-	void draw()
+	void draw(Exception &exception)
 	{
 		drawGround();
 		drawFlashLayer();
@@ -419,48 +448,48 @@ struct TilemapVXPrivate : public ViewportElement, TileAtlasVX::Reader
 
 void TilemapVX::BitmapArray::set(int i, Bitmap *bitmap)
 {
-	if (!p)
+	if (!tilemap)
 		return;
 
 	if (i < 0 || i >= BM_COUNT)
 		return;
 
-	if (p->bitmaps[i] == bitmap)
+	if (tilemap->p->bitmaps[i] == bitmap)
 		return;
 
-	p->bitmaps[i] = bitmap;
-	p->atlasDirty = true;
+	tilemap->p->bitmaps[i] = bitmap;
+	tilemap->p->atlasDirty = true;
 
-	p->bmChangedCons[i].disconnect();
-	p->bmDisposedCons[i].disconnect();
+	tilemap->p->bmChangedCons[i].disconnect();
+	tilemap->p->bmDisposedCons[i].disconnect();
 
 	if (nullOrDisposed(bitmap))
 	{
-		p->bitmaps[i] = 0;
+		tilemap->p->bitmaps[i] = 0;
 		return;
 	}
 
-	p->bmChangedCons[i] = bitmap->modified.connect
-        (&TilemapVXPrivate::invalidateAtlas, p);
+	tilemap->p->bmChangedCons[i] = bitmap->modified.connect
+        (&TilemapVXPrivate::invalidateAtlas, tilemap->p);
 
-	p->bmDisposedCons[i] = bitmap->wasDisposed.connect( [i, this] { p->atlasDisposal(i); } );
+	tilemap->p->bmDisposedCons[i] = bitmap->wasDisposed.connect( [i, this] { tilemap->p->atlasDisposal(i); } );
 }
 
 Bitmap *TilemapVX::BitmapArray::get(int i) const
 {
-	if (!p)
+	if (!tilemap)
 		return 0;
 
 	if (i < 0 || i >= BM_COUNT)
 		return 0;
 
-	return p->bitmaps[i];
+	return tilemap->p->bitmaps[i];
 }
 
 TilemapVX::TilemapVX(Viewport *viewport)
 {
 	p = new TilemapVXPrivate(viewport);
-	bmProxy.p = p;
+	bmProxy = new BitmapArray(this);
 }
 
 TilemapVX::~TilemapVX()
@@ -468,9 +497,9 @@ TilemapVX::~TilemapVX()
 	dispose();
 }
 
-void TilemapVX::update()
+void TilemapVX::update(Exception &exception)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	/* Animate tiles */
 	if (++p->frameIdx >= 30*3*4)
@@ -491,9 +520,9 @@ void TilemapVX::update()
 		p->flashAlphaIdx = 0;
 }
 
-TilemapVX::BitmapArray &TilemapVX::getBitmapArray()
+TilemapVX::BitmapArray *TilemapVX::getBitmapArray(Exception &exception)
 {
-	guardDisposed();
+	GUARD_V(nullptr, guardDisposed(exception));
 
 	return bmProxy;
 }
@@ -504,31 +533,33 @@ DEF_ATTR_RD_SIMPLE(TilemapVX, Flags, Table*, p->flags)
 DEF_ATTR_RD_SIMPLE(TilemapVX, OX, int, p->origin.x)
 DEF_ATTR_RD_SIMPLE(TilemapVX, OY, int, p->origin.y)
 
-Viewport *TilemapVX::getViewport() const
+Viewport *TilemapVX::getViewport(Exception &exception) const
 {
-	guardDisposed();
+	GUARD_V(nullptr, guardDisposed(exception));
 
 	return p->getViewport();
 }
 
-bool TilemapVX::getVisible() const
+bool TilemapVX::getVisible(Exception &exception) const
 {
-	guardDisposed();
+	GUARD_V(false, guardDisposed(exception));
 
-	return p->getVisible();
+	bool ret;
+	GUARD_V(false, ret = p->getVisible(exception));
+	return ret;
 }
 
-void TilemapVX::setViewport(Viewport *value)
+void TilemapVX::setViewport(Exception &exception, Viewport *value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	p->setViewport(value);
 	p->above.setViewport(value);
 }
 
-void TilemapVX::setMapData(Table *value)
+void TilemapVX::setMapData(Exception &exception, Table *value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (p->mapData == value)
 		return;
@@ -541,16 +572,16 @@ void TilemapVX::setMapData(Table *value)
 		(&TilemapVXPrivate::invalidateBuffers, p);
 }
 
-void TilemapVX::setFlashData(Table *value)
+void TilemapVX::setFlashData(Exception &exception, Table *value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	p->flashMap.setData(value);
 }
 
-void TilemapVX::setFlags(Table *value)
+void TilemapVX::setFlags(Exception &exception, Table *value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (p->flags == value)
 		return;
@@ -563,17 +594,17 @@ void TilemapVX::setFlags(Table *value)
 		(&TilemapVXPrivate::invalidateBuffers, p);
 }
 
-void TilemapVX::setVisible(bool value)
+void TilemapVX::setVisible(Exception &exception, bool value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
-	p->setVisible(value);
-	p->above.setVisible(value);
+	GUARD(p->setVisible(exception, value));
+	GUARD(p->above.setVisible(exception, value));
 }
 
-void TilemapVX::setOX(int value)
+void TilemapVX::setOX(Exception &exception, int value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (p->origin.x == value)
 		return;
@@ -582,9 +613,9 @@ void TilemapVX::setOX(int value)
 	p->mapViewportDirty = true;
 }
 
-void TilemapVX::setOY(int value)
+void TilemapVX::setOY(Exception &exception, int value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (p->origin.y == value)
 		return;
@@ -596,5 +627,27 @@ void TilemapVX::setOY(int value)
 void TilemapVX::releaseResources()
 {
 	delete p;
-	bmProxy.p = 0;
+	if (bmProxy)
+		bmProxy->tilemap = 0;
 }
+
+#ifdef MKXPZ_RETRO
+void TilemapVX::sandbox_reinit()
+{
+	if (isDisposed()) return;
+
+	TEXFBO::clear(p->atlas);
+	TEXFBO::clear(p->atlasHires);
+	p->allocateResources();
+	p->flashMap.reinit();
+	p->invalidateAtlas();
+	p->invalidateBuffers();
+	p->allocQuads = 0;
+	p->mapViewportDirty = true;
+}
+
+#ifndef MKXPZ_SANDBOX_SERIAL_TILEMAPVX_H
+#define MKXPZ_SANDBOX_SERIAL_TILEMAPVX_H
+#include "sandbox-serial-tilemapvx.h"
+#endif // MKXPZ_SANDBOX_SERIAL_TILEMAPVX_H
+#endif // MKXPZ_RETRO

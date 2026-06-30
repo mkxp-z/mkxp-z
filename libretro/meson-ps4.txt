@@ -1,0 +1,14 @@
+[binaries]
+c = ['/usr/local/orbisdev/bin/clang', '-isystem/usr/local/orbisdev/usr/include']
+cpp = ['/usr/local/orbisdev/bin/clang++', '-isystem/usr/local/orbisdev/usr/include/c++/v1', '-isystem/usr/local/orbisdev/usr/include']
+ar = '/usr/local/orbisdev/bin/orbis-ar'
+cmake = 'cmake'
+
+[host_machine]
+system = 'none'
+cpu_family = 'x86_64'
+cpu = 'x86_64'
+endian = 'little'
+
+[cmake]
+CMAKE_EXE_LINKER_FLAGS_INIT = '-r'

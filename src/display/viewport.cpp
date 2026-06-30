@@ -28,9 +28,18 @@
 #include "glstate.h"
 #include "graphics.h"
 
-#include <SDL_rect.h>
-
 #include "sigslot/signal.hpp"
+
+#ifdef MKXPZ_RETRO
+#  include "sandbox-serial-util.h"
+#endif // MKXPZ_RETRO
+
+#define GUARD_V(value, expression) do { expression; if (exception.is_error()) return value; } while (0)
+#define GUARD(expression) GUARD_V(, expression)
+
+#ifdef MKXPZ_RETRO
+static uint64_t next_id = 1;
+#endif // MKXPZ_RETRO
 
 struct ViewportPrivate
 {
@@ -39,12 +48,17 @@ struct ViewportPrivate
 
 	Rect *rect;
 	sigslot::connection rectCon;
+#ifdef MKXPZ_RETRO
+	Rect deserSavedRect;
+	bool deserGeometryChanged;
+	bool deserScreenRectChanged;
+#endif // MKXPZ_RETRO
 
 	Color *color;
 	Tone *tone;
 
 	IntRect screenRect;
-	int isOnScreen;
+	bool isOnScreen;
 
 	EtcTemps tmp;
 
@@ -80,14 +94,10 @@ struct ViewportPrivate
 
 	void recomputeOnScreen()
 	{
-		SDL_Rect r1 = { screenRect.x, screenRect.y,
-		                screenRect.w, screenRect.h };
-
-		SDL_Rect r2 = { rect->x,     rect->y,
-		                rect->width, rect->height };
-
-		SDL_Rect result;
-		isOnScreen = SDL_IntersectRect(&r1, &r2, &result);
+		isOnScreen = screenRect.x < rect->x + rect->width
+			&& rect->x < screenRect.x + screenRect.w
+			&& screenRect.y < rect->y + rect->height
+			&& rect->y < screenRect.y + screenRect.h;
 	}
 
 	bool needsEffectRender(bool flashing)
@@ -101,6 +111,9 @@ struct ViewportPrivate
 
 Viewport::Viewport(int x, int y, int width, int height)
     : SceneElement(*shState->screen()),
+#ifdef MKXPZ_RETRO
+      id(next_id++),
+#endif // MKXPZ_RETRO
       sceneLink(this)
 {
 	initViewport(x, y, width, height);
@@ -108,6 +121,9 @@ Viewport::Viewport(int x, int y, int width, int height)
 
 Viewport::Viewport(Rect *rect)
     : SceneElement(*shState->screen()),
+#ifdef MKXPZ_RETRO
+      id(next_id++),
+#endif // MKXPZ_RETRO
       sceneLink(this)
 {
 	initViewport(rect->x, rect->y, rect->width, rect->height);
@@ -115,6 +131,9 @@ Viewport::Viewport(Rect *rect)
 
 Viewport::Viewport()
     : SceneElement(*shState->screen()),
+#ifdef MKXPZ_RETRO
+      id(next_id++),
+#endif // MKXPZ_RETRO
       sceneLink(this)
 {
 	const Graphics &graphics = shState->graphics();
@@ -137,11 +156,11 @@ Viewport::~Viewport()
 	dispose();
 }
 
-void Viewport::update()
+void Viewport::update(Exception &exception)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
-	Flashable::update();
+	GUARD(Flashable::update(exception));
 }
 
 DEF_ATTR_RD_SIMPLE(Viewport, OX,   int,   geometry.orig.x)
@@ -151,9 +170,9 @@ DEF_ATTR_SIMPLE(Viewport, Rect,  Rect&,  *p->rect)
 DEF_ATTR_SIMPLE(Viewport, Color, Color&, *p->color)
 DEF_ATTR_SIMPLE(Viewport, Tone,  Tone&,  *p->tone)
 
-void Viewport::setOX(int value)
+void Viewport::setOX(Exception &exception, int value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (geometry.orig.x == value)
 		return;
@@ -162,9 +181,9 @@ void Viewport::setOX(int value)
 	notifyGeometryChange();
 }
 
-void Viewport::setOY(int value)
+void Viewport::setOY(Exception &exception, int value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (geometry.orig.y == value)
 		return;
@@ -183,7 +202,7 @@ void Viewport::initDynAttribs()
 }
 
 /* Scene */
-void Viewport::composite()
+void Viewport::composite(Exception &exception)
 {
 	if (emptyFlashFlag)
 		return;
@@ -197,7 +216,7 @@ void Viewport::composite()
 	glState.scissorTest.pushSet(true);
 	glState.scissorBox.pushSet(p->rect->toIntRect());
 
-	Scene::composite();
+	GUARD(Scene::composite(exception));
 
 	/* If any effects are visible, request parent Scene to
 	 * render them. */
@@ -210,9 +229,9 @@ void Viewport::composite()
 }
 
 /* SceneElement */
-void Viewport::draw()
+void Viewport::draw(Exception &exception)
 {
-	composite();
+	GUARD(composite(exception));
 }
 
 void Viewport::onGeometryChange(const Geometry &geo)
@@ -229,9 +248,9 @@ void Viewport::releaseResources()
 }
 
 
-ViewportElement::ViewportElement(Viewport *viewport, int z, int spriteY)
+ViewportElement::ViewportElement(void (*dispose)(void *), Viewport *viewport, int z, int spriteY)
     : SceneElement(viewport ? *viewport : *shState->screen(), z, spriteY),
-      m_viewport(viewport)
+      m_dispose(dispose), m_viewport(viewport)
 {
 	if (rgssVer == 1 && viewport)
 		viewportDispCon = viewport->wasDisposed.connect(&ViewportElement::viewportElementDisposal, this);
@@ -258,12 +277,18 @@ void ViewportElement::setViewport(Viewport *viewport)
 void ViewportElement::viewportElementDisposal()
 {
 	viewportDispCon.disconnect();
-	Disposable *self = dynamic_cast<Disposable*>(this);
-	if(self != nullptr)
-		self->dispose();
+	if(m_dispose != nullptr)
+		m_dispose(this);
 }
 
 ViewportElement::~ViewportElement()
 {
 	viewportDispCon.disconnect();
 }
+
+#ifdef MKXPZ_RETRO
+#ifndef MKXPZ_SANDBOX_SERIAL_VIEWPORT_H
+#define MKXPZ_SANDBOX_SERIAL_VIEWPORT_H
+#include "sandbox-serial-viewport.h"
+#endif // MKXPZ_SANDBOX_SERIAL_VIEWPORT_H
+#endif // MXKPZ_RETRO

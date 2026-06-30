@@ -1,0 +1,14 @@
+# Makes the `BOOST_ASIO_CORO_YIELD` and `BOOST_ASIO_CORO_FORK` macros always use the `__COUNTER__` macro, even with non-MSVC compilers.
+# Using `__LINE__` results in "duplicate case value" compilation errors when targeting PlayStation 3 due to some idiosyncrasy in how the __LINE__ macro is parsed in the really old GCC version it's using.
+
+--- a/include/boost/asio/coroutine.hpp
++++ b/include/boost/asio/coroutine.hpp
+@@ -291,7 +291,7 @@ private:
+ } // namespace boost
+ 
+ #if !defined(BOOST_ASIO_CORO_VALUE_INIT)
+-# if defined(_MSC_VER)
++# if true
+ #  define BOOST_ASIO_CORO_VALUE_INIT __COUNTER__
+ # else // defined(_MSC_VER)
+ #  define BOOST_ASIO_CORO_VALUE_INIT __LINE__

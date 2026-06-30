@@ -184,7 +184,7 @@ void EventThread::process(RGSSThreadData &rtData)
     SDL_GameControllerAddMappingsFromFile(mkxp_fs::getPathForAsset("gamecontrollerdb", "txt").c_str());
 #else
     SDL_GameControllerAddMappingsFromRW(
-        SDL_RWFromConstMem(___assets_gamecontrollerdb_txt, ___assets_gamecontrollerdb_txt_len),
+        SDL_RWFromConstMem(mkxp_assets_gamecontrollerdb_txt, sizeof mkxp_assets_gamecontrollerdb_txt),
     1);
 #endif
     

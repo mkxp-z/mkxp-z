@@ -1,0 +1,5 @@
+[wrap-git]
+url = https://github.com/libsndfile/libsndfile
+revision = 1.2.2
+depth = 1
+diff_files = libsndfile-deps.patch, libsndfile-int32.patch, libsndfile-ssize.patch, libsndfile-time.patch

@@ -22,12 +22,20 @@
 #ifndef GLFUN_H
 #define GLFUN_H
 
-#ifdef GLES2_HEADER
-#include <SDL_opengles2.h>
-#define APIENTRYP GL_APIENTRYP
+#ifdef MKXPZ_RETRO
+#  include <GLES3/gl3.h>
+#  define APIENTRY GL_APIENTRY
+#  define APIENTRYP GL_APIENTRYP
 #else
-#include <SDL_opengl.h>
-#endif
+#  ifdef GLES2_HEADER
+#    include <SDL_opengles2.h>
+#    define APIENTRYP GL_APIENTRYP
+#  else
+#    include <SDL_opengl.h>
+#  endif // GLES2_HEADER
+#endif // MKXPZ_RETRO
+
+#include "exception.h"
 
 /* Etc */
 typedef GLenum (APIENTRYP _PFNGLGETERRORPROC) (void);
@@ -58,7 +66,7 @@ typedef void (APIENTRYP _PFNGLGENERATEMIPMAPPROC) (GLenum target);
 typedef void (APIENTRYP _PFNGLGENERATETEXTUREMIPMAPPROC) (GLuint texture);
 
 /* Debugging */
-typedef void (APIENTRY * _GLDEBUGPROC) (GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void *userParam);
+typedef void (APIENTRYP _GLDEBUGPROC) (GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void *userParam);
 typedef void (APIENTRYP _PFNGLDEBUGMESSAGECALLBACKPROC) (_GLDEBUGPROC callback, const void *userParam);
 typedef void (APIENTRYP _PFNGLSTRINGMARKERPROC) (GLsizei len, const GLvoid *string);
 
@@ -233,6 +241,6 @@ struct GLFunctions
 };
 
 extern GLFunctions gl;
-void initGLFunctions();
+void initGLFunctions(Exception &exception);
 
 #endif // GLFUN_H

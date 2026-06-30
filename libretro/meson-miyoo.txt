@@ -1,0 +1,11 @@
+[binaries]
+c = '/opt/miyoo/usr/bin/arm-linux-gcc'
+cpp = '/opt/miyoo/usr/bin/arm-linux-g++'
+ar = 'ar'
+cmake = 'cmake'
+
+[host_machine]
+system = 'linux'
+cpu_family = 'arm'
+cpu = 'cortex-a7'
+endian = 'little'

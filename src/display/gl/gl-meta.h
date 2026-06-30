@@ -26,7 +26,16 @@
 #include "gl-util.h"
 #include "vertex.h"
 
-#include <SDL_surface.h>
+#ifdef MKXPZ_RETRO
+struct SDL_Surface
+{
+	int w;
+	int h;
+	void *pixels;
+};
+#else
+#  include <SDL_surface.h>
+#endif // MKXPZ_RETRO
 
 namespace GLMeta
 {

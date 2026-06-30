@@ -1,0 +1,5 @@
+[wrap-git]
+url = https://github.com/libretro/libretro-common
+revision = 7caf0cd9448d5d745924c7e64e7365fb61ecda55
+depth = 1
+patch_directory = libretro-common

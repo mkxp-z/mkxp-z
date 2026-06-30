@@ -1,31 +1,33 @@
 #include "fluid-fun.h"
 
 #include <string.h>
-#include <SDL_loadso.h>
-#include <SDL_platform.h>
+#ifndef MKXPZ_RETRO
+#  include <SDL_loadso.h>
+#  include <SDL_platform.h>
+#endif // MKXPZ_RETRO
 
 #include "debugwriter.h"
 
-#if __LINUX__ || __ANDROID__
-#define FLUID_LIB "libfluidsynth.so.3"
-#elif MKXPZ_BUILD_XCODE
-#define FLUID_LIB "@rpath/libfluidsynth.dylib"
-#elif __APPLE__
-#define FLUID_LIB "libfluidsynth.3.dylib"
-#elif __WIN32__
-#define FLUID_LIB "fluidsynth.dll"
-#else
-#error "platform not recognized"
+#if defined(__LINUX__) || defined(__ANDROID__)
+#  define FLUID_LIB "libfluidsynth.so.3"
+#elif defined(MKXPZ_BUILD_XCODE)
+#  define FLUID_LIB "@rpath/libfluidsynth.dylib"
+#elif defined(__APPLE__)
+#  define FLUID_LIB "libfluidsynth.3.dylib"
+#elif defined(__WIN32__)
+#  define FLUID_LIB "fluidsynth.dll"
+#elif !defined(MKXPZ_RETRO) && !defined(SHARED_FLUID)
+#  error "platform not recognized"
 #endif
 
 struct FluidFunctions fluid;
-#ifndef SHARED_FLUID
+#if !defined(MKXPZ_RETRO) && !defined(SHARED_FLUID)
 static void *so;
 #endif
 
 void initFluidFunctions()
 {
-#ifdef SHARED_FLUID
+#if defined(MKXPZ_RETRO) || defined(SHARED_FLUID)
 
 #define FLUID_FUN(name, type) \
 	fluid.name = fluid_##name;
@@ -55,7 +57,7 @@ FLUID_FUNCS2
 
 	return;
 
-#ifndef SHARED_FLUID
+#if !defined(MKXPZ_RETRO) && !defined(SHARED_FLUID)
 fail:
 	Debug() << "Failed to load " FLUID_LIB ". Midi playback is disabled.";
 

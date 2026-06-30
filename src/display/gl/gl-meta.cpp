@@ -26,6 +26,11 @@
 #include "quad.h"
 #include "config.h"
 #include "etc.h"
+#ifdef MKXPZ_RETRO
+#  include "stb_image_malloc.h"
+#  include <stb_image.h>
+#  include "core.h"
+#endif // MKXPZ_RETRO
 
 namespace FBO
 {
@@ -49,16 +54,33 @@ void subRectImageUpload(GLint srcW, GLint srcX, GLint srcY,
 	}
 	else
 	{
+#ifdef MKXPZ_RETRO
+		SDL_Surface *tmp = new SDL_Surface {dstW, dstH, nullptr};
+		tmp->pixels = STBI_MALLOC((size_t)4 * (size_t)dstW * (size_t)dstH);
+		if (tmp->pixels == nullptr)
+		{
+			delete tmp;
+			MKXPZ_THROW(std::bad_alloc());
+		}
+
+
+		for (size_t r = 0; r < (size_t)tmp->h; ++r)
+			std::memcpy((uint32_t *)tmp->pixels + (size_t)tmp->w * r, (uint32_t *)src->pixels + (size_t)src->w * (srcY + r) + srcX, (size_t)4 * tmp->w);
+#else
 		SDL_PixelFormat *form = src->format;
 		SDL_Surface *tmp = SDL_CreateRGBSurface(0, dstW, dstH, form->BitsPerPixel,
 		                                        form->Rmask, form->Gmask, form->Bmask, form->Amask);
 		SDL_Rect srcRect = { srcX, srcY, dstW, dstH };
 
 		SDL_BlitSurface(src, &srcRect, tmp, 0);
+#endif // MKXPZ_RETRO
 
 		TEX::uploadSubImage(dstX, dstY, dstW, dstH, tmp->pixels, format);
 
+#ifdef MKXPZ_RETRO
+#else
 		SDL_FreeSurface(tmp);
+#endif // MKXPZ_RETRO
 	}
 }
 
@@ -138,7 +160,11 @@ void vaoUnbind(VAO &vao)
 	}
 }
 
-#define HAVE_NATIVE_BLIT (gl.BlitFramebuffer && shState->config().smoothScaling <= Bilinear && shState->config().smoothScalingDown <= Bilinear)
+#ifdef MKXPZ_RETRO
+#  define HAVE_NATIVE_BLIT (gl.BlitFramebuffer && shState->config().enableBlitting)
+#else
+#  define HAVE_NATIVE_BLIT (gl.BlitFramebuffer && shState->config().smoothScaling <= Bilinear && shState->config().smoothScalingDown <= Bilinear)
+#endif // MKXPZ_RETRO
 
 int blitScaleIsSpecial(TEXFBO &target, bool targetPreferHires, const IntRect &targetRect, TEXFBO &source, const IntRect &sourceRect)
 {
@@ -286,7 +312,13 @@ void blitBeginScreen(const Vec2i &size, int scaleIsSpecial)
 	blitDstHeightLores = 1;
 	blitDstHeightHires = 1;
 
-	_blitBegin(FBO::ID(0), size, scaleIsSpecial);
+#ifdef MKXPZ_RETRO
+	FBO::ID id = FBO::ID(mkxp_retro::hw_render.get_current_framebuffer());
+#else
+	FBO::ID id = FBO::ID(0);
+#endif // MKXPZ_RETRO
+
+	_blitBegin(id, size, scaleIsSpecial);
 }
 
 void blitSource(TEXFBO &source, int scaleIsSpecial)
@@ -381,6 +413,7 @@ void blitRectangle(const IntRect &src, const IntRect &dst, bool smooth)
 	}
 	else
 	{
+#ifndef MKXPZ_RETRO
 #ifdef MKXPZ_SSL
 		if (shState->config().smoothScaling == xBRZ)
 		{
@@ -388,6 +421,7 @@ void blitRectangle(const IntRect &src, const IntRect &dst, bool smooth)
 			shader.setTargetScale(Vec2((float)(shState->config().xbrzScalingFactor), (float)(shState->config().xbrzScalingFactor)));
 		}
 #endif
+#endif // MKXPZ_RETRO
 		if (smooth)
 			TEX::setSmooth(true);
 

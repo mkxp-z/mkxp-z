@@ -56,7 +56,7 @@ RB_METHOD_GUARD(viewportElementSetViewport)
 	if (!NIL_P(viewportObj))
 		viewport = getPrivateDataCheck<Viewport>(viewportObj, ViewportType);
 
-	GFX_GUARD_EXC( ve->setViewport(viewport); );
+	ve->setViewport(viewport);
 
 	rb_iv_set(self, "viewport", viewportObj);
 

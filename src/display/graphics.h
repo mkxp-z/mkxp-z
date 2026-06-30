@@ -22,7 +22,12 @@
 #ifndef GRAPHICS_H
 #define GRAPHICS_H
 
+#include <climits>
 #include "util.h"
+
+#ifdef MKXPZ_RETRO
+#  include "wasm-types.h"
+#endif // MKXPZ_RETRO
 
 class Scene;
 class Bitmap;
@@ -39,22 +44,26 @@ public:
     double getDelta();
     double lastUpdate();
     
-	void update(bool checkForShutdown = true);
-	void freeze();
-	void transition(int duration = 8,
-	                const char *filename = "",
-	                int vague = 40);
+	bool update(Exception &exception, bool checkForShutdown = true);
+	void freeze(Exception &exception);
+	bool &frozen();
+	void transition(Exception &exception,
+	                int duration = 8,
+	                Bitmap *transMap = 0,
+	                int vague = 40,
+			int start = 0,
+			int stop = INT_MAX);
 	void frameReset();
 
-	DECL_ATTR( FrameRate,  int )
-	DECL_ATTR( FrameCount, int )
-	DECL_ATTR( Brightness, int )
+	DECL_ATTR_NOEXCEPT( FrameRate,  int )
+	DECL_ATTR_NOEXCEPT( FrameCount, int )
+	DECL_ATTR_NOEXCEPT( Brightness, int )
 
-	void wait(int duration);
-	void fadeout(int duration);
-	void fadein(int duration);
+	void wait(Exception &exception, int duration, int start = 0, int stop = INT_MAX);
+	void fadeout(Exception &exception, int duration, int start = 0, int stop = INT_MAX, int brightness = -1);
+	void fadein(Exception &exception, int duration, int start = 0, int stop = INT_MAX, int brightness = -1);
 
-	Bitmap *snapToBitmap();
+	Bitmap *snapToBitmap(Exception &exception);
 
 	int width() const;
 	int height() const;
@@ -65,30 +74,39 @@ public:
     int displayContentHeight() const;
     int displayWidth() const;
     int displayHeight() const;
-	void resizeScreen(int width, int height);
+	void resizeScreen(int width, int height, bool resizeWindow = true);
     void resizeWindow(int width, int height, bool center=false);
 	void drawMovieFrame(const THEORAPLAY_VideoFrame* video, Bitmap *videoBitmap);
 	bool updateMovieInput(Movie *movie);
-	void playMovie(const char *filename, int volume, bool skippable);
-	void screenshot(const char *filename);
+	Movie *playMovie(Exception &exception, const char *filename, int volume, bool skippable);
+	Movie *playMovie(Movie *movie);
+	static void stopMovie(Movie *movie);
+	static bool streamMovieAudioProc(Movie *movie);
+#ifdef MKXPZ_RETRO
+	static bool getMovieDupeFrame(Movie *movie);
+	static bool sandbox_serialize_movie(const Movie *movie, void *&data, mkxp_sandbox::wasm_size_t &max_size);
+	void sandbox_reinit();
+#endif // MKXPZ_RETRO
+	void screenshot(Exception &exception, const char *filename);
 
-	void reset();
+	void reset(Exception &exception);
     void center();
 
     /* Non-standard extension */
-    DECL_ATTR( Fullscreen, bool )
-    DECL_ATTR( ShowCursor, bool )
-    DECL_ATTR( Scale,    double )
-    DECL_ATTR( Frameskip, bool )
-    DECL_ATTR( FixedAspectRatio, bool )
-    DECL_ATTR( SmoothScaling, int )
-    DECL_ATTR( IntegerScaling, bool )
-    DECL_ATTR( LastMileScaling, bool )
-    DECL_ATTR( Threadsafe, bool )
+    DECL_ATTR_NOEXCEPT( Fullscreen, bool )
+    DECL_ATTR_NOEXCEPT( ShowCursor, bool )
+    DECL_ATTR_NOEXCEPT( Scale,    double )
+    DECL_ATTR_NOEXCEPT( Frameskip, bool )
+    DECL_ATTR_NOEXCEPT( FixedAspectRatio, bool )
+    DECL_ATTR_NOEXCEPT( SmoothScaling, int )
+    DECL_ATTR_NOEXCEPT( IntegerScaling, bool )
+    DECL_ATTR_NOEXCEPT( LastMileScaling, bool )
+    DECL_ATTR_NOEXCEPT( Threadsafe, bool )
     double averageFrameRate();
 
 	/* <internal> */
 	Scene *getScreen() const;
+	void repaint(bool useBackBuffer = false);
 	/* Repaint screen with static image until exitCond
 	 * is set. Observes reset flag on top of shutdown
 	 * if "checkReset" */
@@ -97,6 +115,11 @@ public:
     
     void lock(bool force = false);
     void unlock(bool force = false);
+
+#ifdef MKXPZ_RETRO
+	std::vector<uint32_t> frozenPixels;
+	void uploadFrozenPixels();
+#endif // MKXPZ_RETRO
 
 private:
 	Graphics(RGSSThreadData *data);
@@ -111,7 +134,12 @@ private:
 	GraphicsPrivate *p;
 };
 
-#define GFX_LOCK shState->graphics().lock()
-#define GFX_UNLOCK shState->graphics().unlock()
+#ifdef MKXPZ_RETRO
+#  define GFX_LOCK
+#  define GFX_UNLOCK
+#else
+#  define GFX_LOCK shState->graphics().lock()
+#  define GFX_UNLOCK shState->graphics().unlock()
+#endif // MKXPZ_RETRO
 
 #endif // GRAPHICS_H

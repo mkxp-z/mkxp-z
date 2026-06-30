@@ -1,0 +1,11 @@
+[binaries]
+c = 'ppu-gcc'
+cpp = 'ppu-g++'
+ar = 'ppu-ar'
+cmake = 'cmake'
+
+[host_machine]
+system = 'none'
+cpu_family = 'ppc64'
+cpu = 'ppc-cell-be'
+endian = 'big'

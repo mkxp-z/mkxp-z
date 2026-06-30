@@ -1,0 +1,121 @@
+# Prevents Theora from trying to look for Ogg externally since Meson already handles that.
+
+--- a/include/theora/codec.h
++++ b/include/theora/codec.h
+@@ -63,7 +63,7 @@
+ 
+ #if !defined(OGG_THEORA_CODEC_HEADER)
+ # define OGG_THEORA_CODEC_HEADER (1)
+-# include <ogg/ogg.h>
++# include "../../../ogg/include/ogg/ogg.h"
+ 
+ #if defined(__cplusplus)
+ extern "C" {
+--- a/include/theora/theora.h
++++ b/include/theora/theora.h
+@@ -24,7 +24,7 @@ extern "C"
+ 
+ #include <stddef.h>	/* for size_t */
+ 
+-#include <ogg/ogg.h>
++#include "../../../ogg/include/ogg/ogg.h"
+ 
+ /** \file
+  * The libtheora pre-1.0 legacy C API.
+--- a/include/theora/theoradec.h
++++ b/include/theora/theoradec.h
+@@ -20,7 +20,7 @@
+ #if !defined(OGG_THEORA_THEORADEC_HEADER)
+ # define OGG_THEORA_THEORADEC_HEADER (1)
+ # include <stddef.h>
+-# include <ogg/ogg.h>
++# include "../../../ogg/include/ogg/ogg.h"
+ # include "codec.h"
+ 
+ #if defined(__cplusplus)
+--- a/include/theora/theoraenc.h
++++ b/include/theora/theoraenc.h
+@@ -20,7 +20,7 @@
+ #if !defined(OGG_THEORA_THEORAENC_HEADER)
+ # define OGG_THEORA_THEORAENC_HEADER (1)
+ # include <stddef.h>
+-# include <ogg/ogg.h>
++# include "../../../ogg/include/ogg/ogg.h"
+ # include "codec.h"
+ 
+ #if defined(__cplusplus)
+--- a/lib/apiwrapper.h
++++ b/lib/apiwrapper.h
+@@ -17,7 +17,7 @@
+ 
+ #if !defined(_apiwrapper_H)
+ # define _apiwrapper_H (1)
+-# include <ogg/ogg.h>
++# include "../../ogg/include/ogg/ogg.h"
+ # include <theora/theora.h>
+ # include "theora/theoradec.h"
+ # include "theora/theoraenc.h"
+--- a/lib/decode.c
++++ b/lib/decode.c
+@@ -17,7 +17,7 @@
+ 
+ #include <stdlib.h>
+ #include <string.h>
+-#include <ogg/ogg.h>
++#include "../../ogg/include/ogg/ogg.h"
+ #include "decint.h"
+ #if defined(OC_DUMP_IMAGES)
+ # include <stdio.h>
+--- a/lib/dequant.c
++++ b/lib/dequant.c
+@@ -17,7 +17,7 @@
+ 
+ #include <stdlib.h>
+ #include <string.h>
+-#include <ogg/ogg.h>
++#include "../../ogg/include/ogg/ogg.h"
+ #include "dequant.h"
+ #include "decint.h"
+ 
+--- a/lib/huffdec.c
++++ b/lib/huffdec.c
+@@ -17,7 +17,7 @@
+ 
+ #include <stdlib.h>
+ #include <string.h>
+-#include <ogg/ogg.h>
++#include "../../ogg/include/ogg/ogg.h"
+ #include "huffdec.h"
+ #include "decint.h"
+ 
+--- a/lib/huffenc.c
++++ b/lib/huffenc.c
+@@ -1,6 +1,6 @@
+ #include <stdlib.h>
+ #include <string.h>
+-#include <ogg/ogg.h>
++#include "../../ogg/include/ogg/ogg.h"
+ #include "huffenc.h"
+ 
+ 
+--- a/lib/mathops.h
++++ b/lib/mathops.h
+@@ -1,6 +1,6 @@
+ #if !defined(_mathops_H)
+ # define _mathops_H (1)
+-# include <ogg/ogg.h>
++# include "../../ogg/include/ogg/ogg.h"
+ 
+ # if __GNUC_PREREQ(3,4)
+ #  include <limits.h>
+--- a/lib/quant.c
++++ b/lib/quant.c
+@@ -17,7 +17,7 @@
+ 
+ #include <stdlib.h>
+ #include <string.h>
+-#include <ogg/ogg.h>
++#include "../../ogg/include/ogg/ogg.h"
+ #include "quant.h"
+ #include "decint.h"
+ 

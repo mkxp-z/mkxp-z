@@ -1,0 +1,177 @@
+# Fixes problems in the code that cause compilation errors due to stricter handling of constexpr in old versions of GCC.
+# When building for PlayStation 3, we use an old enough version of GCC for this to be a problem.
+
+--- a/al/auxeffectslot.cpp
++++ b/al/auxeffectslot.cpp
+@@ -220,7 +220,7 @@ void RemoveActiveEffectSlots(const al::span<ALeffectslot*> auxslots, ALCcontext
+ 
+ 
+ [[nodiscard]]
+-constexpr auto EffectSlotTypeFromEnum(ALenum type) noexcept -> EffectSlotType
++auto EffectSlotTypeFromEnum(ALenum type) noexcept -> EffectSlotType
+ {
+     switch(type)
+     {
+--- a/al/buffer.cpp
++++ b/al/buffer.cpp
+@@ -81,7 +81,7 @@ constexpr auto AmbiLayoutFromEnum(ALenum layout) noexcept -> std::optional<AmbiL
+     }
+     return std::nullopt;
+ }
+-constexpr auto EnumFromAmbiLayout(AmbiLayout layout) -> ALenum
++auto EnumFromAmbiLayout(AmbiLayout layout) -> ALenum
+ {
+     switch(layout)
+     {
+@@ -102,7 +102,7 @@ constexpr auto AmbiScalingFromEnum(ALenum scale) noexcept -> std::optional<AmbiS
+     }
+     return std::nullopt;
+ }
+-constexpr auto EnumFromAmbiScaling(AmbiScaling scale) -> ALenum
++auto EnumFromAmbiScaling(AmbiScaling scale) -> ALenum
+ {
+     switch(scale)
+     {
+--- a/al/debug.cpp
++++ b/al/debug.cpp
+@@ -100,7 +100,7 @@ constexpr auto GetDebugSeverity(ALenum severity) noexcept -> std::optional<Debug
+ }
+ 
+ 
+-constexpr auto GetDebugSourceEnum(DebugSource source) -> ALenum
++auto GetDebugSourceEnum(DebugSource source) -> ALenum
+ {
+     switch(source)
+     {
+@@ -114,7 +114,7 @@ constexpr auto GetDebugSourceEnum(DebugSource source) -> ALenum
+         int{al::to_underlying(source)})});
+ }
+ 
+-constexpr auto GetDebugTypeEnum(DebugType type) -> ALenum
++auto GetDebugTypeEnum(DebugType type) -> ALenum
+ {
+     switch(type)
+     {
+@@ -132,7 +132,7 @@ constexpr auto GetDebugTypeEnum(DebugType type) -> ALenum
+         int{al::to_underlying(type)})});
+ }
+ 
+-constexpr auto GetDebugSeverityEnum(DebugSeverity severity) -> ALenum
++auto GetDebugSeverityEnum(DebugSeverity severity) -> ALenum
+ {
+     switch(severity)
+     {
+--- a/al/effects/chorus.cpp
++++ b/al/effects/chorus.cpp
+@@ -37,7 +37,7 @@ constexpr std::optional<ChorusWaveform> WaveformFromEnum(ALenum type) noexcept
+     }
+     return std::nullopt;
+ }
+-constexpr ALenum EnumFromWaveform(ChorusWaveform type)
++ALenum EnumFromWaveform(ChorusWaveform type)
+ {
+     switch(type)
+     {
+--- a/al/effects/fshifter.cpp
++++ b/al/effects/fshifter.cpp
+@@ -32,7 +32,7 @@ constexpr std::optional<FShifterDirection> DirectionFromEmum(ALenum value) noexc
+     }
+     return std::nullopt;
+ }
+-constexpr ALenum EnumFromDirection(FShifterDirection dir)
++ALenum EnumFromDirection(FShifterDirection dir)
+ {
+     switch(dir)
+     {
+--- a/al/effects/modulator.cpp
++++ b/al/effects/modulator.cpp
+@@ -32,7 +32,7 @@ constexpr std::optional<ModulatorWaveform> WaveformFromEmum(ALenum value) noexce
+     }
+     return std::nullopt;
+ }
+-constexpr ALenum EnumFromWaveform(ModulatorWaveform type)
++ALenum EnumFromWaveform(ModulatorWaveform type)
+ {
+     switch(type)
+     {
+--- a/al/effects/vmorpher.cpp
++++ b/al/effects/vmorpher.cpp
+@@ -61,7 +61,7 @@ constexpr std::optional<VMorpherPhenome> PhenomeFromEnum(ALenum val) noexcept
+     return std::nullopt;
+ #undef HANDLE_PHENOME
+ }
+-constexpr ALenum EnumFromPhenome(VMorpherPhenome phenome)
++ALenum EnumFromPhenome(VMorpherPhenome phenome)
+ {
+ #define HANDLE_PHENOME(x) case VMorpherPhenome::x: return AL_VOCAL_MORPHER_PHONEME_ ## x
+     switch(phenome)
+@@ -111,7 +111,7 @@ constexpr std::optional<VMorpherWaveform> WaveformFromEmum(ALenum value) noexcep
+     }
+     return std::nullopt;
+ }
+-constexpr ALenum EnumFromWaveform(VMorpherWaveform type)
++ALenum EnumFromWaveform(VMorpherWaveform type)
+ {
+     switch(type)
+     {
+--- a/al/state.cpp
++++ b/al/state.cpp
+@@ -135,7 +135,7 @@ constexpr auto DistanceModelFromALenum(ALenum model) noexcept -> std::optional<D
+     }
+     return std::nullopt;
+ }
+-constexpr auto ALenumFromDistanceModel(DistanceModel model) -> ALenum
++auto ALenumFromDistanceModel(DistanceModel model) -> ALenum
+ {
+     switch(model)
+     {
+--- a/common/alstring.h
++++ b/common/alstring.h
+@@ -22,15 +22,15 @@ auto sizei(const std::basic_string<Ts...> &str) noexcept -> int
+ 
+ 
+ [[nodiscard]]
+-constexpr bool contains(const std::string_view str0, const std::string_view str1) noexcept
++inline bool contains(const std::string_view str0, const std::string_view str1) noexcept
+ { return str0.find(str1) != std::string_view::npos; }
+ 
+ [[nodiscard]]
+-constexpr bool starts_with(const std::string_view str0, const std::string_view str1) noexcept
++inline bool starts_with(const std::string_view str0, const std::string_view str1) noexcept
+ { return str0.substr(0, std::min(str0.size(), str1.size())) == str1; }
+ 
+ [[nodiscard]]
+-constexpr bool ends_with(const std::string_view str0, const std::string_view str1) noexcept
++inline bool ends_with(const std::string_view str0, const std::string_view str1) noexcept
+ { return str0.substr(str0.size() - std::min(str0.size(), str1.size())) == str1; }
+ 
+ [[nodiscard]]
+--- a/fmt-11.1.1/include/fmt/format.h
++++ b/fmt-11.1.1/include/fmt/format.h
+@@ -1211,7 +1211,7 @@ FMT_CONSTEXPR auto format_decimal(OutputIt out, UInt value, int num_digits)
+     return out;
+   }
+   // Buffer is large enough to hold all digits (digits10 + 1).
+-  char buffer[digits10<UInt>() + 1];
++  char buffer[digits10<UInt>() + 1] = {};
+   if (is_constant_evaluated()) fill_n(buffer, sizeof(buffer), '\0');
+   do_format_decimal(buffer, value, num_digits);
+   return copy_noinline<Char>(buffer, buffer + num_digits, out);
+@@ -1248,7 +1248,7 @@ FMT_CONSTEXPR inline auto format_base2e(int base_bits, OutputIt out, UInt value,
+     return out;
+   }
+   // Make buffer large enough for any base.
+-  char buffer[num_bits<UInt>()];
++  char buffer[num_bits<UInt>()] = {};
+   if (is_constant_evaluated()) fill_n(buffer, sizeof(buffer), '\0');
+   format_base2e(base_bits, buffer, value, num_digits, upper);
+   return detail::copy_noinline<Char>(buffer, buffer + num_digits, out);
+@@ -2015,7 +2015,7 @@ FMT_CONSTEXPR FMT_INLINE auto write_int(OutputIt out, write_int_arg<T> arg,
+   static_assert(std::is_same<T, uint32_or_64_or_128_t<T>>::value, "");
+ 
+   constexpr int buffer_size = num_bits<T>();
+-  char buffer[buffer_size];
++  char buffer[buffer_size] = {};
+   if (is_constant_evaluated()) fill_n(buffer, buffer_size, '\0');
+   const char* begin = nullptr;
+   const char* end = buffer + buffer_size;

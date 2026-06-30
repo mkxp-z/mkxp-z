@@ -24,7 +24,19 @@
 
 #include "util.h"
 
-#include <SDL_rect.h>
+#ifdef MKXPZ_RETRO
+struct SDL_Rect
+{
+	int x;
+	int y;
+	int w;
+	int h;
+};
+bool SDL_IntersectRect(const SDL_Rect *in1, const SDL_Rect *in2, SDL_Rect *out);
+bool SDL_HasIntersection(const SDL_Rect *in1, const SDL_Rect *in2);
+#else
+#  include <SDL_rect.h>
+#endif // MKXPZ_RETRO
 
 struct Vec2
 {
@@ -41,6 +53,11 @@ struct Vec2
 	bool operator==(const Vec2 &other) const
 	{
 		return (x == other.x && y == other.y);
+	}
+
+	bool operator!=(const Vec2 &other) const
+	{
+		return !(*this == other);
 	}
 };
 
@@ -59,6 +76,11 @@ struct Vec4
 	bool operator==(const Vec4 &other) const
 	{
 		return (x == other.x && y == other.y && z == other.z && w == other.w);
+	}
+
+	bool operator!=(const Vec4 &other) const
+	{
+		return !(*this == other);
 	}
 
 	bool xyzNotNull() const

@@ -27,6 +27,10 @@
 #include "etc.h"
 #include "etc-internal.h"
 
+#ifdef MKXPZ_RETRO
+#  include "wasm-types.h"
+#endif // MKXPZ_RETRO
+
 class SceneElement;
 class Viewport;
 class WindowVX;
@@ -45,6 +49,16 @@ public:
 		/* Origin of contents */
 		Vec2i orig;
 
+		bool operator==(const Geometry &other) const
+		{
+			return rect == other.rect && orig == other.orig;
+		}
+
+		bool operator!=(const Geometry &other) const
+		{
+			return !(*this == other);
+		}
+
 		Vec2i offset() const
 		{
 			return rect.pos() - orig;
@@ -54,17 +68,18 @@ public:
 	Scene();
 	virtual ~Scene();
 
-	virtual void composite();
+	virtual void composite(Exception &exception);
 	virtual void requestViewportRender(const Vec4& /* color */,
 	                                   const Vec4& /* flash */,
 	                                   const Vec4& /* tone */) {}
 
-	const Geometry &getGeometry() const { return geometry; }
+	const Geometry &getGeometry() const noexcept { return geometry; }
+
+	void reinsert(SceneElement &element);
 
 protected:
 	void insert(SceneElement &element);
 	void insertAfter(SceneElement &element, SceneElement &after);
-	void reinsert(SceneElement &element);
 
 	/* Notify all elements that geometry has changed */
 	void notifyGeometryChange();
@@ -89,7 +104,16 @@ public:
 	DECL_ATTR_VIRT( Z,       int  )
 	DECL_ATTR_VIRT( Visible, bool )
 
-	virtual void aboutToAccess() const = 0;
+	virtual void aboutToAccess(Exception &exception) const = 0;
+
+#ifdef MKXPZ_RETRO
+	bool sandbox_serialize_scene_element(void *&data, mkxp_sandbox::wasm_size_t &max_size) const;
+	bool sandbox_deserialize_scene_element(const void *&data, mkxp_sandbox::wasm_size_t &max_size);
+	void sandbox_deserialize_begin_scene_element();
+	void sandbox_deserialize_end_scene_element();
+#endif // MKXPZ_REROO
+
+	Scene *scene;
 
 protected:
 	/* A bit about OpenGL state:
@@ -110,7 +134,7 @@ protected:
 	 * Bitmaps), use the 'prepareDraw' signal in SharedState that
 	 * will fire immediately before each frame draw.
 	 */
-	virtual void draw() = 0;
+	virtual void draw(Exception &exception) = 0;
 
 	// FIXME: This should be a signal
 	virtual void onGeometryChange(const Scene::Geometry &) {}
@@ -123,10 +147,13 @@ protected:
 	void unlink();
 
 	IntruListLink<SceneElement> link;
-	const unsigned int creationStamp;
+	uint64_t creationStamp;
 	int z;
 	bool visible;
-	Scene *scene;
+
+#ifdef MKXPZ_RETRO
+	bool deserSceneElementWasUnlinked;
+#endif // MKXPZ_RETRO
 
 	friend class Scene;
 	friend class Viewport;
@@ -147,9 +174,9 @@ private:
 };
 
 #define ABOUT_TO_ACCESS_NOOP \
-	void aboutToAccess() const {}
+	void aboutToAccess(Exception &exception) const {}
 
 #define ABOUT_TO_ACCESS_DISP \
-	void aboutToAccess() const { guardDisposed(); }
+	void aboutToAccess(Exception &exception) const { guardDisposed(exception); }
 
 #endif // SCENE_H

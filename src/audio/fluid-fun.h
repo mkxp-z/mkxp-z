@@ -1,10 +1,10 @@
 #ifndef FLUIDFUN_H
 #define FLUIDFUN_H
 
-#ifdef SHARED_FLUID
-# include <fluidsynth.h>
+#if defined(MKXPZ_RETRO) || defined(SHARED_FLUID)
+#  include <fluidsynth.h>
 #else
-# define FLUIDSYNTH_VERSION_MAJOR 3
+#  define FLUIDSYNTH_VERSION_MAJOR 3
 #endif
 
 typedef struct _fluid_hashtable_t fluid_settings_t;

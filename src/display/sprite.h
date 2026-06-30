@@ -28,6 +28,10 @@
 #include "viewport.h"
 #include "util.h"
 
+#ifdef MKXPZ_RETRO
+#  include "wasm-types.h"
+#endif // MKXPZ_RETRO
+
 class Bitmap;
 struct Color;
 struct Tone;
@@ -41,10 +45,10 @@ public:
 	Sprite(Viewport *viewport = 0);
 	~Sprite();
 
-	int getWidth()  const;
-	int getHeight() const;
+	int getWidth(Exception &exception)  const;
+	int getHeight(Exception &exception) const;
 
-	void update();
+	void update(Exception &exception);
 
 	DECL_ATTR( Bitmap,      Bitmap* )
 	DECL_ATTR( SrcRect,     Rect&   )
@@ -78,10 +82,21 @@ public:
 
 	void initDynAttribs();
 
+	const IntRect *sceneRect() const noexcept;
+	const Vec2i *sceneOrig() const noexcept;
+
+#ifdef MKXPZ_RETRO
+	bool sandbox_serialize(void *&data, mkxp_sandbox::wasm_size_t &max_size) const;
+	bool sandbox_deserialize(const void *&data, mkxp_sandbox::wasm_size_t &max_size);
+	void sandbox_deserialize_begin();
+	void sandbox_deserialize_end();
+	void sandbox_reinit();
+#endif // MKXPZ_RETRO
+
 private:
 	SpritePrivate *p;
 
-	void draw();
+	void draw(Exception &exception);
 	void onGeometryChange(const Scene::Geometry &);
 
 	void releaseResources();

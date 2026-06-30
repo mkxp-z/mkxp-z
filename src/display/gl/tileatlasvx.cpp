@@ -204,11 +204,16 @@ static const Vec2i shadowArea(freeArea.x+2, freeArea.y);
 static SDL_Surface*
 createShadowSet()
 {
+#ifdef MKXPZ_RETRO
+	SDL_Surface *surf = new SDL_Surface;
+	surf->pixels = std::calloc(1*32 * 16*32, 4);
+#else
 	int bpp;
 	Uint32 rm, gm, bm, am;
 
 	SDL_PixelFormatEnumToMasks(SDL_PIXELFORMAT_ABGR8888, &bpp, &rm, &gm, &bm, &am);
 	SDL_Surface *surf = SDL_CreateRGBSurface(0, 1*32, 16*32, bpp, rm, gm, bm, am);
+#endif // MKXPZ_RETRO
 
 	std::vector<SDL_Rect> rects;
 	SDL_Rect rect = { 0, 0, 16, 16 };
@@ -251,8 +256,15 @@ createShadowSet()
 	}
 
 	/* Fill rects with half opacity black */
+#ifdef MKXPZ_RETRO
+	for (SDL_Rect &rect : rects)
+		for (int y = 0; y < rect.h; ++y)
+			for (int x = 0; x < rect.w; ++x)
+				((uint32_t *)surf->pixels)[1*32 * (rect.y + y) + rect.x + x] = 0x80808080;
+#else
 	uint32_t color = (0x80808080 & am);
 	SDL_FillRects(surf, dataPtr(rects), rects.size(), color);
+#endif // MKXPZ_RETRO
 
 	return surf;
 }
@@ -262,7 +274,17 @@ static void doBlit(Bitmap *bm, const IntRect &src, const Vec2i &dst)
 	/* Translate tile to pixel units */
 	IntRect _src(src.x*32, src.y*32, src.w*32, src.h*32);
 	Vec2i _dst(dst.x*32, dst.y*32);
-	IntRect bmr(0, 0, bm->width(), bm->height());
+	int w, h;
+	{
+		Exception e;
+		w = bm->getWidth(e);
+		if (e.is_error())
+			return;
+		h = bm->getHeight(e);
+		if (e.is_error())
+			return;
+	}
+	IntRect bmr(0, 0, w, h);
 
 	if (!SDL_IntersectRect(&_src, &bmr, &_src))
 		return;
@@ -283,6 +305,7 @@ void build(TEXFBO &tf, Bitmap *bitmaps[BM_COUNT])
 	if (rgssVer >= 3)
 	{
 		SDL_Surface *shadow = createShadowSet();
+#ifndef MKXPZ_RETRO // TODO: implement
 		if (tf.selfHires != nullptr) {
 			SDL_Rect srcRect({0, 0, shadow->w, shadow->h});
 			int destX = shadowArea.x*32 * tf.selfHires->width / tf.width;
@@ -304,11 +327,18 @@ void build(TEXFBO &tf, Bitmap *bitmaps[BM_COUNT])
 				blitTemp->w, blitTemp->h, blitTemp->pixels, GL_RGBA);
 		}
 		else {
+#endif // MKXPZ_RETRO
 			TEX::bind(tf.tex);
 			TEX::uploadSubImage(shadowArea.x*32, shadowArea.y*32,
 				shadow->w, shadow->h, shadow->pixels, GL_RGBA);
+#ifndef MKXPZ_RETRO
 		}
+#endif // MKXPZ_RETRO
+#ifdef MKXPZ_RETRO
+		delete shadow;
+#else
 		SDL_FreeSurface(shadow);
+#endif // MKXPZ_RETRO
 	}
 
 	Bitmap *bm;

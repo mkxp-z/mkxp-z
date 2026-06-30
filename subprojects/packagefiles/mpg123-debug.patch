@@ -1,0 +1,48 @@
+# This patch routes mpg123's logs to the libretro log interface instead of standard error.
+
+--- a/src/common/debug.h
++++ b/src/common/debug.h
+@@ -31,11 +31,13 @@
+ #endif
+ 
+ // Used for debugging and warning messages.
+-#include <stdio.h>
+-#define debug_print(t, s, ...) fprintf(stderr, DBGPRFX "[" __FILE__ ":%s():%i] " t ": " s "\n", __func__, __LINE__, __VA_ARGS__)
++#include "../../../libretro-common/include/libretro.h"
++extern retro_log_printf_t mkxp_retro_log_printf;
++#define _LOG_PRINTF_DETAIL2(x) #x
++#define _LOG_PRINTF_DETAIL(x) _LOG_PRINTF_DETAIL2(x)
+ 
+ #ifdef DEBUG
+-#define mdebug(s, ...) debug_print("debug", s, __VA_ARGS__)
++#define mdebug(s, ...) mkxp_retro_log_printf(RETRO_LOG_DEBUG, "[mkxp-z @ " __FILE__ ":" _LOG_PRINTF_DETAIL(__LINE__) "] mpg123: " s "\n", __VA_ARGS__)
+ #else
+ #define mdebug(s, ...) noop
+ #endif
+@@ -43,7 +45,7 @@
+ 
+ // Print warning message.
+ #ifndef NO_WARNING
+-#define mwarning(s, ...) debug_print("warning", s, __VA_ARGS__)
++#define mwarning(s, ...) mkxp_retro_log_printf(RETRO_LOG_WARN, "[mkxp-z @ " __FILE__ ":" _LOG_PRINTF_DETAIL(__LINE__) "] mpg123: " s "\n", __VA_ARGS__)
+ #else
+ #define mwarning(s, ...) 
+ #endif
+@@ -51,7 +53,7 @@
+ 
+ // Print error message.
+ #ifndef NO_ERRORMSG
+-#define merror(s, ...) debug_print("error", s, __VA_ARGS__)
++#define merror(s, ...) mkxp_retro_log_printf(RETRO_LOG_ERROR, "[mkxp-z @ " __FILE__ ":" _LOG_PRINTF_DETAIL(__LINE__) "] mpg123: " s "\n", __VA_ARGS__)
+ #else
+ #define merror(s, ...) noop
+ #endif
+@@ -59,7 +61,7 @@
+ 
+ // Print error message and return given value.
+ #ifndef NO_ERETURN
+-#define mereturn(rv, s, ...) do{ debug_print("ereturn", s, __VA_ARGS__); return rv; } while (0)
++#define mereturn(rv, s, ...) do{ mkxp_retro_log_printf(RETRO_LOG_ERROR, "[mkxp-z @ " __FILE__ ":" _LOG_PRINTF_DETAIL(__LINE__) "] mpg123: " s "\n", __VA_ARGS__); return rv; } while (0)
+ #else
+ #define mereturn(rv, s, ...) return rv
+ #endif

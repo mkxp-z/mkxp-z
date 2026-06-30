@@ -50,20 +50,24 @@ void bitmapInitProps(Bitmap *b, VALUE self) {
     rb_iv_set(self, "font", fontObj);
 
     // Leave property as default nil if hasHires() is false.
-    GFX_GUARD_EXC(
-        if (b->hasHires()) {
-            b->assumeRubyGC();
-            wrapProperty(self, b->getHires(), "hires", BitmapType);
+    GFX_LOCK;
+    bool hasHires;
+    BINDING_GUARD_F(GFX_UNLOCK, hasHires = b->getHasHires(e));
+    if (hasHires) {
+        b->assumeRubyGC();
+        Bitmap *hires;
+        BINDING_GUARD_F(GFX_UNLOCK, hires = b->getHires(e));
+        wrapProperty(self, hires, "hires", BitmapType);
         
-            VALUE hiresFontObj = rb_obj_alloc(fontKlass);
-            rb_obj_call_init(hiresFontObj, 0, 0);
-            Font *hiresFont = getPrivateData<Font>(hiresFontObj);
-            rb_iv_set(rb_iv_get(self, "hires"), "font", hiresFontObj);
-            b->getHires()->setInitFont(hiresFont);
-        }
-
-        b->setInitFont(font);
-    );
+        VALUE hiresFontObj = rb_obj_alloc(fontKlass);
+        rb_obj_call_init(hiresFontObj, 0, 0);
+        Font *hiresFont = getPrivateData<Font>(hiresFontObj);
+        rb_iv_set(rb_iv_get(self, "hires"), "font", hiresFontObj);
+        hires->setInitFont(hiresFont);
+        
+    }
+    b->setInitFont(font);
+    GFX_UNLOCK;
 }
 
 RB_METHOD_GUARD(bitmapInitialize) {
@@ -73,12 +77,12 @@ RB_METHOD_GUARD(bitmapInitialize) {
         char *filename;
         rb_get_args(argc, argv, "z", &filename RB_ARG_END);
         
-        GFX_GUARD_EXC(b = new Bitmap(filename);)
+        BINDING_GUARD_LF(delete b, b = new Bitmap(e, filename));
     } else {
         int width, height;
         rb_get_args(argc, argv, "ii", &width, &height RB_ARG_END);
         
-        GFX_GUARD_EXC(b = new Bitmap(width, height);)
+        BINDING_GUARD_LF(delete b, b = new Bitmap(e, width, height));
     }
     
     setPrivateData(self, b);
@@ -94,7 +98,7 @@ RB_METHOD_GUARD(bitmapWidth) {
     Bitmap *b = getPrivateData<Bitmap>(self);
     
     int value = 0;
-   value = b->width();
+    BINDING_GUARD(value = b->getWidth(e));
     
     return INT2FIX(value);
 }
@@ -106,7 +110,7 @@ RB_METHOD_GUARD(bitmapHeight) {
     Bitmap *b = getPrivateData<Bitmap>(self);
     
     int value = 0;
-   value = b->height();
+    BINDING_GUARD(value = b->getHeight(e));
     
     return INT2FIX(value);
 }
@@ -120,7 +124,7 @@ RB_METHOD_GUARD(bitmapRect) {
     Bitmap *b = getPrivateData<Bitmap>(self);
     
     IntRect rect;
-   rect = b->rect();
+    BINDING_GUARD(rect = b->getRect(e));
     
     Rect *r = new Rect(rect);
     
@@ -146,7 +150,7 @@ RB_METHOD_GUARD(bitmapBlt) {
     if (src) {
         srcRect = getPrivateDataCheck<Rect>(srcRectObj, RectType);
     
-        GFX_GUARD_EXC(b->blt(x, y, *src, srcRect->toIntRect(), opacity););
+        BINDING_GUARD_L(b->blt(e, x, y, *src, srcRect->toIntRect(), opacity));
     }
     
     return self;
@@ -172,8 +176,8 @@ RB_METHOD_GUARD(bitmapStretchBlt) {
         destRect = getPrivateDataCheck<Rect>(destRectObj, RectType);
         srcRect = getPrivateDataCheck<Rect>(srcRectObj, RectType);
         
-        GFX_GUARD_EXC(b->stretchBlt(destRect->toIntRect(), *src, srcRect->toIntRect(),
-                                    opacity););
+        BINDING_GUARD_L(b->stretchBlt(e, destRect->toIntRect(), *src, srcRect->toIntRect(),
+                                    opacity));
     }
     
     return self;
@@ -195,7 +199,7 @@ RB_METHOD_GUARD(bitmapFillRect) {
         rect = getPrivateDataCheck<Rect>(rectObj, RectType);
         color = getPrivateDataCheck<Color>(colorObj, ColorType);
         
-        GFX_GUARD_EXC(b->fillRect(rect->toIntRect(), color->norm););
+        BINDING_GUARD_L(b->fillRect(e, rect->toIntRect(), color->norm));
     } else {
         int x, y, width, height;
         
@@ -204,7 +208,7 @@ RB_METHOD_GUARD(bitmapFillRect) {
         
         color = getPrivateDataCheck<Color>(colorObj, ColorType);
         
-        GFX_GUARD_EXC(b->fillRect(x, y, width, height, color->norm););
+        BINDING_GUARD_L(b->fillRect(e, x, y, width, height, color->norm));
     }
     
     return self;
@@ -216,7 +220,7 @@ RB_METHOD_GUARD(bitmapClear) {
     
     Bitmap *b = getPrivateData<Bitmap>(self);
 
-    GFX_GUARD_EXC(b->clear();)
+    BINDING_GUARD_L(b->clear(e));
     
     return self;
 }
@@ -231,9 +235,9 @@ RB_METHOD_GUARD(bitmapGetPixel) {
     
     Color value;
     if (b->surface() || b->megaSurface())
-        value = b->getPixel(x, y);
+        BINDING_GUARD(value = b->getPixel(e, x, y));
     else
-        GFX_GUARD_EXC(value = b->getPixel(x, y););
+        BINDING_GUARD_L(value = b->getPixel(e, x, y));
     
     Color *color = new Color(value);
     
@@ -253,7 +257,7 @@ RB_METHOD_GUARD(bitmapSetPixel) {
     
     color = getPrivateDataCheck<Color>(colorObj, ColorType);
     
-    GFX_GUARD_EXC(b->setPixel(x, y, *color););
+    BINDING_GUARD_L(b->setPixel(e, x, y, *color));
     
     return self;
 }
@@ -266,7 +270,7 @@ RB_METHOD_GUARD(bitmapHueChange) {
     
     rb_get_args(argc, argv, "i", &hue RB_ARG_END);
     
-    GFX_GUARD_EXC(b->hueChange(hue););
+    BINDING_GUARD_L(b->hueChange(e, hue));
     
     return self;
 }
@@ -293,7 +297,7 @@ RB_METHOD_GUARD(bitmapDrawText) {
         
         rect = getPrivateDataCheck<Rect>(rectObj, RectType);
         
-        GFX_GUARD_EXC(b->drawText(rect->toIntRect(), str, align););
+        BINDING_GUARD_L(b->drawText(e, rect->toIntRect(), str, align));
     } else {
         int x, y, width, height;
         
@@ -308,7 +312,7 @@ RB_METHOD_GUARD(bitmapDrawText) {
                         &align RB_ARG_END);
         }
         
-        GFX_GUARD_EXC(b->drawText(x, y, width, height, str, align););
+        BINDING_GUARD_L(b->drawText(e, x, y, width, height, str, align));
     }
     
     return self;
@@ -330,7 +334,7 @@ RB_METHOD_GUARD(bitmapTextSize) {
     }
     
     IntRect value;
-    value = b->textSize(str);
+    BINDING_GUARD(value = b->textSize(e, str));
     
     Rect *rect = new Rect(value);
     
@@ -350,7 +354,7 @@ RB_METHOD_GUARD(BitmapSetFont) {
     
     Font *prop = getPrivateDataCheck<Font>(propObj, FontType);
     if (prop) {
-        GFX_GUARD_EXC(b->setFont(*prop);)
+        b->setFont(*prop);
         
         VALUE f = rb_iv_get(self, "font");
         if (f) {
@@ -391,8 +395,8 @@ RB_METHOD_GUARD(bitmapGradientFillRect) {
         color1 = getPrivateDataCheck<Color>(color1Obj, ColorType);
         color2 = getPrivateDataCheck<Color>(color2Obj, ColorType);
         
-        GFX_GUARD_EXC(b->gradientFillRect(rect->toIntRect(), color1->norm, color2->norm,
-                                      vertical););
+        BINDING_GUARD_L(b->gradientFillRect(e, rect->toIntRect(), color1->norm, color2->norm,
+                                      vertical));
     } else {
         int x, y, width, height;
         
@@ -402,8 +406,8 @@ RB_METHOD_GUARD(bitmapGradientFillRect) {
         color1 = getPrivateDataCheck<Color>(color1Obj, ColorType);
         color2 = getPrivateDataCheck<Color>(color2Obj, ColorType);
         
-        GFX_GUARD_EXC(b->gradientFillRect(x, y, width, height, color1->norm,
-                                      color2->norm, vertical););
+        BINDING_GUARD_L(b->gradientFillRect(e, x, y, width, height, color1->norm,
+                                      color2->norm, vertical));
     }
     
     return self;
@@ -421,13 +425,13 @@ RB_METHOD_GUARD(bitmapClearRect) {
         
         rect = getPrivateDataCheck<Rect>(rectObj, RectType);
         
-        GFX_GUARD_EXC(b->clearRect(rect->toIntRect()););
+        BINDING_GUARD_L(b->clearRect(e, rect->toIntRect()));
     } else {
         int x, y, width, height;
         
         rb_get_args(argc, argv, "iiii", &x, &y, &width, &height RB_ARG_END);
         
-        GFX_GUARD_EXC(b->clearRect(x, y, width, height););
+        BINDING_GUARD_L(b->clearRect(e, x, y, width, height));
     }
     
     return self;
@@ -439,7 +443,7 @@ RB_METHOD_GUARD(bitmapBlur) {
     
     Bitmap *b = getPrivateData<Bitmap>(self);
     
-    GFX_GUARD_EXC( b->blur(); );
+    BINDING_GUARD_L(b->blur(e));
     
     return Qnil;
 }
@@ -451,7 +455,7 @@ RB_METHOD_GUARD(bitmapRadialBlur) {
     int angle, divisions;
     rb_get_args(argc, argv, "ii", &angle, &divisions RB_ARG_END);
     
-    GFX_GUARD_EXC( b->radialBlur(angle, divisions); );
+    BINDING_GUARD_L(b->radialBlur(e, angle, divisions));
     
     return Qnil;
 }
@@ -461,10 +465,11 @@ RB_METHOD_GUARD(bitmapGetRawData) {
     RB_UNUSED_PARAM;
     
     Bitmap *b = getPrivateData<Bitmap>(self);
-    int size = b->width() * b->height() * 4;
+    int size;
+    BINDING_GUARD(size = b->getWidth(e) * b->getHeight(e) * 4);
     VALUE ret = rb_str_new(0, size);
     
-    GFX_GUARD_EXC(b->getRaw(RSTRING_PTR(ret), size););
+    BINDING_GUARD_L(b->getRaw(e, RSTRING_PTR(ret), size));
     
     return ret;
 }
@@ -479,7 +484,7 @@ RB_METHOD_GUARD(bitmapSetRawData) {
     
     Bitmap *b = getPrivateData<Bitmap>(self);
     
-    GFX_GUARD_EXC(b->replaceRaw(RSTRING_PTR(str), RSTRING_LEN(str)););
+    BINDING_GUARD_L(b->replaceRaw(e, RSTRING_PTR(str), RSTRING_LEN(str)));
     
     return self;
 }
@@ -494,7 +499,7 @@ RB_METHOD_GUARD(bitmapSaveToFile) {
     
     Bitmap *b = getPrivateData<Bitmap>(self);
     
-    GFX_GUARD_EXC(b->saveToFile(RSTRING_PTR(str)););
+    BINDING_GUARD_L(b->saveToFile(e, RSTRING_PTR(str)));
     
     return RUBY_Qnil;
 }
@@ -509,7 +514,7 @@ RB_METHOD_GUARD(bitmapGetMega){
     
     VALUE ret;
     
-    GFX_GUARD_EXC(ret = rb_bool_new(b->isMega()););
+    BINDING_GUARD_L(ret = rb_bool_new(b->getIsMega(e)));
     
     return ret;
 }
@@ -524,7 +529,7 @@ RB_METHOD_GUARD(bitmapGetAnimated){
     
     VALUE ret;
     
-    GFX_GUARD_EXC(ret = rb_bool_new(b->isAnimated()););
+    BINDING_GUARD_L(ret = rb_bool_new(b->getIsAnimated(e)));
     
     return ret;
 }
@@ -538,9 +543,9 @@ RB_METHOD_GUARD(bitmapGetPlaying){
     Bitmap *b = getPrivateData<Bitmap>(self);
     
     VALUE ret;
-    
-    GFX_GUARD_EXC(ret = rb_bool_new(b->isPlaying()););
-    
+
+    BINDING_GUARD_L(ret = rb_bool_new(b->isPlaying(e)));
+
     return ret;
 }
 RB_METHOD_GUARD_END
@@ -554,7 +559,7 @@ RB_METHOD_GUARD(bitmapSetPlaying){
     
     Bitmap *b = getPrivateData<Bitmap>(self);
     
-    GFX_GUARD_EXC((play) ? b->play() : b->stop(););
+    BINDING_GUARD_L((play) ? b->play(e) : b->stop(e));
     
     return RUBY_Qnil;
 }
@@ -566,7 +571,7 @@ RB_METHOD_GUARD(bitmapPlay){
     rb_check_argc(argc, 0);
     Bitmap *b = getPrivateData<Bitmap>(self);
     
-    GFX_GUARD_EXC(b->play(););
+    BINDING_GUARD_L(b->play(e));
     
     return RUBY_Qnil;
 }
@@ -578,7 +583,7 @@ RB_METHOD_GUARD(bitmapStop){
     rb_check_argc(argc, 0);
     Bitmap *b = getPrivateData<Bitmap>(self);
     
-    GFX_GUARD_EXC(b->stop(););
+    BINDING_GUARD_L(b->stop(e));
     
     return RUBY_Qnil;
 }
@@ -593,7 +598,7 @@ RB_METHOD_GUARD(bitmapGotoStop){
     
     Bitmap *b = getPrivateData<Bitmap>(self);
     
-    GFX_GUARD_EXC(b->gotoAndStop(frame););
+    BINDING_GUARD_L(b->gotoAndStop(e, frame));
     
     return RUBY_Qnil;
 }
@@ -608,7 +613,7 @@ RB_METHOD_GUARD(bitmapGotoPlay){
     
     Bitmap *b = getPrivateData<Bitmap>(self);
     
-    GFX_GUARD_EXC(b->gotoAndPlay(frame););
+    BINDING_GUARD_L(b->gotoAndPlay(e, frame));
     
     return RUBY_Qnil;
 }
@@ -622,9 +627,9 @@ RB_METHOD_GUARD(bitmapFrames){
     Bitmap *b = getPrivateData<Bitmap>(self);
     
     int ret;
-    
-    GFX_GUARD_EXC(ret = b->numFrames(););
-    
+
+    BINDING_GUARD_L(ret = b->numFrames(e));
+
     return INT2NUM(ret);
 }
 RB_METHOD_GUARD_END
@@ -637,9 +642,9 @@ RB_METHOD_GUARD(bitmapCurrentFrame){
     Bitmap *b = getPrivateData<Bitmap>(self);
     
     int ret;
-    
-    GFX_GUARD_EXC(ret = b->currentFrameI(););
-    
+
+    BINDING_GUARD_L(ret = b->currentFrameI(e));
+
     return INT2NUM(ret);
 }
 RB_METHOD_GUARD_END
@@ -666,7 +671,7 @@ RB_METHOD_GUARD(bitmapAddFrame){
     
     int ret;
     
-    GFX_GUARD_EXC(ret = b->addFrame(*src, pos););
+    BINDING_GUARD_L(ret = b->addFrame(e, *src, pos));
     
     return INT2NUM(ret);
 }
@@ -687,7 +692,7 @@ RB_METHOD_GUARD(bitmapRemoveFrame){
         if (pos < 0) pos = 0;
     }
     
-    GFX_GUARD_EXC(b->removeFrame(pos););
+    BINDING_GUARD_L(b->removeFrame(e, pos));
     
     return RUBY_Qnil;
 }
@@ -700,12 +705,12 @@ RB_METHOD_GUARD(bitmapNextFrame){
     
     Bitmap *b = getPrivateData<Bitmap>(self);
     
-    GFX_GUARD_EXC(b->nextFrame(););
+    BINDING_GUARD_L(b->nextFrame(e));
     
     int ret;
-    
-    GFX_GUARD_EXC(ret = b->currentFrameI(););
-    
+
+    BINDING_GUARD_L(ret = b->currentFrameI(e));
+
     return INT2NUM(ret);
 }
 RB_METHOD_GUARD_END
@@ -717,12 +722,12 @@ RB_METHOD_GUARD(bitmapPreviousFrame){
     
     Bitmap *b = getPrivateData<Bitmap>(self);
     
-    GFX_GUARD_EXC(b->previousFrame(););
+    BINDING_GUARD_L(b->previousFrame(e));
     
     int ret;
-    
-    GFX_GUARD_EXC(ret = b->currentFrameI(););
-    
+
+    BINDING_GUARD_L(ret = b->currentFrameI(e));
+
     return INT2NUM(ret);
 }
 RB_METHOD_GUARD_END
@@ -735,12 +740,12 @@ RB_METHOD_GUARD(bitmapSetFPS){
     
     Bitmap *b = getPrivateData<Bitmap>(self);
     
-    GFX_GUARD_EXC(
+    BINDING_GUARD_L(
               if (RB_TYPE_P(fps, RUBY_T_FLOAT)) {
-        b->setAnimationFPS(RFLOAT_VALUE(fps));
+        b->setAnimationFPS(e, RFLOAT_VALUE(fps));
     }
               else {
-        b->setAnimationFPS(NUM2INT(fps));
+        b->setAnimationFPS(e, NUM2INT(fps));
     }
               );
     
@@ -757,7 +762,7 @@ RB_METHOD_GUARD(bitmapGetFPS){
     
     float ret;
     
-    ret = b->getAnimationFPS();
+    BINDING_GUARD(ret = b->getAnimationFPS(e));
     
     return rb_float_new(ret);
 }
@@ -771,7 +776,7 @@ RB_METHOD_GUARD(bitmapSetLooping){
     
     Bitmap *b = getPrivateData<Bitmap>(self);
     
-    GFX_GUARD_EXC(b->setLooping(loop););
+    BINDING_GUARD_L(b->setLooping(e, loop));
     
     return rb_bool_new(loop);
 }
@@ -785,7 +790,7 @@ RB_METHOD_GUARD(bitmapGetLooping){
     Bitmap *b = getPrivateData<Bitmap>(self);
     
     bool ret;
-    ret = b->getLooping();
+    BINDING_GUARD(ret = b->getLooping(e));
     return rb_bool_new(ret);
 }
 RB_METHOD_GUARD_END
@@ -802,7 +807,7 @@ RB_METHOD_GUARD(bitmapSnapToBitmap) {
     Bitmap *newbitmap = 0;
     int pos = (position == RUBY_Qnil) ? -1 : NUM2INT(position);
     
-    GFX_GUARD_EXC(newbitmap = new Bitmap(*b, pos););
+    BINDING_GUARD_LF(delete newbitmap, newbitmap = new Bitmap(e, *b, pos));
     
     VALUE ret = rb_obj_alloc(rb_class_of(self));
     
@@ -831,10 +836,12 @@ RB_METHOD_GUARD(bitmapInitializeCopy) {
     Bitmap *orig = getPrivateData<Bitmap>(origObj);
     Bitmap *b = 0;
     
-    GFX_GUARD_EXC(b = new Bitmap(*orig););
+    BINDING_GUARD_LF(delete b, b = new Bitmap(e, *orig));
     
     bitmapInitProps(b, self);
-    b->setFont(orig->getFont());
+    Font *font;
+    BINDING_GUARD(font = &orig->getFont(e));
+    b->setFont(*font);
     setPrivateData(self, b);
     
     return self;
@@ -848,7 +855,7 @@ RB_METHOD_GUARD(bitmapKglInvert) {
 
     Bitmap *b = getPrivateData<Bitmap>(self);
 
-    b->kglInvert();
+    BINDING_GUARD(b->kglInvert(e));
     return Qnil;
 }
 RB_METHOD_GUARD_END
@@ -860,7 +867,7 @@ RB_METHOD_GUARD(bitmapKglCompressAlpha) {
 
     Bitmap *b = getPrivateData<Bitmap>(self);
 
-    b->kglCompressAlpha();
+    BINDING_GUARD(b->kglCompressAlpha(e));
     return Qnil;
 }
 RB_METHOD_GUARD_END
@@ -883,7 +890,7 @@ RB_METHOD_GUARD(bitmapKglSubtractRect) {
     if (src) {
         srcRect = getPrivateDataCheck<Rect>(srcRectObj, RectType);
         IntRect srcIntRect = srcRect->toIntRect();
-        GFX_GUARD_EXC(b->stretchBlt(IntRect(x, y, abs(srcIntRect.w), abs(srcIntRect.h)), *src, srcIntRect, opacity, false, Bitmap::KGL_SUBTRACT););
+        BINDING_GUARD_L(b->stretchBlt(e, IntRect(x, y, abs(srcIntRect.w), abs(srcIntRect.h)), *src, srcIntRect, opacity, false, Bitmap::KGL_SUBTRACT););
     }
 
     return Qnil;
@@ -898,7 +905,9 @@ RB_METHOD_GUARD(bitmapKglShadowShaderH) {
 
     rb_get_args(argc, argv, "iiib", &x1, &x2, &y, &soft RB_ARG_END);
 
-    return RB_INT2FIX(b->kglShadowShaderH(x1, x2, y, soft));
+    int ret;
+    BINDING_GUARD(ret = b->kglShadowShaderH(e, x1, x2, y, soft));
+    return RB_INT2FIX(ret);
 }
 RB_METHOD_GUARD_END
 
@@ -910,7 +919,9 @@ RB_METHOD_GUARD(bitmapKglShadowShaderV) {
 
     rb_get_args(argc, argv, "iiibb", &y1, &y2, &x, &wall, &soft RB_ARG_END);
 
-    return RB_INT2FIX(b->kglShadowShaderV(y1, y2, x, wall, soft));
+    int ret;
+    BINDING_GUARD(ret = b->kglShadowShaderV(e, y1, y2, x, wall, soft));
+    return RB_INT2FIX(ret);
 }
 RB_METHOD_GUARD_END
 

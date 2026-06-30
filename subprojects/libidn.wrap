@@ -1,0 +1,7 @@
+[wrap-file]
+source_url = https://ftpmirror.gnu.org/libidn/libidn-1.43.tar.gz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/gnu/libidn/libidn-1.43.tar.gz
+source_filename = libidn.tar.gz
+source_hash = bdc662c12d041b2539d0e638f3a6e741130cdb33a644ef3496963a443482d164
+directory = libidn-1.43
+patch_directory = libidn

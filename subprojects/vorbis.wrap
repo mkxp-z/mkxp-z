@@ -1,0 +1,5 @@
+[wrap-git]
+url = https://github.com/xiph/vorbis
+revision = v1.3.7
+depth = 1
+diff_files = vorbis-deps.patch

@@ -1,0 +1,11 @@
+[binaries]
+c = '/opt/devkitpro/devkitARM/bin/arm-none-eabi-gcc'
+cpp = '/opt/devkitpro/devkitARM/bin/arm-none-eabi-g++'
+ar = '/opt/devkitpro/devkitARM/bin/arm-none-eabi-ar'
+cmake = 'cmake'
+
+[host_machine]
+system = 'none'
+cpu_family = 'arm'
+cpu = 'arm11mpcore'
+endian = 'little'

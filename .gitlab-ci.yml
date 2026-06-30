@@ -1,0 +1,569 @@
+# DESCRIPTION: GitLab CI/CD for libRetro (NOT FOR GitLab-proper)
+
+##############################################################################
+################################# BOILERPLATE ################################
+##############################################################################
+
+# Core definitions
+.core-defs:
+  variables:
+    CORENAME: mkxp-z
+    MAKEFILE: Makefile.libretro
+
+.needs-shared:
+  dependencies:
+    - stage1
+
+.needs-static:
+  needs:
+    - job: stage1
+      artifacts: true
+
+.miniforge:
+  before_script:
+    - curl -Lo ~/Miniforge3.sh https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
+    - bash ~/Miniforge3.sh -b -p ~/miniforge3
+    - source ~/miniforge3/etc/profile.d/conda.sh
+    - conda install -y ${MINIFORGE_PACKAGES}
+    - export PATH="$HOME/miniforge3/bin:$PATH"
+
+.deps-linux:
+  extends:
+    - .miniforge
+  variables:
+    MINIFORGE_PACKAGES: git meson cmake
+  before_script:
+    - !reference [.miniforge, before_script]
+    - git config --global --add safe.directory "$(pwd)"
+
+.deps-linux-alpine:
+  before_script:
+    - sudo apk add git python3 gcc g++ ninja
+    - python3 -m ensurepip
+    - python3 -m pip install meson cmake
+    - export PATH="$HOME/.local/bin:$PATH"
+    - git config --global --add safe.directory "$(pwd)"
+
+# Inclusion templates, required for the build to work
+include:
+  ################################## DESKTOPS ################################
+  # Windows 64-bit
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/windows-x64-mingw.yml'
+
+  # Windows 32-bit
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/windows-i686-mingw.yml'
+
+  # Windows msvc10 64-bit
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/windows-x64-msvc10-msys2.yml'
+
+  # Windows msvc10 32-bit
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/windows-i686-msvc10-msys2.yml'
+
+  # Windows msvc05 32-bit
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/windows-i686-msvc05-msys2.yml'
+
+  # DJGPP
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/djgpp-static.yml'
+
+  # Linux 64-bit
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/linux-x64.yml'
+
+  # Linux 32-bit
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/linux-i686.yml'
+
+  # MacOS PowerPC 32-bit
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/osx-ppc.yml'
+
+  # MacOS 64-bit
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/osx-x64.yml'
+
+  # MacOS ARM 64-bit
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/osx-arm64.yml'
+
+  ################################## CELLULAR ################################
+  # Android
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/android-make.yml'
+
+  # iOS
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/ios-arm64.yml'
+
+  # iOS (armv7)
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/ios9.yml'
+
+  ################################## CONSOLES ################################
+  # PlayStation Portable
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/psp-static.yml'
+
+  # PlayStation Vita
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/vita-static.yml'
+
+  # PlayStation2
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/ps2-static.yml'
+
+  # PlayStation3
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/psl1ght-static.yml'
+
+  # PlayStation 4
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/orbis-static.yml'
+
+  # Nintendo 3DS
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/ctr-static.yml'
+
+  # Nintendo GameCube
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/ngc-static.yml'
+
+  # Nintendo Wii
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/wii-static.yml'
+
+  # Nintendo WiiU
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/wiiu-static.yml'
+
+  # Nintendo Switch
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/libnx-static.yml'
+
+  # tvOS (AppleTV)
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/tvos-arm64.yml'
+
+  # OpenDingux
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/dingux-mips32.yml'
+
+  # OpenDingux (ARM)
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/dingux-arm32.yml'
+
+  #################################### MISC ##################################
+  # Emscripten
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/emscripten-static.yml'
+
+# Stages for building
+stages:
+  - build-prepare
+  - build-shared
+  - build-static
+
+##############################################################################
+#################################### STAGES ##################################
+##############################################################################
+
+stage1:
+  image: debian:stable-slim
+  stage: build-prepare
+  before_script:
+    - apt update
+    - apt install -y git curl build-essential automake libtool zip universal-ctags ruby
+    - curl -Lo ~/wasi-sdk.tar.gz https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-30/wasi-sdk-30.0-x86_64-linux.tar.gz
+    - mkdir ~/wasi-sdk
+    - tar -xzf ~/wasi-sdk.tar.gz -C ~/wasi-sdk --strip-components=1
+    - rm ~/wasi-sdk.tar.gz
+    - curl -Lo ~/binaryen.tar.gz https://github.com/WebAssembly/binaryen/releases/download/version_126/binaryen-version_126-x86_64-linux.tar.gz
+    - mkdir ~/binaryen
+    - tar -xzf ~/binaryen.tar.gz -C ~/binaryen --strip-components=1
+    - rm ~/binaryen.tar.gz
+  script:
+    - cd libretro
+    - CLICOLOR_FORCE=1 make -j $(($(nproc)/5)) WASI_SDK="$HOME/wasi-sdk" WASM_OPT="$HOME/binaryen/bin/wasm-opt"
+  artifacts:
+    paths:
+      - libretro/build/libretro-stage1/
+    expire_in: 1 day
+
+################################### DESKTOPS #################################
+# Windows 64-bit
+libretro-build-windows-x64:
+  extends:
+    - .deps-linux
+    - .libretro-windows-x64-mingw-make-default
+    - .needs-shared
+    - .core-defs
+  before_script:
+    - !reference [.libretro-windows-x64-mingw-make-default, before_script]
+    - !reference [.deps-linux, before_script]
+
+# Windows 32-bit
+libretro-build-windows-i686:
+  extends:
+    - .deps-linux
+    - .libretro-windows-i686-mingw-make-default
+    - .needs-shared
+    - .core-defs
+  before_script:
+    - !reference [.libretro-windows-i686-mingw-make-default, before_script]
+    - !reference [.deps-linux, before_script]
+
+# Windows msvc10 64-bit
+#libretro-build-windows-msvc10-x64:
+#  extends:
+#    - .libretro-windows-x64-msvc10-msys2-make-default
+#    - .needs-shared
+#    - .core-defs
+
+# Windows msvc10 32-bit
+#libretro-build-windows-msvc10-i686:
+#  extends:
+#    - .libretro-windows-i686-msvc10-msys2-make-default
+#    - .needs-shared
+#    - .core-defs
+
+# Windows msvc05 32-bit
+#libretro-build-windows-msvc05-i686:
+#  extends:
+#    - .libretro-windows-i686-msvc05-msys2-make-default
+#    - .needs-shared
+#    - .core-defs
+
+# DJGPP
+#libretro-build-djgpp-i586:
+#  extends:
+#    - .deps-linux
+#    - .libretro-djgpp-static-retroarch-master
+#    - .needs-static
+#    - .core-defs
+#  needs:
+#    - !reference [.libretro-djgpp-static-retroarch-master, needs]
+#    - !reference [.needs-static, needs]
+#  before_script:
+#    - !reference [.libretro-build-djgpp-i586, before_script]
+#    - !reference [.deps-linux, before_script]
+
+# Linux 64-bit
+libretro-build-linux-x64:
+  extends:
+    - .deps-linux
+    - .libretro-linux-x64-make-default
+    - .needs-shared
+    - .core-defs
+  before_script:
+    - !reference [.libretro-linux-x64-make-default, before_script]
+    - !reference [.deps-linux, before_script]
+
+# Linux 32-bit
+libretro-build-linux-i686:
+  extends:
+    - .deps-linux
+    - .libretro-linux-i686-make-default
+    - .needs-shared
+    - .core-defs
+  before_script:
+    - !reference [.libretro-linux-i686-make-default, before_script]
+    - !reference [.deps-linux, before_script]
+
+# MacOS 64-bit
+libretro-build-osx-x64:
+  extends:
+    - .libretro-osx-x64-make-default
+    - .needs-shared
+    - .core-defs
+
+# MacOS ARM 64-bit
+libretro-build-osx-arm64:
+  extends:
+    - .libretro-osx-arm64-make-default
+    - .needs-shared
+    - .core-defs
+
+# MacOS PowerPC 32-bit
+#libretro-build-osx-ppc:
+#  extends:
+#    - .libretro-osx-ppc-make-default
+#    - .needs-shared
+#    - .core-defs
+
+################################### CELLULAR #################################
+# Android ARMv7a
+android-armeabi-v7a:
+  extends:
+    - .deps-linux
+    - .libretro-android-make-armeabi-v7a
+    - .needs-shared
+    - .core-defs
+  before_script:
+    - !reference [.libretro-android-make-armeabi-v7a, before_script]
+    - !reference [.deps-linux, before_script]
+
+# Android ARMv8a
+android-arm64-v8a:
+  extends:
+    - .deps-linux
+    - .libretro-android-make-arm64-v8a
+    - .needs-shared
+    - .core-defs
+  before_script:
+    - !reference [.libretro-android-make-arm64-v8a, before_script]
+    - !reference [.deps-linux, before_script]
+
+# Android 64-bit x86
+android-x86_64:
+  extends:
+    - .deps-linux
+    - .libretro-android-make-x86_64
+    - .needs-shared
+    - .core-defs
+  before_script:
+    - !reference [.libretro-android-make-x86_64, before_script]
+    - !reference [.deps-linux, before_script]
+
+# Android 32-bit x86
+android-x86:
+  extends:
+    - .deps-linux
+    - .libretro-android-make-x86
+    - .needs-shared
+    - .core-defs
+  before_script:
+    - !reference [.libretro-android-make-x86, before_script]
+    - !reference [.deps-linux, before_script]
+
+# iOS
+libretro-build-ios-arm64:
+  extends:
+    - .libretro-ios-arm64-make-default
+    - .needs-shared
+    - .core-defs
+
+# iOS (armv7) [iOS 9 and up]
+libretro-build-ios9:
+  extends:
+    - .libretro-ios9-make-default
+    - .needs-shared
+    - .core-defs
+
+# tvOS
+libretro-build-tvos-arm64:
+  extends:
+    - .libretro-tvos-arm64-make-default
+    - .needs-shared
+    - .core-defs
+
+################################### CONSOLES #################################
+# PlayStation Portable
+#libretro-build-psp:
+#  extends:
+#    - .deps-linux
+#    - .libretro-psp-static-retroarch-master
+#    - .needs-static
+#    - .core-defs
+#  needs:
+#    - !reference [.libretro-psp-static-retroarch-master, needs]
+#    - !reference [.needs-static, needs]
+#  before_script:
+#    - !reference [.libretro-psp-static-retroarch-master, before_script]
+#    - !reference [.deps-linux, before_script]
+
+# PlayStation Vita
+#libretro-build-vita:
+#  extends:
+#    - .deps-linux
+#    - .libretro-vita-static-retroarch-master
+#    - .needs-static
+#    - .core-defs
+#  needs:
+#    - !reference [.libretro-vita-static-retroarch-master, needs]
+#    - !reference [.needs-static, needs]
+#  before_script:
+#    - !reference [.libretro-vita-static-retroarch-master, before_script]
+#    - !reference [.deps-linux, before_script]
+
+# PlayStation2
+#libretro-build-ps2:
+#  extends:
+#    - .deps-linux
+#    - .libretro-ps2-static-retroarch-master
+#    - .needs-static
+#    - .core-defs
+#  needs:
+#    - !reference [.libretro-ps2-static-retroarch-master, needs]
+#    - !reference [.needs-static, needs]
+#  before_script:
+#    - !reference [.libretro-ps2-static-retroarch-master, before_script]
+#    - !reference [.deps-linux, before_script]
+
+# PlayStation3
+#libretro-build-psl1ght:
+#  extends:
+#    - .deps-linux
+#    - .libretro-psl1ght-static-retroarch-master
+#    - .needs-static
+#    - .core-defs
+#  needs:
+#    - !reference [.libretro-psl1ght-static-retroarch-master, needs]
+#    - !reference [.needs-static, needs]
+#  before_script:
+#    - !reference [.libretro-psl1ght-static-retroarch-master, before_script]
+#    - !reference [.deps-linux, before_script]
+
+# PlayStation 4
+libretro-build-orbis:
+  extends:
+    - .deps-linux-alpine
+    - .libretro-orbis-static-retroarch-master
+    - .needs-static
+    - .core-defs
+  needs:
+    - !reference [.libretro-orbis-static-retroarch-master, needs]
+    - !reference [.needs-static, needs]
+  before_script:
+    - !reference [.libretro-orbis-static-retroarch-master, before_script]
+    - !reference [.deps-linux-alpine, before_script]
+
+# Nintendo 3DS
+#libretro-build-ctr:
+#  extends:
+#    - .deps-linux
+#    - .libretro-ctr-static-retroarch-master
+#    - .needs-static
+#    - .core-defs
+#  needs:
+#    - !reference [.libretro-ctr-static-retroarch-master, needs]
+#    - !reference [.needs-static, needs]
+#  before_script:
+#    - !reference [.libretro-ctr-static-retroarch-master, before_script]
+#    - !reference [.deps-linux, before_script]
+
+# Nintendo GameCube
+#libretro-build-ngc:
+#  extends:
+#    - .deps-linux
+#    - .libretro-ngc-static-retroarch-master
+#    - .needs-static
+#    - .core-defs
+#  needs:
+#    - !reference [.libretro-ngc-static-retroarch-master, needs]
+#    - !reference [.needs-static, needs]
+#  before_script:
+#    - !reference [.libretro-ngc-static-retroarch-master, before_script]
+#    - !reference [.deps-linux, before_script]
+
+# Nintendo Wii
+#libretro-build-wii:
+#  extends:
+#    - .deps-linux
+#    - .libretro-wii-static-retroarch-master
+#    - .needs-static
+#    - .core-defs
+#  needs:
+#    - !reference [.libretro-wii-static-retroarch-master, needs]
+#    - !reference [.needs-static, needs]
+#  before_script:
+#    - !reference [.libretro-wii-static-retroarch-master, before_script]
+#    - !reference [.deps-linux, before_script]
+
+# Nintendo WiiU
+#libretro-build-wiiu:
+#  extends:
+#    - .libretro-wiiu-static-retroarch-master
+#    - .needs-static
+#    - .core-defs
+#  needs:
+#    - !reference [.libretro-wiiu-static-retroarch-master, needs]
+#    - !reference [.needs-static, needs]
+
+# Nintendo Switch
+libretro-build-libnx-aarch64:
+  extends:
+    - .deps-linux
+    - .libretro-libnx-static-retroarch-master
+    - .needs-static
+    - .core-defs
+  needs:
+    - !reference [.libretro-libnx-static-retroarch-master, needs]
+    - !reference [.needs-static, needs]
+  before_script:
+    - !reference [.libretro-libnx-static-retroarch-master, before_script]
+    - !reference [.deps-linux, before_script]
+
+# OpenDingux
+#libretro-build-dingux-mips32:
+#  extends:
+#    - .deps-linux
+#    - .libretro-dingux-mips32-make-default
+#    - .needs-shared
+#    - .core-defs
+#  before_script:
+#    - !reference [.libretro-dingux-mips32-make-default, before_script]
+#    - !reference [.deps-linux, before_script]
+
+# OpenDingux Beta
+libretro-build-dingux-odbeta-mips32:
+  extends:
+    - .deps-linux
+    - .libretro-dingux-odbeta-mips32-make-default
+    - .needs-shared
+    - .core-defs
+  before_script:
+    - !reference [.libretro-dingux-odbeta-mips32-make-default, before_script]
+    - !reference [.deps-linux, before_script]
+
+# OpenDingux Beta
+#libretro-build-rs90-odbeta-mips32:
+#  extends:
+#    - .deps-linux
+#    - .libretro-rs90-odbeta-mips32-make-default
+#    - .needs-shared
+#    - .core-defs
+#  before_script:
+#    - !reference [.libretro-rs90-odbeta-mips32-make-default, before_script]
+#    - !reference [.deps-linux, before_script]
+
+# Miyoo
+libretro-build-miyoo-arm32:
+  extends:
+    - .deps-linux
+    - .libretro-miyoo-arm32-make-default
+    - .needs-shared
+    - .core-defs
+  before_script:
+    - !reference [.libretro-miyoo-arm32-make-default, before_script]
+    - !reference [.deps-linux, before_script]
+
+# RetroFW
+libretro-build-retrofw-mips32:
+  extends:
+    - .deps-linux
+    - .libretro-retrofw-mips32-make-default
+    - .needs-shared
+    - .core-defs
+  before_script:
+    - !reference [.libretro-retrofw-mips32-make-default, before_script]
+    - !reference [.deps-linux, before_script]
+
+#################################### MISC ##################################
+# Emscripten
+libretro-build-emscripten:
+  extends:
+    - .deps-linux
+    - .libretro-emscripten-static-retroarch-master
+    - .needs-static
+    - .core-defs
+  needs:
+    - !reference [.libretro-emscripten-static-retroarch-master, needs]
+    - !reference [.needs-static, needs]
+  before_script:
+    - !reference [.libretro-emscripten-static-retroarch-master, before_script]
+    - !reference [.deps-linux, before_script]

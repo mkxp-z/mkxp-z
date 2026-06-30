@@ -25,11 +25,14 @@
 #include <string>
 #include <stdio.h>
 #include <stdarg.h>
+#include "mkxp-polyfill.h" // vsnprintf
 
 struct Exception
 {
 	enum Type
 	{
+		Ok,
+
 		RGSSError,
 		Reset,
 		NoFileError,
@@ -44,11 +47,15 @@ struct Exception
 		/* New types introduced in mkxp */
 		PHYSFSError,
 		SDLError,
-		MKXPError
+		MKXPError,
 	};
 
 	Type type;
 	std::string msg;
+
+	Exception()
+	    : type(Ok)
+	{}
 
 	Exception(Type type, const char *format, ...)
 	    : type(type)
@@ -60,6 +67,40 @@ struct Exception
 		vsnprintf(&msg[0], msg.size(), format, ap);
 
 		va_end(ap);
+	}
+
+	constexpr bool is_ok() const noexcept
+	{
+		return type == Ok;
+	}
+
+	constexpr bool is_error() const noexcept
+	{
+		return !is_ok();
+	}
+
+	const char *what() const
+	{
+		static thread_local std::string buf;
+		buf.clear();
+		switch (type)
+		{
+			case Ok: buf.append("Ok: "); break;
+			case RGSSError: buf.append("RGSSError: "); break;
+			case Reset: buf.append("Reset: "); break;
+			case NoFileError: buf.append("NoFileError: "); break;
+			case IOError: buf.append("IOError: "); break;
+			case TypeError: buf.append("TypeError: "); break;
+			case ArgumentError: buf.append("ArgumentError: "); break;
+			case SystemExit: buf.append("SystemExit: "); break;
+			case RuntimeError: buf.append("RuntimeError: "); break;
+			case PHYSFSError: buf.append("PHYSFSError: "); break;
+			case SDLError: buf.append("SDLError: "); break;
+			case MKXPError: buf.append("MKXPError: "); break;
+			default: break;
+		}
+		buf.append(msg);
+		return buf.c_str();
 	}
 };
 

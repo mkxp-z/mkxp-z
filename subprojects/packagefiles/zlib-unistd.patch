@@ -1,0 +1,14 @@
+# Includes unistd.h at the top of gzguts.h when not targeting Windows to fix builds for game consoles.
+
+--- a/gzguts.h
++++ b/gzguts.h
+@@ -2,6 +2,9 @@
+  * Copyright (C) 2004-2024 Mark Adler
+  * For conditions of distribution and use, see copyright notice in zlib.h
+  */
++#ifndef _WIN32
++#  include <unistd.h>
++#endif
+ 
+ #ifdef _LARGEFILE64_SOURCE
+ #  ifndef _LARGEFILE_SOURCE

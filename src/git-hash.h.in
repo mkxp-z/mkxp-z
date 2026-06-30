@@ -1,0 +1,3 @@
+#ifndef MKXPZ_GIT_HASH
+#  define MKXPZ_GIT_HASH "@VCS_TAG@"
+#endif /* MKXPZ_GIT_HASH */

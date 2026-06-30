@@ -1,0 +1,11 @@
+[binaries]
+c = '/opt/gcw0-toolchain/usr/bin/mipsel-linux-gcc'
+cpp = '/opt/gcw0-toolchain/usr/bin/mipsel-linux-g++'
+ar = 'ar'
+cmake = 'cmake'
+
+[host_machine]
+system = 'linux'
+cpu_family = 'mips'
+cpu = 'jz4770'
+endian = 'little'

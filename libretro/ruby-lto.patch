@@ -1,0 +1,59 @@
+# This patch allows Ruby to compile with LTO enabled when targeting WASI
+# by marking every function that calls asyncify_start_unwind(), asyncify_stop_unwind(), asyncify_start_rewind() or asyncify_stop_rewind() as noinline.
+# Also marks all of the `Init_` functions called in inits.c as noinline to prevent the `ruby_setup()` function from becoming too large.
+
+--- a/inits.c
++++ b/inits.c
+@@ -15,7 +15,7 @@
+ static void Init_builtin_prelude(void);
+ #include "prelude.rbinc"
+ 
+-#define CALL(n) {void Init_##n(void); Init_##n();}
++#define CALL(n) {__attribute__((noinline)) void Init_##n(void); [[clang::noinline]] Init_##n();}
+ 
+ void
+ rb_call_inits(void)
+--- a/wasm/fiber.c
++++ b/wasm/fiber.c
+@@ -33,7 +33,7 @@ rb_wasm_init_context(rb_wasm_fiber_context *fcp, void (*func)(void *, void *), v
+ 
+ static rb_wasm_fiber_context *_rb_wasm_active_next_fiber;
+ 
+-void
++__attribute__((noinline)) void
+ rb_wasm_swapcontext(rb_wasm_fiber_context *ofcp, rb_wasm_fiber_context *fcp)
+ {
+     RB_WASM_DEBUG_LOG("[%s] enter ofcp = %p fcp = %p\n", __func__, ofcp, fcp);
+--- a/wasm/machine.c
++++ b/wasm/machine.c
+@@ -21,7 +21,7 @@ init_asyncify_buf(struct asyncify_buf* buf)
+ 
+ static void *_rb_wasm_active_scan_buf = NULL;
+ 
+-void
++__attribute__((noinline)) void
+ rb_wasm_scan_locals(rb_wasm_scan_func scan)
+ {
+     static struct asyncify_buf buf;
+--- a/wasm/runtime.c
++++ b/wasm/runtime.c
+@@ -4,7 +4,7 @@
+ #include "wasm/asyncify.h"
+ #include <stdlib.h>
+ 
+-int rb_wasm_rt_start(int (main)(int argc, char **argv), int argc, char **argv) {
++__attribute__((noinline)) int rb_wasm_rt_start(int (main)(int argc, char **argv), int argc, char **argv) {
+   int result;
+   void *asyncify_buf;
+ 
+--- a/wasm/setjmp.c
++++ b/wasm/setjmp.c
+@@ -110,7 +110,7 @@ _rb_wasm_setjmp_internal(rb_wasm_jmp_buf *env)
+     return 0;
+ }
+ 
+-void
++__attribute__((noinline)) void
+ _rb_wasm_longjmp(rb_wasm_jmp_buf* env, int value)
+ {
+     RB_WASM_DEBUG_LOG("enter _rb_wasm_longjmp");

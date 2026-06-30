@@ -27,6 +27,10 @@
 #include "disposable.h"
 #include "util.h"
 
+#ifdef MKXPZ_RETRO
+#  include "wasm-types.h"
+#endif // MKXPZ_RETRO
+
 struct ViewportPrivate;
 
 class Viewport : public Scene, public SceneElement, public Flashable, public Disposable
@@ -37,7 +41,7 @@ public:
 	Viewport();
 	~Viewport();
 
-	void update();
+	void update(Exception &exception);
 
 	DECL_ATTR( Rect,  Rect&  )
 	DECL_ATTR( OX,    int    )
@@ -47,12 +51,21 @@ public:
 
 	void initDynAttribs();
 
+#ifdef MKXPZ_RETRO
+	const uint64_t id; // Globally unique nonzero ID for this viewport, for change detection during save state deserialization
+
+	bool sandbox_serialize(void *&data, mkxp_sandbox::wasm_size_t &max_size) const;
+	bool sandbox_deserialize(const void *&data, mkxp_sandbox::wasm_size_t &max_size);
+	void sandbox_deserialize_begin();
+	void sandbox_deserialize_end();
+#endif // MXKPZ_RETRO
+
 private:
 	void initViewport(int x, int y, int width, int height);
 	void geometryChanged();
 
-	void composite();
-	void draw();
+	void composite(Exception &exception);
+	void draw(Exception &exception);
 	void onGeometryChange(const Geometry &);
 	bool isEffectiveViewport(Rect *&, Color *&, Tone *&) const;
 
@@ -70,18 +83,28 @@ private:
 class ViewportElement : public SceneElement
 {
 public:
-	ViewportElement(Viewport *viewport = 0, int z = 0, int spriteY = 0);
+	ViewportElement(void (*dispose)(void *), Viewport *viewport = 0, int z = 0, int spriteY = 0);
 	~ViewportElement();
 
-	DECL_ATTR( Viewport,  Viewport* )
+	DECL_ATTR_NOEXCEPT( Viewport,  Viewport* )
+
+#ifdef MKXPZ_RETRO
+	bool sandbox_serialize_viewport_element(void *&data, mkxp_sandbox::wasm_size_t &max_size) const;
+	bool sandbox_deserialize_viewport_element(const void *&data, mkxp_sandbox::wasm_size_t &max_size);
+	void sandbox_deserialize_begin_viewport_element();
+	void sandbox_deserialize_end_viewport_element();
+#endif // MXKPZ_RETRO
 
 protected:
 	virtual void onViewportChange() {}
 
 private:
+	void (*m_dispose)(void *);
 	Viewport *m_viewport;
 	sigslot::connection viewportDispCon;
-	sigslot::connection viewportElementDispCon;
+#ifdef MKXPZ_RETRO
+	uint64_t deserSavedViewportId;
+#endif // MKXPZ_RETRO
 	void viewportElementDisposal();
 };
 

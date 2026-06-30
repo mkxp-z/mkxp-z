@@ -1,0 +1,131 @@
+# Allows this data structure to compile with C++ exceptions disabled.
+
+--- a/interval_heap.hpp
++++ b/interval_heap.hpp
+@@ -45,7 +45,7 @@
+ #if (BOOST_HEAP_INTERVAL_HEAP_USE_STD_THREAD == true)
+ #include <thread>
+ #endif
+-
++#include "../../src/mkxp-polyfill.h"
+ namespace boost {
+ namespace heap {
+ //------------------------------User-Accessible---------------------------------
+@@ -356,7 +356,7 @@ Iterator is_interval_heap_until (Iterator first, Iterator last, Compare compare)
+ 
+   Offset index = static_cast<Offset>(0);
+ 
+-  try {
++  MKXPZ_TRY {
+     Offset index_end = last - first;
+     while (index < index_end) {
+       Iterator cursor = first + index;
+@@ -378,7 +378,7 @@ Iterator is_interval_heap_until (Iterator first, Iterator last, Compare compare)
+       }
+       ++index;
+     }
+-  } catch (...) {
++  } MKXPZ_CATCH (...) {
+     return first + index;
+   }
+   return last;
+@@ -391,10 +391,10 @@ Iterator is_interval_heap_until (Iterator first, Iterator last, Compare compare)
+ ///   Does not throw.
+ template <typename Iterator, typename Compare>
+ bool is_interval_heap (Iterator first, Iterator last, Compare compare) {
+-  try {
++  MKXPZ_TRY {
+     return (is_interval_heap_until<Iterator,Compare>(first, last, compare)
+             == last);
+-  } catch (...) {
++  } MKXPZ_CATCH (...) {
+     return false;
+   }
+ }
+@@ -562,7 +562,7 @@ void sift_up (Iterator first, Offset origin, Compare compare,Offset limit_child)
+   Value limbo = std::move_if_noexcept(*(first + index));
+ #endif
+ //  Provides strong exception-safety guarantee (rollback), unless move throws.
+-  try {
++  MKXPZ_TRY {
+     while (index >= limit_child) {
+       const Offset parent = ((index / 2 - 1) | 1) ^ (left_bound ? 1 : 0);
+ #if (__cplusplus >= 201103L)  //  C++11
+@@ -578,7 +578,7 @@ void sift_up (Iterator first, Offset origin, Compare compare,Offset limit_child)
+       } else
+         break;
+     }
+-  } catch (...) { //  Provides strong exception-safety guarantee.
++  } MKXPZ_CATCH (...) { //  Provides strong exception-safety guarantee.
+ //  I need limbo because elements are being moved in the direction of travel.
+ #if (__cplusplus < 201103L)  //  Not C++11. Need to allocate limbo.
+     Value limbo;
+@@ -589,7 +589,7 @@ void sift_up (Iterator first, Offset origin, Compare compare,Offset limit_child)
+       origin = ((origin / 2 - 1) | 1) ^ (left_bound ? 1 : 0);
+       swap(*(first + origin), limbo);
+     }
+-    throw;  //  Re-throw the current exception.
++    MKXPZ_RETHROW;  //  Re-throw the current exception.
+   }
+ #if (__cplusplus >= 201103L)  //  C++11
+ //  Done sifting. Get the element out of limbo.
+@@ -680,20 +680,20 @@ void sift_down (Iterator first, Iterator last, Offset origin, Compare compare,
+ //  One past the last element with two children.
+   const Offset end_parent = index_end / 2 -
+                               ((left_bound && ((index_end & 3) == 0)) ? 2 : 1);
+-  try { //  This try-catch block rolls back after exceptions.
++  MKXPZ_TRY { //  This try-catch block rolls back after exceptions.
+     while (index < end_parent) {
+       Offset child = index * 2 + (left_bound ? 2 : 1);
+ //  If compare throws, heap property cannot be verified or enforced.
+-      try { //  This try-catch block ensures no element is left in limbo.
++      MKXPZ_TRY { //  This try-catch block ensures no element is left in limbo.
+         if (compare(*(first + child + (left_bound ? 2 : 0)),
+                     *(first + child + (left_bound ? 0 : 2))))
+           child += 2;
+-      } catch (...) {
++      } MKXPZ_CATCH (...) {
+ #if (__cplusplus >= 201103L)  //  C++11
+ //  Pull the moving element out of limbo, to avoid leaks.
+         *(first + index) = std::move_if_noexcept(limbo);
+ #endif
+-        throw;  //  Re-throw the current exception.
++        MKXPZ_RETHROW;  //  Re-throw the current exception.
+       }
+ #if (__cplusplus >= 201103L)  //  C++11
+       *(first + index) = std::move_if_noexcept(*(first + child));
+@@ -711,14 +711,14 @@ void sift_down (Iterator first, Iterator last, Offset origin, Compare compare,
+         if (!left_bound && (cochild != index_end)) {
+ //  Calculating this outside the if-statement simplifies exception-handling.
+           bool swap_required;
+-          try {
++          MKXPZ_TRY {
+             swap_required = compare(*(first + child), *(first + cochild));
+-          } catch (...) {
++          } MKXPZ_CATCH (...) {
+ //  Pull the moving element out of limbo.
+ #if (__cplusplus >= 201103L)
+             *(first + index) = std::move_if_noexcept(limbo);
+ #endif
+-            throw;  //  Re-throw the current exception.
++            MKXPZ_RETHROW;  //  Re-throw the current exception.
+           }
+           if (swap_required) {
+             //++child;
+@@ -752,14 +752,14 @@ void sift_down (Iterator first, Iterator last, Offset origin, Compare compare,
+     else
+       sift_leaf_max<Iterator, Offset, Compare>(first, last, index, compare,
+                                                limit_child);
+-  } catch (...) {
++  } MKXPZ_CATCH (...) {
+ //  Rolls back comparison exceptions. Move exceptions can't be reliably fixed.
+     while (index > origin) {
+       const Offset parent = ((index / 2 - 1) | 1) ^ (left_bound ? 1 : 0);
+       swap(*(first + parent), *(first + index));
+       index = parent;
+     }
+-    throw;  //  Re-throw the current exception.
++    MKXPZ_RETHROW;  //  Re-throw the current exception.
+   }
+ }
+ 

@@ -22,6 +22,8 @@
 #ifndef SERIALIZABLE_H
 #define SERIALIZABLE_H
 
+#include "exception.h"
+
 struct Serializable
 {
 	virtual int serialSize() const = 0;
@@ -29,9 +31,9 @@ struct Serializable
 };
 
 template<class C>
-C *deserialize(const char *data)
+C *deserialize(Exception &exception, const char *data)
 {
-	return C::deserialize(data);
+	return C::deserialize(exception, data);
 }
 
 #endif // SERIALIZABLE_H

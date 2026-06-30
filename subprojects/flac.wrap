@@ -1,0 +1,5 @@
+[wrap-git]
+url = https://github.com/xiph/flac
+revision = 1.5.0
+depth = 1
+diff_files = flac-831.patch, flac-buildtype.patch, flac-deps.patch, flac-int32.patch

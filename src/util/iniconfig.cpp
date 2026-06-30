@@ -23,12 +23,13 @@ INIConfiguration::Section::Section (const std::string& sname) : m_Name (sname), 
 
 bool INIConfiguration::Section::getStringProperty (const std::string& name, std::string& outPropStr) const
 {
-	try
+	auto propertyIt = m_PropertyMap.find(toLowerCase(name));
+	if (propertyIt != m_PropertyMap.end())
 	{
-		outPropStr = m_PropertyMap.at(toLowerCase(name)).m_Value;
+		outPropStr = propertyIt->second.m_Value;
 		return true;
 	}
-	catch (std::out_of_range& oorexcept)
+	else
 	{
 		return false;
 	}

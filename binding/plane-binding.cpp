@@ -39,8 +39,8 @@ RB_METHOD(planeInitialize) {
     GFX_LOCK;
   p->initDynAttribs();
 
-  wrapProperty(self, &p->getColor(), "color", ColorType);
-  wrapProperty(self, &p->getTone(), "tone", ToneType);
+  BINDING_GUARD_F(GFX_UNLOCK, wrapProperty(self, &p->getColor(e), "color", ColorType));
+  BINDING_GUARD_F(GFX_UNLOCK, wrapProperty(self, &p->getTone(e), "tone", ToneType));
     GFX_UNLOCK;
 
   return self;

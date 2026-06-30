@@ -44,22 +44,28 @@ struct QuadArray
 	GLsizeiptr vboSize;
 
 	QuadArray()
-	    : quadCount(0),
-	      vboSize(-1)
+	    : quadCount(0)
 	{
-		vbo = VBO::gen();
-
-		GLMeta::vaoFillInVertexData<VertexType>(vao);
-		vao.vbo = vbo;
-		vao.ibo = shState->globalIBO().ibo;
-
-		GLMeta::vaoInit(vao);
+		reinit();
 	}
 
 	~QuadArray()
 	{
 		GLMeta::vaoFini(vao);
 		VBO::del(vbo);
+	}
+
+	void reinit()
+	{
+		vboSize = -1;
+
+		vbo = VBO::gen();
+
+		GLMeta::vaoFillInVertexData<VertexType>(vao);
+		vao.vbo = vbo;
+		vao.ibo = SharedState::globalIBO().ibo;
+
+		GLMeta::vaoInit(vao);
 	}
 
 	void resize(size_t size)

@@ -1,0 +1,5 @@
+[wrap-git]
+url = https://github.com/xiph/opus
+revision = v1.5.2
+depth = 1
+diff_files = opus-buildtype.patch

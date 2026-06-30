@@ -26,8 +26,10 @@
 #include <sstream>
 #include <vector>
 
-#ifdef __ANDROID__
-#include <android/log.h>
+#ifdef MKXPZ_RETRO
+#  include "core.h"
+#elif defined(__ANDROID__)
+#  include <android/log.h>
 #endif
 
 
@@ -61,7 +63,9 @@ public:
 
 	~Debug()
 	{
-#ifdef __ANDROID__
+#ifdef MKXPZ_RETRO
+		LOG_PRINTF(RETRO_LOG_INFO, "%s\n", buf.str().c_str());
+#elif defined(__ANDROID__)
 		__android_log_write(ANDROID_LOG_DEBUG, "mkxp", buf.str().c_str());
 #else
 		std::cerr << buf.str() << std::endl;

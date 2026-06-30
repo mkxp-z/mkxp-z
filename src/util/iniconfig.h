@@ -2,7 +2,7 @@
 #define INICONFIG_H
 
 #include <iostream>
-#include <map>
+#include <unordered_map>
 
 class INIConfiguration
 {
@@ -16,7 +16,7 @@ class INIConfiguration
 			std::string m_Value;
 		};
 
-		typedef std::map<std::string, Property> property_map;
+		typedef std::unordered_map<std::string, Property> property_map;
 	public:
 		Section (const Section& s) = default;
 		Section (Section&& s) = default;
@@ -30,7 +30,7 @@ class INIConfiguration
 		property_map m_PropertyMap;
 	};
 
-	typedef std::map<std::string, Section> section_map;
+	typedef std::unordered_map<std::string, Section> section_map;
 public:
 	bool load (std::istream& inStream);
 

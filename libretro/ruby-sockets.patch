@@ -1,0 +1,75 @@
+# Fixes compilation errors in Ruby's socket extension when targeting WASI.
+
+--- a/ext/socket/extconf.rb
++++ b/ext/socket/extconf.rb
+@@ -315,7 +315,6 @@ def test_recvmsg_with_msg_peek_creates_fds(headers)
+   arpa/inet.h
+   netpacket/packet.h
+   net/ethernet.h
+-  sys/un.h
+   afunix.h
+   ifaddrs.h
+   sys/ioctl.h
+@@ -367,14 +366,14 @@ def (fmt = "none").%(x)
+   check_socklen(headers)
+ end
+ 
+-have_type("struct in_pktinfo", headers) {|src|
+-  src.sub(%r'^/\*top\*/', '\&'"\n#if defined(IPPROTO_IP) && defined(IP_PKTINFO)") <<
+-  "#else\n" << "#error\n" << ">>>>>> no in_pktinfo <<<<<<\n" << "#endif\n"
+-} and have_struct_member("struct in_pktinfo", "ipi_spec_dst", headers)
+-have_type("struct in6_pktinfo", headers) {|src|
+-  src.sub(%r'^/\*top\*/', '\&'"\n#if defined(IPPROTO_IPV6) && defined(IPV6_PKTINFO)") <<
+-  "#else\n" << "#error\n" << ">>>>>> no in6_pktinfo <<<<<<\n" << "#endif\n"
+-}
++
++
++
++
++
++
++
++
+ 
+ have_type("struct sockcred", headers)
+ have_type("struct cmsgcred", headers)
+--- a/ext/socket/option.c
++++ b/ext/socket/option.c
+@@ -341,7 +341,7 @@ sockopt_s_linger(VALUE klass, VALUE vonoff, VALUE vsecs)
+     else
+         l.l_onoff = RTEST(vonoff) ? 1 : 0;
+     l.l_linger = NUM2INT(vsecs);
+-    return rsock_sockopt_new(AF_UNSPEC, SOL_SOCKET, SO_LINGER, pack_var(l));
++    return rsock_sockopt_new(AF_UNSPEC, SOL_SOCKET, 13, pack_var(l));
+ }
+ 
+ /*
+@@ -362,7 +362,7 @@ sockopt_linger(VALUE self)
+     struct linger l;
+     VALUE vonoff, vsecs;
+ 
+-    if (level != SOL_SOCKET || optname != SO_LINGER)
++    if (level != SOL_SOCKET || optname != 13)
+         rb_raise(rb_eTypeError, "linger socket option expected");
+     check_size(RSTRING_LEN(data), sizeof(struct linger));
+     memcpy((char*)&l, RSTRING_PTR(data), sizeof(struct linger));
+--- a/ext/socket/raddrinfo.c
++++ b/ext/socket/raddrinfo.c
+@@ -18,7 +18,7 @@
+ #ifndef GETADDRINFO_IMPL
+ #  ifdef GETADDRINFO_EMU
+ #    define GETADDRINFO_IMPL 0
+-#  elif !defined(HAVE_PTHREAD_CREATE) || !defined(HAVE_PTHREAD_DETACH) || defined(__MINGW32__) || defined(__MINGW64__)
++#  elif 1 /* Make sure the non-threaded getaddrinfo implementation (implementation 1) is used; the threaded one (implementation 2) always fails because we don't have threading support */
+ #    define GETADDRINFO_IMPL 1
+ #  else
+ #    define GETADDRINFO_IMPL 2
+@@ -208,7 +208,7 @@ numeric_getaddrinfo(const char *node, const char *service,
+         } list[] = {
+             { SOCK_STREAM, IPPROTO_TCP },
+             { SOCK_DGRAM, IPPROTO_UDP },
+-            { SOCK_RAW, 0 }
++
+         };
+         struct addrinfo *ai = NULL;
+         int hint_family = hints ? hints->ai_family : PF_UNSPEC;

@@ -55,12 +55,13 @@ RB_METHOD(windowVXInitialize) {
 
   w->initDynAttribs();
 
-  wrapProperty(self, &w->getCursorRect(), "cursor_rect", RectType);
+  BINDING_GUARD_F(GFX_UNLOCK, wrapProperty(self, &w->getCursorRect(e), "cursor_rect", RectType));
 
   if (rgssVer >= 3)
-    wrapProperty(self, &w->getTone(), "tone", ToneType);
+    BINDING_GUARD_F(GFX_UNLOCK, wrapProperty(self, &w->getTone(e), "tone", ToneType));
 
-  Bitmap *contents = new Bitmap(1, 1);
+  Bitmap *contents;
+  BINDING_GUARD_F(delete contents; GFX_UNLOCK, contents = new Bitmap(e, 1, 1));
   VALUE contentsObj = wrapObject(contents, BitmapType);
   bitmapInitProps(contents, contentsObj);
   rb_iv_set(self, "contents", contentsObj);
@@ -74,9 +75,7 @@ RB_METHOD(windowVXUpdate) {
 
   WindowVX *w = getPrivateData<WindowVX>(self);
 
-    GFX_LOCK;
-  w->update();
-    GFX_UNLOCK;
+  BINDING_GUARD_L(w->update(e));
 
   return Qnil;
 }
@@ -87,9 +86,7 @@ RB_METHOD(windowVXMove) {
   int x, y, width, height;
   rb_get_args(argc, argv, "iiii", &x, &y, &width, &height RB_ARG_END);
 
-    GFX_LOCK;
-  w->move(x, y, width, height);
-    GFX_UNLOCK;
+  BINDING_GUARD_L(w->move(e, x, y, width, height));
     
   return Qnil;
 }
@@ -99,7 +96,11 @@ RB_METHOD(windowVXIsOpen) {
 
   WindowVX *w = getPrivateData<WindowVX>(self);
 
-  return rb_bool_new(w->isOpen());
+  VALUE ret;
+
+  BINDING_GUARD(ret = rb_bool_new(w->isOpen(e)));
+
+  return ret;
 }
 
 RB_METHOD(windowVXIsClosed) {
@@ -107,7 +108,11 @@ RB_METHOD(windowVXIsClosed) {
 
   WindowVX *w = getPrivateData<WindowVX>(self);
 
-  return rb_bool_new(w->isClosed());
+  VALUE ret;
+
+  BINDING_GUARD(ret = rb_bool_new(w->isClosed(e)));
+
+  return ret;
 }
 
 DEF_GFX_PROP_OBJ_REF(WindowVX, Bitmap, Windowskin, "windowskin")

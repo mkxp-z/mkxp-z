@@ -1,0 +1,422 @@
+# Makes PhysFS use the libretro virtual file system interface instead of the OS file system functions if it's available.
+
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -26,8 +26,8 @@ set(PHYSFS_CPP_SRCS)
+ # I hate that they define "WIN32" ... we're about to move to Win64...I hope!
+ 
+ if(APPLE)
+-    set(OTHER_LDFLAGS ${OTHER_LDFLAGS} "-framework IOKit -framework Foundation")
+-    list(APPEND PHYSFS_M_SRCS src/physfs_platform_apple.m)
++
++
+ endif()
+ 
+ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+@@ -42,12 +42,12 @@ if(CMAKE_C_COMPILER_ID STREQUAL "SunPro")
+ endif()
+ 
+ if(HAIKU)
+-    # We add this explicitly, since we don't want CMake to think this
+-    #  is a C++ project unless we're on Haiku.
+-    list(APPEND PHYSFS_CPP_SRCS src/physfs_platform_haiku.cpp)
+-    find_library(BE_LIBRARY be)
+-    find_library(ROOT_LIBRARY root)
+-    list(APPEND OPTIONAL_LIBRARY_LIBS ${BE_LIBRARY} ${ROOT_LIBRARY})
++
++
++
++
++
++
+ endif()
+ 
+ if(CMAKE_SYSTEM_NAME STREQUAL "WindowsPhone" OR CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
+@@ -59,10 +59,10 @@ if(WINRT)
+ endif()
+ 
+ if(UNIX AND NOT WIN32 AND NOT APPLE)  # (MingW and such might be UNIX _and_ WINDOWS!)
+-    find_library(PTHREAD_LIBRARY pthread)
+-    if(PTHREAD_LIBRARY)
+-        set(OPTIONAL_LIBRARY_LIBS ${OPTIONAL_LIBRARY_LIBS} ${PTHREAD_LIBRARY})
+-    endif()
++
++
++
++
+ endif()
+ 
+ if(PHYSFS_CPP_SRCS)
+--- a/src/physfs_platform_posix.c
++++ b/src/physfs_platform_posix.c
+@@ -15,15 +15,15 @@
+ #include <ctype.h>
+ #include <sys/types.h>
+ #include <sys/stat.h>
+-#include <pwd.h>
++
+ #include <dirent.h>
+ #include <errno.h>
+ #include <fcntl.h>
+ #include <pthread.h>
+ 
+ #include "physfs_internal.h"
+-
+-
++#include "../../subprojects/libretro-common/include/libretro.h"
++extern struct retro_vfs_interface_info mkxp_vfs;
+ static PHYSFS_ErrorCode errcodeFromErrnoError(const int err)
+ {
+     switch (err)
+@@ -58,28 +58,28 @@ static inline PHYSFS_ErrorCode errcodeFromErrno(void)
+ 
+ static char *getUserDirByUID(void)
+ {
+-    uid_t uid = getuid();
+-    struct passwd *pw;
+-    char *retval = NULL;
+ 
+-    pw = getpwuid(uid);
+-    if ((pw != NULL) && (pw->pw_dir != NULL) && (*pw->pw_dir != '\0'))
+-    {
+-        const size_t dlen = strlen(pw->pw_dir);
+-        const size_t add_dirsep = (pw->pw_dir[dlen-1] != '/') ? 1 : 0;
+-        retval = (char *) allocator.Malloc(dlen + 1 + add_dirsep);
+-        if (retval != NULL)
+-        {
+-            strcpy(retval, pw->pw_dir);
+-            if (add_dirsep)
+-            {
+-                retval[dlen] = '/';
+-                retval[dlen+1] = '\0';
+-            } /* if */
+-        } /* if */
+-    } /* if */
+-    
+-    return retval;
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++    return NULL;
+ } /* getUserDirByUID */
+ 
+ 
+@@ -120,16 +120,16 @@ PHYSFS_EnumerateCallbackResult __PHYSFS_platformEnumerate(const char *dirname,
+                                PHYSFS_EnumerateCallback callback,
+                                const char *origdir, void *callbackdata)
+ {
+-    DIR *dir;
+-    struct dirent *ent;
++    void *dir;
++    void *ent;
+     PHYSFS_EnumerateCallbackResult retval = PHYSFS_ENUM_OK;
+ 
+-    dir = opendir(dirname);
+-    BAIL_IF(dir == NULL, errcodeFromErrno(), PHYSFS_ENUM_ERROR);
++    dir = mkxp_vfs.required_interface_version >= 3 ? (void *)mkxp_vfs.iface->opendir(dirname, true) : (void *)opendir(dirname);
++    BAIL_IF(dir == NULL, mkxp_vfs.required_interface_version >= 3 ? PHYSFS_ERR_IO : errcodeFromErrno(), PHYSFS_ENUM_ERROR);
+ 
+-    while ((retval == PHYSFS_ENUM_OK) && ((ent = readdir(dir)) != NULL))
++    while ((retval == PHYSFS_ENUM_OK) && ((ent = mkxp_vfs.required_interface_version >= 3 ? (mkxp_vfs.iface->readdir(dir) ? (void *)dir : NULL) : (void *)readdir(dir)) != NULL))
+     {
+-        const char *name = ent->d_name;
++        const char *name = mkxp_vfs.required_interface_version >= 3 ? mkxp_vfs.iface->dirent_get_name(dir) : ((struct dirent *)ent)->d_name; if (name == NULL) break;
+         if (name[0] == '.')  /* ignore "." and ".." */
+         {
+             if ((name[1] == '\0') || ((name[1] == '.') && (name[2] == '\0')))
+@@ -141,20 +141,20 @@ PHYSFS_EnumerateCallbackResult __PHYSFS_platformEnumerate(const char *dirname,
+             PHYSFS_setErrorCode(PHYSFS_ERR_APP_CALLBACK);
+     } /* while */
+ 
+-    closedir(dir);
++    if (mkxp_vfs.required_interface_version >= 3) mkxp_vfs.iface->closedir(dir); else closedir(dir);
+ 
+     return retval;
+ } /* __PHYSFS_platformEnumerate */
+-
+-
+ int __PHYSFS_platformMkDir(const char *path)
+ {
+-    const int rc = mkdir(path, S_IRWXU);
+-    BAIL_IF(rc == -1, errcodeFromErrno(), 0);
++#ifdef _WIN32
++    const int rc = mkxp_vfs.required_interface_version >= 3 ? mkxp_vfs.iface->mkdir(path) : mkdir(path);
++#else
++    const int rc = mkxp_vfs.required_interface_version >= 3 ? mkxp_vfs.iface->mkdir(path) : mkdir(path, S_IRWXU);
++#endif
++    BAIL_IF(rc == -1, mkxp_vfs.required_interface_version >= 3 ? PHYSFS_ERR_IO : errcodeFromErrno(), 0);
+     return 1;
+ } /* __PHYSFS_platformMkDir */
+-
+-
+ #if !defined(O_CLOEXEC) && defined(FD_CLOEXEC)
+ static inline void set_CLOEXEC(int fildes)
+ {
+@@ -168,7 +168,7 @@ static inline void set_CLOEXEC(int fildes)
+ static void *doOpen(const char *filename, int mode)
+ {
+     const int appending = (mode & O_APPEND);
+-    int fd;
++    int fd; struct retro_vfs_file_handle *handle;
+     int *retval;
+ 
+     errno = 0;
+@@ -180,26 +180,26 @@ static void *doOpen(const char *filename, int mode)
+     /* Add O_CLOEXEC if defined */
+     mode |= O_CLOEXEC;
+ #endif
+-
++    if (mkxp_vfs.required_interface_version >= 3) { handle = mkxp_vfs.iface->open(filename, ((mode & O_ACCMODE) == O_RDONLY || (mode & O_ACCMODE) == O_RDWR ? RETRO_VFS_FILE_ACCESS_READ : 0) | ((mode & O_ACCMODE) == O_WRONLY || (mode & O_ACCMODE) == O_RDWR ? RETRO_VFS_FILE_ACCESS_WRITE : 0) | (((mode & O_ACCMODE) == O_WRONLY || (mode & O_ACCMODE) == O_RDWR) && !(mode & O_TRUNC) && (mkxp_vfs.required_interface_version >= 4 ? mkxp_vfs.iface->stat_64(filename, NULL) : mkxp_vfs.iface->stat(filename, NULL)) & RETRO_VFS_STAT_IS_VALID ? RETRO_VFS_FILE_ACCESS_UPDATE_EXISTING : 0), RETRO_VFS_FILE_ACCESS_HINT_NONE); } else
+     do {
+         fd = open(filename, mode, S_IRUSR | S_IWUSR);
+     } while ((fd < 0) && (errno == EINTR));
+-    BAIL_IF(fd < 0, errcodeFromErrno(), NULL);
++    BAIL_IF(mkxp_vfs.required_interface_version >= 3 ? handle == NULL : fd < 0, mkxp_vfs.required_interface_version >= 3 ? PHYSFS_ERR_IO : errcodeFromErrno(), NULL);
+ 
+ #if !defined(O_CLOEXEC) && defined(FD_CLOEXEC)
+-    set_CLOEXEC(fd);
++    if (mkxp_vfs.required_interface_version < 3) set_CLOEXEC(fd);
+ #endif
+ 
+     if (appending)
+     {
+-        if (lseek(fd, 0, SEEK_END) < 0)
++        if ((mkxp_vfs.required_interface_version >= 3 ? mkxp_vfs.iface->seek(handle, 0, RETRO_VFS_SEEK_POSITION_END) : lseek(fd, 0, SEEK_END)) < 0)
+         {
+-            const int err = errno;
+-            close(fd);
++            const int err = mkxp_vfs.required_interface_version >= 3 ? EIO : errno;
++            if (mkxp_vfs.required_interface_version >= 3) mkxp_vfs.iface->close(handle); else close(fd);
+             BAIL(errcodeFromErrnoError(err), NULL);
+         } /* if */
+     } /* if */
+-
++    if (mkxp_vfs.required_interface_version >= 3) return handle;
+     retval = (int *) allocator.Malloc(sizeof (int));
+     if (!retval)
+     {
+@@ -233,16 +233,16 @@ void *__PHYSFS_platformOpenAppend(const char *filename)
+ PHYSFS_sint64 __PHYSFS_platformRead(void *opaque, void *buffer,
+                                     PHYSFS_uint64 len)
+ {
+-    const int fd = *((int *) opaque);
+-    ssize_t rc = 0;
++    const int fd = mkxp_vfs.required_interface_version >= 3 ? -1 : *((int *) opaque);
++    PHYSFS_sint64 rc = 0;
+ 
+     if (!__PHYSFS_ui64FitsAddressSpace(len))
+         BAIL(PHYSFS_ERR_INVALID_ARGUMENT, -1);
+ 
+     do {
+-        rc = read(fd, buffer, (size_t) len);
+-    } while ((rc == -1) && (errno == EINTR));
+-    BAIL_IF(rc == -1, errcodeFromErrno(), -1);
++        rc = mkxp_vfs.required_interface_version >= 3 ? (PHYSFS_sint64)mkxp_vfs.iface->read(opaque, buffer, len) : (PHYSFS_sint64)read(fd, buffer, (size_t) len);
++    } while ((rc == -1) && (mkxp_vfs.required_interface_version < 3 && errno == EINTR));
++    BAIL_IF(rc == -1, mkxp_vfs.required_interface_version >= 3 ? PHYSFS_ERR_IO : errcodeFromErrno(), -1);
+     assert(rc >= 0);
+     assert(rc <= len);
+     return (PHYSFS_sint64) rc;
+@@ -252,16 +252,16 @@ PHYSFS_sint64 __PHYSFS_platformRead(void *opaque, void *buffer,
+ PHYSFS_sint64 __PHYSFS_platformWrite(void *opaque, const void *buffer,
+                                      PHYSFS_uint64 len)
+ {
+-    const int fd = *((int *) opaque);
+-    ssize_t rc = 0;
++    const int fd = mkxp_vfs.required_interface_version >= 3 ? -1 : *((int *) opaque);
++    PHYSFS_sint64 rc = 0;
+ 
+     if (!__PHYSFS_ui64FitsAddressSpace(len))
+         BAIL(PHYSFS_ERR_INVALID_ARGUMENT, -1);
+ 
+     do {
+-        rc = write(fd, (void *) buffer, (size_t) len);
+-    } while ((rc == -1) && (errno == EINTR));
+-    BAIL_IF(rc == -1, errcodeFromErrno(), rc);
++        rc = mkxp_vfs.required_interface_version >= 3 ? (PHYSFS_sint64)mkxp_vfs.iface->write(opaque, buffer, len) : (PHYSFS_sint64)write(fd, (void *) buffer, (size_t) len);
++    } while ((rc == -1) && (mkxp_vfs.required_interface_version < 3 && errno == EINTR));
++    BAIL_IF(rc == -1, mkxp_vfs.required_interface_version >= 3 ? PHYSFS_ERR_IO : errcodeFromErrno(), rc);
+     assert(rc >= 0);
+     assert(rc <= len);
+     return (PHYSFS_sint64) rc;
+@@ -270,41 +270,41 @@ PHYSFS_sint64 __PHYSFS_platformWrite(void *opaque, const void *buffer,
+ 
+ int __PHYSFS_platformSeek(void *opaque, PHYSFS_uint64 pos)
+ {
+-    const int fd = *((int *) opaque);
+-    const off_t rc = lseek(fd, (off_t) pos, SEEK_SET);
+-    BAIL_IF(rc == -1, errcodeFromErrno(), 0);
++    const int fd = mkxp_vfs.required_interface_version >= 3 ? -1 : *((int *) opaque);
++    const PHYSFS_sint64 rc = mkxp_vfs.required_interface_version >= 3 ? (PHYSFS_sint64)mkxp_vfs.iface->seek(opaque, pos, RETRO_VFS_SEEK_POSITION_START) : (PHYSFS_sint64)lseek(fd, (off_t) pos, SEEK_SET);
++    BAIL_IF(rc == -1, mkxp_vfs.required_interface_version >= 3 ? PHYSFS_ERR_IO : errcodeFromErrno(), 0);
+     return 1;
+ } /* __PHYSFS_platformSeek */
+ 
+ 
+ PHYSFS_sint64 __PHYSFS_platformTell(void *opaque)
+ {
+-    const int fd = *((int *) opaque);
++    const int fd = mkxp_vfs.required_interface_version >= 3 ? -1 : *((int *) opaque);
+     PHYSFS_sint64 retval;
+-    retval = (PHYSFS_sint64) lseek(fd, 0, SEEK_CUR);
+-    BAIL_IF(retval == -1, errcodeFromErrno(), -1);
++    retval = mkxp_vfs.required_interface_version >= 3 ? (PHYSFS_sint64)mkxp_vfs.iface->tell(opaque) : lseek(fd, 0, SEEK_CUR);
++    BAIL_IF(retval == -1, mkxp_vfs.required_interface_version >= 3 ? PHYSFS_ERR_IO : errcodeFromErrno(), -1);
+     return retval;
+ } /* __PHYSFS_platformTell */
+ 
+ 
+ PHYSFS_sint64 __PHYSFS_platformFileLength(void *opaque)
+ {
+-    const int fd = *((int *) opaque);
+-    struct stat statbuf;
+-    BAIL_IF(fstat(fd, &statbuf) == -1, errcodeFromErrno(), -1);
+-    return ((PHYSFS_sint64) statbuf.st_size);
++    const int fd = mkxp_vfs.required_interface_version >= 3 ? -1 : *((int *) opaque);
++    struct stat statbuf; PHYSFS_sint64 size;
++    BAIL_IF((mkxp_vfs.required_interface_version >= 3 ? (size = mkxp_vfs.iface->size(opaque)) : fstat(fd, &statbuf)) == -1, mkxp_vfs.required_interface_version >= 3 ? PHYSFS_ERR_IO : errcodeFromErrno(), -1);
++    return mkxp_vfs.required_interface_version >= 3 ? size : (PHYSFS_sint64)statbuf.st_size;
+ } /* __PHYSFS_platformFileLength */
+ 
+ 
+ int __PHYSFS_platformFlush(void *opaque)
+ {
+-    const int fd = *((int *) opaque);
++    const int fd = mkxp_vfs.required_interface_version >= 3 ? -1 : *((int *) opaque);
+     int rc = -1;
+-    if ((fcntl(fd, F_GETFL) & O_ACCMODE) != O_RDONLY) {
++    if (1) {
+         do {
+-            rc = fsync(fd);
+-        } while ((rc == -1) && (errno == EINTR));
+-        BAIL_IF(rc == -1, errcodeFromErrno(), 0);
++            rc = mkxp_vfs.required_interface_version >= 3 ? mkxp_vfs.iface->flush(opaque) : fsync(fd);
++        } while ((rc == -1) && (mkxp_vfs.required_interface_version < 3 && errno == EINTR));
++        BAIL_IF(rc == -1, mkxp_vfs.required_interface_version >= 3 ? PHYSFS_ERR_IO : errcodeFromErrno(), 0);
+     }
+     return 1;
+ } /* __PHYSFS_platformFlush */
+@@ -312,41 +312,41 @@ int __PHYSFS_platformFlush(void *opaque)
+ 
+ void __PHYSFS_platformClose(void *opaque)
+ {
+-    const int fd = *((int *) opaque);
++    const int fd = mkxp_vfs.required_interface_version >= 3 ? -1 : *((int *) opaque);
+     int rc = -1;
+     do {
+-        rc = close(fd);  /* we don't check this. You should have used flush! */
+-    } while ((rc == -1) && (errno == EINTR));
+-    allocator.Free(opaque);
++        rc = mkxp_vfs.required_interface_version >= 3 ? mkxp_vfs.iface->close(opaque) : close(fd);  /* we don't check this. You should have used flush! */
++    } while ((rc == -1) && (mkxp_vfs.required_interface_version < 3 && errno == EINTR));
++    if (mkxp_vfs.required_interface_version < 3) allocator.Free(opaque);
+ } /* __PHYSFS_platformClose */
+ 
+ 
+ int __PHYSFS_platformDelete(const char *path)
+ {
+-    BAIL_IF(remove(path) == -1, errcodeFromErrno(), 0);
++    BAIL_IF((mkxp_vfs.required_interface_version >= 3 ? mkxp_vfs.iface->remove(path) : remove(path)) == -1, mkxp_vfs.required_interface_version >= 3 ? PHYSFS_ERR_IO : errcodeFromErrno(), 0);
+     return 1;
+ } /* __PHYSFS_platformDelete */
+ 
+ 
+ int __PHYSFS_platformStat(const char *fname, PHYSFS_Stat *st, const int follow)
+ {
+-    struct stat statbuf;
+-    const int rc = follow ? stat(fname, &statbuf) : lstat(fname, &statbuf);
+-    BAIL_IF(rc == -1, errcodeFromErrno(), 0);
++    struct stat statbuf; int32_t size32; int64_t size64;
++    const int rc = mkxp_vfs.required_interface_version >= 4 ? mkxp_vfs.iface->stat_64(fname, &size64) : mkxp_vfs.required_interface_version >= 3 ? mkxp_vfs.iface->stat(fname, &size32) : stat(fname, &statbuf);
++    BAIL_IF(rc == (mkxp_vfs.required_interface_version >= 3 ? 0 : -1), mkxp_vfs.required_interface_version >= 3 ? PHYSFS_ERR_NOT_FOUND : errcodeFromErrno(), 0);
+ 
+-    if (S_ISREG(statbuf.st_mode))
++    if (mkxp_vfs.required_interface_version >= 3 ? !(rc & (RETRO_VFS_STAT_IS_DIRECTORY | RETRO_VFS_STAT_IS_CHARACTER_SPECIAL)) : S_ISREG(statbuf.st_mode))
+     {
+         st->filetype = PHYSFS_FILETYPE_REGULAR;
+-        st->filesize = statbuf.st_size;
++        st->filesize = mkxp_vfs.required_interface_version >= 4 ? size64 : mkxp_vfs.required_interface_version >= 3 ? size32 : statbuf.st_size;
+     } /* if */
+ 
+-    else if(S_ISDIR(statbuf.st_mode))
++    else if(mkxp_vfs.required_interface_version >= 3 ? rc & RETRO_VFS_STAT_IS_DIRECTORY : S_ISDIR(statbuf.st_mode))
+     {
+         st->filetype = PHYSFS_FILETYPE_DIRECTORY;
+         st->filesize = 0;
+     } /* else if */
+ 
+-    else if(S_ISLNK(statbuf.st_mode))
++    else if(mkxp_vfs.required_interface_version < 3 && S_ISLNK(statbuf.st_mode))
+     {
+         st->filetype = PHYSFS_FILETYPE_SYMLINK;
+         st->filesize = 0;
+@@ -355,14 +355,14 @@ int __PHYSFS_platformStat(const char *fname, PHYSFS_Stat *st, const int follow)
+     else
+     {
+         st->filetype = PHYSFS_FILETYPE_OTHER;
+-        st->filesize = statbuf.st_size;
++        st->filesize = mkxp_vfs.required_interface_version >= 4 ? size64 : mkxp_vfs.required_interface_version >= 3 ? size32 : statbuf.st_size;
+     } /* else */
+ 
+-    st->modtime = statbuf.st_mtime;
+-    st->createtime = statbuf.st_ctime;
+-    st->accesstime = statbuf.st_atime;
++    st->modtime = mkxp_vfs.required_interface_version >= 3 ? 0 : statbuf.st_mtime;
++    st->createtime = mkxp_vfs.required_interface_version >= 3 ? 0 : statbuf.st_ctime;
++    st->accesstime = mkxp_vfs.required_interface_version >= 3 ? 0 : statbuf.st_atime;
+ 
+-    st->readonly = (access(fname, W_OK) == -1);
++    st->readonly = mkxp_vfs.required_interface_version >= 3 ? 0 : (access(fname, W_OK) == -1);
+     return 1;
+ } /* __PHYSFS_platformStat */
+ 
+--- a/src/physfs_platform_unix.c
++++ b/src/physfs_platform_unix.c
+@@ -15,7 +15,7 @@
+ #include <unistd.h>
+ #include <stdlib.h>
+ #include <sys/types.h>
+-#include <pwd.h>
++
+ #include <sys/stat.h>
+ #include <sys/param.h>
+ #include <dirent.h>
+--- a/src/physfs_platforms.h
++++ b/src/physfs_platforms.h
+@@ -12,6 +12,11 @@
+  *  PHYSFS_PLATFORM_UNIX on that system.
+  */
+ 
++#if 1
++#  define PHYSFS_NO_CDROM_SUPPORT 1
++#  define PHYSFS_PLATFORM_UNIX 1
++#  define PHYSFS_PLATFORM_POSIX 1
++#else
+ #if (defined __HAIKU__)
+ #  define PHYSFS_PLATFORM_HAIKU 1
+ #  define PHYSFS_PLATFORM_POSIX 1
+@@ -75,6 +80,7 @@
+ #else
+ #  error Unknown platform.
+ #endif
++#endif
+ 
+ #endif  /* include-once blocker. */
+ 

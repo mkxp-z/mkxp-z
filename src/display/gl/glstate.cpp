@@ -27,8 +27,6 @@
 #include "shader.h"
 #include "sharedstate.h"
 
-#include <SDL_rect.h>
-
 static void applyBool(GLenum state, bool mode) {
   mode ? gl.Enable(state) : gl.Disable(state);
 }
@@ -56,8 +54,8 @@ void GLScissorBox::apply(const IntRect &value) {
 void GLScissorBox::setIntersect(const IntRect &value) {
   const IntRect &current = get();
 
-  SDL_Rect r1 = {current.x, current.y, current.w, current.h};
-  SDL_Rect r2 = {value.x, value.y, value.w, value.h};
+  const SDL_Rect r1 = {current.x, current.y, current.w, current.h};
+  const SDL_Rect r2 = {value.x, value.y, value.w, value.h};
 
   SDL_Rect result;
   if (!SDL_IntersectRect(&r1, &r2, &result))
@@ -105,16 +103,40 @@ void GLProgram::apply(const unsigned int &value) { gl.UseProgram(value); }
 
 GLState::Caps::Caps() { gl.GetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTexSize); }
 
-GLState::GLState(const Config &conf) {
-  gl.Disable(GL_DEPTH_TEST);
+GLState::GLState(const Config &conf) : conf(conf) {
+  refreshMiscGlobals();
 
   clearColor.init(Vec4(0, 0, 0, 1));
   blendMode.init(BlendNormal);
   blend.init(true);
   scissorTest.init(false);
-  scissorBox.init(IntRect(0, 0, conf.defScreenW, conf.defScreenH));
+
+  {
+    IntRect rect = shState != nullptr ? IntRect(0, 0, shState->graphics().width(), shState->graphics().height()) : IntRect(0, 0, conf.defScreenW, conf.defScreenH);
+    scissorBox.init(rect);
+    viewport.init(rect);
+  }
+
   program.init(0);
 
   if (conf.maxTextureSize > 0)
     caps.maxTexSize = conf.maxTextureSize;
+}
+
+void GLState::refresh() {
+  refreshMiscGlobals();
+  clearColor.refresh();
+  scissorBox.refresh();
+  scissorTest.refresh();
+  blendMode.refresh();
+  blend.refresh();
+  viewport.refresh();
+  program.refresh();
+}
+
+void GLState::refreshMiscGlobals() {
+  gl.PixelStorei(GL_PACK_ALIGNMENT, 4);
+  gl.PixelStorei(GL_UNPACK_ALIGNMENT, 4);
+  gl.Disable(GL_DEPTH_TEST);
+  gl.ActiveTexture(GL_TEXTURE0);
 }

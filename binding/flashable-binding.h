@@ -58,7 +58,7 @@ RB_METHOD(flashableUpdate)
 
 	Flashable *f = getPrivateData<C>(self);
 
-	f->update();
+	BINDING_GUARD(f->update(e));
 
 	return Qnil;
 }

@@ -22,11 +22,13 @@
 #ifndef EVENTTHREAD_H
 #define EVENTTHREAD_H
 
-#include <SDL_scancode.h>
-#include <SDL_mouse.h>
-#include <SDL_mutex.h>
-#include <SDL_atomic.h>
-#include <SDL_gamecontroller.h>
+#ifndef MKXPZ_RETRO
+#  include <SDL_scancode.h>
+#  include <SDL_mouse.h>
+#  include <SDL_mutex.h>
+#  include <SDL_atomic.h>
+#  include <SDL_gamecontroller.h>
+#endif // MKXPZ_RETRO
 
 #include <string>
 
@@ -35,10 +37,16 @@
 #include "config.h"
 #include "etc-internal.h"
 #include "sdl-util.h"
-#include "keybindings.h"
+#ifndef MKXPZ_RETRO
+#  include "keybindings.h"
+#endif // MKXPZ_RETRO
 
-struct RGSSThreadData;
+#ifdef MKXPZ_RETRO
+#  include <alc.h>
+#else
 typedef struct MKXPZ_ALCDEVICE ALCdevice;
+#endif // MKXPZ_RETRO
+
 struct SDL_Window;
 union SDL_Event;
 
@@ -46,6 +54,7 @@ union SDL_Event;
 
 class EventThread
 {
+#ifndef MKXPZ_RETRO
 public:
     
     struct ControllerState {
@@ -139,13 +148,16 @@ private:
 	{
 		AtomicFlag sendUpdates;
 	} fps;
+#endif // MKXPZ_RETRO
 };
 
+#ifndef MKXPZ_RETRO
 /* Used to asynchronously inform the RGSS thread
  * about certain value changes */
 template<typename T>
 struct UnidirMessage
 {
+#ifndef MKXPZ_RETRO
 	UnidirMessage()
 	    : mutex(SDL_CreateMutex()),
 	      current(T())
@@ -195,6 +207,7 @@ private:
 	SDL_mutex *mutex;
 	mutable AtomicFlag changed;
 	T current;
+#endif // MKXPZ_RETRO
 };
 
 struct SyncPoint
@@ -229,6 +242,7 @@ private:
 	Util reply;
 	Util secondSync;
 };
+#endif // MKXPZ_RETRO
 
 struct RGSSThreadData
 {
@@ -248,17 +262,22 @@ struct RGSSThreadData
     AtomicFlag rqWindowAdjust;
 
 	EventThread *ethread;
+
+#ifndef MKXPZ_RETRO
 	UnidirMessage<Vec2i> windowSizeMsg;
     UnidirMessage<Vec2i> drawableSizeMsg;
 	UnidirMessage<BDescVec> bindingUpdateMsg;
 	SyncPoint syncPoint;
+#endif // MKXPZ_RETRO
 
 	const char *argv0;
 
 	SDL_Window *window;
 	ALCdevice *alcDev;
     
+#ifndef MKXPZ_RETRO
     SDL_GLContext glContext;
+#endif // MKXPZ_RETRO
 
 	Vec2 sizeResoRatio;
 	Vec2i screenOffset;
@@ -275,8 +294,13 @@ struct RGSSThreadData
 	               ALCdevice *alcDev,
 	               int refreshRate,
                    int scalingFactor,
+#ifdef MKXPZ_RETRO
+	               const Config& newconf
+#else
 	               const Config& newconf,
-                   SDL_GLContext ctx)
+                   SDL_GLContext ctx
+#endif // MKXPZ_RETRO
+	)
 	    : ethread(ethread),
 	      argv0(argv0),
 	      window(window),
@@ -284,8 +308,12 @@ struct RGSSThreadData
 	      sizeResoRatio(1, 1),
 	      refreshRate(refreshRate),
           scale(scalingFactor),
+#ifdef MKXPZ_RETRO
+	      config(newconf)
+#else
 	      config(newconf),
           glContext(ctx)
+#endif // MKXPZ_RETRO
 	{
 		rqResetFinish.set();
 	}

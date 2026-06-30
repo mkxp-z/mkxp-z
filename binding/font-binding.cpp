@@ -156,7 +156,25 @@ template <class C> static void checkDisposed(VALUE) {}
 DEF_PROP_OBJ_VAL(Font, Color, Color, "color")
 DEF_PROP_OBJ_VAL(Font, Color, OutColor, "out_color")
 
-DEF_PROP_I(Font, Size)
+RB_METHOD_GUARD(FontGetSize) {
+  RB_UNUSED_PARAM;
+  Font *k = getPrivateData<Font>(self);
+  int value = 0;
+  value = k->getSize();
+  return rb_fix_new(value);
+}
+RB_METHOD_GUARD_END
+
+RB_METHOD_GUARD(FontSetSize) {
+  rb_check_argc(argc, 1);
+  Font *k = getPrivateData<Font>(self);
+  int value;
+  rb_int_arg(*argv, &value);
+  BINDING_GUARD(k->setSize(e, value));
+  return *argv;
+}
+
+RB_METHOD_GUARD_END
 
 DEF_PROP_B(Font, Bold)
 DEF_PROP_B(Font, Italic)

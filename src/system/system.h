@@ -14,14 +14,14 @@
 #define MKXPZ_PLATFORM_MACOS 1
 #define MKXPZ_PLATFORM_LINUX 2
 
-#ifdef __WIN32__
-#define MKXPZ_PLATFORM MKXPZ_PLATFORM_WINDOWS
+#if defined(__linux__) || defined(MKXPZ_RETRO)
+#  define MKXPZ_PLATFORM MKXPZ_PLATFORM_LINUX
+#elif defined _WIN32
+#  define MKXPZ_PLATFORM MKXPZ_PLATFORM_WINDOWS
 #elif defined __APPLE__
-#define MKXPZ_PLATFORM MKXPZ_PLATFORM_MACOS
-#elif defined __linux__
-#define MKXPZ_PLATFORM MKXPZ_PLATFORM_LINUX
+#  define MKXPZ_PLATFORM MKXPZ_PLATFORM_MACOS
 #else
-#error "Can't identify platform."
+#  error "Can't identify platform."
 #endif
 
 namespace systemImpl {

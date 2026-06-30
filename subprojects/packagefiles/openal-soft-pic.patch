@@ -1,0 +1,33 @@
+# Prevents OpenAL Soft's build system from forcibly enabling position-independent code.
+
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1404,7 +1404,7 @@ target_compile_definitions(alsoft.common PRIVATE ${CPP_DEFS})
+ target_compile_options(alsoft.common PRIVATE ${C_FLAGS})
+ target_link_libraries(alsoft.common PRIVATE alsoft::fmt)
+ set_target_properties(alsoft.common PROPERTIES ${ALSOFT_STD_VERSION_PROPS}
+-    POSITION_INDEPENDENT_CODE TRUE)
++    )
+ 
+ 
+ unset(HAS_ROUTER)
+--- a/fmt-11.1.1/CMakeLists.txt
++++ b/fmt-11.1.1/CMakeLists.txt
+@@ -58,7 +58,7 @@ add_headers(FMT_HEADERS args.h base.h chrono.h color.h compile.h core.h format.h
+                         xchar.h)
+ set(FMT_SOURCES src/format.cc src/os.cc)
+ 
+-add_library(alsoft.fmt OBJECT ${FMT_SOURCES} ${FMT_HEADERS} README.md ChangeLog.md)
++add_library(alsoft.fmt STATIC ${FMT_SOURCES} ${FMT_HEADERS} README.md ChangeLog.md)
+ add_library(alsoft::fmt ALIAS alsoft.fmt)
+ 
+ if (cxx_std_11 IN_LIST CMAKE_CXX_COMPILE_FEATURES)
+@@ -73,7 +73,7 @@ target_include_directories(alsoft.fmt PUBLIC
+ set_target_properties(alsoft.fmt PROPERTIES ${ALSOFT_STD_VERSION_PROPS}
+   VERSION ${FMT_VERSION} SOVERSION ${CPACK_PACKAGE_VERSION_MAJOR}
+   DEBUG_POSTFIX "${ALSOFT_FMT_DEBUG_POSTFIX}"
+-  POSITION_INDEPENDENT_CODE TRUE
++
+   C_VISIBILITY_PRESET hidden
+   CXX_VISIBILITY_PRESET hidden
+   EXCLUDE_FROM_ALL TRUE)

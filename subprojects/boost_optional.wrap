@@ -1,0 +1,5 @@
+[wrap-git]
+url = https://github.com/boostorg/optional
+revision = boost-1.90.0
+depth = 1
+patch_directory = boost_optional

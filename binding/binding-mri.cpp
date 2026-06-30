@@ -64,6 +64,10 @@ extern "C" {
 #include <SDL_loadso.h>
 #include <SDL_power.h>
 
+#ifndef MKXPZ_BUILD_XCODE
+#  include "git-hash.h"
+#endif // MKXPZ_BUILD_XCODE
+
 extern const char module_rpg1[];
 extern const char module_rpg2[];
 extern const char module_rpg3[];
@@ -125,6 +129,7 @@ RB_METHOD(mkxpIsUsingWine);
 RB_METHOD(mkxpIsReallyMacHost);
 RB_METHOD(mkxpIsReallyLinuxHost);
 RB_METHOD(mkxpIsReallyWindowsHost);
+RB_METHOD(mkxpIsLibretroHost);
 
 RB_METHOD(mkxpUserLanguage);
 RB_METHOD(mkxpUserName);
@@ -238,6 +243,7 @@ static void mriBindingInit() {
     _rb_define_module_function(mod, "is_really_mac?", mkxpIsReallyMacHost);
     _rb_define_module_function(mod, "is_really_linux?", mkxpIsReallyLinuxHost);
     _rb_define_module_function(mod, "is_really_windows?", mkxpIsReallyWindowsHost);
+    _rb_define_module_function(mod, "is_libretro?", mkxpIsLibretroHost);
     
     
     _rb_define_module_function(mod, "user_language", mkxpUserLanguage);
@@ -478,6 +484,11 @@ RB_METHOD(mkxpIsReallyWindowsHost) {
     return rb_bool_new(mkxp_sys::getRealHostType() == mkxp_sys::WineHostType::Windows);
 }
 
+RB_METHOD(mkxpIsLibretroHost) {
+    RB_UNUSED_PARAM;
+    return rb_bool_new(false);
+}
+
 RB_METHOD(mkxpUserLanguage) {
     RB_UNUSED_PARAM;
     
@@ -565,7 +576,7 @@ RB_METHOD_GUARD(mkxpAddPath) {
     if (reload != Qnil)
         rb_bool_arg(reload, &rl);
     
-    shState->fileSystem().addPath(RSTRING_PTR(path), mp, rl);
+    BINDING_GUARD(shState->fileSystem().addPath(e, RSTRING_PTR(path), mp, rl));
     
     return path;
 }
@@ -582,7 +593,7 @@ RB_METHOD_GUARD(mkxpRemovePath) {
     if (reload != Qnil)
         rb_bool_arg(reload, &rl);
     
-    shState->fileSystem().removePath(RSTRING_PTR(path), rl);
+    BINDING_GUARD(shState->fileSystem().removePath(e, RSTRING_PTR(path), rl));
     
     return path;
 }
@@ -730,7 +741,15 @@ json5pp::value loadUserSettings() {
         VALUE f = rb_funcall(rb_cFile, rb_intern("open"), 2, cpath, rb_str_new("r", 1));
         VALUE data = rb_funcall(f, rb_intern("read"), 0);
         rb_funcall(f, rb_intern("close"), 0);
+        json5pp::failure = false;
         ret = json5pp::parse5(RSTRING_PTR(data));
+        if (json5pp::failure) {
+            if (json5pp::failure.error() != nullptr) {
+                throw *json5pp::failure.error();
+            } else {
+                throw std::bad_cast();
+            }
+        }
     }
     
     if (!ret.is_object())
@@ -754,10 +773,18 @@ RB_METHOD(mkxpGetJSONSetting) {
     SafeStringValue(sname);
     
     auto settings = loadUserSettings();
-    auto &s = settings.as_object();
+    bool failure = false;
+    auto &s = settings.as_object(failure);
+    if (failure) {
+        throw std::bad_cast();
+    }
     
     if (s[RSTRING_PTR(sname)].is_null()) {
-        return json2rb(shState->config().raw.as_object()[RSTRING_PTR(sname)]);
+        auto &object = shState->config().raw.as_object(failure);
+        if (failure) {
+            throw std::bad_cast();
+        }
+        return json2rb(object[RSTRING_PTR(sname)]);
     }
     
     return json2rb(s[RSTRING_PTR(sname)]);
@@ -772,7 +799,11 @@ RB_METHOD_GUARD(mkxpSetJSONSetting) {
     SafeStringValue(sname);
     
     auto settings = loadUserSettings();
-    auto &s = settings.as_object();
+    bool failure = false;
+    auto &s = settings.as_object(failure);
+    if (failure) {
+        throw std::bad_cast();
+    }
     s[RSTRING_PTR(sname)] = rb2json(svalue);
     saveUserSettings(settings);
     
@@ -889,7 +920,7 @@ RB_METHOD_GUARD(mriRgssStop) {
     RB_UNUSED_PARAM;
     
     while (true)
-        shState->graphics().update();
+        BINDING_GUARD(shState->graphics().update(e));
     
     return Qnil;
 }

@@ -1,0 +1,22 @@
+# Disables compiler intrinsics on platforms where they cause compilation errors.
+
+--- a/ports/cmake/src/libmpg123/CMakeLists.txt
++++ b/ports/cmake/src/libmpg123/CMakeLists.txt
+@@ -22,13 +22,13 @@ endif()
+ 
+ # PPC with AltiVec is missing. But probably obsolete enough for CMake users.
+ 
+-if(ARCH_IS_X64)
++if(ARCH_IS_X64 AND (ANDROID OR APPLE OR UNIX OR WIN32))
+     set(MACHINE amd64)
+-elseif(ARCH_IS_X86)
++elseif(ARCH_IS_X86 AND (ANDROID OR APPLE OR UNIX OR WIN32))
+     set(MACHINE x86)
+-elseif(ARCH_IS_ARM64)
++elseif(ARCH_IS_ARM64 AND (ANDROID OR APPLE OR UNIX OR WIN32))
+     set(MACHINE arm64)
+-elseif(ARCH_IS_ARM32)
++elseif(ARCH_IS_ARM32 AND (ANDROID OR APPLE OR UNIX OR WIN32))
+     set(MACHINE arm32)
+ else()
+     message(WARNING "Unknown processor. Using generic optimizations.")

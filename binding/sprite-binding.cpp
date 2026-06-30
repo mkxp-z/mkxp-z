@@ -43,9 +43,9 @@ RB_METHOD(spriteInitialize) {
     /* Wrap property objects */
     s->initDynAttribs();
     
-    wrapProperty(self, &s->getSrcRect(), "src_rect", RectType);
-    wrapProperty(self, &s->getColor(), "color", ColorType);
-    wrapProperty(self, &s->getTone(), "tone", ToneType);
+    BINDING_GUARD_F(GFX_UNLOCK, wrapProperty(self, &s->getSrcRect(e), "src_rect", RectType));
+    BINDING_GUARD_F(GFX_UNLOCK, wrapProperty(self, &s->getColor(e), "color", ColorType));
+    BINDING_GUARD_F(GFX_UNLOCK, wrapProperty(self, &s->getTone(e), "tone", ToneType));
     
     GFX_UNLOCK;
     return self;
@@ -90,7 +90,7 @@ RB_METHOD_GUARD(spriteWidth) {
     Sprite *s = getPrivateData<Sprite>(self);
     
     int value = 0;
-    value = s->getWidth();
+    BINDING_GUARD(value = s->getWidth(e));
     
     return rb_fix_new(value);
 }
@@ -102,7 +102,7 @@ RB_METHOD_GUARD(spriteHeight) {
     Sprite *s = getPrivateData<Sprite>(self);
     
     int value = 0;
-    value = s->getHeight();
+    BINDING_GUARD(value = s->getHeight(e));
     
     return rb_fix_new(value);
 }

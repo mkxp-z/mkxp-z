@@ -195,41 +195,49 @@ RB_METHOD_GUARD(httpPostBody) {
 RB_METHOD_GUARD_END
 
 VALUE json2rb(json5pp::value const &v) {
+    VALUE ret;
+    bool failure = false;
+
     if (v.is_null())
-        return Qnil;
+        ret = Qnil;
     
-    if (v.is_number())
-        return rb_float_new(v.as_number());
+    else if (v.is_number())
+        ret = rb_float_new(v.as_number(failure));
     
-    if (v.is_string())
-        return rb_utf8_str_new_cstr(v.as_string().c_str());
+    else if (v.is_string())
+        ret = rb_utf8_str_new_cstr(v.as_string(failure).c_str());
     
-    if (v.is_boolean())
-        return rb_bool_new(v.as_boolean());
+    else if (v.is_boolean())
+        ret = rb_bool_new(v.as_boolean(failure));
     
-    if (v.is_integer())
-        return LL2NUM(v.as_integer());
+    else if (v.is_integer())
+        ret = LL2NUM(v.as_integer(failure));
     
-    if (v.is_array()) {
-        auto &a = v.as_array();
-        VALUE ret = rb_ary_new();
+    else if (v.is_array()) {
+        auto &a = v.as_array(failure);
+        ret = rb_ary_new();
         for (auto item : a) {
             rb_ary_push(ret, json2rb(item));
         }
-        return ret;
     }
     
-    if (v.is_object()) {
-        auto &o = v.as_object();
-        VALUE ret = rb_hash_new();
+    else if (v.is_object()) {
+        auto &o = v.as_object(failure);
+        ret = rb_hash_new();
         for (auto const &pair : o) {
             rb_hash_aset(ret, rb_utf8_str_new_cstr(pair.first.c_str()), json2rb(pair.second));
         }
-        return ret;
     }
     
-    // This should be unreachable
-    return Qnil;
+    else {
+        // This should be unreachable
+        return Qnil;
+    }
+
+    if (failure) {
+        throw std::bad_cast();
+    }
+    return ret;
 }
 
 json5pp::value rb2json(VALUE v) {
@@ -250,7 +258,11 @@ json5pp::value rb2json(VALUE v) {
     
     if (RB_TYPE_P(v, RUBY_T_ARRAY)) {
         json5pp::value ret_value = json5pp::array({});
-        auto &ret = ret_value.as_array();
+        bool failure = false;
+        auto &ret = ret_value.as_array(failure);
+        if (failure) {
+            throw std::bad_cast();
+        }
         for (int i = 0; i < RARRAY_LEN(v); i++) {
             ret.push_back(rb2json(rb_ary_entry(v, i)));
         }
@@ -259,7 +271,11 @@ json5pp::value rb2json(VALUE v) {
     
     if (RTEST(rb_funcall(v, rb_intern("is_a?"), 1, rb_cHash))) {
         json5pp::value ret_value = json5pp::object({});
-        auto &ret = ret_value.as_object();
+        bool failure = false;
+        auto &ret = ret_value.as_object(failure);
+        if (failure) {
+            throw std::bad_cast();
+        }
         
         
         VALUE keys = rb_funcall(v, rb_intern("keys"), 0);
@@ -288,7 +304,15 @@ RB_METHOD_GUARD(httpJsonParse) {
     
     json5pp::value v;
     try {
+        json5pp::failure = false;
         v = json5pp::parse5(RSTRING_PTR(jsonv));
+        if (json5pp::failure) {
+            if (json5pp::failure.error() != nullptr) {
+                throw *json5pp::failure.error();
+            } else {
+                throw std::bad_cast();
+            }
+        }
     }
     catch (const std::exception &e) {
         throw Exception(Exception::MKXPError, "Failed to parse JSON: %s", e.what());

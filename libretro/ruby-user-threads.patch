@@ -1,0 +1,265 @@
+# This patch enables a custom user thread implementation for WASI builds of Ruby to allow threads to be created from Ruby without OS thread support.
+# It also handles `Kernel#sleep`. Without this patch, `Kernel#sleep` freezes the VM in WASI builds of Ruby.
+
+--- a/thread.c
++++ b/thread.c
+@@ -1252,10 +1252,8 @@ NOINLINE(rb_hrtime_t rb_hrtime_now(void));
+ rb_hrtime_t
+ rb_hrtime_now(void)
+ {
+-    struct timespec ts;
+-
+-    getclockofday(&ts);
+-    return rb_timespec2hrtime(&ts);
++    uint64_t mkxp_thread_timestamp(void);
++    return mkxp_thread_timestamp();
+ }
+ 
+ /*
+--- a/thread_none.c
++++ b/thread_none.c
+@@ -27,6 +27,20 @@
+ static void
+ thread_sched_to_running(struct rb_thread_sched *sched, rb_thread_t *th)
+ {
++    if (th == GET_THREAD()) {
++        return;
++    }
++
++    bool mkxp_thread_is_ready(const rb_thread_t *);
++    if (!mkxp_thread_is_ready(th)) {
++        return;
++    }
++
++    void mkxp_thread_schedule_now(rb_thread_t *);
++    mkxp_thread_schedule_now(th);
++
++    void mkxp_thread_switch(void);
++    mkxp_thread_switch();
+ }
+ 
+ static void
+@@ -34,11 +48,21 @@ thread_sched_to_waiting(struct rb_thread_sched *sched, rb_thread_t *th)
+ {
+ }
+ 
+-#define thread_sched_to_dead thread_sched_to_waiting
++static void
++thread_sched_to_dead(struct rb_thread_sched *sched, rb_thread_t *th)
++{
++    void mkxp_thread_unschedule(rb_thread_t *);
++    mkxp_thread_unschedule(th);
++}
+ 
+ static void
+ thread_sched_yield(struct rb_thread_sched *sched, rb_thread_t *th)
+ {
++    void mkxp_thread_schedule(rb_thread_t *);
++    mkxp_thread_schedule(GET_THREAD());
++
++    void mkxp_thread_switch(void);
++    mkxp_thread_switch();
+ }
+ 
+ void
+@@ -57,57 +81,78 @@ rb_thread_sched_destroy(struct rb_thread_sched *sched)
+ void
+ rb_native_mutex_lock(rb_nativethread_lock_t *lock)
+ {
++    void mkxp_thread_mutex_lock(rb_nativethread_lock_t);
++    return mkxp_thread_mutex_lock(*lock);
+ }
+ 
+ void
+ rb_native_mutex_unlock(rb_nativethread_lock_t *lock)
+ {
++    void mkxp_thread_mutex_unlock(rb_nativethread_lock_t);
++    mkxp_thread_mutex_unlock(*lock);
+ }
+ 
+ int
+ rb_native_mutex_trylock(rb_nativethread_lock_t *lock)
+ {
+-    return 0;
++    int mkxp_thread_mutex_trylock(rb_nativethread_lock_t);
++    return mkxp_thread_mutex_trylock(*lock);
+ }
+ 
+ void
+ rb_native_mutex_initialize(rb_nativethread_lock_t *lock)
+ {
++    rb_nativethread_lock_t mkxp_thread_mutex_initialize(void);
++    *lock = mkxp_thread_mutex_initialize();
+ }
+ 
+ void
+ rb_native_mutex_destroy(rb_nativethread_lock_t *lock)
+ {
++    void mkxp_thread_mutex_destroy(rb_nativethread_lock_t);
++    mkxp_thread_mutex_destroy(*lock);
+ }
+ 
+ void
+ rb_native_cond_initialize(rb_nativethread_cond_t *cond)
+ {
++    rb_nativethread_cond_t mkxp_thread_cond_initialize(void);
++    *cond = mkxp_thread_cond_initialize();
+ }
+ 
+ void
+ rb_native_cond_destroy(rb_nativethread_cond_t *cond)
+ {
++    void mkxp_thread_cond_destroy(rb_nativethread_cond_t);
++    mkxp_thread_cond_destroy(*cond);
+ }
+ 
+ void
+ rb_native_cond_signal(rb_nativethread_cond_t *cond)
+ {
++    void mkxp_thread_cond_signal(rb_nativethread_cond_t);
++    mkxp_thread_cond_signal(*cond);
+ }
+ 
+ void
+ rb_native_cond_broadcast(rb_nativethread_cond_t *cond)
+ {
++    void mkxp_thread_cond_broadcast(rb_nativethread_cond_t);
++    mkxp_thread_cond_broadcast(*cond);
+ }
+ 
+ void
+ rb_native_cond_wait(rb_nativethread_cond_t *cond, rb_nativethread_lock_t *mutex)
+ {
++    void mkxp_thread_cond_wait(rb_nativethread_cond_t, rb_nativethread_lock_t);
++    mkxp_thread_cond_wait(*cond, *mutex);
+ }
+ 
+ void
+ rb_native_cond_timedwait(rb_nativethread_cond_t *cond, rb_nativethread_lock_t *mutex, unsigned long msec)
+ {
++    void mkxp_thread_cond_timedwait(rb_nativethread_cond_t, rb_nativethread_lock_t, uint64_t milliseconds);
++    mkxp_thread_cond_timedwait(*cond, *mutex, msec);
+ }
+ 
+ // The only one thread in process
+@@ -132,8 +177,8 @@ ruby_thread_set_native(rb_thread_t *th)
+ void
+ Init_native_thread(rb_thread_t *main_th)
+ {
+-    // no TLS setup and no thread id setup
+-    ruby_thread_set_native(main_th);
++    void mkxp_thread_main_initialize(rb_thread_t *);
++    mkxp_thread_main_initialize(main_th);
+ }
+ 
+ void
+@@ -149,18 +194,35 @@ ruby_init_stack(volatile VALUE *addr)
+ static int
+ native_thread_init_stack(rb_thread_t *th)
+ {
+-#if defined(__wasm__) && !defined(__EMSCRIPTEN__)
+-    th->ec->machine.stack_start = (VALUE *)rb_wasm_stack_get_base();
+-#endif
+-    return 0; // success
++    static bool is_main_thread = true;
++    if (UNLIKELY(is_main_thread)) {
++        is_main_thread = false;
++        void mkxp_thread_main_stack_initialize(rb_thread_t *);
++        mkxp_thread_main_stack_initialize(th);
++    } else {
++        void mkxp_thread_stack_initialize(rb_thread_t *);
++        mkxp_thread_stack_initialize(th);
++    }
++    return 0;
++}
++
++__attribute__((noinline)) void
++mkxp_thread_entry_point(rb_thread_t *th)
++{
++    native_thread_init_stack(th);
++    rb_wasm_set_stack_pointer(th->ec->machine.stack_start);
++    thread_start_func_2(th, th->ec->machine.stack_start);
++
++    void mkxp_thread_unschedule(rb_thread_t *);
++    mkxp_thread_unschedule(th);
+ }
+ 
+ static int
+ native_thread_create(rb_thread_t *th)
+ {
+-    th->status = THREAD_KILLED;
+-    rb_ractor_living_threads_remove(th->ractor, th);
+-    rb_notimplement();
++    void mkxp_thread_initialize(rb_thread_t *);
++    mkxp_thread_initialize(th);
++    return 0;
+ }
+ 
+ // Do nothing for handling ubf because no other thread doesn't exist and unblock anything
+@@ -267,9 +329,8 @@ rb_sigwait_sleep(const rb_thread_t *th, int sigwait_fd, const rb_hrtime_t *rel)
+ static void
+ native_sleep(rb_thread_t *th, rb_hrtime_t *rel)
+ {
+-    // No signal assumption allows the use of uninterruptible sleep
+-    struct timespec ts;
+-    (void)clock_nanosleep(CLOCK_REALTIME, 0, rb_hrtime2timespec(&ts, rel), NULL);
++    void mkxp_thread_sleep(rb_thread_t *, uint64_t nanoseconds);
++    mkxp_thread_sleep(th, rel == NULL ? (uint64_t)-1 : *rel);
+ }
+ 
+ static int
+@@ -298,7 +359,8 @@ rb_del_running_thread(rb_thread_t *th)
+ void
+ rb_threadptr_sched_free(rb_thread_t *th)
+ {
+-    // do nothing
++    void mkxp_thread_destroy(rb_thread_t *);
++    mkxp_thread_destroy(th);
+ }
+ 
+ void
+@@ -316,13 +378,15 @@ rb_ractor_sched_barrier_join(rb_vm_t *vm, rb_ractor_t *cr)
+ void
+ rb_threadptr_remove(rb_thread_t *th)
+ {
+-    // do nothing
++    void mkxp_thread_to_zombie(rb_thread_t *);
++    mkxp_thread_to_zombie(th);
+ }
+ 
+ void
+ rb_thread_sched_mark_zombies(rb_vm_t *vm)
+ {
+-    // do nothing
++    void mkxp_thread_mark_zombies(void);
++    mkxp_thread_mark_zombies();
+ }
+ 
+ #endif /* THREAD_SYSTEM_DEPENDENT_IMPLEMENTATION */
+--- a/thread_none.h
++++ b/thread_none.h
+@@ -9,7 +9,23 @@
+ #define RB_THREAD_LOCAL_SPECIFIER
+ 
+ struct rb_native_thread {
+-    void *thread_id; // NULL
++    uint64_t counter;
++    uint64_t timestamp;
++    void *thread_id;
++    void *vm_stack_start;
++    void *machine_stack_end;
++    void *machine_stack_pointer;
++    void (*fiber_entry_point)(void *, void *);
++    void *fiber_arg0;
++    void *fiber_arg1;
++    void *zombie_node;
++    rb_nativethread_lock_t mutex;
++    void *mutex_node;
++    rb_nativethread_cond_t cond;
++    void *cond_node;
++    size_t priorityqueue_index;
++    bool needs_start;
++    struct __rb_wasm_asyncify_jmp_buf async_buf;
+ };
+ 
+ struct rb_thread_sched_item {};

@@ -32,10 +32,10 @@
 #if RAPI_FULL > 187
 DEF_TYPE_CUSTOMNAME(TilemapVX, "Tilemap");
 
-DEF_TYPE_CUSTOMFREE(BitmapArray, RUBY_TYPED_NEVER_FREE);
+DEF_TYPE_CUSTOMFREE(BitmapArray, freeInstance<TilemapVX::BitmapArray>);
 #else
 DEF_ALLOCFUNC(TilemapVX);
-#define BitmapArrayType "BitmapArray"
+DEF_ALLOCFUNC_CUSTOMFREE(BitmapArray, freeInstance<TilemapVX::BitmapArray>);
 #endif
 
 RB_METHOD(tilemapVXInitialize) {
@@ -64,8 +64,8 @@ RB_METHOD(tilemapVXInitialize) {
     if (autotilesObj != Qnil)
         setPrivateData(autotilesObj, 0);
     
-    wrapProperty(self, &t->getBitmapArray(), "bitmap_array", BitmapArrayType,
-                 rb_const_get(rb_cObject, rb_intern("Tilemap")));
+    BINDING_GUARD_F(GFX_UNLOCK, wrapProperty(self, t->getBitmapArray(e), "bitmap_array", BitmapArrayType,
+                 rb_const_get(rb_cObject, rb_intern("Tilemap"))));
     
     autotilesObj = rb_iv_get(self, "bitmap_array");
     
@@ -94,7 +94,7 @@ RB_METHOD(tilemapVXUpdate) {
     
     TilemapVX *t = getPrivateData<TilemapVX>(self);
     
-    t->update();
+    BINDING_GUARD_L(t->update(e));
     
     return Qnil;
 }
@@ -173,6 +173,8 @@ void tilemapVXBindingInit() {
     klass = rb_define_class_under(klass, "BitmapArray", rb_cObject);
 #if RAPI_FULL > 187
     rb_define_alloc_func(klass, classAllocate<&BitmapArrayType>);
+#else
+    rb_define_alloc_func(klass, BitmapArrayAllocate);
 #endif
     
     _rb_define_method(klass, "[]=", tilemapVXBitmapsSet);

@@ -14,19 +14,14 @@ jobs:
     name: Windows
     runs-on: windows-latest
     steps:
-      - uses: benjlevesque/short-sha@v2.2
-        id: short-sha
-        with:
-          length: 7
-
-      - uses: msys2/setup-msys2@v2
+      - name: Set up MSYS2
+        uses: msys2/setup-msys2@v2
         with:
           msystem: mingw64
           install: >-
             base-devel
             git
             ruby
-            vim
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-meson
             mingw-w64-x86_64-autotools
@@ -35,7 +30,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - uses: actions/cache@v4
+      - id: short-sha
+        name: Get Git commit hash
+        shell: msys2 {0}
+        run: |
+          sha=$(git rev-parse --short=7 HEAD)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Restore cache
+        uses: actions/cache@v4
         with:
           path: |
             windows/build-mingw64
@@ -100,7 +103,8 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
           name: mkxp-z.windows.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: build/artifact
@@ -109,15 +113,17 @@ jobs:
     name: Ubuntu 22.04 x86_64
     runs-on: ubuntu-22.04
     steps:
-      - uses: benjlevesque/short-sha@v2.2
-        id: short-sha
-        with:
-          length: 7
-
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - uses: actions/cache@v4
+      - id: short-sha
+        name: Get Git commit hash
+        run: |
+          sha=$(git rev-parse --short=7 HEAD)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Restore cache
+        uses: actions/cache@v4
         with:
           path: |
             linux/build-x86_64
@@ -127,7 +133,8 @@ jobs:
       - name: Install apt dependencies
         run: |
           sudo apt update
-          sudo apt install git wget build-essential cmake meson autoconf automake libtool pkg-config ruby bison xxd zlib1g-dev libbz2-dev xorg-dev libgl1-mesa-dev libasound2-dev libpulse-dev -y
+          sudo apt install git wget build-essential cmake ninja-build python3-pip autoconf automake libtool pkg-config ruby bison xxd zlib1g-dev libbz2-dev xorg-dev libgl1-mesa-dev libasound2-dev libpulse-dev -y
+          pip3 install meson
 
       - name: Build everything else
         run: |
@@ -151,7 +158,8 @@ jobs:
           cp -r ../../scripts .
           cp ../../assets/LICENSE.mkxp-z-with-https.txt .
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
           name: mkxp-z.linux.ubuntu.22.04.x86_64.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: build/local
@@ -199,15 +207,17 @@ jobs:
             # Also probably an OpenSSL arch name issue, which might be fixed by now.
             experimental: true
     steps:
-      - uses: benjlevesque/short-sha@v2.2
-        id: short-sha
-        with:
-          length: 7
-
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - uses: actions/cache@v4
+      - id: short-sha
+        name: Get Git commit hash
+        run: |
+          sha=$(git rev-parse --short=7 HEAD)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Restore cache
+        uses: actions/cache@v4
         with:
           path: |
             linux/build-${{matrix.arch_mkxpz}}
@@ -226,7 +236,8 @@ jobs:
           echo "deb [arch=${{matrix.arch_debian}}] http://ports.ubuntu.com/ jammy-updates multiverse" | sudo tee -a /etc/apt/sources.list
           echo "deb [arch=${{matrix.arch_debian}}] http://ports.ubuntu.com/ jammy-backports main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
           sudo apt update
-          sudo apt install git wget build-essential cmake meson autoconf automake libtool pkg-config ruby bison xxd -y
+          sudo apt install git wget build-essential cmake ninja-build python3-pip autoconf automake libtool pkg-config ruby bison xxd -y
+          pip3 install meson
           sudo apt install libfontenc-dev:${{matrix.arch_debian}} libfs-dev:${{matrix.arch_debian}} libice-dev:${{matrix.arch_debian}} libsm-dev:${{matrix.arch_debian}} libx11-dev:${{matrix.arch_debian}} libxau-dev:${{matrix.arch_debian}} libxaw7-dev:${{matrix.arch_debian}} libxcomposite-dev:${{matrix.arch_debian}} libxcursor-dev:${{matrix.arch_debian}} libxdamage-dev:${{matrix.arch_debian}} libxdmcp-dev:${{matrix.arch_debian}} libxext-dev:${{matrix.arch_debian}} libxfixes-dev:${{matrix.arch_debian}} libxfont-dev:${{matrix.arch_debian}} libxft-dev:${{matrix.arch_debian}} libxi-dev:${{matrix.arch_debian}} libxinerama-dev:${{matrix.arch_debian}} libxkbfile-dev:${{matrix.arch_debian}} libxmu-dev:${{matrix.arch_debian}} libxmuu-dev:${{matrix.arch_debian}} libxpm-dev:${{matrix.arch_debian}} libxrandr-dev:${{matrix.arch_debian}} libxrender-dev:${{matrix.arch_debian}} libxres-dev:${{matrix.arch_debian}} libxss-dev:${{matrix.arch_debian}} libxt-dev:${{matrix.arch_debian}} libxtst-dev:${{matrix.arch_debian}} libxv-dev:${{matrix.arch_debian}} libxvmc-dev:${{matrix.arch_debian}} libxxf86dga-dev:${{matrix.arch_debian}} libxxf86vm-dev:${{matrix.arch_debian}} x11proto-dev:${{matrix.arch_debian}} xserver-xorg-dev:${{matrix.arch_debian}} xtrans-dev:${{matrix.arch_debian}} -y
           sudo apt install gcc-${{matrix.arch_gcc}} g++-${{matrix.arch_gcc}} zlib1g-dev:${{matrix.arch_debian}} libbz2-dev:${{matrix.arch_debian}} libgl1-mesa-dev:${{matrix.arch_debian}} libasound2-dev:${{matrix.arch_debian}} libpulse-dev:${{matrix.arch_debian}} -y
 
@@ -256,7 +267,8 @@ jobs:
           cp -r ../../scripts .
           cp ../../assets/LICENSE.mkxp-z-with-https.txt .
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
           name: mkxp-z.linux.ubuntu.22.04.${{matrix.arch_mkxpz}}.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: build/local
@@ -269,13 +281,20 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: benjlevesque/short-sha@v2.2
-        id: short-sha
-        with:
-          length: 7
+      - name: Install apt dependencies
+        run: |
+          apt update
+          apt install git wget build-essential cmake meson autoconf automake libtool pkg-config ruby bison xxd zlib1g-dev libbz2-dev xorg-dev libgl1-mesa-dev libasound2-dev libpulse-dev -y
 
       - name: Checkout repository
         uses: actions/checkout@v5
+
+      - id: short-sha
+        name: Get Git commit hash
+        run: |
+          git config --global --add safe.directory "$(pwd)"
+          sha=$(git rev-parse --short=7 HEAD)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
       - uses: actions/cache@v4
         with:
@@ -283,11 +302,6 @@ jobs:
             linux/build-x86_64
             linux/downloads
           key: lin-debian-trixie-x86_64-${{ hashFiles('linux/Makefile') }}
-
-      - name: Install apt dependencies
-        run: |
-          apt update
-          apt install git wget build-essential cmake meson autoconf automake libtool pkg-config ruby bison xxd zlib1g-dev libbz2-dev xorg-dev libgl1-mesa-dev libasound2-dev libpulse-dev -y
 
       - name: Build everything else
         run: |
@@ -363,21 +377,6 @@ jobs:
             # Also probably an OpenSSL arch name issue, which might be fixed by now.
             experimental: true
     steps:
-      - uses: benjlevesque/short-sha@v2.2
-        id: short-sha
-        with:
-          length: 7
-
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
-      - uses: actions/cache@v4
-        with:
-          path: |
-            linux/build-${{matrix.arch_mkxpz}}
-            linux/downloads
-          key: lin-debian-trixie-${{matrix.arch_mkxpz}}-${{ hashFiles('linux/Makefile', 'linux/target*', 'linux/toolchain*') }}
-
       - name: Install apt dependencies
         run: |
           dpkg --add-architecture ${{matrix.arch_debian}}
@@ -385,6 +384,23 @@ jobs:
           apt install git wget build-essential cmake meson autoconf automake libtool pkg-config ruby bison xxd -y
           apt install libfontenc-dev:${{matrix.arch_debian}} libfs-dev:${{matrix.arch_debian}} libice-dev:${{matrix.arch_debian}} libsm-dev:${{matrix.arch_debian}} libx11-dev:${{matrix.arch_debian}} libxau-dev:${{matrix.arch_debian}} libxaw7-dev:${{matrix.arch_debian}} libxcomposite-dev:${{matrix.arch_debian}} libxcursor-dev:${{matrix.arch_debian}} libxdamage-dev:${{matrix.arch_debian}} libxdmcp-dev:${{matrix.arch_debian}} libxext-dev:${{matrix.arch_debian}} libxfixes-dev:${{matrix.arch_debian}} libxfont-dev:${{matrix.arch_debian}} libxft-dev:${{matrix.arch_debian}} libxi-dev:${{matrix.arch_debian}} libxinerama-dev:${{matrix.arch_debian}} libxkbfile-dev:${{matrix.arch_debian}} libxmu-dev:${{matrix.arch_debian}} libxmuu-dev:${{matrix.arch_debian}} libxpm-dev:${{matrix.arch_debian}} libxrandr-dev:${{matrix.arch_debian}} libxrender-dev:${{matrix.arch_debian}} libxres-dev:${{matrix.arch_debian}} libxss-dev:${{matrix.arch_debian}} libxt-dev:${{matrix.arch_debian}} libxtst-dev:${{matrix.arch_debian}} libxv-dev:${{matrix.arch_debian}} libxvmc-dev:${{matrix.arch_debian}} libxxf86dga-dev:${{matrix.arch_debian}} libxxf86vm-dev:${{matrix.arch_debian}} x11proto-dev:${{matrix.arch_debian}} xserver-xorg-dev:${{matrix.arch_debian}} xtrans-dev:${{matrix.arch_debian}} -y
           apt install gcc-${{matrix.arch_gcc}} g++-${{matrix.arch_gcc}} zlib1g-dev:${{matrix.arch_debian}} libbz2-dev:${{matrix.arch_debian}} libgl1-mesa-dev:${{matrix.arch_debian}} libasound2-dev:${{matrix.arch_debian}} libpulse-dev:${{matrix.arch_debian}} -y
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - id: short-sha
+        name: Get Git commit hash
+        run: |
+          git config --global --add safe.directory "$(pwd)"
+          sha=$(git rev-parse --short=7 HEAD)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            linux/build-${{matrix.arch_mkxpz}}
+            linux/downloads
+          key: lin-debian-trixie-${{matrix.arch_mkxpz}}-${{ hashFiles('linux/Makefile', 'linux/target*', 'linux/toolchain*') }}
 
       - name: Build everything else
         run: |
@@ -421,18 +437,20 @@ jobs:
     name: macOS
     runs-on: macos-latest
     steps:
-      - uses: benjlevesque/short-sha@v2.2
-        id: short-sha
-        with:
-          length: 7
-
       - name: Remove pre-existing homebrew packages
         run: brew remove --force $(brew list)
 
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - uses: actions/cache@v4
+      - id: short-sha
+        name: Get Git commit hash
+        run: |
+          sha=$(git rev-parse --short=7 HEAD)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Restore cache
+        uses: actions/cache@v4
         with:
           path: |
             macos/Dependencies/build-macosx-x86_64
@@ -467,3 +485,1499 @@ jobs:
         with:
           name: mkxp-z.macos.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: build/Build/Products/Release/Z-universal.app.zip
+
+  build-libretro-stage1:
+    name: LR stage 1
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.short-sha.outputs.sha }}
+      artifact-id: ${{ steps.upload-artifact.outputs.artifact-id }}
+    steps:
+      - name: Expose Actions environment
+        uses: white-axe/expose-actions-environment@v1
+
+      - name: Checkout repository
+        uses: taiki-e/checkout-action@v1
+
+      - id: short-sha
+        name: Get Git commit hash
+        run: |
+          sha=$(git rev-parse --short=7 HEAD)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y git curl build-essential automake libtool zip universal-ctags ruby nodejs npm
+          npm install @actions/artifact@4 fast-glob@3
+
+      - name: Set up WASI SDK
+        run: |
+          curl -Lo ${{ runner.temp }}/wasi-sdk.tar.gz https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-30/wasi-sdk-30.0-x86_64-linux.tar.gz
+          mkdir ${{ runner.temp }}/wasi-sdk
+          tar -xzf ${{ runner.temp }}/wasi-sdk.tar.gz -C ${{ runner.temp }}/wasi-sdk --strip-components=1
+          rm ${{ runner.temp }}/wasi-sdk.tar.gz
+
+      - name: Set up Binaryen
+        run: |
+          curl -Lo ${{ runner.temp }}/binaryen.tar.gz https://github.com/WebAssembly/binaryen/releases/download/version_126/binaryen-version_126-x86_64-linux.tar.gz
+          mkdir ${{ runner.temp }}/binaryen
+          tar -xzf ${{ runner.temp }}/binaryen.tar.gz -C ${{ runner.temp }}/binaryen --strip-components=1
+          rm ${{ runner.temp }}/binaryen.tar.gz
+
+      - name: Build stage 1
+        run: |
+          cd libretro
+          CLICOLOR_FORCE=1 make -j $(nproc) WASI_SDK=${{ runner.temp }}/wasi-sdk WASM_OPT=${{ runner.temp }}/binaryen/bin/wasm-opt
+
+      - id: upload-artifact
+        name: Upload artifact
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            import fg from "fast-glob";
+            import fs from "fs";
+            process.chdir("libretro/build/libretro-stage1");
+            const artifact = new DefaultArtifactClient();
+            const {id, size} = await artifact.uploadArtifact(
+              "stage1.${{ github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name }}-${{ steps.short-sha.outputs.sha }}",
+              fg.globSync("**"),
+              ".",
+            );
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `artifact-id=${id}`);
+          '
+
+  wiiurpxtool:
+    name: wiiurpxtool
+    runs-on: ubuntu-latest
+    container: alpine:latest
+    outputs:
+      artifact-id: ${{ steps.upload-artifact.outputs.artifact-id }}
+    steps:
+      - name: Expose Actions environment
+        uses: white-axe/expose-actions-environment@v1
+
+      - name: Install dependencies
+        run: |
+          apk update
+          apk add build-base git zlib-dev zlib-static cmake ninja nodejs npm
+          npm install @actions/artifact@4
+
+      - name: Build wiiurpxtool
+        run: |
+          mkdir wiiurpxtool-ng
+          cd wiiurpxtool-ng
+          git init
+          git remote add origin https://github.com/yawut/wiiurpxtool-ng
+          git fetch --depth 1 origin 682cc9f587dee507b400a307f5a0787efc5dcb72
+          git checkout 682cc9f587dee507b400a307f5a0787efc5dcb72
+          git submodule update --init --recursive
+          mv /usr/lib/libz.so /usr/lib/libz.so.backup
+          LDFLAGS='-static' cmake -G Ninja .
+          ninja -v
+          mv /usr/lib/libz.so.backup /usr/lib/libz.so
+          mv wiiurpxtool-ng wiiurpxtool
+
+      - id: upload-artifact
+        name: Upload artifact
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            import fs from "fs";
+            process.chdir("wiiurpxtool-ng");
+            const artifact = new DefaultArtifactClient();
+            const {id, size} = await artifact.uploadArtifact(
+              "wiiurpxtool",
+              ["wiiurpxtool"],
+              ".",
+            );
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `artifact-id=${id}`);
+          '
+
+  build-libretro-windows:
+    needs: build-libretro-stage1
+    name: LR Windows ${{ matrix.arch_mkxpz }}
+    runs-on: ubuntu-latest
+    container:
+      image: reallibretroretroarch/libretro-build-mxe-win-cross-cores:gcc11
+      options: -u root
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_mkxpz: x86
+            arch_gcc: i686-w64-mingw32.static
+            cpu_family: x86
+            cpu: i686
+            endian: little
+          - arch_mkxpz: x86_64
+            arch_gcc: x86_64-w64-mingw32.static
+            cpu_family: x86_64
+            cpu: x86_64
+            endian: little
+    steps:
+      - name: Expose Actions environment
+        uses: white-axe/expose-actions-environment@v1
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          curl -Lo ~/Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+          bash ~/Miniforge3.sh -b -p ~/miniforge3
+          source ~/miniforge3/etc/profile.d/conda.sh
+          conda install -y nodejs=22 git meson cmake
+          PATH="$HOME/miniforge3/bin:$PATH" npm install @actions/artifact@4 fast-glob@3
+          echo "$HOME/miniforge3/bin" >> "$GITHUB_PATH"
+
+      - name: Checkout repository
+        uses: taiki-e/checkout-action@v1
+
+      - name: Download stage 1
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            const artifact = new DefaultArtifactClient();
+            await artifact.downloadArtifact(${{ needs.build-libretro-stage1.outputs.artifact-id }}, {
+              path: "libretro/build/libretro-stage1",
+            });
+          '
+
+      - name: Configure core
+        run: |
+          echo "[binaries]" | tee -a ~/cross.ini
+          echo "c = '${{ matrix.arch_gcc }}-gcc'" | tee -a ~/cross.ini
+          echo "cpp = '${{ matrix.arch_gcc }}-g++'" | tee -a ~/cross.ini
+          echo "ar = '${{ matrix.arch_gcc }}-ar'" | tee -a ~/cross.ini
+          echo "cmake = 'cmake'" | tee -a ~/cross.ini
+          echo "[host_machine]" | tee -a ~/cross.ini
+          echo "system = 'windows'" | tee -a ~/cross.ini
+          echo "cpu_family = '${{ matrix.cpu_family }}'" | tee -a ~/cross.ini
+          echo "cpu = '${{ matrix.cpu }}'" | tee -a ~/cross.ini
+          echo "endian = '${{ matrix.endian }}'" | tee -a ~/cross.ini
+          echo '--------------------------------------------------------------------------------'
+          git config --global --add safe.directory "$(pwd)"
+          CLICOLOR_FORCE=1 meson setup build --cross-file ~/cross.ini --buildtype release -Db_lto=true -Dlibretro=true -Dlibretro_save_states=true
+
+      - name: Build core
+        run: |
+          mkdir ~/dist
+          cd build
+          CLICOLOR_FORCE=1 ninja -v
+          ${{ matrix.arch_gcc }}-strip mkxp-z_libretro.dll
+          mv mkxp-z_libretro.dll ~/dist/mkxp-z_libretro.dll
+
+      - name: Upload artifact
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            import fg from "fast-glob";
+            process.chdir(process.env.HOME + "/dist");
+            const artifact = new DefaultArtifactClient();
+            await artifact.uploadArtifact(
+              "mkxp-z_libretro.windows.${{ matrix.arch_mkxpz }}.${{ github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name }}-${{ needs.build-libretro-stage1.outputs.sha }}",
+              fg.globSync("**"),
+              ".",
+            );
+          '
+
+  build-libretro-linux-gnu:
+    needs: build-libretro-stage1
+    name: LR GNU/Linux ${{ matrix.arch_mkxpz }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_mkxpz: armv6
+            arch_debian: armhf
+            arch_llvm: arm-linux-gnueabihf
+            cpu_family: arm
+            cpu: generic-armv6zk+vfpv2
+            endian: little
+          - arch_mkxpz: armv7
+            arch_debian: armhf
+            arch_llvm: arm-linux-gnueabihf
+            cpu_family: arm
+            cpu: generic-armv7-a+vfpv3-d16
+            endian: little
+          - arch_mkxpz: armv7-neon
+            arch_debian: armhf
+            arch_llvm: arm-linux-gnueabihf
+            cpu_family: arm
+            cpu: generic-armv7-a+neon
+            endian: little
+          - arch_mkxpz: arm64
+            arch_debian: arm64
+            arch_llvm: aarch64-linux-gnu
+            cpu_family: aarch64
+            cpu: generic-armv8-a
+            endian: little
+          - arch_mkxpz: power8le
+            arch_debian: ppc64el
+            arch_llvm: powerpc64le-linux-gnu
+            cpu_family: ppc64
+            cpu: power8
+            endian: little
+          - arch_mkxpz: power9le
+            arch_debian: ppc64el
+            arch_llvm: powerpc64le-linux-gnu
+            cpu_family: ppc64
+            cpu: power9
+            endian: little
+          - arch_mkxpz: s390x
+            arch_debian: s390x
+            arch_llvm: s390x-linux-gnu
+            cpu_family: s390x
+            cpu: z196
+            endian: big
+          - arch_mkxpz: x86
+            arch_debian: i386
+            arch_llvm: i386-linux-gnu
+            cpu_family: x86
+            cpu: i386
+            endian: little
+          - arch_mkxpz: x86_64
+            arch_debian: amd64
+            arch_llvm: x86_64-linux-gnu
+            cpu_family: x86_64
+            cpu: x86_64
+            endian: little
+    steps:
+      - name: Expose Actions environment
+        uses: white-axe/expose-actions-environment@v1
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y qemu-user-static binfmt-support git build-essential clang llvm meson cmake nodejs npm
+          npm install @actions/artifact@4 fast-glob@3
+
+      - name: Set up sysroot
+        run: |
+          cd ${{ runner.temp }}
+          mkdir sysroot
+          curl -Lo sysroot.tar.xz https://cloud-images.ubuntu.com/xenial/current/xenial-server-cloudimg-${{ matrix.arch_debian }}-root.tar.xz
+          tar -xJf sysroot.tar.xz -C sysroot --exclude 'dev/*'
+
+          touch sysroot/dev/full
+          touch sysroot/dev/null
+          touch sysroot/dev/random
+          touch sysroot/dev/urandom
+          touch sysroot/dev/zero
+          sudo mount --bind /dev/full sysroot/dev/full
+          sudo mount --bind /dev/null sysroot/dev/null
+          sudo mount --bind /dev/random sysroot/dev/random
+          sudo mount --bind /dev/urandom sysroot/dev/urandom
+          sudo mount --bind /dev/zero sysroot/dev/zero
+          chmod 777 sysroot/tmp/
+          rm -f sysroot/etc/resolv.conf
+          cp /etc/resolv.conf sysroot/etc/
+
+          PATH=/usr/sbin:/usr/bin:/sbin:/bin sudo chroot sysroot /bin/bash -e -c '
+            add-apt-repository -y ppa:ubuntu-toolchain-r/test
+            apt update
+            apt install -y gcc-9 g++-9
+            cp /usr/lib/${{ matrix.arch_llvm }}/libm.so /usr/lib/${{ matrix.arch_llvm }}/libm.a
+          '
+
+      - name: Checkout repository
+        uses: taiki-e/checkout-action@v1
+
+      - name: Download stage 1
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            const artifact = new DefaultArtifactClient();
+            await artifact.downloadArtifact(${{ needs.build-libretro-stage1.outputs.artifact-id }}, {
+              path: "libretro/build/libretro-stage1",
+            });
+          '
+
+      - name: Configure core
+        run: |
+          echo "[binaries]" | tee -a ${{ runner.temp }}/cross.ini
+          echo "c = ['clang', '--target=${{ matrix.arch_llvm }}', '--sysroot=${{ runner.temp }}/sysroot']" | tee -a ${{ runner.temp }}/cross.ini
+          echo "c_ld = 'lld'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cpp = ['clang++', '--target=${{ matrix.arch_llvm }}', '--sysroot=${{ runner.temp }}/sysroot']" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cpp_ld = 'lld'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "ar = 'llvm-ar'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cmake = 'cmake'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "[host_machine]" | tee -a ${{ runner.temp }}/cross.ini
+          echo "system = 'linux'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cpu_family = '${{ matrix.cpu_family }}'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cpu = '${{ matrix.cpu }}'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "endian = '${{ matrix.endian }}'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "[properties]" | tee -a ${{ runner.temp }}/cross.ini
+          echo "sys_root = '${{ runner.temp }}/sysroot'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "[cmake]" | tee -a ${{ runner.temp }}/cross.ini
+          echo "CMAKE_EXE_LINKER_FLAGS_INIT = '-fuse-ld=lld'" | tee -a ${{ runner.temp }}/cross.ini
+          echo '--------------------------------------------------------------------------------'
+          # If architecture is s390x and Clang version is older than 19.1.0, disable LTO due to https://github.com/llvm/llvm-project/issues/61101
+          if [ '${{ matrix.arch_mkxpz }}' = 's390x' ] && (echo "$(clang --version | head -n 1 | sed -e 's/.*clang version * \([0-9.]*\).*/\1/')\n19.1.0" | sort -CV)
+          then
+            lto=false
+          else
+            lto=true
+          fi
+          if [ '${{ matrix.arch_mkxpz }}' = 'armv7-neon' ]
+          then
+            neon=true
+          else
+            neon=false
+          fi
+          CLICOLOR_FORCE=1 meson setup build --cross-file ${{ runner.temp }}/cross.ini --buildtype release -Db_lto=$lto -Dneon=$neon -Dlibretro=true -Dlibretro_save_states=true
+
+      - name: Build core
+        run: |
+          mkdir ${{ runner.temp }}/dist
+          cd build
+          CLICOLOR_FORCE=1 ninja -v
+          llvm-strip mkxp-z_libretro.so
+          mv mkxp-z_libretro.so ${{ runner.temp }}/dist/mkxp-z_libretro.so
+
+      - name: Upload artifact
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            import fg from "fast-glob";
+            process.chdir("${{ runner.temp }}/dist");
+            const artifact = new DefaultArtifactClient();
+            await artifact.uploadArtifact(
+              "mkxp-z_libretro.linux-gnu.${{ matrix.arch_mkxpz }}.${{ github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name }}-${{ needs.build-libretro-stage1.outputs.sha }}",
+              fg.globSync("**"),
+              ".",
+            );
+          '
+
+  build-libretro-linux-musl:
+    needs: build-libretro-stage1
+    name: LR Alpine Linux ${{ matrix.arch_mkxpz }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_mkxpz: armv6
+            arch_alpine: armhf
+            arch_llvm: armv6-alpine-linux-musleabihf
+            cpu_family: arm
+            cpu: generic-armv6zk+vfpv2
+            endian: little
+          - arch_mkxpz: armv7
+            arch_alpine: armv7
+            arch_llvm: armv7-alpine-linux-musleabihf
+            cpu_family: arm
+            cpu: generic-armv7-a+vfpv3-d16
+            endian: little
+          - arch_mkxpz: armv7-neon
+            arch_alpine: armv7
+            arch_llvm: armv7-alpine-linux-musleabihf
+            cpu_family: arm
+            cpu: generic-armv7-a+neon
+            endian: little
+          - arch_mkxpz: arm64
+            arch_alpine: aarch64
+            arch_llvm: aarch64-alpine-linux-musl
+            cpu_family: aarch64
+            cpu: generic-armv8-a
+            endian: little
+          - arch_mkxpz: loongarch64
+            arch_alpine: loongarch64
+            arch_llvm: loongarch64-alpine-linux-musl
+            cpu_family: loongarch64
+            cpu: 3a5000
+            endian: little
+          - arch_mkxpz: power8le
+            arch_alpine: ppc64le
+            arch_llvm: powerpc64le-alpine-linux-musl
+            cpu_family: ppc64
+            cpu: power8
+            endian: little
+          - arch_mkxpz: power9le
+            arch_alpine: ppc64le
+            arch_llvm: powerpc64le-alpine-linux-musl
+            cpu_family: ppc64
+            cpu: power9
+            endian: little
+          - arch_mkxpz: riscv64
+            arch_alpine: riscv64
+            arch_llvm: riscv64-alpine-linux-musl
+            cpu_family: riscv64
+            cpu: rv64gc
+            endian: little
+          - arch_mkxpz: s390x
+            arch_alpine: s390x
+            arch_llvm: s390x-alpine-linux-musl
+            cpu_family: s390x
+            cpu: z196
+            endian: big
+          - arch_mkxpz: x86
+            arch_alpine: x86
+            arch_llvm: i586-alpine-linux-musl
+            cpu_family: x86
+            cpu: i586
+            endian: little
+          - arch_mkxpz: x86_64
+            arch_alpine: x86_64
+            arch_llvm: x86_64-alpine-linux-musl
+            cpu_family: x86_64
+            cpu: x86_64
+            endian: little
+    steps:
+      - name: Expose Actions environment
+        uses: white-axe/expose-actions-environment@v1
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y git build-essential clang llvm meson cmake nodejs npm
+          npm install @actions/artifact@4 fast-glob@3
+
+      - name: Set up sysroot
+        id: sysroot
+        uses: jirutka/setup-alpine@v1
+        with:
+          arch: ${{ matrix.arch_alpine }}
+          branch: latest-stable
+          packages: build-base
+
+      - name: Checkout repository
+        uses: taiki-e/checkout-action@v1
+
+      - name: Download stage 1
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            const artifact = new DefaultArtifactClient();
+            await artifact.downloadArtifact(${{ needs.build-libretro-stage1.outputs.artifact-id }}, {
+              path: "libretro/build/libretro-stage1",
+            });
+          '
+
+      - name: Configure core
+        run: |
+          echo "[binaries]" | tee -a ${{ runner.temp }}/cross.ini
+          echo "c = ['clang', '--target=${{ matrix.arch_llvm }}', '--sysroot=${{ steps.sysroot.outputs.root-path }}']" | tee -a ${{ runner.temp }}/cross.ini
+          echo "c_ld = 'lld'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cpp = ['clang++', '--target=${{ matrix.arch_llvm }}', '--sysroot=${{ steps.sysroot.outputs.root-path }}']" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cpp_ld = 'lld'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "ar = 'llvm-ar'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cmake = 'cmake'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "[host_machine]" | tee -a ${{ runner.temp }}/cross.ini
+          echo "system = 'linux'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cpu_family = '${{ matrix.cpu_family }}'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cpu = '${{ matrix.cpu }}'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "endian = '${{ matrix.endian }}'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "[properties]" | tee -a ${{ runner.temp }}/cross.ini
+          echo "sys_root = '${{ steps.sysroot.outputs.root-path }}'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "[cmake]" | tee -a ${{ runner.temp }}/cross.ini
+          echo "CMAKE_EXE_LINKER_FLAGS_INIT = '-fuse-ld=lld'" | tee -a ${{ runner.temp }}/cross.ini
+          echo '--------------------------------------------------------------------------------'
+          # If architecture is s390x and Clang version is older than 19.1.0, disable LTO due to https://github.com/llvm/llvm-project/issues/61101
+          if [ '${{ matrix.arch_mkxpz }}' = 's390x' ] && (echo "$(clang --version | head -n 1 | sed -e 's/.*clang version * \([0-9.]*\).*/\1/')\n19.1.0" | sort -CV)
+          then
+            lto=false
+          else
+            lto=true
+          fi
+          if [ '${{ matrix.arch_mkxpz }}' = 'armv7-neon' ]
+          then
+            neon=true
+          else
+            neon=false
+          fi
+          CLICOLOR_FORCE=1 meson setup build --cross-file ${{ runner.temp }}/cross.ini --buildtype release -Db_lto=$lto -Dneon=$neon -Dlibretro=true -Dlibretro_save_states=true
+
+      - name: Build core
+        run: |
+          mkdir ${{ runner.temp }}/dist
+          cd build
+          CLICOLOR_FORCE=1 ninja -v
+          llvm-strip mkxp-z_libretro.so
+          mv mkxp-z_libretro.so ${{ runner.temp }}/dist/mkxp-z_libretro.so
+
+      - name: Upload artifact
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            import fg from "fast-glob";
+            process.chdir("${{ runner.temp }}/dist");
+            const artifact = new DefaultArtifactClient();
+            await artifact.uploadArtifact(
+              "mkxp-z_libretro.linux-musl.${{ matrix.arch_mkxpz }}.${{ github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name }}-${{ needs.build-libretro-stage1.outputs.sha }}",
+              fg.globSync("**"),
+              ".",
+            );
+          '
+
+  build-libretro-linux-opendingux:
+    needs: build-libretro-stage1
+    name: LR OpenDingux ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    container:
+      image: reallibretroretroarch/libretro-build-dingux:${{ matrix.tag }}
+      options: -u root
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: gcw0
+            tag: odbeta
+            strip: /opt/gcw0-toolchain/usr/bin/mipsel-gcw0-linux-uclibc-strip
+          - target: miyoo
+            tag: latest
+            strip: /opt/miyoo/usr/bin/arm-linux-strip
+          - target: retrofw
+            tag: odbeta
+            strip: /opt/retrofw-toolchain/usr/bin/mipsel-linux-strip
+    steps:
+      - name: Expose Actions environment
+        uses: white-axe/expose-actions-environment@v1
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          curl -Lo ~/Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+          bash ~/Miniforge3.sh -b -p ~/miniforge3
+          source ~/miniforge3/etc/profile.d/conda.sh
+          conda install -y nodejs=22 git meson cmake
+          PATH="$HOME/miniforge3/bin:$PATH" npm install @actions/artifact@4 fast-glob@3
+          echo "$HOME/miniforge3/bin" >> "$GITHUB_PATH"
+
+      - name: Checkout repository
+        uses: taiki-e/checkout-action@v1
+
+      - name: Download stage 1
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            const artifact = new DefaultArtifactClient();
+            await artifact.downloadArtifact(${{ needs.build-libretro-stage1.outputs.artifact-id }}, {
+              path: "libretro/build/libretro-stage1",
+            });
+          '
+
+      - name: Configure core
+        run: |
+          git config --global --add safe.directory "$(pwd)"
+          CLICOLOR_FORCE=1 meson setup build --cross-file libretro/meson-${{ matrix.target }}.txt --buildtype release -Db_lto=true -Dlibretro=true -Dlibretro_save_states=true
+
+      - name: Build core
+        run: |
+          mkdir ~/dist
+          cd build
+          CLICOLOR_FORCE=1 ninja -v
+          ${{ matrix.strip }} mkxp-z_libretro.so
+          mv mkxp-z_libretro.so ~/dist/mkxp-z_libretro.so
+
+      - name: Upload artifact
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            import fg from "fast-glob";
+            process.chdir(process.env.HOME + "/dist");
+            const artifact = new DefaultArtifactClient();
+            await artifact.uploadArtifact(
+              "mkxp-z_libretro.linux-opendingux.${{ matrix.target }}.${{ github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name }}-${{ needs.build-libretro-stage1.outputs.sha }}",
+              fg.globSync("**"),
+              ".",
+            );
+          '
+
+  build-libretro-android:
+    needs: build-libretro-stage1
+    name: LR Android ${{ matrix.arch_mkxpz }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_mkxpz: armv7
+            arch_llvm: armv7a-linux-androideabi21
+            arch_cmake: armv7-a
+            cpu_family: arm
+            cpu: generic-armv7-a
+            endian: little
+          - arch_mkxpz: arm64
+            arch_llvm: aarch64-linux-android21
+            arch_cmake: aarch64
+            cpu_family: aarch64
+            cpu: generic-armv8-a
+            endian: little
+          - arch_mkxpz: x86
+            arch_llvm: i686-linux-android21
+            arch_cmake: i686
+            cpu_family: x86
+            cpu: i686
+            endian: little
+          - arch_mkxpz: x86_64
+            arch_llvm: x86_64-linux-android21
+            arch_cmake: x86_64
+            cpu_family: x86_64
+            cpu: x86_64
+            endian: little
+    steps:
+      - name: Expose Actions environment
+        uses: white-axe/expose-actions-environment@v1
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y git build-essential llvm meson cmake nodejs npm
+          npm install @actions/artifact@4 fast-glob@3
+
+      - id: ndk
+        name: Set up Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27c
+          add-to-path: false
+
+      - name: Checkout repository
+        uses: taiki-e/checkout-action@v1
+
+      - name: Download stage 1
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            const artifact = new DefaultArtifactClient();
+            await artifact.downloadArtifact(${{ needs.build-libretro-stage1.outputs.artifact-id }}, {
+              path: "libretro/build/libretro-stage1",
+            });
+          '
+
+      - name: Configure core
+        run: |
+          echo "[binaries]" | tee -a ${{ runner.temp }}/cross.ini
+          echo "c = ['${{ steps.ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/clang', '--target=${{ matrix.arch_llvm }}']" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cpp = ['${{ steps.ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++', '--target=${{ matrix.arch_llvm }}']" | tee -a ${{ runner.temp }}/cross.ini
+          echo "ar = '${{ steps.ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cmake = 'cmake'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "[host_machine]" | tee -a ${{ runner.temp }}/cross.ini
+          echo "system = 'android'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cpu_family = '${{ matrix.cpu_family }}'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cpu = '${{ matrix.cpu }}'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "endian = '${{ matrix.endian }}'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "[cmake]" | tee -a ${{ runner.temp }}/cross.ini
+          echo "CMAKE_SYSTEM_PROCESSOR = '${{ matrix.arch_cmake }}'" | tee -a ${{ runner.temp }}/cross.ini
+          echo '--------------------------------------------------------------------------------'
+          CLICOLOR_FORCE=1 meson setup build --cross-file ${{ runner.temp }}/cross.ini --buildtype release -Db_lto=true -Dlibretro=true -Dlibretro_save_states=true
+
+      - name: Build core
+        run: |
+          mkdir ${{ runner.temp }}/dist
+          cd build
+          CLICOLOR_FORCE=1 ninja -v
+          llvm-strip mkxp-z_libretro.so
+          mv mkxp-z_libretro.so ${{ runner.temp }}/dist/mkxp-z_libretro_android.so
+
+      - name: Upload artifact
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            import fg from "fast-glob";
+            process.chdir("${{ runner.temp }}/dist");
+            const artifact = new DefaultArtifactClient();
+            await artifact.uploadArtifact(
+              "mkxp-z_libretro.android.${{ matrix.arch_mkxpz }}.${{ github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name }}-${{ needs.build-libretro-stage1.outputs.sha }}",
+              fg.globSync("**"),
+              ".",
+            );
+          '
+
+  build-libretro-webos:
+    needs: build-libretro-stage1
+    name: LR webOS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Expose Actions environment
+        uses: white-axe/expose-actions-environment@v1
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y git build-essential meson cmake nodejs npm
+          npm install @actions/artifact@4 fast-glob@3
+
+      - name: Set up webOS SDK
+        run: |
+          tag_name=$(curl -s https://api.github.com/repos/openlgtv/buildroot-nc4/releases/latest -H 'Authorization: Bearer ${{ github.token }}' -H 'X-GitHub-Api-Version: 2022-11-28' | jq -r '.tag_name')
+          curl -Lo ${{ runner.temp }}/webos-sdk.tar.gz https://github.com/openlgtv/buildroot-nc4/releases/download/$tag_name/arm-webos-linux-gnueabi_sdk-buildroot-x86_64.tar.gz
+          mkdir ${{ runner.temp }}/webos-sdk
+          tar -xzf ${{ runner.temp }}/webos-sdk.tar.gz -C ${{ runner.temp }}/webos-sdk --strip-components=1
+          rm ${{ runner.temp }}/webos-sdk.tar.gz
+
+      - name: Checkout repository
+        uses: taiki-e/checkout-action@v1
+
+      - name: Download stage 1
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            const artifact = new DefaultArtifactClient();
+            await artifact.downloadArtifact(${{ needs.build-libretro-stage1.outputs.artifact-id }}, {
+              path: "libretro/build/libretro-stage1",
+            });
+          '
+
+      - name: Configure core
+        run: |
+          echo "[binaries]" | tee -a ${{ runner.temp }}/cross.ini
+          echo "c = '${{ runner.temp }}/webos-sdk/bin/arm-webos-linux-gnueabi-gcc'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cpp = '${{ runner.temp }}/webos-sdk/bin/arm-webos-linux-gnueabi-g++'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "ar = '${{ runner.temp }}/webos-sdk/bin/arm-webos-linux-gnueabi-ar'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cmake = 'cmake'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "[host_machine]" | tee -a ${{ runner.temp }}/cross.ini
+          echo "system = 'linux'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cpu_family = 'arm'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cpu = 'generic-armv7-a+neon'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "endian = 'little'" | tee -a ${{ runner.temp }}/cross.ini
+          echo '--------------------------------------------------------------------------------'
+          CLICOLOR_FORCE=1 meson setup build --cross-file ${{ runner.temp }}/cross.ini --buildtype release -Db_lto=true -Dstatic_libstdcpp=true -Dneon=true -Dlibretro=true -Dlibretro_save_states=true
+
+      - name: Build core
+        run: |
+          mkdir ${{ runner.temp }}/dist
+          cd build
+          CLICOLOR_FORCE=1 ninja -v
+          ${{ runner.temp }}/webos-sdk/bin/arm-webos-linux-gnueabi-strip mkxp-z_libretro.so
+          mv mkxp-z_libretro.so ${{ runner.temp }}/dist/mkxp-z_libretro.so
+
+      - name: Upload artifact
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            import fg from "fast-glob";
+            process.chdir("${{ runner.temp }}/dist");
+            const artifact = new DefaultArtifactClient();
+            await artifact.uploadArtifact(
+              "mkxp-z_libretro.webos.${{ github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name }}-${{ needs.build-libretro-stage1.outputs.sha }}",
+              fg.globSync("**"),
+              ".",
+            );
+          '
+
+  build-libretro-darwin:
+    needs: build-libretro-stage1
+    name: LR ${{ matrix.system_name }} ${{ matrix.arch_mkxpz }}
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - system_name: macOS
+            system_mkxpz: macos
+            sdk: macosx
+            suffix: ""
+            arch_mkxpz: arm64
+            arch_llvm: arm64-apple-macos11.0 # macOS 11 is the first version of macOS with support for 64-bit ARM
+            cpu_family: aarch64
+            cpu: generic-armv8-a
+            endian: little
+          - system_name: macOS
+            system_mkxpz: macos
+            sdk: macosx
+            suffix: ""
+            arch_mkxpz: x86_64
+            arch_llvm: x86_64-apple-macos10.7 # macOS 10.7 is the first version of macOS with support for thread-local storage, which we currently need
+            cpu_family: x86_64
+            cpu: x86_64
+            endian: little
+          - system_name: iOS
+            system_mkxpz: ios
+            sdk: iphoneos
+            suffix: _ios
+            arch_mkxpz: arm64
+            arch_llvm: arm64-apple-ios10.0 # iOS 10 is the first version of iOS with support for 64-bit ARM
+            cpu_family: aarch64
+            cpu: generic-armv8-a
+            endian: little
+          - system_name: tvOS
+            system_mkxpz: tvos
+            sdk: appletvos
+            suffix: _tvos
+            arch_mkxpz: arm64
+            arch_llvm: arm64-apple-tvos9.0 # tvOS 9 is the first version of tvOS with support for installing apps
+            cpu_family: aarch64
+            cpu: generic-armv8-a
+            endian: little
+    steps:
+      - name: Expose Actions environment
+        uses: crazy-max/ghaction-github-runtime@v3
+
+      - name: Install dependencies
+        run: |
+          brew uninstall -f --ignore-dependencies git meson cmake node
+          brew install -q git meson cmake node
+          npm install @actions/artifact@4 fast-glob@3
+
+      - name: Checkout repository
+        uses: taiki-e/checkout-action@v1
+
+      - name: Download stage 1
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            const artifact = new DefaultArtifactClient();
+            await artifact.downloadArtifact(${{ needs.build-libretro-stage1.outputs.artifact-id }}, {
+              path: "libretro/build/libretro-stage1",
+            });
+          '
+
+      - name: Configure core
+        run: |
+          echo "[binaries]" | tee -a ${{ runner.temp }}/cross.ini
+          echo "c = ['xcrun', '--sdk', '${{ matrix.sdk }}', 'clang', '--target=${{ matrix.arch_llvm }}']" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cpp = ['xcrun', '--sdk', '${{ matrix.sdk }}', 'clang++', '--target=${{ matrix.arch_llvm }}']" | tee -a ${{ runner.temp }}/cross.ini
+          echo "ar = 'ar'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cmake = 'cmake'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "[host_machine]" | tee -a ${{ runner.temp }}/cross.ini
+          echo "system = 'darwin'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cpu_family = '${{ matrix.cpu_family }}'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cpu = '${{ matrix.cpu }}'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "endian = '${{ matrix.endian }}'" | tee -a ${{ runner.temp }}/cross.ini
+          echo '--------------------------------------------------------------------------------'
+          CLICOLOR_FORCE=1 meson setup build --cross-file ${{ runner.temp }}/cross.ini --buildtype release -Db_lto=true -Dlibretro=true -Dlibretro_save_states=true
+
+      - name: Build core
+        run: |
+          mkdir ${{ runner.temp }}/dist
+          cd build
+          CLICOLOR_FORCE=1 ninja -v
+          strip -x mkxp-z_libretro.dylib
+          mv mkxp-z_libretro.dylib ${{ runner.temp }}/dist/mkxp-z_libretro${{ matrix.suffix }}.dylib
+
+      - name: Upload artifact
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            import fg from "fast-glob";
+            process.chdir("${{ runner.temp }}/dist");
+            const artifact = new DefaultArtifactClient();
+            await artifact.uploadArtifact(
+              "mkxp-z_libretro.${{ matrix.system_mkxpz }}.${{ matrix.arch_mkxpz }}.${{ github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name }}-${{ needs.build-libretro-stage1.outputs.sha }}",
+              fg.globSync("**"),
+              ".",
+            );
+          '
+
+  build-libretro-emscripten:
+    needs: build-libretro-stage1
+    name: LR Emscripten ${{ matrix.threading }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - threading: threaded
+          - threading: unthreaded
+    steps:
+      - name: Expose Actions environment
+        uses: white-axe/expose-actions-environment@v1
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y git build-essential meson cmake jq nodejs npm
+          npm install @actions/artifact@4 fast-glob@3
+
+      - name: Set up Emscripten SDK
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 4.0.8
+
+      - name: Checkout repository
+        uses: taiki-e/checkout-action@v1
+
+      - name: Download stage 1
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            const artifact = new DefaultArtifactClient();
+            await artifact.downloadArtifact(${{ needs.build-libretro-stage1.outputs.artifact-id }}, {
+              path: "libretro/build/libretro-stage1",
+            });
+          '
+
+      - name: Configure core
+        run: |
+          echo "[binaries]" | tee -a ${{ runner.temp }}/cross.ini
+          echo "c = 'emcc'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cpp = 'em++'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "ar = 'emar'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cmake = 'cmake'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "[host_machine]" | tee -a ${{ runner.temp }}/cross.ini
+          echo "system = 'emscripten'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cpu_family = 'wasm32'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cpu = 'wasm32'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "endian = 'little'" | tee -a ${{ runner.temp }}/cross.ini
+          echo "[properties]" | tee -a ${{ runner.temp }}/cross.ini
+          echo "cmake_toolchain_file = '$(em-config EMSCRIPTEN_ROOT)/cmake/Modules/Platform/Emscripten.cmake'" | tee -a ${{ runner.temp }}/cross.ini
+          echo '--------------------------------------------------------------------------------'
+          if [ '${{ matrix.threading }}' = 'threaded' ]
+          then
+            threaded=true
+          else
+            threaded=false
+          fi
+          CLICOLOR_FORCE=1 meson setup build --cross-file ${{ runner.temp }}/cross.ini --buildtype release -Db_lto=true -Dlibretro=true -Dlibretro_save_states=true -Demscripten_threaded=$threaded
+
+      - name: Build core
+        run: |
+          mkdir ${{ runner.temp }}/dist
+          cd build
+          CLICOLOR_FORCE=1 ninja -v
+          mv mkxp-z_libretro.a ${{ runner.temp }}
+
+      - name: Build frontend
+        run: |
+          cd ${{ runner.temp }}
+          tag_name=$(curl -s https://api.github.com/repos/libretro/RetroArch/releases/latest -H 'Authorization: Bearer ${{ github.token }}' -H 'X-GitHub-Api-Version: 2022-11-28' | jq -r '.tag_name')
+          git clone https://github.com/libretro/RetroArch retroarch --depth 1 -b "$tag_name"
+          mv mkxp-z_libretro.a retroarch/libretro_emscripten.a
+          cd retroarch
+          if [ '${{ matrix.threading }}' = 'threaded' ]
+          then
+            flags='HAVE_THREADS=1 PROXY_TO_PTHREAD=1 HAVE_AUDIOWORKLET=1 HAVE_RWEBAUDIO=0 HAVE_AL=0 HAVE_WASMFS=1 HAVE_EXTRA_WASMFS=1'
+          else
+            flags='HAVE_THREADS=0 PROXY_TO_PTHREAD=0 HAVE_AUDIOWORKLET=0 HAVE_RWEBAUDIO=1 HAVE_AL=1 HAVE_WASMFS=0 HAVE_EXTRA_WASMFS=0'
+          fi
+          CLICOLOR_FORCE=1 emmake make -f Makefile.emscripten LIBRETRO=mkxp-z $flags
+          mv mkxp-z_libretro.wasm ${{ runner.temp }}/dist/mkxp-z_libretro.wasm
+          mv mkxp-z_libretro.js ${{ runner.temp }}/dist/mkxp-z_libretro.js
+
+      - name: Upload artifact
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            import fg from "fast-glob";
+            process.chdir("${{ runner.temp }}/dist");
+            const artifact = new DefaultArtifactClient();
+            await artifact.uploadArtifact(
+              "mkxp-z_libretro.emscripten.${{ matrix.threading }}.${{ github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name }}-${{ needs.build-libretro-stage1.outputs.sha }}",
+              fg.globSync("**"),
+              ".",
+            );
+          '
+
+  build-libretro-ps3:
+    needs: build-libretro-stage1
+    name: LR PlayStation 3
+    runs-on: ubuntu-latest
+    container:
+      image: reallibretroretroarch/libretro-build-psl1ght:latest
+      options: -u root
+    steps:
+      - name: Expose Actions environment
+        uses: white-axe/expose-actions-environment@v1
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          curl -Lo ~/Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+          bash ~/Miniforge3.sh -b -p ~/miniforge3
+          source ~/miniforge3/etc/profile.d/conda.sh
+          conda install -y nodejs=22 git jq meson cmake
+          PATH="$HOME/miniforge3/bin:$PATH" npm install @actions/artifact@4 fast-glob@3
+          echo "$HOME/miniforge3/bin" >> "$GITHUB_PATH"
+
+      - name: Checkout repository
+        uses: taiki-e/checkout-action@v1
+
+      - name: Download stage 1
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            const artifact = new DefaultArtifactClient();
+            await artifact.downloadArtifact(${{ needs.build-libretro-stage1.outputs.artifact-id }}, {
+              path: "libretro/build/libretro-stage1",
+            });
+          '
+
+      - name: Configure core
+        run: |
+          git config --global --add safe.directory "$(pwd)"
+          CLICOLOR_FORCE=1 meson setup build --cross-file libretro/meson-ps3.txt --buildtype release -Db_lto=false -Dlibretro=true -Dlibretro_save_states=true
+
+      - name: Build core
+        run: |
+          mkdir ~/dist
+          cd build
+          CLICOLOR_FORCE=1 ninja -v
+          mv mkxp-z_libretro.a ~
+
+      - name: Build frontend
+        run: |
+          cd ~
+          git clone https://github.com/libretro/RetroArch retroarch --depth 1 -b $(curl -s https://api.github.com/repos/libretro/RetroArch/releases/latest -H 'Authorization: Bearer ${{ github.token }}' -H 'X-GitHub-Api-Version: 2022-11-28' | jq -r '.tag_name')
+          mv mkxp-z_libretro.a retroarch/libretro_psl1ght.a
+          cd retroarch
+          CLICOLOR_FORCE=1 make -f Makefile.psl1ght LIBRETRO=mkxp-z
+          mv retroarch_psl1ght.self ~/dist/mkxp-z_libretro_psl1ght.self
+
+      - name: Upload artifact
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            import fg from "fast-glob";
+            process.chdir(process.env.HOME + "/dist");
+            const artifact = new DefaultArtifactClient();
+            await artifact.uploadArtifact(
+              "mkxp-z_libretro.ps3.${{ github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name }}-${{ needs.build-libretro-stage1.outputs.sha }}",
+              fg.globSync("**"),
+              ".",
+            );
+          '
+
+  build-libretro-3ds:
+    needs: build-libretro-stage1
+    name: LR Nintendo 3DS
+    runs-on: ubuntu-latest
+    container:
+      image: reallibretroretroarch/libretro-build-devkitpro:latest
+      options: -u root
+    steps:
+      - name: Expose Actions environment
+        uses: white-axe/expose-actions-environment@v1
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          curl -Lo ~/Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+          bash ~/Miniforge3.sh -b -p ~/miniforge3
+          source ~/miniforge3/etc/profile.d/conda.sh
+          conda install -y nodejs=22 git jq meson cmake
+          PATH="$HOME/miniforge3/bin:$PATH" npm install @actions/artifact@4 fast-glob@3
+          echo "$HOME/miniforge3/bin" >> "$GITHUB_PATH"
+
+      - name: Checkout repository
+        uses: taiki-e/checkout-action@v1
+
+      - name: Download stage 1
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            const artifact = new DefaultArtifactClient();
+            await artifact.downloadArtifact(${{ needs.build-libretro-stage1.outputs.artifact-id }}, {
+              path: "libretro/build/libretro-stage1",
+            });
+          '
+
+      - name: Configure core
+        run: |
+          git config --global --add safe.directory "$(pwd)"
+          CLICOLOR_FORCE=1 meson setup build --cross-file libretro/meson-3ds.txt --buildtype release -Db_lto=true -Dlibretro=true -Dlibretro_save_states=true
+
+      - name: Build core
+        run: |
+          mkdir ~/dist
+          cd build
+          CLICOLOR_FORCE=1 ninja -v
+          mv mkxp-z_libretro.a ~
+
+      - name: Build frontend
+        run: |
+          cd ~
+          git clone https://github.com/libretro/RetroArch retroarch --depth 1 -b $(curl -s https://api.github.com/repos/libretro/RetroArch/releases/latest -H 'Authorization: Bearer ${{ github.token }}' -H 'X-GitHub-Api-Version: 2022-11-28' | jq -r '.tag_name')
+          mv mkxp-z_libretro.a retroarch/libretro_ctr.a
+          cd retroarch
+          CLICOLOR_FORCE=1 make -f Makefile.ctr LIBRETRO=mkxp-z USE_CTRULIB_2=1
+          mv retroarch_3ds.cia ~/dist/mkxp-z_libretro.cia
+          mv retroarch_3ds.3dsx ~/dist/mkxp-z_libretro.3dsx
+
+      - name: Upload artifact
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            import fg from "fast-glob";
+            process.chdir(process.env.HOME + "/dist");
+            const artifact = new DefaultArtifactClient();
+            await artifact.uploadArtifact(
+              "mkxp-z_libretro.3ds.${{ github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name }}-${{ needs.build-libretro-stage1.outputs.sha }}",
+              fg.globSync("**"),
+              ".",
+            );
+          '
+
+  build-libretro-vita:
+    needs: build-libretro-stage1
+    name: LR PlayStation Vita
+    runs-on: ubuntu-latest
+    container:
+      image: reallibretroretroarch/libretro-build-vita:latest
+      options: -u root
+    steps:
+      - name: Expose Actions environment
+        uses: white-axe/expose-actions-environment@v1
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          curl -Lo ~/Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+          bash ~/Miniforge3.sh -b -p ~/miniforge3
+          source ~/miniforge3/etc/profile.d/conda.sh
+          conda install -y nodejs=22 git jq meson cmake
+          PATH="$HOME/miniforge3/bin:$PATH" npm install @actions/artifact@4 fast-glob@3
+          echo "$HOME/miniforge3/bin" >> "$GITHUB_PATH"
+
+      - name: Checkout repository
+        uses: taiki-e/checkout-action@v1
+
+      - name: Download stage 1
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            const artifact = new DefaultArtifactClient();
+            await artifact.downloadArtifact(${{ needs.build-libretro-stage1.outputs.artifact-id }}, {
+              path: "libretro/build/libretro-stage1",
+            });
+          '
+
+      - name: Configure core
+        run: |
+          git config --global --add safe.directory "$(pwd)"
+          CLICOLOR_FORCE=1 meson setup build --cross-file libretro/meson-vita.txt --buildtype release -Db_lto=true -Dlibretro=true -Dlibretro_save_states=true
+
+      - name: Build core
+        run: |
+          mkdir ~/dist
+          cd build
+          CLICOLOR_FORCE=1 ninja -v
+          mv mkxp-z_libretro.a ~
+
+      - name: Build frontend
+        run: |
+          cd ~
+          git clone https://github.com/libretro/RetroArch retroarch --depth 1 -b $(curl -s https://api.github.com/repos/libretro/RetroArch/releases/latest -H 'Authorization: Bearer ${{ github.token }}' -H 'X-GitHub-Api-Version: 2022-11-28' | jq -r '.tag_name')
+          mv mkxp-z_libretro.a retroarch/libretro_vita.a
+          cd retroarch
+          CLICOLOR_FORCE=1 make -f Makefile.vita LIBRETRO=mkxp-z
+          mv retroarch_vita.self ~/dist/mkxp-z_libretro_vita.self
+
+      - name: Upload artifact
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            import fg from "fast-glob";
+            process.chdir(process.env.HOME + "/dist");
+            const artifact = new DefaultArtifactClient();
+            await artifact.uploadArtifact(
+              "mkxp-z_libretro.vita.${{ github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name }}-${{ needs.build-libretro-stage1.outputs.sha }}",
+              fg.globSync("**"),
+              ".",
+            );
+          '
+
+  build-libretro-wiiu:
+    needs:
+      - build-libretro-stage1
+      - wiiurpxtool
+    name: LR Wii U
+    runs-on: ubuntu-latest
+    container:
+      # We're supposed to use libretro-build-wiiu, but that currently has a really old version of devkitPPC that doesn't support C++17, so it can't compile OpenAL Soft.
+      # Also, pre-C++17 versions of OpenAL Soft give linker errors when we try to build them for Wii U, so we can't just downgrade OpenAL Soft.
+      # The libretro-build-devkitpro image that we're using here instead currently has a newer version of devkitPPC that supports C++17 but lacks wiiurpxtool, which is why we need to separately install wiiurpxtool.
+      image: reallibretroretroarch/libretro-build-devkitpro:latest
+      options: -u root
+    steps:
+      - name: Expose Actions environment
+        uses: white-axe/expose-actions-environment@v1
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          curl -Lo ~/Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+          bash ~/Miniforge3.sh -b -p ~/miniforge3
+          source ~/miniforge3/etc/profile.d/conda.sh
+          conda install -y nodejs=22 git jq meson cmake
+          PATH="$HOME/miniforge3/bin:$PATH" npm install @actions/artifact@4 fast-glob@3
+          echo "$HOME/miniforge3/bin" >> "$GITHUB_PATH"
+
+      - name: Checkout repository
+        uses: taiki-e/checkout-action@v1
+
+      - name: Download stage 1
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            const artifact = new DefaultArtifactClient();
+            await artifact.downloadArtifact(${{ needs.build-libretro-stage1.outputs.artifact-id }}, {
+              path: "libretro/build/libretro-stage1",
+            });
+          '
+
+      - name: Download wiiurpxtool
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            const artifact = new DefaultArtifactClient();
+            await artifact.downloadArtifact(${{ needs.wiiurpxtool.outputs.artifact-id }}, {
+              path: process.env.HOME,
+            });
+          '
+
+      - name: Install wiiurpxtool
+        run: |
+          if command -v wiiurpxtool
+          then
+            echo 'wiiurpxtool already installed'
+          else
+            mv ~/wiiurpxtool /usr/local/bin
+            chmod +x /usr/local/bin/wiiurpxtool
+            echo 'wiiurpxtool successfully installed'
+          fi
+          wiiurpxtool
+
+      - name: Configure core
+        run: |
+          git config --global --add safe.directory "$(pwd)"
+          CLICOLOR_FORCE=1 meson setup build --cross-file libretro/meson-wiiu.txt --buildtype release -Db_lto=true -Dlibretro=true -Dlibretro_save_states=true
+
+      - name: Build core
+        run: |
+          mkdir ~/dist
+          cd build
+          CLICOLOR_FORCE=1 ninja -v
+          mv mkxp-z_libretro.a ~
+
+      - name: Build frontend
+        run: |
+          cd ~
+          git clone https://github.com/libretro/RetroArch retroarch --depth 1 -b $(curl -s https://api.github.com/repos/libretro/RetroArch/releases/latest -H 'Authorization: Bearer ${{ github.token }}' -H 'X-GitHub-Api-Version: 2022-11-28' | jq -r '.tag_name')
+          mv mkxp-z_libretro.a retroarch/libretro_wiiu.a
+          cd retroarch
+          CLICOLOR_FORCE=1 make -f Makefile.wiiu LIBRETRO=mkxp-z
+          mv retroarch_wiiu.rpx ~/dist/mkxp-z_libretro.rpx
+
+      - name: Upload artifact
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            import fg from "fast-glob";
+            process.chdir(process.env.HOME + "/dist");
+            const artifact = new DefaultArtifactClient();
+            await artifact.uploadArtifact(
+              "mkxp-z_libretro.wiiu.${{ github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name }}-${{ needs.build-libretro-stage1.outputs.sha }}",
+              fg.globSync("**"),
+              ".",
+            );
+          '
+
+  build-libretro-ps4:
+    needs: build-libretro-stage1
+    name: LR PlayStation 4
+    runs-on: ubuntu-latest
+    container:
+      image: reallibretroretroarch/libretro-build-orbis:latest
+      options: -u root
+    steps:
+      - name: Expose Actions environment
+        uses: white-axe/expose-actions-environment@v1
+
+      - name: Install dependencies
+        run: |
+          apk add git jq curl python3 gcc g++ ninja nodejs npm
+          python3 -m ensurepip
+          python3 -m pip install meson cmake
+          npm install @actions/artifact@4 fast-glob@3
+
+      - name: Checkout repository
+        uses: taiki-e/checkout-action@v1
+
+      - name: Download stage 1
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            const artifact = new DefaultArtifactClient();
+            await artifact.downloadArtifact(${{ needs.build-libretro-stage1.outputs.artifact-id }}, {
+              path: "libretro/build/libretro-stage1",
+            });
+          '
+
+      - name: Configure core
+        run: |
+          git config --global --add safe.directory "$(pwd)"
+          CLICOLOR_FORCE=1 meson setup build --cross-file libretro/meson-ps4.txt --buildtype release -Db_lto=false -Dlibretro=true -Dlibretro_save_states=true
+
+      - name: Build core
+        run: |
+          mkdir ~/dist
+          cd build
+          CLICOLOR_FORCE=1 ninja -v
+          mv mkxp-z_libretro.a ~
+
+      - name: Build frontend
+        run: |
+          cd ~
+          git clone https://github.com/libretro/RetroArch retroarch --depth 1 -b $(curl -s https://api.github.com/repos/libretro/RetroArch/releases/latest -H 'Authorization: Bearer ${{ github.token }}' -H 'X-GitHub-Api-Version: 2022-11-28' | jq -r '.tag_name')
+          mv mkxp-z_libretro.a retroarch/libretro_orbis.a
+          cd retroarch
+          CLICOLOR_FORCE=1 make -f Makefile.orbis LIBRETRO=mkxp-z
+          mv retroarch_orbis.self ~/dist/mkxp-z_libretro_orbis.self
+
+      - name: Upload artifact
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            import fg from "fast-glob";
+            process.chdir(process.env.HOME + "/dist");
+            const artifact = new DefaultArtifactClient();
+            await artifact.uploadArtifact(
+              "mkxp-z_libretro.ps4.${{ github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name }}-${{ needs.build-libretro-stage1.outputs.sha }}",
+              fg.globSync("**"),
+              ".",
+            );
+          '
+
+  build-libretro-switch:
+    needs: build-libretro-stage1
+    name: LR Nintendo Switch core
+    runs-on: ubuntu-latest
+    container:
+      image: reallibretroretroarch/libretro-build-libnx-devkitpro:v4-10-0
+      options: -u root
+    outputs:
+      artifact-id: ${{ steps.upload-artifact.outputs.artifact-id }}
+    steps:
+      - name: Expose Actions environment
+        uses: white-axe/expose-actions-environment@v1
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          curl -Lo ~/Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+          bash ~/Miniforge3.sh -b -p ~/miniforge3
+          source ~/miniforge3/etc/profile.d/conda.sh
+          conda install -y nodejs=22 git jq meson cmake
+          PATH="$HOME/miniforge3/bin:$PATH" npm install @actions/artifact@4 fast-glob@3
+          echo "$HOME/miniforge3/bin" >> "$GITHUB_PATH"
+
+      - name: Checkout repository
+        uses: taiki-e/checkout-action@v1
+
+      - name: Download stage 1
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            const artifact = new DefaultArtifactClient();
+            await artifact.downloadArtifact(${{ needs.build-libretro-stage1.outputs.artifact-id }}, {
+              path: "libretro/build/libretro-stage1",
+            });
+          '
+
+      - name: Configure core
+        run: |
+          git config --global --add safe.directory "$(pwd)"
+          CLICOLOR_FORCE=1 meson setup build --cross-file libretro/meson-switch.txt --buildtype release -Db_lto=true -Dlibretro=true -Dlibretro_save_states=true
+
+      - name: Build core
+        run: |
+          mkdir ~/dist
+          cd build
+          CLICOLOR_FORCE=1 ninja -v
+          mv mkxp-z_libretro.a ~/dist/libretro_libnx.a
+
+      - id: upload-artifact
+        name: Upload artifact
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            import fg from "fast-glob";
+            process.chdir(process.env.HOME + "/dist");
+            const artifact = new DefaultArtifactClient();
+            const {id, size} = await artifact.uploadArtifact(
+              "libretro_libnx.a.${{ github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name }}-${{ needs.build-libretro-stage1.outputs.sha }}",
+              fg.globSync("**"),
+              ".",
+            );
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `artifact-id=${id}`);
+          '
+
+  build-libretro-switch-frontend:
+    needs:
+      - build-libretro-stage1
+      - build-libretro-switch
+    name: LR Nintendo Switch frontend ${{ matrix.type }}
+    runs-on: ubuntu-latest
+    container:
+      image: reallibretroretroarch/libretro-build-libnx-devkitpro:v4-10-0
+      options: -u root
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - type: standard
+          - type: bootstrap
+    steps:
+      - name: Expose Actions environment
+        uses: white-axe/expose-actions-environment@v1
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          curl -Lo ~/Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+          bash ~/Miniforge3.sh -b -p ~/miniforge3
+          source ~/miniforge3/etc/profile.d/conda.sh
+          conda install -y nodejs=22 git jq meson cmake
+          PATH="$HOME/miniforge3/bin:$PATH" npm install @actions/artifact@4 fast-glob@3
+          echo "$HOME/miniforge3/bin" >> "$GITHUB_PATH"
+
+      - name: Checkout repository
+        uses: taiki-e/checkout-action@v1
+
+      - name: Download core
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            const artifact = new DefaultArtifactClient();
+            await artifact.downloadArtifact(${{ needs.build-libretro-switch.outputs.artifact-id }}, {
+              path: "libretro_libnx",
+            });
+          '
+
+      - name: Build frontend
+        run: |
+          mkdir ~/dist
+          mv libretro_libnx/libretro_libnx.a ~
+          tag_name=$(curl -s https://api.github.com/repos/libretro/RetroArch/releases/latest -H 'Authorization: Bearer ${{ github.token }}' -H 'X-GitHub-Api-Version: 2022-11-28' | jq -r '.tag_name')
+          if [ "$tag_name" = 'v1.22.2' ]
+          then
+            mv libretro/retroarch-pr18459.patch ~
+          fi
+          if [ '${{ matrix.type }}' = 'bootstrap' ]
+          then
+            mv libretro/switch-bootstrap ~
+          fi
+          cd ~
+          git clone https://github.com/libretro/RetroArch retroarch --depth 1 -b $tag_name
+          mv libretro_libnx.a retroarch/
+          cd retroarch
+          if [ "$tag_name" = 'v1.22.2' ]
+          then
+            git apply ~/retroarch-pr18459.patch
+          fi
+          if [ '${{ matrix.type }}' = 'bootstrap' ]
+          then
+            git apply ~/switch-bootstrap/switch-bootstrap.patch
+            CLICOLOR_FORCE=1 make -f Makefile.libnx LIBRETRO=mkxp-z
+            /opt/devkitpro/devkitA64/bin/aarch64-none-elf-strip retroarch_switch.elf
+            mv retroarch_switch.elf ~/dist/mkxp-z_libretro_libnx.elf
+          else
+            CLICOLOR_FORCE=1 make -f Makefile.libnx LIBRETRO=mkxp-z
+            mv retroarch_switch.nro ~/dist/mkxp-z_libretro_libnx.nro
+          fi
+
+      - name: Upload artifact
+        run: |
+          node --input-type=module -e '
+            import {DefaultArtifactClient} from "@actions/artifact";
+            import fg from "fast-glob";
+            process.chdir(process.env.HOME + "/dist");
+            const artifact = new DefaultArtifactClient();
+            await artifact.uploadArtifact(
+              "mkxp-z_libretro.switch.${{ matrix.type }}.${{ github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name }}-${{ needs.build-libretro-stage1.outputs.sha }}",
+              fg.globSync("**"),
+              ".",
+            );
+          '

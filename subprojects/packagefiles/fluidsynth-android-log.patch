@@ -1,0 +1,13 @@
+# Removes the calls to `__android_log_print()` when targeting Android because we get missing symbol errors on Android otherwise.
+
+--- a/src/utils/fluid_sys.c
++++ b/src/utils/fluid_sys.c
+@@ -126,7 +126,7 @@ fluid_set_log_function(int level, fluid_log_function_t fun, void *data)
+ void
+ fluid_default_log_function(int level, const char *message, void *data)
+ {
+-#ifdef __ANDROID__
++#if 0
+     switch(level)
+     {
+     case FLUID_PANIC:

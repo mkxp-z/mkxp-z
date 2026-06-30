@@ -22,11 +22,16 @@
 #ifndef AUDIOSTREAM_H
 #define AUDIOSTREAM_H
 
+#include "audio.h"
 #include "al-util.h"
 #include "alstream.h"
 #include "sdl-util.h"
 
 #include <string>
+
+#ifdef MKXPZ_RETRO
+#  include "wasm-types.h"
+#endif // MKXPZ_RETRO
 
 struct AudioStream
 {
@@ -81,7 +86,8 @@ struct AudioStream
 	bool noResumeStop;
 
 	ALStream stream;
-	SDL_mutex *streamMut;
+
+	AudioMutex mutex;
 
 	/* Fade out */
 	struct
@@ -97,15 +103,20 @@ struct AudioStream
 		 * immediately */
 		AtomicFlag reqTerm;
 
+#ifdef MKXPZ_RETRO
+		AudioMutex mutex;
+		AtomicFlag enabled;
+#else
 		SDL_Thread *thread;
 		std::string threadName;
+#endif // MKXPZ_RETRO
 
 		/* Amount of reduced absolute volume
 		 * per ms of fade time */
 		float msStep;
 
 		/* Ticks at start of fade */
-		uint32_t startTicks;
+		uint64_t startTicks;
 	} fade;
 
 	/* Fade in */
@@ -114,17 +125,23 @@ struct AudioStream
 		AtomicFlag rqFini;
 		AtomicFlag rqTerm;
 
+#ifdef MKXPZ_RETRO
+		AudioMutex mutex;
+		AtomicFlag enabled;
+#else
 		SDL_Thread *thread;
 		std::string threadName;
+#endif // MKXPZ_RETRO
 
-		uint32_t startTicks;
+		uint64_t startTicks;
 	} fadeIn;
 
 	AudioStream(ALStream::LoopMode loopMode,
 	            const std::string &threadId);
 	~AudioStream();
 
-	void play(const std::string &filename,
+	void play(Exception &exception,
+	          const std::string &filename,
 	          int volume,
 	          int pitch,
 	          double offset = 0);
@@ -132,16 +149,17 @@ struct AudioStream
 	void fadeOut(int duration);
 	void seek(double offset);
 
-	/* Any access to this classes 'stream' member,
-	 * whether state query or modification, must be
-	 * protected by a 'lock'/'unlock' pair */
-	void lockStream();
-	void unlockStream();
-
 	void setVolume(VolumeType type, float value);
 	float getVolume(VolumeType type);
 
 	double playingOffset();
+
+#ifdef MKXPZ_RETRO
+	void render();
+
+	bool sandbox_serialize(void *&data, mkxp_sandbox::wasm_size_t &max_size);
+	bool sandbox_deserialize(const void *&data, mkxp_sandbox::wasm_size_t &max_size);
+#endif // MKXPZ_RETRO
 
 private:
 	float volumes[VolumeTypeCount];
@@ -150,8 +168,13 @@ private:
 	void finiFadeOutInt();
 	void startFadeIn();
 
+	bool fadeOutProc();
+	bool fadeInProc();
+
+#ifndef MKXPZ_RETRO
 	void fadeOutThread();
 	void fadeInThread();
+#endif // MKXPZ_RETRO
 };
 
 #endif // AUDIOSTREAM_H

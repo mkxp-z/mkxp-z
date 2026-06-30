@@ -171,7 +171,7 @@ RB_METHOD(ColorStringify) {
 #if RAPI_FULL > 187
   return rb_sprintf("(%f, %f, %f, %f)", c->red, c->green, c->blue, c->alpha);
 #else
-  char buf[50] = {0};
+  char buf[sizeof("(%f, %f, %f, %f)") + 4 * 24] = {0};
   sprintf((char *)&buf, "(%f, %f, %f, %f)", c->red, c->green, c->blue,
           c->alpha);
   return rb_str_new2(buf);
@@ -186,7 +186,7 @@ RB_METHOD(ToneStringify) {
 #if RAPI_FULL > 187
   return rb_sprintf("(%f, %f, %f, %f)", t->red, t->green, t->blue, t->gray);
 #else
-  char buf[50] = {0};
+  char buf[sizeof("(%f, %f, %f, %f)") + 4 * 24] = {0};
   sprintf((char *)&buf, "(%f, %f, %f, %f)", t->red, t->green, t->blue, t->gray);
   return rb_str_new2(buf);
 #endif

@@ -39,7 +39,8 @@ struct SDLSoundSource : ALDataSource
 	ALenum alFormat;
 	ALsizei alFreq;
 
-	SDLSoundSource(SDL_RWops &ops,
+	SDLSoundSource(std::string &error,
+	               SDL_RWops &ops,
 	               const char *extension,
 	               uint32_t maxBufSize,
 	               bool looped)
@@ -56,7 +57,9 @@ struct SDLSoundSource : ALDataSource
 		if (!sample)
 		{
 			SDL_RWclose(&srcOps);
-			throw Exception(Exception::SDLError, "SDL_sound: %s", Sound_GetError());
+			error = "SDL_sound: ";
+			error += Sound_GetError();
+			return;
 		}
 
 		bool validFormat = true;
@@ -88,7 +91,9 @@ struct SDLSoundSource : ALDataSource
 			if (!sample)
 			{
 				SDL_RWclose(&srcOps);
-				throw Exception(Exception::SDLError, "SDL_sound: %s", Sound_GetError());
+				error = "SDL_sound: ";
+				error += Sound_GetError();
+				return;
 			}
 		}
 
@@ -158,7 +163,7 @@ struct SDLSoundSource : ALDataSource
 		}
 	}
 
-	uint32_t loopStartFrames()
+	uint64_t loopStartFrames()
 	{
 		/* Loops from the beginning of the file */
 		return 0;
@@ -170,10 +175,16 @@ struct SDLSoundSource : ALDataSource
 	}
 };
 
-ALDataSource *createSDLSource(SDL_RWops &ops,
+ALDataSource *createSDLSource(std::string &error,
+                              SDL_RWops &ops,
                               const char *extension,
 			                  uint32_t maxBufSize,
 			                  bool looped)
 {
-	return new SDLSoundSource(ops, extension, maxBufSize, looped);
+	error.clear();
+	SDLSoundSource *source = new SDLSoundSource(error, ops, extension, maxBufSize, looped);
+	if (error.empty())
+		return source;
+	delete source;
+	return nullptr;
 }

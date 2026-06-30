@@ -75,17 +75,8 @@ struct Quad
 	}
 
 	Quad()
-	    : vbo(VBO::gen()),
-	      vboDirty(true)
 	{
-		GLMeta::vaoFillInVertexData<Vertex>(vao);
-		vao.vbo = vbo;
-		vao.ibo = shState->globalIBO().ibo;
-
-		GLMeta::vaoInit(vao, true);
-		VBO::allocEmpty(sizeof(Vertex[4]), GL_DYNAMIC_DRAW);
-		GLMeta::vaoUnbind(vao);
-
+		reinit();
 		setColor(Vec4(1, 1, 1, 1));
 	}
 
@@ -93,6 +84,20 @@ struct Quad
 	{
 		GLMeta::vaoFini(vao);
 		VBO::del(vbo);
+	}
+
+	void reinit()
+	{
+		vbo = VBO::gen();
+		vboDirty = true;
+
+		GLMeta::vaoFillInVertexData<Vertex>(vao);
+		vao.vbo = vbo;
+		vao.ibo = SharedState::globalIBO().ibo;
+
+		GLMeta::vaoInit(vao, true);
+		VBO::allocEmpty(sizeof(Vertex[4]), GL_DYNAMIC_DRAW);
+		GLMeta::vaoUnbind(vao);
 	}
 
 	void updateBuffer()

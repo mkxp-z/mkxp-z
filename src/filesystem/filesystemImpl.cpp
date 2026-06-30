@@ -79,7 +79,7 @@ std::string filesystemImpl::normalizePath(const char *path, bool preferred, bool
     for (size_t i = 0; i < ret.length(); i++) {
         char sep;
         char sep_alt;
-#ifdef __WIN32__
+#if defined(__WIN32__)
         if (preferred) {
             sep = '\\';
             sep_alt = '/';
@@ -98,8 +98,12 @@ std::string filesystemImpl::normalizePath(const char *path, bool preferred, bool
 }
 
 std::string filesystemImpl::getDefaultGameRoot() {
+#ifdef MKXPZ_RETRO
+    return "/"; // TODO: implement
+#else
     char *p = SDL_GetBasePath();
     std::string ret(p);
     SDL_free(p);
     return ret;
+#endif // MKXPZ_RETRO
 }

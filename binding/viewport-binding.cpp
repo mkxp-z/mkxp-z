@@ -64,9 +64,9 @@ RB_METHOD(viewportInitialize) {
     /* Wrap property objects */
     v->initDynAttribs();
     
-    wrapProperty(self, &v->getRect(), "rect", RectType);
-    wrapProperty(self, &v->getColor(), "color", ColorType);
-    wrapProperty(self, &v->getTone(), "tone", ToneType);
+    BINDING_GUARD_F(GFX_UNLOCK, wrapProperty(self, &v->getRect(e), "rect", RectType));
+    BINDING_GUARD_F(GFX_UNLOCK, wrapProperty(self, &v->getColor(e), "color", ColorType));
+    BINDING_GUARD_F(GFX_UNLOCK, wrapProperty(self, &v->getTone(e), "tone", ToneType));
     
     GFX_UNLOCK;
     return self;

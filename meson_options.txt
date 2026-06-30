@@ -21,3 +21,11 @@ option('steam_appid', type: 'string', value: '', description: 'Steam AppID. Set 
 option('steamshim_debug', type: 'boolean', value: false, description: 'Whether to show Steamshim debug messages in the console')
 
 option('gfx_backend', type: 'combo', value: 'gl', choices: ['gl', 'gles'], description: 'Graphics rendering API to use.')
+
+option('libretro', type: 'boolean', value: false, description: 'Build a libretro core instead of an executable')
+option('libretro_stage1_path', type: 'string', value: 'libretro/build/libretro-stage1', description: 'Path to libretro-stage1 for libretro builds')
+option('libretro_save_states', type: 'boolean', value: true, description: 'Enable support for save states in libretro builds')
+
+option('emscripten_threaded', type: 'boolean', value: true, description: 'Enable multithreading support in libretro Emscripten builds')
+option('static_libstdcpp', type: 'boolean', value: false, description: 'Always statically link to the C++ standard library')
+option('neon', type: 'boolean', value: false, description: 'Enable NEON support in 32-bit ARM cross builds')

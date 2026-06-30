@@ -1,7 +1,7 @@
 #pragma once
 #include <atomic>
 #include <memory>
-#include <mutex>
+#include "mkxp-polyfill.h"
 #include <type_traits>
 #include <utility>
 #include <thread>
@@ -348,7 +348,9 @@ struct spin_mutex {
     void lock() noexcept {
         while (true) {
             while (!state.load(std::memory_order_relaxed)) {
+#ifndef MKXPZ_NO_STD_THIS_THREAD_YIELD
                 std::this_thread::yield();
+#endif
             }
 
             if (try_lock()) {

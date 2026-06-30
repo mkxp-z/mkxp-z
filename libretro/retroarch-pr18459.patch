@@ -1,0 +1,65 @@
+From 02ca3ec7b8cd68b2c0ef30c3f48029a2908043d1 Mon Sep 17 00:00:00 2001
+From: diekleinekuh <markus.henschel@yaak.ai>
+Date: Sat, 29 Nov 2025 14:34:58 +0100
+Subject: [PATCH] Switch: Configure audio drivers to be in blocking mode
+ initially
+
+---
+ audio/drivers/switch_audio.c                     | 2 +-
+ audio/drivers/switch_libnx_audren_audio.c        | 2 +-
+ audio/drivers/switch_libnx_audren_thread_audio.c | 2 +-
+ audio/drivers/switch_thread_audio.c              | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/audio/drivers/switch_audio.c b/audio/drivers/switch_audio.c
+index 2db183aa82a6..35346d5c3383 100644
+--- a/audio/drivers/switch_audio.c
++++ b/audio/drivers/switch_audio.c
+@@ -324,7 +324,7 @@ static void *switch_audio_init(const char *device,
+    swa->latency        = latency;
+    swa->last_append    = svcGetSystemTick();
+ 
+-   swa->blocking       = block_frames;
++   swa->blocking       = true;
+    swa->is_paused      = true;
+ 
+    RARCH_LOG("[Switch audio] Audio initialized.\n");
+diff --git a/audio/drivers/switch_libnx_audren_audio.c b/audio/drivers/switch_libnx_audren_audio.c
+index 7d9e9a4b34b8..2a712a5a1971 100644
+--- a/audio/drivers/switch_libnx_audren_audio.c
++++ b/audio/drivers/switch_libnx_audren_audio.c
+@@ -81,7 +81,7 @@ static void *libnx_audren_audio_init(
+    real_latency = MAX(5, latency);
+    RARCH_LOG("[Audren] real_latency is %u.\n", real_latency);
+ 
+-   aud->nonblock     = !block_frames;
++   aud->nonblock     = false;
+    aud->buffer_size  = (real_latency * sample_rate / 1000);
+    aud->samples      = (aud->buffer_size / num_channels / sizeof(int16_t));
+    aud->current_size = 0;
+diff --git a/audio/drivers/switch_libnx_audren_thread_audio.c b/audio/drivers/switch_libnx_audren_thread_audio.c
+index f92b32200bc0..969b100518eb 100644
+--- a/audio/drivers/switch_libnx_audren_thread_audio.c
++++ b/audio/drivers/switch_libnx_audren_thread_audio.c
+@@ -162,7 +162,7 @@ static void *libnx_audren_thread_audio_init(const char *device, unsigned rate, u
+ 
+    aud->running     = true;
+    aud->paused      = false;
+-   aud->nonblock    = !block_frames;
++   aud->nonblock    = false;
+    aud->buffer_size = (real_latency * sample_rate / 1000);
+    aud->samples     = (aud->buffer_size / num_channels / sizeof(int16_t));
+ 
+diff --git a/audio/drivers/switch_thread_audio.c b/audio/drivers/switch_thread_audio.c
+index 927a63b63d6a..6e8310e6f396 100644
+--- a/audio/drivers/switch_thread_audio.c
++++ b/audio/drivers/switch_thread_audio.c
+@@ -153,7 +153,7 @@ static void *switch_thread_audio_init(const char *device, unsigned rate, unsigne
+       return NULL;
+ 
+    swa->running     = true;
+-   swa->nonblock    = true;
++   swa->nonblock    = false;
+    swa->is_paused   = true;
+    swa->latency     = MAX(latency, 8);
+ 

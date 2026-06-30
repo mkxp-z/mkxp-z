@@ -42,9 +42,14 @@
 # define M_PI 3.14159265358979323846
 #endif
 
-#include <SDL_rect.h>
-
 #include "sigslot/signal.hpp"
+
+#ifdef MKXPZ_RETRO
+#  include "sandbox-serial-util.h"
+#endif // MKXPZ_RETRO
+
+#define GUARD_V(value, expression) do { expression; if (exception.is_error()) return value; } while (0)
+#define GUARD(expression) GUARD_V(, expression)
 
 static float fwrap(float value, float range)
 {
@@ -54,6 +59,8 @@ static float fwrap(float value, float range)
 
 struct SpritePrivate
 {
+    Sprite *sprite;
+    
     Bitmap *bitmap;
     Bitmap *realBitmap;
     
@@ -72,6 +79,13 @@ struct SpritePrivate
     FloatRect srcRect;
     FloatRect adjustedSrcRect;
     sigslot::connection srcRectCon;
+#ifdef MKXPZ_RETRO
+    Rect deserSavedSrcRect;
+    bool deserMirrorChanged;
+    bool deserYChanged;
+    bool deserBushDepthChanged;
+    uint64_t deserSavedBitmapId;
+#endif // MKXPZ_RETRO
     
     bool mirrored;
     int bushDepth;
@@ -123,8 +137,9 @@ struct SpritePrivate
     
     sigslot::connection prepareCon;
     
-    SpritePrivate()
-    : bitmap(0),
+    SpritePrivate(Sprite *sprite)
+    : sprite(sprite),
+    bitmap(0),
     realBitmap(0),
     realOX(0),
     realOY(0),
@@ -142,6 +157,7 @@ struct SpritePrivate
     opacity(255),
     blendType(BlendNormal),
     pattern(0),
+    patternBlendType(BlendNormal),
     patternTile(true),
     patternOpacity(255),
     invert(false),
@@ -183,7 +199,7 @@ struct SpritePrivate
         bitmapDispCon.disconnect();
     }
 
-	void updateChild()
+	void updateChild(Exception &exception)
 	{
 		if (nullOrDisposed(bitmap))
 			return;
@@ -195,8 +211,8 @@ struct SpritePrivate
 		
 		ChildPublic &shared = *bitmap->getChildInfo();
 		
-		shared.sceneRect = &sceneGeo.rect;
-		shared.sceneOrig = &sceneGeo.orig;
+		shared.sceneElementType = ChildPublic::SPRITE;
+		shared.sceneElement = sprite;
 		
 		shared.x = trans.getPosition().x;
 		shared.y = trans.getPosition().y;
@@ -213,7 +229,7 @@ struct SpritePrivate
 		//shared.width = sceneGeo.rect.w;
 		//shared.height = sceneGeo.rect.h;
 		
-		bitmap->childUpdate();
+		GUARD(bitmap->childUpdate(exception));
 		
 		isVisible = shared.isVisible;
 		
@@ -361,7 +377,10 @@ struct SpritePrivate
             bmSize = Vec2i(bitmap->width(), bitmap->height());
             if (bitmap->hasHires())
             {
-                bmSizeHires = Vec2i(bitmap->getHires()->width(), bitmap->getHires()->height());
+                Exception e;
+                Bitmap *hires = bitmap->getHires(e);
+                if (e.is_ok())
+                    bmSizeHires = Vec2i(hires->width(), hires->height());
             }
         }
         
@@ -482,14 +501,19 @@ struct SpritePrivate
         tex.h = pos.h;
         if (bitmap->hasHires())
         {
-            Vec2 bmSize = Vec2(bitmap->width(), bitmap->height());
-            Vec2 bmSizeHires = Vec2(bitmap->getHires()->width(), bitmap->getHires()->height());
-            if (bmSizeHires.x && bmSizeHires.y && bmSize.x && bmSize.y)
+            Exception e;
+            Bitmap *hires = bitmap->getHires(e);
+            if (e.is_ok())
             {
-                tex.x *= bmSizeHires.x / bmSize.x;
-                tex.y *= bmSizeHires.y / bmSize.y;
-                tex.w *= bmSizeHires.x / bmSize.x;
-                tex.h *= bmSizeHires.y / bmSize.y;
+                Vec2 bmSize = Vec2(bitmap->width(), bitmap->height());
+                Vec2 bmSizeHires = Vec2(hires->width(), hires->height());
+                if (bmSizeHires.x && bmSizeHires.y && bmSize.x && bmSize.y)
+                {
+                    tex.x *= bmSizeHires.x / bmSize.x;
+                    tex.y *= bmSizeHires.y / bmSize.y;
+                    tex.w *= bmSizeHires.x / bmSize.x;
+                    tex.h *= bmSizeHires.y / bmSize.y;
+                }
             }
         }
         
@@ -555,14 +579,19 @@ struct SpritePrivate
             
             if (bitmap->hasHires())
             {
-                Vec2 bmSize = Vec2(bitmap->width(), bitmap->height());
-                Vec2 bmSizeHires = Vec2(bitmap->getHires()->width(), bitmap->getHires()->height());
-                if (bmSizeHires.x && bmSizeHires.y && bmSize.x && bmSize.y)
+                Exception e;
+                Bitmap *hires = bitmap->getHires(e);
+                if (e.is_ok())
                 {
-                    tex.x *= bmSizeHires.x / bmSize.x;
-                    tex.y *= bmSizeHires.y / bmSize.y;
-                    tex.w *= bmSizeHires.x / bmSize.x;
-                    tex.h *= bmSizeHires.y / bmSize.y;
+                    Vec2 bmSize = Vec2(bitmap->width(), bitmap->height());
+                    Vec2 bmSizeHires = Vec2(hires->width(), hires->height());
+                    if (bmSizeHires.x && bmSizeHires.y && bmSize.x && bmSize.y)
+                    {
+                        tex.x *= bmSizeHires.x / bmSize.x;
+                        tex.y *= bmSizeHires.y / bmSize.y;
+                        tex.w *= bmSizeHires.x / bmSize.x;
+                        tex.h *= bmSizeHires.y / bmSize.y;
+                    }
                 }
             }
             wave.qArray.resize(1);
@@ -618,17 +647,25 @@ struct SpritePrivate
     void prepare()
     {
         // Skip preparations and drawing if the bitmap is disposed or the sprite or viewport is invisible
-        if (nullOrDisposed(realBitmap) || !(*spriteVisible) || (viewport && !viewport->getVisible()))
         {
-            isVisible = false;
-            return;
+            // Ignore errors
+            Exception e;
+            if (nullOrDisposed(realBitmap) || !(*spriteVisible) || (viewport && !viewport->getVisible(e)))
+            {
+                isVisible = false;
+                return;
+            }
         }
         
         // Wave state influences updateVisibility, so we have to updateWave first.
         if (wave.dirty)
             updateWave();
 
-        updateChild();
+        {
+            // Ignore errors
+            Exception e;
+            updateChild(e);
+        }
         
         updateVisibility();
         
@@ -640,10 +677,15 @@ struct SpritePrivate
     }
 };
 
-Sprite::Sprite(Viewport *viewport)
-: ViewportElement(viewport)
+static void disposePtr(void *ptr)
 {
-    p = new SpritePrivate;
+    ((Sprite *)ptr)->dispose();
+}
+
+Sprite::Sprite(Viewport *viewport)
+: ViewportElement(disposePtr, viewport)
+{
+    p = new SpritePrivate(this);
     p->spriteVisible = &visible;
     p->viewport = viewport;
     onGeometryChange(scene->getGeometry());
@@ -687,9 +729,9 @@ DEF_ATTR_SIMPLE(Sprite, PatternZoomX, float, p->patternZoom.x)
 DEF_ATTR_SIMPLE(Sprite, PatternZoomY, float, p->patternZoom.y)
 DEF_ATTR_SIMPLE(Sprite, Invert,      bool,    p->invert)
 
-void Sprite::setBitmap(Bitmap *bitmap)
+void Sprite::setBitmap(Exception &exception, Bitmap *bitmap)
 {
-    guardDisposed();
+    GUARD(guardDisposed(exception));
     
     if (p->realBitmap == bitmap)
         return;
@@ -712,7 +754,7 @@ void Sprite::setBitmap(Bitmap *bitmap)
     
     if (bitmap->isMega())
     {
-        p->bitmap = bitmap->spawnChild();
+        GUARD(p->bitmap = bitmap->spawnChild(exception));
         p->srcRect = p->bitmap->rect();
     }
     
@@ -721,24 +763,28 @@ void Sprite::setBitmap(Bitmap *bitmap)
     p->updateSrcRectCon();
 }
 
-void Sprite::setX(int value)
+void Sprite::setX(Exception &exception, int value)
 {
-    guardDisposed();
+    GUARD(guardDisposed(exception));
     
     if (p->trans.getPosition().x == value)
         return;
     
-    p->trans.setPosition(Vec2(value, getY()));
+    int y;
+    GUARD(y = getY(exception));
+    p->trans.setPosition(Vec2(value, y));
 }
 
-void Sprite::setY(int value)
+void Sprite::setY(Exception &exception, int value)
 {
-    guardDisposed();
+    GUARD(guardDisposed(exception));
     
     if (p->trans.getPosition().y == value)
         return;
     
-    p->trans.setPosition(Vec2(getX(), value));
+    int x;
+    GUARD(x = getX(exception));
+    p->trans.setPosition(Vec2(x, value));
     
     if (p->wave.active)
         p->wave.dirty = true;
@@ -747,55 +793,63 @@ void Sprite::setY(int value)
         setSpriteY(value);
 }
 
-void Sprite::setOX(int value)
+void Sprite::setOX(Exception &exception, int value)
 {
-    guardDisposed();
+    GUARD(guardDisposed(exception));
     
     if (p->realOX == value)
         return;
     
+    int oy;
+    GUARD(oy = getOY(exception));
     p->realOX = value;
-    p->trans.setOrigin(Vec2(value, getOY()));
+    p->trans.setOrigin(Vec2(value, oy));
 }
 
-void Sprite::setOY(int value)
+void Sprite::setOY(Exception &exception, int value)
 {
-    guardDisposed();
+    GUARD(guardDisposed(exception));
     
     if (p->realOY == value)
         return;
     
+    int ox;
+    GUARD(ox = getOX(exception));
     p->realOY = value;
-    p->trans.setOrigin(Vec2(getOX(), value));
+    p->trans.setOrigin(Vec2(ox, value));
     
     if (p->wave.active)
         p->wave.dirty = true;
 }
 
-void Sprite::setZoomX(float value)
+void Sprite::setZoomX(Exception &exception, float value)
 {
-    guardDisposed();
+    GUARD(guardDisposed(exception));
     
     if (p->realZoomX == value)
         return;
     
+    float zoomY;
+    GUARD(zoomY = getZoomY(exception));
     // RGSS lets you set the zoom below 0, but it doesn't render it
     p->realZoomX = value;
-    p->trans.setScale(Vec2(std::max(value, 0.0f), std::max(getZoomY(), 0.0f)));
+    p->trans.setScale(Vec2(std::max(value, 0.0f), std::max(zoomY, 0.0f)));
     
     if (p->wave.active)
         p->wave.dirty = true;
 }
 
-void Sprite::setZoomY(float value)
+void Sprite::setZoomY(Exception &exception, float value)
 {
-    guardDisposed();
+    GUARD(guardDisposed(exception));
     
     if (p->realZoomY == value)
         return;
     
+    float zoomX;
+    GUARD(zoomX = getZoomX(exception));
     // RGSS lets you set the zoom below 0, but it doesn't render it
-    p->trans.setScale(Vec2(std::max(getZoomX(), 0.0f), std::max(value, 0.0f)));
+    p->trans.setScale(Vec2(std::max(zoomX, 0.0f), std::max(value, 0.0f)));
     p->bushDirty = true;
         
     p->realZoomY = value;
@@ -803,9 +857,9 @@ void Sprite::setZoomY(float value)
         p->wave.dirty = true;
 }
 
-void Sprite::setAngle(float value)
+void Sprite::setAngle(Exception &exception, float value)
 {
-    guardDisposed();
+    GUARD(guardDisposed(exception));
     
     if (p->trans.getRotation() == value)
         return;
@@ -815,9 +869,9 @@ void Sprite::setAngle(float value)
     p->bushDirty = true;
 }
 
-void Sprite::setMirror(bool mirrored)
+void Sprite::setMirror(Exception &exception, bool mirrored)
 {
-    guardDisposed();
+    GUARD(guardDisposed(exception));
     
     if (p->mirrored == mirrored)
         return;
@@ -829,9 +883,9 @@ void Sprite::setMirror(bool mirrored)
         p->wave.dirty = true;
 }
 
-void Sprite::setBushDepth(int value)
+void Sprite::setBushDepth(Exception &exception, int value)
 {
-    guardDisposed();
+    GUARD(guardDisposed(exception));
     
     if (p->bushDepth == value)
         return;
@@ -840,9 +894,9 @@ void Sprite::setBushDepth(int value)
     p->bushDirty = true;
 }
 
-void Sprite::setBlendType(int type)
+void Sprite::setBlendType(Exception &exception, int type)
 {
-    guardDisposed();
+    GUARD(guardDisposed(exception));
     
     switch (type)
     {
@@ -859,9 +913,9 @@ void Sprite::setBlendType(int type)
     }
 }
 
-void Sprite::setPattern(Bitmap *value)
+void Sprite::setPattern(Exception &exception, Bitmap *value)
 {
-    guardDisposed();
+    GUARD(guardDisposed(exception));
     
     if (p->pattern == value)
         return;
@@ -870,13 +924,13 @@ void Sprite::setPattern(Bitmap *value)
     
     if (!nullOrDisposed(value))
     {
-        value->ensureNonMega();
+        GUARD(value->ensureNonMega(exception));
     }
 }
 
-void Sprite::setPatternBlendType(int type)
+void Sprite::setPatternBlendType(Exception &exception, int type)
 {
-    guardDisposed();
+    GUARD(guardDisposed(exception));
     
     switch (type)
     {
@@ -894,9 +948,9 @@ void Sprite::setPatternBlendType(int type)
 }
 
 #define DEF_WAVE_SETTER(Name, name, type) \
-void Sprite::setWave##Name(type value) \
+void Sprite::setWave##Name(Exception &exception, type value) \
 { \
-guardDisposed(); \
+GUARD(guardDisposed(exception)); \
 if (p->wave.name == value) \
 return; \
 p->wave.name = value; \
@@ -909,7 +963,7 @@ DEF_WAVE_SETTER(Speed,  speed,  int)
 
 #undef DEF_WAVE_SETTER
 
-void Sprite::setWavePhase(float value)
+void Sprite::setWavePhase(Exception &exception, float value)
 {
 	if (p->wave.phase == value)
 		return;
@@ -926,12 +980,22 @@ void Sprite::initDynAttribs()
     p->updateSrcRectCon();
 }
 
-/* Flashable */
-void Sprite::update()
+const IntRect *Sprite::sceneRect() const noexcept
 {
-    guardDisposed();
+    return &p->sceneGeo.rect;
+}
+
+const Vec2i *Sprite::sceneOrig() const noexcept
+{
+    return &p->sceneGeo.orig;
+}
+
+/* Flashable */
+void Sprite::update(Exception &exception)
+{
+    GUARD(guardDisposed(exception));
     
-    Flashable::update();
+    GUARD(Flashable::update(exception));
     
     if (p->wave.speed != 0)
     {
@@ -942,7 +1006,7 @@ void Sprite::update()
 }
 
 /* SceneElement */
-void Sprite::draw()
+void Sprite::draw(Exception &exception)
 {
     if (!p->isVisible)
         return;
@@ -961,8 +1025,10 @@ void Sprite::draw()
     
     int scalingMethod = NearestNeighbor;
 
-    int sourceWidthHires = p->bitmap->hasHires() ? p->bitmap->getHires()->width() : p->bitmap->width();
-    int sourceHeightHires = p->bitmap->hasHires() ? p->bitmap->getHires()->height() : p->bitmap->height();
+    Bitmap *hires;
+    GUARD(hires = p->bitmap->getHires(exception));
+    int sourceWidthHires = p->bitmap->hasHires() ? hires->width() : p->bitmap->width();
+    int sourceHeightHires = p->bitmap->hasHires() ? hires->height() : p->bitmap->height();
 
     double framebufferScalingFactor = shState->config().enableHires ? shState->config().framebufferScalingFactor : 1.0;
 
@@ -1122,7 +1188,11 @@ void Sprite::draw()
     if (scalingMethod == xBRZ)
     {
         XbrzShader &shader = shState->shaders().xbrz;
+#ifdef MKXPZ_RETRO
+        shader.setTargetScale(Vec2(1.0f, 1.0f));
+#else
         shader.setTargetScale(Vec2((float)(shState->config().xbrzScalingFactor), (float)(shState->config().xbrzScalingFactor)));
+#endif // MKXPZ_RETRO
     }
 #endif
     
@@ -1157,3 +1227,19 @@ void Sprite::releaseResources()
     
     delete p;
 }
+
+#ifdef MKXPZ_RETRO
+void Sprite::sandbox_reinit()
+{
+    if (isDisposed()) return;
+
+    p->quad.reinit();
+    p->wave.qArray.reinit();
+    p->wave.dirty = true;
+}
+
+#ifndef MKXPZ_SANDBOX_SERIAL_SPRITE_H
+#define MKXPZ_SANDBOX_SERIAL_SPRITE_H
+#include "sandbox-serial-sprite.h"
+#endif // MKXPZ_SANDBOX_SERIAL_SPRITE_H
+#endif // MKXPZ_RETRO

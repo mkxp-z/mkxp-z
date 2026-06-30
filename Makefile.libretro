@@ -1,0 +1,282 @@
+.PHONY: all default clean
+
+ifeq ($(platform),win64)
+    MKXPZ_SYSTEM = windows
+    MKXPZ_CPU_FAMILY = x86_64
+    MKXPZ_CPU = x86_64
+    MKXPZ_ENDIAN = little
+else ifeq ($(platform),win32)
+    MKXPZ_SYSTEM = windows
+    MKXPZ_CPU_FAMILY = x86
+    MKXPZ_CPU = i686
+    MKXPZ_ENDIAN = little
+else ifeq ($(platform),unix)
+    MKXPZ_SYSTEM = linux
+    MKXPZ_CPU_FAMILY = $(shell $(CC) -E -I libretro/build/libretro-stage1/boost_predef/include libretro/arch-test.h | tail -n 1)
+    MKXPZ_ENDIAN = $(shell $(CC) -E -I libretro/build/libretro-stage1/boost_predef/include libretro/endian-test.h | tail -n 1)
+    ifeq ($(MKXPZ_CPU_FAMILY),arm)
+        MKXPZ_CPU = generic-armv7-a
+    else ifeq ($(MKXPZ_CPU_FAMILY),aarch64)
+        MKXPZ_CPU = generic-armv8-a
+    else ifeq ($(MKXPZ_CPU_FAMILY),ppc64)
+        MKXPZ_CPU = power8
+    else ifeq ($(MKXPZ_CPU_FAMILY),x86)
+        MKXPZ_CPU = i686
+    else
+        MKXPZ_CPU = $(MKXPZ_CPU_FAMILY)
+    endif
+else ifeq ($(platform),osx)
+    MKXPZ_SYSTEM = darwin
+    ifeq ($(arch),arm)
+        MKXPZ_CPU_FAMILY = aarch64
+        MKXPZ_CPU = generic-armv8-a
+        MKXPZ_ENDIAN = little
+        # macOS 11 is the first version of macOS with support for 64-bit ARM
+        MKXPZ_CC = ['xcrun', '--sdk', 'macosx', '$(CC)', '--target=arm64-apple-macos11.0']
+        MKXPZ_CXX = ['xcrun', '--sdk', 'macosx', '$(CXX)', '--target=arm64-apple-macos11.0']
+    else
+        MKXPZ_CPU_FAMILY = x86_64
+        MKXPZ_CPU = x86_64
+        MKXPZ_ENDIAN = little
+        # The build times out with full LTO
+        MKXPZ_LTO_MODE = thin
+    endif
+else ifeq ($(platform),android-arm)
+    MKXPZ_SYSTEM = android
+    MKXPZ_SUFFIX = android
+    MKXPZ_ARCH_CMAKE = armv7-a
+    MKXPZ_CPU_FAMILY = arm
+    MKXPZ_CPU = generic-armv7-a
+    MKXPZ_ENDIAN = little
+    MKXPZ_CC = ['$(ANDROID_NDK_CLANG)/bin/clang', '--target=armv7a-linux-androideabi21']
+    MKXPZ_CXX = ['$(ANDROID_NDK_CLANG)/bin/clang++', '--target=armv7a-linux-androideabi21']
+    MKXPZ_AR = $(ANDROID_NDK_LLVM)/bin/llvm-ar
+    # The build times out with full LTO
+    MKXPZ_LTO_MODE = thin
+else ifeq ($(platform),android-arm64)
+    MKXPZ_SYSTEM = android
+    MKXPZ_SUFFIX = android
+    MKXPZ_ARCH_CMAKE = aarch64
+    MKXPZ_CPU_FAMILY = aarch64
+    MKXPZ_CPU = generic-armv8-a
+    MKXPZ_ENDIAN = little
+    MKXPZ_CC = ['$(ANDROID_NDK_CLANG)/bin/clang', '--target=aarch64-linux-android21']
+    MKXPZ_CXX = ['$(ANDROID_NDK_CLANG)/bin/clang++', '--target=aarch64-linux-android21']
+    MKXPZ_AR = $(ANDROID_NDK_LLVM)/bin/llvm-ar
+    # The build times out with full LTO
+    MKXPZ_LTO_MODE = thin
+else ifeq ($(platform),android-x86)
+    MKXPZ_SYSTEM = android
+    MKXPZ_SUFFIX = android
+    MKXPZ_ARCH_CMAKE = i686
+    MKXPZ_CPU_FAMILY = x86
+    MKXPZ_CPU = i686
+    MKXPZ_ENDIAN = little
+    MKXPZ_CC = ['$(ANDROID_NDK_CLANG)/bin/clang', '--target=i686-linux-android21']
+    MKXPZ_CXX = ['$(ANDROID_NDK_CLANG)/bin/clang++', '--target=i686-linux-android21']
+    MKXPZ_AR = $(ANDROID_NDK_LLVM)/bin/llvm-ar
+    # The build times out with full LTO
+    MKXPZ_LTO_MODE = thin
+else ifeq ($(platform),android-x86_64)
+    MKXPZ_SYSTEM = android
+    MKXPZ_SUFFIX = android
+    MKXPZ_ARCH_CMAKE = x86_64
+    MKXPZ_CPU_FAMILY = x86_64
+    MKXPZ_CPU = x86_64
+    MKXPZ_ENDIAN = little
+    MKXPZ_CC = ['$(ANDROID_NDK_CLANG)/bin/clang', '--target=x86_64-linux-android21']
+    MKXPZ_CXX = ['$(ANDROID_NDK_CLANG)/bin/clang++', '--target=x86_64-linux-android21']
+    MKXPZ_AR = $(ANDROID_NDK_LLVM)/bin/llvm-ar
+    # The build times out with full LTO
+    MKXPZ_LTO_MODE = thin
+else ifeq ($(platform),webos)
+    MKXPZ_SYSTEM = linux
+    MKXPZ_STATIC_LIBSTDCPP = true
+    MKXPZ_NEON = true
+    MKXPZ_CPU_FAMILY = arm
+    MKXPZ_CPU = generic-armv7-a+neon
+    MKXPZ_ENDIAN = little
+else ifeq ($(platform),ios-arm64)
+    MKXPZ_SYSTEM = darwin
+    MKXPZ_SUFFIX = ios
+    MKXPZ_CPU_FAMILY = aarch64
+    MKXPZ_CPU = generic-armv8-a
+    MKXPZ_ENDIAN = little
+    # iOS 10 is the first version of iOS with support for 64-bit ARM
+    MKXPZ_CC = ['xcrun', '--sdk', 'iphoneos', '$(CC)', '--target=arm64-apple-ios10.0']
+    MKXPZ_CXX = ['xcrun', '--sdk', 'iphoneos', '$(CXX)', '--target=arm64-apple-ios10.0']
+else ifeq ($(platform),ios9)
+    MKXPZ_SYSTEM = darwin
+    MKXPZ_SUFFIX = ios
+    MKXPZ_CPU_FAMILY = arm
+    MKXPZ_CPU = generic-armv7-a
+    MKXPZ_ENDIAN = little
+    # iOS 9 is the first version of iOS with support for thread-local storage, which we currently need
+    MKXPZ_CC = ['xcrun', '--sdk', 'iphoneos', '$(CC)', '--target=armv7-apple-ios9.0']
+    MKXPZ_CXX = ['xcrun', '--sdk', 'iphoneos', '$(CXX)', '--target=armv7-apple-ios9.0']
+    # The build times out with full LTO
+    MKXPZ_LTO_MODE = thin
+else ifeq ($(platform),tvos-arm64)
+    MKXPZ_SYSTEM = darwin
+    MKXPZ_SUFFIX = tvos
+    MKXPZ_CPU_FAMILY = aarch64
+    MKXPZ_CPU = generic-armv8-a
+    MKXPZ_ENDIAN = little
+    # tvOS 9 is the first version of tvOS with support for installing apps
+    MKXPZ_CC = ['xcrun', '--sdk', 'appletvos', '$(CC)', '--target=arm64-apple-tvos9.0']
+    MKXPZ_CXX = ['xcrun', '--sdk', 'appletvos', '$(CXX)', '--target=arm64-apple-tvos9.0']
+else ifeq ($(platform),orbis)
+    MKXPZ_SYSTEM = none
+    MKXPZ_SUFFIX = orbis
+    MKXPZ_CPU_FAMILY = x86_64
+    MKXPZ_CPU = x86_64
+    MKXPZ_ENDIAN = little
+    MKXPZ_CC = ['/usr/local/orbisdev/bin/clang', '-isystem/usr/local/orbisdev/usr/include']
+    MKXPZ_CXX = ['/usr/local/orbisdev/bin/clang++', '-isystem/usr/local/orbisdev/usr/include/c++/v1', '-isystem/usr/local/orbisdev/usr/include']
+    MKXPZ_AR = /usr/local/orbisdev/bin/orbis-ar
+    MKXPZ_LDFLAGS = -r
+    # LTO isn't supported by this toolchain
+    MKXPZ_LTO = false
+else ifeq ($(platform),libnx)
+    MKXPZ_SYSTEM = none
+    MKXPZ_SUFFIX = libnx
+    MKXPZ_CPU_FAMILY = aarch64
+    MKXPZ_CPU = cortex-a57
+    MKXPZ_ENDIAN = little
+    MKXPZ_CC = /opt/devkitpro/devkitA64/bin/aarch64-none-elf-gcc
+    MKXPZ_CXX = /opt/devkitpro/devkitA64/bin/aarch64-none-elf-g++
+    MKXPZ_AR = /opt/devkitpro/devkitA64/bin/aarch64-none-elf-ar
+    # The build times out with LTO enabled
+    MKXPZ_LTO = false
+else ifeq ($(platform),gcw0)
+    MKXPZ_SYSTEM = linux
+    MKXPZ_CPU_FAMILY = mips
+    MKXPZ_CPU = jz4770
+    MKXPZ_ENDIAN = little
+else ifeq ($(platform),miyoo)
+    MKXPZ_SYSTEM = linux
+    MKXPZ_CPU_FAMILY = arm
+    MKXPZ_CPU = cortex-a7
+    MKXPZ_ENDIAN = little
+else ifeq ($(platform),retrofw)
+    MKXPZ_SYSTEM = linux
+    MKXPZ_CPU_FAMILY = mips
+    MKXPZ_CPU = jz4760
+    MKXPZ_ENDIAN = little
+else ifeq ($(platform),emscripten)
+    MKXPZ_SYSTEM = emscripten
+    MKXPZ_SUFFIX = emscripten
+    MKXPZ_CPU_FAMILY = wasm32
+    MKXPZ_CPU = wasm32
+    MKXPZ_ENDIAN = little
+    MKXPZ_CMAKE_TOOLCHAIN_FILE = $(shell em-config EMSCRIPTEN_ROOT)/cmake/Modules/Platform/Emscripten.cmake
+    # The build times out with LTO enabled
+    MKXPZ_LTO = false
+else
+    $(error unknown platform '$(platform)')
+endif
+
+ifeq ($(MKXPZ_LTO),)
+    MKXPZ_LTO = true
+endif
+
+ifeq ($(MKXPZ_LTO_MODE),)
+    MKXPZ_LTO_MODE = default
+endif
+
+ifeq ($(MKXPZ_STATIC_LIBSTDCPP),)
+    MKXPZ_STATIC_LIBSTDCPP = false
+endif
+
+ifeq ($(MKXPZ_NEON),)
+    MKXPZ_NEON = false
+endif
+
+ifeq ($(MKXPZ_SYSTEM),windows)
+    MKXPZ_EXTENSION = dll
+else ifeq ($(MKXPZ_SYSTEM),linux)
+    MKXPZ_EXTENSION = so
+else ifeq ($(MKXPZ_SYSTEM),android)
+    MKXPZ_EXTENSION = so
+else ifeq ($(MKXPZ_SYSTEM),darwin)
+    MKXPZ_EXTENSION = dylib
+else
+    MKXPZ_EXTENSION = a
+endif
+
+ifeq ($(MKXPZ_SYSTEM),emscripten)
+    MKXPZ_EXTENSION_COPY = bc
+else
+    MKXPZ_EXTENSION_COPY = $(MKXPZ_EXTENSION)
+endif
+
+MKXPZ_BUILD_OUTPUT = mkxp-z_libretro.$(MKXPZ_EXTENSION)
+ifeq ($(MKXPZ_SUFFIX),)
+    MKXPZ_BUILD_OUTPUT_COPY = mkxp-z_libretro.$(MKXPZ_EXTENSION_COPY)
+else
+    MKXPZ_BUILD_OUTPUT_COPY = mkxp-z_libretro_$(MKXPZ_SUFFIX).$(MKXPZ_EXTENSION_COPY)
+endif
+
+MKXPZ_BUILD_DIR = build
+MKXPZ_CROSS_FILE = cross.ini
+
+all default: $(MKXPZ_BUILD_OUTPUT_COPY)
+
+$(MKXPZ_BUILD_OUTPUT_COPY): $(MKXPZ_BUILD_DIR)/$(MKXPZ_BUILD_OUTPUT)
+	cp $(MKXPZ_BUILD_DIR)/$(MKXPZ_BUILD_OUTPUT) $(MKXPZ_BUILD_OUTPUT_COPY)
+
+$(MKXPZ_BUILD_DIR)/$(MKXPZ_BUILD_OUTPUT): $(MKXPZ_BUILD_DIR)/build.ninja
+ifneq ($(NUMPROC),)
+	cd $(MKXPZ_BUILD_DIR) && CFLAGS= CXXFLAGS= LDFLAGS= CC= CXX= LD= AR= AS= NM= OBJCOPY= OBJDUMP= RANLIB= STRIP= STRINGS= CLICOLOR_FORCE=1 ninja -j $(NUMPROC) -v
+else
+	cd $(MKXPZ_BUILD_DIR) && CFLAGS= CXXFLAGS= LDFLAGS= CC= CXX= LD= AR= AS= NM= OBJCOPY= OBJDUMP= RANLIB= STRIP= STRINGS= CLICOLOR_FORCE=1 ninja -v
+endif
+
+$(MKXPZ_BUILD_DIR)/build.ninja: $(MKXPZ_CROSS_FILE)
+	CFLAGS= CXXFLAGS= LDFLAGS= CC= CXX= LD= AR= AS= NM= OBJCOPY= OBJDUMP= RANLIB= STRIP= STRINGS= CLICOLOR_FORCE=1 meson setup $(MKXPZ_BUILD_DIR) --cross-file $(MKXPZ_CROSS_FILE) -Dlibretro=true -Dlibretro_save_states=true -Demscripten_threaded=false -Db_lto=$(MKXPZ_LTO) -Db_lto_mode=$(MKXPZ_LTO_MODE) -Dstatic_libstdcpp=$(MKXPZ_STATIC_LIBSTDCPP) -Dneon=$(MKXPZ_NEON)
+
+$(MKXPZ_CROSS_FILE):
+	echo "[binaries]" > $(MKXPZ_CROSS_FILE)
+ifeq ($(MKXPZ_CC),)
+	echo "c = '$(CC)'" >> $(MKXPZ_CROSS_FILE)
+else ifeq ($(patsubst [%,,$(firstword $(MKXPZ_CC))),)
+	echo "c = $(MKXPZ_CC)" >> $(MKXPZ_CROSS_FILE)
+else
+	echo "c = '$(MKXPZ_CC)'" >> $(MKXPZ_CROSS_FILE)
+endif
+ifeq ($(MKXPZ_CXX),)
+	echo "cpp = '$(CXX)'" >> $(MKXPZ_CROSS_FILE)
+else ifeq ($(patsubst [%,,$(firstword $(MKXPZ_CXX))),)
+	echo "cpp = $(MKXPZ_CXX)" >> $(MKXPZ_CROSS_FILE)
+else
+	echo "cpp = '$(MKXPZ_CXX)'" >> $(MKXPZ_CROSS_FILE)
+endif
+ifeq ($(MKXPZ_AR),)
+	echo "ar = '$(AR)'" >> $(MKXPZ_CROSS_FILE)
+else ifeq ($(patsubst [%,,$(firstword $(MKXPZ_AR))),)
+	echo "ar = $(MKXPZ_AR)" >> $(MKXPZ_CROSS_FILE)
+else
+	echo "ar = '$(MKXPZ_AR)'" >> $(MKXPZ_CROSS_FILE)
+endif
+	echo "cmake = 'cmake'" >> $(MKXPZ_CROSS_FILE)
+	echo "[host_machine]" >> $(MKXPZ_CROSS_FILE)
+	echo "system = '$(MKXPZ_SYSTEM)'" >> $(MKXPZ_CROSS_FILE)
+	echo "cpu_family = '$(MKXPZ_CPU_FAMILY)'" >> $(MKXPZ_CROSS_FILE)
+	echo "cpu = '$(MKXPZ_CPU)'" >> $(MKXPZ_CROSS_FILE)
+	echo "endian = '$(MKXPZ_ENDIAN)'" >> $(MKXPZ_CROSS_FILE)
+	echo "[properties]" >> $(MKXPZ_CROSS_FILE)
+ifneq ($(MKXPZ_CMAKE_TOOLCHAIN_FILE),)
+	echo "cmake_toolchain_file = '$(MKXPZ_CMAKE_TOOLCHAIN_FILE)'" >> $(MKXPZ_CROSS_FILE)
+endif
+	echo "[cmake]" >> $(MKXPZ_CROSS_FILE)
+ifneq ($(MKXPZ_ARCH_CMAKE),)
+	echo "CMAKE_SYSTEM_PROCESSOR = '$(MKXPZ_ARCH_CMAKE)'" >> $(MKXPZ_CROSS_FILE)
+endif
+ifneq ($(MKXPZ_LDFLAGS),)
+	echo "CMAKE_EXE_LINKER_FLAGS_INIT = '$(MKXPZ_LDFLAGS)'" >> $(MKXPZ_CROSS_FILE)
+endif
+
+clean:
+	rm -rf $(MKXPZ_BUILD_DIR)
+	rm -f $(MKXPZ_CROSS_FILE)
+	meson subprojects purge --confirm

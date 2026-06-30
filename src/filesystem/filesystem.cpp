@@ -21,6 +21,8 @@
 
 #include "filesystem.h"
 
+#include "mkxp-polyfill.h" // snprintf
+
 #include "util/boost-hash.h"
 #include "util/debugwriter.h"
 #include "util/exception.h"
@@ -33,8 +35,17 @@
 
 #include <physfs.h>
 
+#ifdef MKXPZ_RETRO
+#  include <list>
+#  include <memory>
+#  include <sstream>
+#  include "core.h"
+#  include <boost/optional.hpp>
+#endif // MKXPZ_RETRO
+
 #include <algorithm>
 #include <stack>
+#include <string>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -48,6 +59,7 @@
 #include <direct.h>
 #endif
 
+#ifndef MKXPZ_RETRO
 struct SDLRWIoContext {
   SDL_RWops *ops;
   std::string filename;
@@ -211,6 +223,7 @@ static int SDL_RWopsCloseFree(SDL_RWops *ops) {
 
   return result;
 }
+#endif // MKXPZ_RETRO
 
 /* Copies the first srcN characters from src into dst,
  * or the full string if srcN == -1. Never writes more
@@ -245,6 +258,7 @@ static const char *findExt(const char *filename) {
   return 0;
 }
 
+#ifndef MKXPZ_RETRO
 static void initReadOps(PHYSFS_File *handle, SDL_RWops &ops, bool freeOnClose) {
   ops.size = SDL_RWopsSize;
   ops.seek = SDL_RWopsSeek;
@@ -259,13 +273,16 @@ static void initReadOps(PHYSFS_File *handle, SDL_RWops &ops, bool freeOnClose) {
   ops.type = SDL_RWOPS_PHYSFS;
   ops.hidden.unknown.data1 = handle;
 }
+#endif // MKXPZ_RETRO
 
 static void strTolower(std::string &str) {
   for (size_t i = 0; i < str.size(); ++i)
     str[i] = tolower(str[i]);
 }
 
+#ifndef MKXPZ_RETRO
 const Uint32 SDL_RWOPS_PHYSFS = SDL_RWOPS_UNKNOWN + 10;
+#endif // MKXPZ_RETRO
 
 struct FileSystemPrivate {
   /* Maps: lower case full filepath,
@@ -291,7 +308,7 @@ static void throwPhysfsError(const char *desc) {
         englishStr = PHYSFS_getErrorByCode(ec);
     }
 
-  throw Exception(Exception::PHYSFSError, "%s: %s", desc, englishStr);
+  MKXPZ_THROW(Exception(Exception::PHYSFSError, "%s: %s", desc, englishStr));
 }
 
 FileSystem::FileSystem(const char *argv0, bool allowSymlinks) {
@@ -323,9 +340,11 @@ FileSystem::~FileSystem() {
     Debug() << "PhyFS failed to deinit.";
 }
 
-void FileSystem::addPath(const char *path, const char *mountpoint, bool reload) {
+void FileSystem::addPath(Exception &exception, const char *path, const char *mountpoint, bool reload) {
   /* Try the normal mount first */
     int state = PHYSFS_mount(path, mountpoint, 1);
+
+#ifndef MKXPZ_RETRO
   if (!state) {
     /* If it didn't work, try mounting via a wrapped
      * SDL_RWops */
@@ -334,22 +353,27 @@ void FileSystem::addPath(const char *path, const char *mountpoint, bool reload) 
     if (io)
       state = PHYSFS_mountIo(io, path, 0, 1);
   }
+#endif // MKXPZ_RETRO
+
     if (!state) {
         PHYSFS_ErrorCode err = PHYSFS_getLastErrorCode();
-        throw Exception(Exception::PHYSFSError, "Failed to mount %s (%s)", path, PHYSFS_getErrorByCode(err));
+        exception = Exception(Exception::PHYSFSError, "Failed to mount %s (%s)", path, PHYSFS_getErrorByCode(err));
+        return;
     }
     
     if (reload) reloadPathCache();
+    exception = Exception(Exception::Ok, "");
 }
 
-void FileSystem::removePath(const char *path, bool reload) {
+void FileSystem::removePath(Exception &exception, const char *path, bool reload) {
     
     if (!PHYSFS_unmount(path)) {
         PHYSFS_ErrorCode err = PHYSFS_getLastErrorCode();
-        throw Exception(Exception::PHYSFSError, "Failed to unmount %s (%s)", path, PHYSFS_getErrorByCode(err));
+        exception = Exception(Exception::PHYSFSError, "Failed to unmount %s (%s)", path, PHYSFS_getErrorByCode(err));
     }
     
     if (reload) reloadPathCache();
+    exception = Exception(Exception::Ok, "");
 }
 
 struct CacheEnumData {
@@ -397,13 +421,23 @@ struct CacheEnumData {
 static PHYSFS_EnumerateCallbackResult cacheEnumCB(void *d, const char *origdir,
                                                   const char *fname) {
   if (shState && shState->rtData().rqTerm)
-    throw Exception(Exception::MKXPError, "Game close requested. Aborting path cache enumeration.");
+    return PHYSFS_ENUM_ERROR;
+
+#ifdef MKXPZ_RETRO
+  // Don't cache the /Dist or /System directories because the game doesn't need to access them
+  if (!*origdir && (!strcmp(fname, "Dist") || !strcmp(fname, "System")))
+    return PHYSFS_ENUM_OK;
+#endif // MKXPZ_RETRO
 
   CacheEnumData &data = *static_cast<CacheEnumData *>(d);
-  char fullPath[512];
+  char fullPath[4096];
 
   if (!*origdir)
+#ifdef MKXPZ_RETRO
+    snprintf(fullPath, sizeof(fullPath), "/%s", fname);
+#else
     snprintf(fullPath, sizeof(fullPath), "%s", fname);
+#endif // MKXPZ_RETRO
   else
     snprintf(fullPath, sizeof(fullPath), "%s/%s", origdir, fname);
 
@@ -486,20 +520,32 @@ static PHYSFS_EnumerateCallbackResult fontSetEnumCB(void *data, const char *dir,
   if (strcmp(lowExt, "ttf") && strcmp(lowExt, "otf"))
     return PHYSFS_ENUM_OK;
 
-  char filename[512];
+  char filename[4096];
   snprintf(filename, sizeof(filename), "%s/%s", dir, fname);
 
+#ifdef MKXPZ_RETRO
+  std::shared_ptr<FileSystem::File> handle(new FileSystem::File(*mkxp_retro::fs, filename));
+#else
   PHYSFS_File *handle = PHYSFS_openRead(filename);
+#endif // MKXPZ_RETRO
 
+#ifdef MKXPZ_RETRO
+  if (!handle->is_read_open())
+#else
   if (!handle)
+#endif // MKXPZ_RETRO
     return PHYSFS_ENUM_ERROR;
 
+#ifdef MKXPZ_RETRO
+  d->sfs->initFontSetCB(handle, filename);
+#else
   SDL_RWops ops;
   initReadOps(handle, ops, false);
 
   d->sfs->initFontSetCB(ops, filename);
 
   SDL_RWclose(&ops);
+#endif // MKXPZ_RETRO
 
   return PHYSFS_ENUM_OK;
 }
@@ -507,9 +553,9 @@ static PHYSFS_EnumerateCallbackResult fontSetEnumCB(void *data, const char *dir,
 /* Basically just a case-insensitive search
  * for the folder "Fonts"... */
 static PHYSFS_EnumerateCallbackResult
-findFontsFolderCB(void *data, const char *, const char *fname) {
+findFontsFolderCB(void *data, const char *dir, const char *fname) {
   size_t i = 0;
-  char buffer[512];
+  char buffer[4096];
   const char *s = fname;
 
   while (*s && i < sizeof(buffer))
@@ -518,7 +564,7 @@ findFontsFolderCB(void *data, const char *, const char *fname) {
   buffer[i] = '\0';
 
   if (strcmp(buffer, "fonts") == 0)
-    PHYSFS_enumerate(fname, fontSetEnumCB, data);
+    PHYSFS_enumerate(*dir == 0 ? fname : (std::string(dir) + '/' + fname).c_str(), fontSetEnumCB, data);
 
   return PHYSFS_ENUM_OK;
 }
@@ -526,12 +572,25 @@ findFontsFolderCB(void *data, const char *, const char *fname) {
 void FileSystem::initFontSets(SharedFontState &sfs) {
   FontSetsCBData d = {p, &sfs};
 
-  PHYSFS_enumerate("", findFontsFolderCB, &d);
+  PHYSFS_enumerate(
+#ifdef MKXPZ_RETRO
+    "/Game",
+#else
+    "",
+#endif // MKXPZ_RETRO
+    findFontsFolderCB,
+    &d
+  );
 }
 
 struct OpenReadEnumData {
-  FileSystem::OpenHandler &handler;
+#ifdef MKXPZ_RETRO
+  boost::optional<std::shared_ptr<struct FileSystem::File>> ops;
+#else
   SDL_RWops ops;
+#endif // MKXPZ_RETRO
+
+  FileSystem::OpenHandler &handler;
 
   /* The filename (without directory) we're looking for */
   const char *filename;
@@ -589,6 +648,9 @@ openReadEnumCB(void *d, const char *dirpath, const char *filename) {
   if (data.pathTrans)
     fullPath = (*data.pathTrans)[fullPath].c_str();
 
+#ifdef MKXPZ_RETRO
+  data.ops.emplace(new FileSystem::File(*mkxp_retro::fs, fullPath));
+#else
   PHYSFS_File *phys = PHYSFS_openRead(fullPath);
 
   if (!phys) {
@@ -600,11 +662,17 @@ openReadEnumCB(void *d, const char *dirpath, const char *filename) {
 
     return PHYSFS_ENUM_ERROR;
   }
+
   initReadOps(phys, data.ops, false);
+#endif // MKXPZ_RETRO
 
   const char *ext = findExt(filename);
 
+#ifdef MKXPZ_RETRO
+  if (data.handler.tryRead(*data.ops, ext))
+#else
   if (data.handler.tryRead(data.ops, ext))
+#endif // MKXPZ_RETRO
     data.stopSearching = true;
 
   ++data.matchCount;
@@ -612,7 +680,15 @@ openReadEnumCB(void *d, const char *dirpath, const char *filename) {
 }
 
 void FileSystem::openRead(OpenHandler &handler, const char *filename) {
-  std::string filename_nm = normalize(filename, false, false);
+  std::string filename_nm = normalize(
+    filename,
+    false,
+#ifdef MKXPZ_RETRO
+    true
+#else
+    false
+#endif // MKXPZ_RETRO
+  );
   char buffer[512];
   size_t len = strcpySafe(buffer, filename_nm.c_str(), sizeof(buffer), -1);
   char *delim;
@@ -653,12 +729,12 @@ void FileSystem::openRead(OpenHandler &handler, const char *filename) {
   }
 
   if (data.physfsError)
-    throw Exception(Exception::PHYSFSError, "PhysFS: %s", data.physfsError);
-
-  if (data.matchCount == 0)
-    throw Exception(Exception::NoFileError, "%s", filename);
+    handler.exception = Exception(Exception::PHYSFSError, "PhysFS: %s", data.physfsError);
+  else if (data.matchCount == 0)
+    handler.exception = Exception(Exception::NoFileError, "%s", filename);
 }
 
+#ifndef MKXPZ_RETRO
 void FileSystem::openReadRaw(SDL_RWops &ops, const char *filename,
                              bool freeOnClose) {
 
@@ -668,12 +744,176 @@ void FileSystem::openReadRaw(SDL_RWops &ops, const char *filename,
     throw Exception(Exception::NoFileError, "%s", filename);
 
   initReadOps(handle, ops, freeOnClose);
-    return;
+
+  return;
+}
+#endif // MKXPZ_RETRO
+
+#ifdef MKXPZ_RETRO
+static std::string pop_last_path_element(const char *path) {
+  std::string parent(path);
+  size_t last_slash_index = parent.find_last_of('/');
+  if (last_slash_index == std::string::npos) {
+    last_slash_index = 0;
+  }
+  parent = parent.substr(0, last_slash_index);
+  return parent;
 }
 
+FileSystem::File::File(FileSystem &fs, const char *read_path, const char *write_path_prefix, bool truncate, bool open_read, unsigned char exists) : read_handle(nullptr), write_handle(nullptr), read_error(PHYSFS_ERR_PERMISSION), write_error(PHYSFS_ERR_PERMISSION) {
+  _path = fs.normalize(read_path, false, true);
+
+  if (write_path_prefix != nullptr) {
+    size_t prefix_length = strlen(write_path_prefix);
+
+    if (_path.length() >= prefix_length && !strncmp(_path.c_str(), write_path_prefix, prefix_length)) {
+      const char *suffix = _path.c_str() + prefix_length;
+
+      if (exists > 1) {
+        exists = PHYSFS_exists(read_path) ? 1 : 0;
+      }
+
+      // If the path doesn't exist but its parent does,
+      // create the parent directory in the PhysFS write directory
+      // since it might only exist in PhysFS's read-only search path
+      if (!exists) {
+        std::string suffix_parent = pop_last_path_element(suffix);
+        if (suffix_parent.empty() || suffix_parent.front() != '/') {
+          suffix_parent = '/' + suffix_parent;
+        }
+        if (suffix_parent != "/" && PHYSFS_exists((write_path_prefix + suffix_parent).c_str())) {
+          PHYSFS_mkdir(suffix_parent.c_str());
+        }
+      }
+
+      // If the path exists but not in the PhysFS write directory (mounted at "/Save"),
+      // and the file is not opened in truncate mode,
+      // copy the file into the PhysFS write directory first
+      if (!truncate && exists && PHYSFS_exists((std::string("/Save/") + suffix).c_str()) == 0) {
+        if ((read_handle = PHYSFS_openRead(_path.c_str())) != nullptr) {
+          if ((write_handle = PHYSFS_openWrite(suffix)) != nullptr) {
+            std::array<uint8_t, 4096> buffer;
+            for (;;) {
+              PHYSFS_sint64 n = PHYSFS_readBytes(read_handle, buffer.data(), buffer.size());
+              PHYSFS_writeBytes(write_handle, buffer.data(), n);
+              if (n < buffer.size()) {
+                break;
+              }
+            }
+          }
+          PHYSFS_close(read_handle);
+          read_handle = nullptr;
+        }
+      } else if (truncate) {
+        write_handle = PHYSFS_openWrite(suffix);
+      } else {
+        write_handle = PHYSFS_openAppend(suffix);
+      }
+
+      if (write_handle == nullptr) {
+        write_error = PHYSFS_getLastErrorCode();
+      } else {
+        write_error = PHYSFS_ERR_OK;
+      }
+    }
+  }
+
+  if (open_read) {
+    if ((read_handle = PHYSFS_openRead(_path.c_str())) == nullptr) {
+      read_error = PHYSFS_getLastErrorCode();
+    } else {
+      read_error = PHYSFS_ERR_OK;
+    }
+  }
+}
+
+FileSystem::File::~File() {
+  if (read_handle != nullptr) {
+    PHYSFS_close(read_handle);
+  }
+
+  if (write_handle != nullptr) {
+    PHYSFS_close(write_handle);
+  }
+}
+
+static std::string normalizePath(const char *path, bool absolute, const char *current_working_directory = nullptr) {
+  // Replace backslashes with forward slashes
+  std::string path_str(path);
+  for (size_t i = 0; i < path_str.length(); ++i) {
+    if (path_str[i] == '\\') {
+      path_str[i] = '/';
+    }
+  }
+
+  // If path doesn't start with a forward slash, prepend the current working directory before normalizing
+  if (path_str.empty()) {
+    path_str = current_working_directory != nullptr ? current_working_directory : mkxp_retro::sandbox.has_value() ? (const char *)mkxp_retro::sandbox->getcwd() : "/Game";
+  } else if (path_str.front() != '/') {
+    path_str = std::string(current_working_directory != nullptr ? current_working_directory : mkxp_retro::sandbox.has_value() ? (const char *)mkxp_retro::sandbox->getcwd() : "/Game") + '/' + path_str;
+  }
+
+  // Lexically normalize the path
+  std::list<std::string> list;
+  std::string component;
+  std::istringstream stream(path_str);
+  while (std::getline(stream, component, '/')) {
+    list.push_front(component);
+  }
+  for (auto it = list.begin(); it != list.end();) {
+    if (it->empty() || *it == ".") {
+      list.erase(it++);
+    } else {
+      ++it;
+    }
+  }
+  for (auto it = list.begin(); it != list.end();) {
+    if (*it == "..") {
+      while (std::next(it) != list.end() && *std::next(it) == "..") {
+        ++it;
+      }
+      while (*it == "..") {
+        if (std::next(it) != list.end()) {
+          list.erase(std::next(it));
+        }
+        if (it == list.begin()) {
+          list.erase(it);
+          it = list.begin();
+          break;
+        } else {
+          list.erase(it--);
+        }
+      }
+    } else {
+      ++it;
+    }
+  }
+
+  // Convert the normalized path back into a string
+  list.reverse();
+  std::string normalized_path;
+  if (absolute) {
+    normalized_path.push_back('/');
+  }
+  for (auto it = list.begin(); it != list.end();) {
+    normalized_path.append(*it);
+    if (std::next(it) != list.end()) {
+      normalized_path.push_back('/');
+    }
+    list.erase(it++);
+  }
+
+  return normalized_path;
+}
+#endif // MKXPZ_RETRO
+
 std::string FileSystem::normalize(const char *pathname, bool preferred,
-                            bool absolute) {
-    return filesystemImpl::normalizePath(pathname, preferred, absolute);
+                            bool absolute, const char *current_working_directory) {
+#ifdef MKXPZ_RETRO
+  return normalizePath(pathname, absolute, current_working_directory);
+#else
+  return filesystemImpl::normalizePath(pathname, preferred, absolute);
+#endif // MKXPZ_RETRO
 }
 
 bool FileSystem::exists(const char *filename) {
@@ -689,4 +929,8 @@ const char *FileSystem::desensitize(const char *filename) {
   if (p->havePathCache && p->pathCache.contains(fn_lower))
     return p->pathCache[fn_lower].c_str();
   return filename;
+}
+
+bool FileSystem::enumerate(const char *path, PHYSFS_EnumerateCallback callback, void *data) {
+  return PHYSFS_enumerate(normalize(path, false, false).c_str(), callback, data) != 0;
 }

@@ -1,0 +1,25 @@
+# Removes the dependency of the Ruby pseudorandom number generator's seed on the system time for better save state determinism.
+
+--- a/random.c
++++ b/random.c
+@@ -699,14 +699,14 @@ static void
+ #if defined HAVE_CLOCK_GETTIME
+-    clock_gettime(CLOCK_REALTIME, &tv);
+-    seed[0] ^= tv.tv_nsec;
++
++
+ #elif defined HAVE_GETTIMEOFDAY
+-    gettimeofday(&tv, 0);
+-    seed[0] ^= tv.tv_usec;
++
++
+ #endif
+-    seed[1] ^= (uint32_t)tv.tv_sec;
++
+ #if SIZEOF_TIME_T > SIZEOF_INT
+-    seed[0] ^= (uint32_t)((time_t)tv.tv_sec >> SIZEOF_INT * CHAR_BIT);
++
+ #endif
+     seed[2] ^= getpid() ^ (ATOMIC_FETCH_ADD(n, 1) << 16);
+     seed[3] ^= (uint32_t)(VALUE)&seed;
+ #if SIZEOF_VOIDP > SIZEOF_INT

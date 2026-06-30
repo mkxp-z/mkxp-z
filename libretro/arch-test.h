@@ -1,0 +1,42 @@
+#include <boost/predef/architecture.h>
+
+#if 0
+#elif BOOST_ARCH_ARM && BOOST_ARCH_WORD_BITS_64
+aarch64
+#elif BOOST_ARCH_ALPHA
+alpha
+#elif BOOST_ARCH_ARM && BOOST_ARCH_WORD_BITS_32
+arm
+#elif BOOST_ARCH_E2K
+e2k
+#elif BOOST_ARCH_IA64
+ia64
+#elif BOOST_ARCH_LOONGARCH64
+loongarch64
+#elif BOOST_ARCH_M68K
+m68k
+#elif BOOST_ARCH_MIPS && BOOST_ARCH_WORD_BITS_32
+mips
+#elif BOOST_ARCH_MIPS && BOOST_ARCH_WORD_BITS_64
+mips64
+#elif BOOST_ARCH_PARISC
+parisc
+#elif BOOST_ARCH_PPC && BOOST_ARCH_WORD_BITS_32
+ppc
+#elif BOOST_ARCH_PPC && BOOST_ARCH_WORD_BITS_64
+ppc64
+#elif BOOST_ARCH_RISCV
+riscv64
+#elif BOOST_ARCH_SPARC && BOOST_ARCH_WORD_BITS_32
+sparc
+#elif BOOST_ARCH_SPARC && BOOST_ARCH_WORD_BITS_64
+sparc64
+#elif BOOST_ARCH_SYS390
+s390x
+#elif BOOST_ARCH_X86_32
+x86
+#elif BOOST_ARCH_X86_64
+x86_64
+#else
+#error "failed to determine CPU architecture"
+#endif

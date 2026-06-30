@@ -1,0 +1,28 @@
+# Removes the call to `__android_log_print()` when targeting Android because we get missing symbol errors on Android otherwise.
+
+--- a/core/logging.cpp
++++ b/core/logging.cpp
+@@ -103,23 +103,6 @@ void al_print_impl(LogLevel level, const fmt::string_view fmt, fmt::format_args
+      * non-Release builds.
+      */
+     OutputDebugStringW(utf8_to_wstr(fmt::format("{}{}\n", prefix, msg)).c_str());
+-#elif defined(__ANDROID__)
+-    auto android_severity = [](LogLevel l) noexcept
+-    {
+-        switch(l)
+-        {
+-        case LogLevel::Trace: return ANDROID_LOG_DEBUG;
+-        case LogLevel::Warning: return ANDROID_LOG_WARN;
+-        case LogLevel::Error: return ANDROID_LOG_ERROR;
+-        /* Should not happen. */
+-        case LogLevel::Disable:
+-            break;
+-        }
+-        return ANDROID_LOG_ERROR;
+-    };
+-    /* NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg) */
+-    __android_log_print(android_severity(level), "openal", "%.*s%s", al::sizei(prefix),
+-        prefix.data(), msg.c_str());
+ #endif
+ 
+     auto cblock = std::lock_guard{LogCallbackMutex};

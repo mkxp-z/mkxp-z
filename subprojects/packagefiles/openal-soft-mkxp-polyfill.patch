@@ -1,0 +1,684 @@
+# This patch makes OpenAL Soft use mkxp-polyfill.cpp to polyfill POSIX threads, `std::mutex` and the C++17 aligned `operator new[]`/`operator delete[]` on platforms where they're not available for better portability.
+
+--- a/al/auxeffectslot.cpp
++++ b/al/auxeffectslot.cpp
+@@ -28,7 +28,7 @@
+ #include <functional>
+ #include <iterator>
+ #include <memory>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <numeric>
+ #include <stdexcept>
+ #include <tuple>
+--- a/al/buffer.cpp
++++ b/al/buffer.cpp
+@@ -32,7 +32,7 @@
+ #include <iterator>
+ #include <limits>
+ #include <memory>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <numeric>
+ #include <optional>
+ #include <stdexcept>
+--- a/al/debug.cpp
++++ b/al/debug.cpp
+@@ -7,7 +7,7 @@
+ #include <atomic>
+ #include <cstring>
+ #include <deque>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <optional>
+ #include <stdexcept>
+ #include <string>
+--- a/al/effect.cpp
++++ b/al/effect.cpp
+@@ -27,7 +27,7 @@
+ #include <cstring>
+ #include <iterator>
+ #include <memory>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <numeric>
+ #include <string>
+ #include <type_traits>
+--- a/al/event.cpp
++++ b/al/event.cpp
+@@ -7,7 +7,7 @@
+ #include <bitset>
+ #include <exception>
+ #include <memory>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <new>
+ #include <optional>
+ #include <string>
+--- a/al/filter.cpp
++++ b/al/filter.cpp
+@@ -28,7 +28,7 @@
+ #include <cstdio>
+ #include <iterator>
+ #include <memory>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <numeric>
+ #include <unordered_map>
+ #include <vector>
+--- a/al/listener.cpp
++++ b/al/listener.cpp
+@@ -24,7 +24,7 @@
+ 
+ #include <algorithm>
+ #include <cmath>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ 
+ #include "AL/al.h"
+ #include "AL/alc.h"
+--- a/al/source.cpp
++++ b/al/source.cpp
+@@ -35,7 +35,7 @@
+ #include <functional>
+ #include <limits>
+ #include <memory>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <numeric>
+ #include <optional>
+ #include <stdexcept>
+--- a/al/state.cpp
++++ b/al/state.cpp
+@@ -26,7 +26,7 @@
+ #include <atomic>
+ #include <cmath>
+ #include <deque>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <optional>
+ #include <stdexcept>
+ #include <string>
+--- a/alc/alc.cpp
++++ b/alc/alc.cpp
+@@ -48,7 +48,7 @@
+ #include <iterator>
+ #include <limits>
+ #include <memory>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <new>
+ #include <optional>
+ #include <stdexcept>
+@@ -314,7 +314,7 @@ std::atomic<ALCenum> LastNullDeviceError{ALC_NO_ERROR};
+ bool TrapALCError{false};
+ 
+ /* One-time configuration init control */
+-std::once_flag alc_config_once{};
++
+ 
+ /* Flag to specify if alcSuspendContext/alcProcessContext should defer/process
+  * updates.
+@@ -752,7 +752,7 @@ void alc_initconfig()
+ #endif // ALSOFT_EAX
+ }
+ inline void InitConfig()
+-{ std::call_once(alc_config_once, [](){alc_initconfig();}); }
++{ alc_initconfig(); }
+ 
+ 
+ /************************************************
+--- a/alc/alconfig.cpp
++++ b/alc/alconfig.cpp
+@@ -37,7 +37,7 @@
+ #include <fstream>
+ #include <istream>
+ #include <limits>
+-#include <string>
++#include "../../src/mkxp-polyfill.h"
+ #include <string_view>
+ #include <utility>
+ #include <vector>
+--- a/alc/backends/alsa.cpp
++++ b/alc/backends/alsa.cpp
+@@ -30,7 +30,7 @@
+ #include <cstring>
+ #include <exception>
+ #include <memory>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <string>
+ #include <string_view>
+ #include <thread>
+--- a/alc/backends/jack.cpp
++++ b/alc/backends/jack.cpp
+@@ -27,7 +27,7 @@
+ #include <cstdio>
+ #include <cstring>
+ #include <memory.h>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <thread>
+ #include <vector>
+ 
+--- a/alc/backends/opensl.cpp
++++ b/alc/backends/opensl.cpp
+@@ -28,7 +28,7 @@
+ #include <array>
+ #include <cstdlib>
+ #include <cstring>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <new>
+ #include <thread>
+ #include <functional>
+--- a/alc/backends/otherio.cpp
++++ b/alc/backends/otherio.cpp
+@@ -49,7 +49,7 @@
+ #include <cstring>
+ #include <deque>
+ #include <future>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <string>
+ #include <string_view>
+ #include <thread>
+--- a/alc/backends/pipewire.cpp
++++ b/alc/backends/pipewire.cpp
+@@ -38,7 +38,7 @@
+ #include <functional>
+ #include <iterator>
+ #include <memory>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <optional>
+ #include <string_view>
+ #include <thread>
+--- a/alc/backends/pulseaudio.cpp
++++ b/alc/backends/pulseaudio.cpp
+@@ -33,7 +33,7 @@
+ #include <cstdint>
+ #include <cstring>
+ #include <limits>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <optional>
+ #include <string>
+ #include <string_view>
+--- a/alc/backends/wasapi.cpp
++++ b/alc/backends/wasapi.cpp
+@@ -53,7 +53,7 @@
+ #include <cstring>
+ #include <functional>
+ #include <future>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <string>
+ #include <string_view>
+ #include <thread>
+--- a/alc/context.h
++++ b/alc/context.h
+@@ -8,7 +8,7 @@
+ #include <cstdint>
+ #include <deque>
+ #include <memory>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <string>
+ #include <string_view>
+ #include <unordered_map>
+--- a/alc/device.h
++++ b/alc/device.h
+@@ -5,7 +5,7 @@
+ 
+ #include <atomic>
+ #include <memory>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <optional>
+ #include <string>
+ #include <unordered_map>
+--- a/alc/events.h
++++ b/alc/events.h
+@@ -5,7 +5,7 @@
+ #include "opthelpers.h"
+ 
+ #include <bitset>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <optional>
+ #include <string_view>
+ 
+--- a/common/almalloc.h
++++ b/common/almalloc.h
+@@ -35,13 +35,13 @@ enum FamCount : size_t { };
+                                                                               \
+     gsl::owner<void*> operator new(size_t /*size*/, FamCount count)           \
+     {                                                                         \
+-        const auto alignment = std::align_val_t{alignof(T)};                  \
+-        return ::operator new[](T::Sizeof(count), alignment);                 \
++        void *ptr = mkxp_aligned_malloc(alignof(T), T::Sizeof(count));        \
++        if (ptr == nullptr) MKXPZ_THROW(std::bad_alloc()); else return ptr;   \
+     }                                                                         \
+     void operator delete(gsl::owner<void*> block, FamCount) noexcept          \
+-    { ::operator delete[](block, std::align_val_t{alignof(T)}); }             \
++    { mkxp_aligned_free(block, alignof(T)); }                                 \
+     void operator delete(gsl::owner<void*> block) noexcept                    \
+-    { ::operator delete[](block, std::align_val_t{alignof(T)}); }             \
++    { mkxp_aligned_free(block, alignof(T)); }                                 \
+     void *operator new[](size_t /*size*/) = delete;                           \
+     void operator delete[](void* /*block*/) = delete;
+ 
+@@ -75,10 +75,10 @@ struct allocator {
+     gsl::owner<T*> allocate(std::size_t n)
+     {
+         if(n > std::numeric_limits<std::size_t>::max()/sizeof(T)) MKXPZ_THROW(std::bad_alloc());
+-        return static_cast<gsl::owner<T*>>(::operator new[](n*sizeof(T), AlignVal));
++        void *ptr = mkxp_aligned_malloc(Alignment, n*sizeof(T)); if (ptr == nullptr) MKXPZ_THROW(std::bad_alloc()); else return static_cast<gsl::owner<T*>>(ptr);
+     }
+     void deallocate(gsl::owner<T*> p, std::size_t) noexcept
+-    { ::operator delete[](gsl::owner<void*>{p}, AlignVal); }
++    { mkxp_aligned_free(gsl::owner<void*>{p}, Alignment); }
+ };
+ template<typename T, std::size_t N, typename U, std::size_t M>
+ constexpr bool operator==(const allocator<T,N>&, const allocator<U,M>&) noexcept
+--- a/common/alsem.cpp
++++ b/common/alsem.cpp
+@@ -55,8 +55,8 @@ void semaphore::post()
+ void semaphore::wait() noexcept
+ { WaitForSingleObject(static_cast<HANDLE>(mSem), INFINITE); }
+ 
+-bool semaphore::try_wait() noexcept
+-{ return WaitForSingleObject(static_cast<HANDLE>(mSem), 0) == WAIT_OBJECT_0; }
++
++
+ 
+ } // namespace al
+ 
+@@ -83,8 +83,8 @@ void semaphore::post()
+ void semaphore::wait() noexcept
+ { dispatch_semaphore_wait(mSem, DISPATCH_TIME_FOREVER); }
+ 
+-bool semaphore::try_wait() noexcept
+-{ return dispatch_semaphore_wait(mSem, DISPATCH_TIME_NOW) == 0; }
++
++
+ 
+ } // namespace al
+ 
+@@ -96,27 +96,27 @@ namespace al {
+ 
+ semaphore::semaphore(unsigned int initial)
+ {
+-    if(sem_init(&mSem, 0, initial) != 0)
++    if(mkxp_sem_init(&mSem, initial) != 0)
+         MKXPZ_THROW(std::system_error(std::make_error_code(std::errc::resource_unavailable_try_again)));
+ }
+ 
+ semaphore::~semaphore()
+-{ sem_destroy(&mSem); }
++{ mkxp_sem_destroy(&mSem); }
+ 
+ void semaphore::post()
+ {
+-    if(sem_post(&mSem) != 0)
++    if(mkxp_sem_post(&mSem) != 0)
+         MKXPZ_THROW(std::system_error(std::make_error_code(std::errc::value_too_large)));
+ }
+ 
+ void semaphore::wait() noexcept
+ {
+-    while(sem_wait(&mSem) == -1 && errno == EINTR) {
++    while(mkxp_sem_wait(&mSem) == -1) {
+     }
+ }
+ 
+-bool semaphore::try_wait() noexcept
+-{ return sem_trywait(&mSem) == 0; }
++
++
+ 
+ } // namespace al
+ 
+--- a/common/alsem.h
++++ b/common/alsem.h
+@@ -11,7 +11,7 @@
+ #include <semaphore.h> /* Fallback option for Apple without a working libdispatch */
+ #endif
+ #elif !defined(_WIN32)
+-#include <semaphore.h>
++
+ #endif
+ 
+ namespace al {
+@@ -22,7 +22,7 @@ class semaphore {
+ #elif defined(AL_APPLE_HAVE_DISPATCH)
+     using native_type = dispatch_semaphore_t;
+ #else
+-    using native_type = sem_t;
++    using native_type = mkxp_sem_t;
+ #endif
+     native_type mSem{};
+ 
+@@ -35,7 +35,7 @@ public:
+ 
+     void post();
+     void wait() noexcept;
+-    bool try_wait() noexcept;
++
+ };
+ 
+ } // namespace al
+--- a/common/althrd_setname.cpp
++++ b/common/althrd_setname.cpp
+@@ -39,39 +39,39 @@ void althrd_setname(const char *name [[maybe_unused]])
+ 
+ #else
+ 
+-#include <pthread.h>
+-#ifdef HAVE_PTHREAD_NP_H
+-#include <pthread_np.h>
+-#endif
++#include "../../src/mkxp-polyfill.h"
++
++
++
++
+ 
+ namespace {
+ 
+ using setname_t1 = int(*)(const char*);
+-using setname_t2 = int(*)(pthread_t, const char*);
+-using setname_t3 = void(*)(pthread_t, const char*);
+-using setname_t4 = int(*)(pthread_t, const char*, void*);
++using setname_t2 = int(*)(mkxp_thread_id_t, const char*);
++using setname_t3 = void(*)(mkxp_thread_id_t, const char*);
++using setname_t4 = int(*)(mkxp_thread_id_t, const char*, void*);
+ 
+ [[maybe_unused]] void setname_caller(setname_t1 func, const char *name)
+ { func(name); }
+ 
+ [[maybe_unused]] void setname_caller(setname_t2 func, const char *name)
+-{ func(pthread_self(), name); }
++{ func(mkxp_thread_self(), name); }
+ 
+ [[maybe_unused]] void setname_caller(setname_t3 func, const char *name)
+-{ func(pthread_self(), name); }
++{ func(mkxp_thread_self(), name); }
+ 
+ [[maybe_unused]] void setname_caller(setname_t4 func, const char *name)
+-{ func(pthread_self(), "%s", const_cast<char*>(name)); /* NOLINT(*-const-cast) */ }
++{ func(mkxp_thread_self(), "%s", const_cast<char*>(name)); /* NOLINT(*-const-cast) */ }
+ 
+ } // namespace
+ 
+ void althrd_setname(const char *name [[maybe_unused]])
+ {
+-#if defined(HAVE_PTHREAD_SET_NAME_NP)
+-    setname_caller(pthread_set_name_np, name);
+-#elif defined(HAVE_PTHREAD_SETNAME_NP)
+-    setname_caller(pthread_setname_np, name);
+-#endif
+-}
+ 
++
++
++
++
++}
+ #endif
+--- a/common/althreads.h
++++ b/common/althreads.h
+@@ -5,7 +5,7 @@
+ #include <stdexcept>
+ #include <type_traits>
+ #include "../../src/mkxp-polyfill.h"
+-#ifdef _WIN32
++#if false
+ #define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ 
+@@ -13,7 +13,7 @@
+ 
+ #include <pthread.h>
+ 
+-#else
++#elif false
+ 
+ #include <threads.h>
+ #endif
+@@ -54,7 +54,7 @@ class tss {
+             return static_cast<T>(al::bit_cast<std::uintptr_t>(ptr));
+     }
+ 
+-#ifdef _WIN32
++/*
+     DWORD mTss{TLS_OUT_OF_INDEXES};
+ 
+ public:
+@@ -105,32 +105,33 @@ public:
+     [[nodiscard]]
+     auto get() const noexcept -> T { return from_ptr(pthread_getspecific(mTss)); }
+ 
+-#else
++*/
+ 
+-    tss_t mTss{};
++    void **mTss;
+ 
+ public:
+     tss()
+     {
+-        if(int res{tss_create(&mTss, nullptr)}; res != thrd_success)
++        if((mTss = static_cast<void **>(std::malloc(sizeof *mTss))) == nullptr)
+             MKXPZ_THROW(std::runtime_error{"al::tss::tss()"});
++        *mTss = nullptr;
+     }
+     explicit tss(const T &init) : tss{}
+     {
+-        if(int res{tss_set(mTss, to_ptr(init))}; res != thrd_success)
++        if((mTss = static_cast<void **>(std::malloc(sizeof *mTss))) == nullptr)
+             MKXPZ_THROW(std::runtime_error{"al::tss::tss(T)"});
++        *mTss = to_ptr(init);
+     }
+-    ~tss() { tss_delete(mTss); }
++    ~tss() { std::free(mTss); }
+ 
+     void set(const T &value) const
+     {
+-        if(int res{tss_set(mTss, to_ptr(value))}; res != thrd_success)
+-            MKXPZ_THROW(std::runtime_error{"al::tss::set(T)"});
++        *mTss = to_ptr(value);
+     }
+ 
+     [[nodiscard]]
+-    auto get() const noexcept -> T { return from_ptr(tss_get(mTss)); }
+-#endif /* _WIN32 */
++    auto get() const noexcept -> T { return from_ptr(*mTss); }
++
+ 
+     tss(const tss&) = delete;
+     tss(tss&&) = delete;
+--- a/common/flexarray.h
++++ b/common/flexarray.h
+@@ -124,11 +124,11 @@ struct FlexArray {
+     [[nodiscard]] auto crend() const noexcept -> const_reverse_iterator { return mStore.crend(); }
+ 
+     gsl::owner<void*> operator new(size_t, FamCount count)
+-    { return ::operator new[](Sizeof(count), std::align_val_t{alignof(FlexArray)}); }
++    { void *ptr = mkxp_aligned_malloc(alignof(FlexArray), Sizeof(count)); if (ptr == nullptr) MKXPZ_THROW(std::bad_alloc()); else return ptr; }
+     void operator delete(gsl::owner<void*> block, FamCount) noexcept
+-    { ::operator delete[](block, std::align_val_t{alignof(FlexArray)}); }
++    { mkxp_aligned_free(block, alignof(FlexArray)); }
+     void operator delete(gsl::owner<void*> block) noexcept
+-    { ::operator delete[](block, std::align_val_t{alignof(FlexArray)}); }
++    { mkxp_aligned_free(block, alignof(FlexArray)); }
+ 
+     void *operator new(size_t size) = delete;
+     void *operator new[](size_t size) = delete;
+--- a/common/pffft.cpp
++++ b/common/pffft.cpp
+@@ -1489,7 +1489,7 @@ PFFFTSetupPtr pffft_new_setup(unsigned int N, pffft_transform_t transform)
+ 
+     const size_t storelen{std::max(offsetof(PFFFT_Setup, end) + 2_zu*Ncvec*sizeof(v4sf),
+         sizeof(PFFFT_Setup))};
+-    auto storage = static_cast<gsl::owner<std::byte*>>(::operator new[](storelen, V4sfAlignVal));
++    void *ptr = mkxp_aligned_malloc(V4sfAlignment, storelen); if (ptr == nullptr) MKXPZ_THROW(std::bad_alloc()); auto storage = static_cast<gsl::owner<std::byte*>>(ptr);
+     al::span extrastore{&storage[offsetof(PFFFT_Setup, end)], 2_zu*Ncvec*sizeof(v4sf)};
+ 
+     PFFFTSetupPtr s{::new(storage) PFFFT_Setup{}};
+@@ -1537,7 +1537,7 @@ PFFFTSetupPtr pffft_new_setup(unsigned int N, pffft_transform_t transform)
+ void PFFFTSetupDeleter::operator()(gsl::owner<PFFFT_Setup*> setup) const noexcept
+ {
+     std::destroy_at(setup);
+-    ::operator delete[](gsl::owner<void*>{setup}, V4sfAlignVal);
++    mkxp_aligned_free(gsl::owner<void*>{setup}, V4sfAlignment);
+ }
+ 
+ #if !defined(PFFFT_SIMD_DISABLE)
+--- a/core/context.h
++++ b/core/context.h
+@@ -140,7 +140,7 @@ struct ContextBase {
+      */
+     al::atomic_unique_ptr<EffectSlotArray> mActiveAuxSlots;
+ 
+-    std::thread mEventThread;
++
+     al::semaphore mEventSem;
+     std::unique_ptr<RingBuffer> mAsyncEvents;
+     using AsyncEventBitset = std::bitset<al::to_underlying(AsyncEnableBits::Count)>;
+--- a/core/converter.cpp
++++ b/core/converter.cpp
+@@ -5,7 +5,7 @@
+ 
+ #include <algorithm>
+ #include <cassert>
+-#include <cmath>
++#include "../../src/mkxp-polyfill.h"
+ #include <cstddef>
+ #include <cstdint>
+ #include <iterator>
+--- a/core/dbus_wrap.cpp
++++ b/core/dbus_wrap.cpp
+@@ -5,7 +5,7 @@
+ 
+ #if HAVE_DYNLOAD
+ 
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <type_traits>
+ 
+ #include "logging.h"
+--- a/core/dbus_wrap.h
++++ b/core/dbus_wrap.h
+@@ -9,7 +9,7 @@
+ 
+ #if HAVE_DYNLOAD
+ 
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ 
+ #define DBUS_FUNCTIONS(MAGIC) \
+ MAGIC(dbus_error_init) \
+--- a/core/helpers.cpp
++++ b/core/helpers.cpp
+@@ -12,7 +12,7 @@
+ #include <cstdlib>
+ #include <cstring>
+ #include <limits>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <optional>
+ #include <string>
+ #include <string_view>
+--- a/core/hrtf.cpp
++++ b/core/hrtf.cpp
+@@ -15,7 +15,7 @@
+ #include <fstream>
+ #include <iterator>
+ #include <memory>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <numeric>
+ #include <optional>
+ #include <tuple>
+@@ -423,8 +423,8 @@ std::unique_ptr<HrtfStore> CreateHrtfStore(uint rate, uint8_t irSize,
+     total += sizeof(std::declval<HrtfStore&>().mCoeffs[0])*irCount;
+     total += sizeof(std::declval<HrtfStore&>().mDelays[0])*irCount;
+ 
+-    static constexpr auto AlignVal = std::align_val_t{alignof(HrtfStore)};
+-    std::unique_ptr<HrtfStore> Hrtf{::new(::operator new[](total, AlignVal)) HrtfStore{}};
++    void *ptr = mkxp_aligned_malloc(alignof(HrtfStore), total); if (ptr == nullptr) MKXPZ_THROW(std::bad_alloc());
++    std::unique_ptr<HrtfStore> Hrtf{::new(ptr) HrtfStore{}};
+     Hrtf->mRef.store(1u, std::memory_order_relaxed);
+     Hrtf->mSampleRate = rate & 0xff'ff'ff;
+     Hrtf->mIrSize = irSize;
+--- a/core/hrtf.h
++++ b/core/hrtf.h
+@@ -52,9 +52,9 @@ struct alignas(16) HrtfStore {
+     void operator delete[](void*) noexcept = delete;
+ 
+     void operator delete(gsl::owner<void*> block, void*) noexcept
+-    { ::operator delete[](block, std::align_val_t{alignof(HrtfStore)}); }
++    { mkxp_aligned_free(block, alignof(HrtfStore)); }
+     void operator delete(gsl::owner<void*> block) noexcept
+-    { ::operator delete[](block, std::align_val_t{alignof(HrtfStore)}); }
++    { mkxp_aligned_free(block, alignof(HrtfStore)); }
+ };
+ using HrtfStorePtr = al::intrusive_ptr<HrtfStore>;
+ 
+--- a/core/logging.cpp
++++ b/core/logging.cpp
+@@ -7,7 +7,7 @@
+ #include <cstdarg>
+ #include <cstdio>
+ #include <cstring>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <optional>
+ #include <string>
+ #include <string_view>
+--- a/core/mastering.cpp
++++ b/core/mastering.cpp
+@@ -4,7 +4,7 @@
+ #include "mastering.h"
+ 
+ #include <algorithm>
+-#include <cmath>
++#include "../../src/mkxp-polyfill.h"
+ #include <cstddef>
+ #include <functional>
+ #include <iterator>
+--- a/examples/alffplay.cpp
++++ b/examples/alffplay.cpp
+@@ -20,7 +20,7 @@
+ #include <functional>
+ #include <future>
+ #include <memory>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <ratio>
+ #include <string>
+ #include <string_view>
+--- a/router/alc.cpp
++++ b/router/alc.cpp
+@@ -7,7 +7,7 @@
+ #include <cstdlib>
+ #include <cstring>
+ #include <cstdio>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <optional>
+ #include <string_view>
+ #include <tuple>
+--- a/router/router.h
++++ b/router/router.h
+@@ -8,7 +8,7 @@
+ #include <atomic>
+ #include <cstdio>
+ #include <memory>
+-#include <mutex>
++#include "../../src/mkxp-polyfill.h"
+ #include <string>
+ #include <utility>
+ #include <vector>

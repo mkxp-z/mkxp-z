@@ -22,6 +22,13 @@
 #include "scene.h"
 #include "sharedstate.h"
 
+#ifdef MKXPZ_RETRO
+#  include "sandbox-serial-util.h"
+#endif // MKXPZ_RETRO
+
+#define GUARD_V(value, expression) do { expression; if (exception.is_error()) return value; } while (0)
+#define GUARD(expression) GUARD_V(, expression)
+
 Scene::Scene()
 {}
 
@@ -33,6 +40,9 @@ Scene::~Scene()
 	for (iter = elements.begin(); iter != elements.end(); iter = iter->next)
 	{
 		iter->data->scene = 0;
+#ifdef MKXPZ_RETRO
+		iter->data->deserSceneElementWasUnlinked = true;
+#endif // MKXPZ_RETRO
 	}
 }
 
@@ -75,6 +85,9 @@ void Scene::insertAfter(SceneElement &element, SceneElement &after)
 void Scene::reinsert(SceneElement &element)
 {
 	elements.remove(element.link);
+#ifdef MKXPZ_RETRO
+	element.deserSceneElementWasUnlinked = true;
+#endif // MKXPZ_RETRO
 	insert(element);
 }
 
@@ -88,7 +101,7 @@ void Scene::notifyGeometryChange()
 	}
 }
 
-void Scene::composite()
+void Scene::composite(Exception &exception)
 {
 	IntruListLink<SceneElement> *iter;
 
@@ -97,17 +110,17 @@ void Scene::composite()
 		SceneElement *e = iter->data;
 
 		if (e->visible)
-			e->draw();
+			GUARD(e->draw(exception));
 	}
 }
 
 
 SceneElement::SceneElement(Scene &scene, int z, int spriteY)
-    : link(this),
+    : scene(&scene),
+      link(this),
       creationStamp(shState->genTimeStamp()),
       z(z),
       visible(true),
-      scene(&scene),
       spriteY(spriteY)
 {
 	scene.insert(*this);
@@ -129,16 +142,16 @@ void SceneElement::setScene(Scene &scene)
 	onGeometryChange(scene.getGeometry());
 }
 
-int SceneElement::getZ() const
+int SceneElement::getZ(Exception &exception) const
 {
-	aboutToAccess();
+	GUARD_V(0, aboutToAccess(exception));
 
 	return z;
 }
 
-void SceneElement::setZ(int value)
+void SceneElement::setZ(Exception &exception, int value)
 {
-	aboutToAccess();
+	GUARD(aboutToAccess(exception));
 
 	if (z == value)
 		return;
@@ -147,16 +160,16 @@ void SceneElement::setZ(int value)
 	scene->reinsert(*this);
 }
 
-bool SceneElement::getVisible() const
+bool SceneElement::getVisible(Exception &exception) const
 {
-	aboutToAccess();
+	GUARD_V(false, aboutToAccess(exception));
 
 	return visible;
 }
 
-void SceneElement::setVisible(bool value)
+void SceneElement::setVisible(Exception &exception, bool value)
 {
-	aboutToAccess();
+	GUARD(aboutToAccess(exception));
 
 	visible = value;
 }
@@ -199,4 +212,15 @@ void SceneElement::unlink()
 {
 	if (scene)
 		scene->elements.remove(link);
+
+#ifdef MKXPZ_RETRO
+	deserSceneElementWasUnlinked = true;
+#endif // MKXPZ_RETRO
 }
+
+#ifdef MKXPZ_RETRO
+#ifndef MKXPZ_SANDBOX_SERIAL_SCENE_H
+#define MKXPZ_SANDBOX_SERIAL_SCENE_H
+#include "sandbox-serial-scene.h"
+#endif // MKXPZ_SANDBOX_SERIAL_SCENE_H
+#endif // MKXPZ_REROO

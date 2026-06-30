@@ -6,7 +6,11 @@
 //
 
 #include "config.h"
-#include <SDL_filesystem.h>
+#ifdef MKXPZ_RETRO
+#  include "core.h"
+#else
+#  include <SDL_filesystem.h>
+#endif // MKXPZ_RETRO
 #include <assert.h>
 
 #include <stdint.h>
@@ -28,7 +32,8 @@
 
 namespace json = json5pp;
 
-std::string prefPath(const char *org, const char *app) {
+#ifndef MKXPZ_RETRO
+static std::string prefPath(const char *org, const char *app) {
     char *path = SDL_GetPrefPath(org, app);
     if (!path)
         return std::string("");
@@ -36,24 +41,28 @@ std::string prefPath(const char *org, const char *app) {
     SDL_free(path);
     return ret;
 }
+#endif // MKXPZ_RETRO
 
-void fillStringVec(json::value &item, std::vector<std::string> &vector) {
+static void fillStringVec(json::value &item, std::vector<std::string> &vector) {
+    bool failure = false;
     if (!item.is_array()) {
         if (item.is_string()) {
-            vector.push_back(item.as_string());
+            vector.push_back(item.as_string(failure));
+            assert(!failure);
         }
         return;
     }
-    auto &array = item.as_array();
+    auto &array = item.as_array(failure);
+    assert(!failure);
     for (size_t i = 0; i < array.size(); i++) {
         if (!array[i].is_string())
             continue;
-        
-        vector.push_back(array[i].as_string());
+        vector.push_back(array[i].as_string(failure));
+        assert(!failure);
     }
 }
 
-bool copyObject(json::value &dest, json::value &src, const char *objectName = "") {
+static bool copyObject(json::value &dest, json::value &src, const char *objectName = "") {
     assert(dest.is_object());
     if (src.is_null())
         return false;
@@ -61,8 +70,11 @@ bool copyObject(json::value &dest, json::value &src, const char *objectName = ""
     if (!src.is_object())
         return false;
     
-    auto &srcVec = src.as_object();
-    auto &destVec = dest.as_object();
+    bool failure = false;
+    auto &srcVec = src.as_object(failure);
+    assert(!failure);
+    auto &destVec = dest.as_object(failure);
+    assert(!failure);
     
     for (auto it : srcVec) {
         // Specifically processs this object later.
@@ -84,7 +96,8 @@ bool copyObject(json::value &dest, json::value &src, const char *objectName = ""
     return true;
 }
 
-bool getEnvironmentBool(const char *env, bool defaultValue) {
+#ifndef MKXPZ_RETRO
+static bool getEnvironmentBool(const char *env, bool defaultValue) {
     const char *e = SDL_getenv(env);
     if (!e)
         return defaultValue;
@@ -96,23 +109,56 @@ bool getEnvironmentBool(const char *env, bool defaultValue) {
     
     return defaultValue;
 }
+#endif // MKXPZ_RETRO
 
-json::value readConfFile(const char *path) {
+static json::value readConfFile(const char *path) {
     
     json::value ret(0);
-    if (!mkxp_fs::fileExists(path)) {
+
+#ifdef MKXPZ_RETRO
+    FileSystem::File file(*mkxp_retro::fs, path);
+    if (!file.is_read_open())
+#else
+    if (!mkxp_fs::fileExists(path))
+#endif // MKXPZ_RETRO
+    {
         return json::object({});
     }
     
-    try {
-        std::string cfg = mkxp_fs::contentsOfFileAsString(path);
-        ret = json::parse5(Encoding::convertString(cfg));
+#ifdef MKXPZ_RETRO
+    std::vector<uint8_t> buf(16);
+    size_t size = 0;
+    for (;;) {
+        PHYSFS_sint64 n = PHYSFS_readBytes(file.get_read(), buf.data() + size, buf.size() - size);
+        if (n <= 0) {
+            break;
+        }
+        size += n;
+        if (size >= buf.size()) {
+            buf.resize(buf.size() * 2);
+        }
     }
-    catch (const std::exception &e) {
-        Debug() << "Failed to parse" << path << ":" << e.what();
+    std::string cfg(buf.begin(), buf.begin() + size);
+#else
+    std::string cfg;
+    try {
+        cfg = mkxp_fs::contentsOfFileAsString(path);
     }
     catch (const Exception &e) {
         Debug() << "Failed to parse" << path << ":" << "Unknown encoding";
+    }
+#endif // MKXPZ_RETRO
+    if (!cfg.empty()) {
+        cfg = Encoding::convertString(cfg);
+        if (cfg.empty()) {
+            Debug() << "Failed to parse" << path << ":" << "Unknown encoding";
+        } else {
+            json::failure = false;
+            ret = json::parse5(Encoding::convertString(cfg));
+            if (json::failure) {
+                Debug() << "Failed to parse" << path << ":" << (json::failure.error() == nullptr ? "bad cast" : json::failure.error()->what());
+            }
+        }
     }
     
     if (!ret.is_object())
@@ -123,9 +169,11 @@ json::value readConfFile(const char *path) {
 
 #define CONF_FILE "mkxp.json"
 
-Config::Config() {}
+Config::Config() :
+    loadFontsIntoMemory(false)
+{}
 
-void Config::read(int argc, char *argv[]) {
+void Config::read(int argc, char *argv[], int forceRgssVersion) {
     auto optsJ = json::object({
         {"rgssVersion", 0},
         {"debugMode", false},
@@ -160,8 +208,16 @@ void Config::read(int argc, char *argv[]) {
 #else
         {"preferMetalRenderer", false},
 #endif
+#ifdef MKXPZ_RETRO
+#ifdef __DEVKITA64__
+        {"subImageFix", true},
+#else
+        {"subImageFix", mkxp_retro::hw_render.context_type == RETRO_HW_CONTEXT_OPENGLES2 || mkxp_retro::hw_render.context_type == RETRO_HW_CONTEXT_OPENGLES3 || mkxp_retro::hw_render.context_type == RETRO_HW_CONTEXT_OPENGLES_VERSION},
+#endif // __DEVKITA64__
+#else
         {"subImageFix", false},
-#ifdef __WIN32__
+#endif // MKXPZ_RETRO
+#ifdef __WIN32
         {"enableBlitting", false},
 #else
         {"enableBlitting", true},
@@ -191,7 +247,7 @@ void Config::read(int argc, char *argv[]) {
         {"RTP", json::array({})},
         {"patches", json::array({})},
         {"fontSub", json::array({})},
-        {"fontScale", 0.0f},
+        {"fontScale", 1.0f},
         {"fontKerning", true},
         {"fontHinting", 3}, // TTF_HINTING_NONE
         {"fontHeightReporting", 0},
@@ -215,11 +271,10 @@ void Config::read(int argc, char *argv[]) {
         })}
     });
     
-    auto &opts = optsJ.as_object();
+    bool failure = false;
+    auto &opts = optsJ.as_object(failure);
     
-#define GUARD(exp) \
-try { exp } catch (...) {}
-    
+#ifndef MKXPZ_RETRO
     editor.debug = false;
     editor.battleTest = false;
     
@@ -234,14 +289,15 @@ try { exp } catch (...) {}
                 launchArgs.push_back(argv[i]);
         }
     }
+#endif // MKXPZ_RETRO
     
     json::value baseConf = readConfFile(CONF_FILE);
     copyObject(optsJ, baseConf);
-    copyObject(opts["bindingNames"], baseConf.as_object()["bindingNames"], "bindingNames .");
+    copyObject(opts["bindingNames"], baseConf.as_object(failure)["bindingNames"], "bindingNames .");
     
-#define SET_OPT_CUSTOMKEY(var, key, type) GUARD(var = opts[#key].as_##type();)
+#define SET_OPT_CUSTOMKEY(var, key, type) var = opts[#key].as_##type(failure)
 #define SET_OPT(var, type) SET_OPT_CUSTOMKEY(var, var, type)
-#define SET_STRINGOPT(var, key) GUARD(var = std::string(opts[#key].as_string());)
+#define SET_STRINGOPT(var, key) var = std::string(opts[#key].as_string(failure))
     
     SET_STRINGOPT(gameFolder, gameFolder);
     SET_STRINGOPT(dataPathOrg, dataPathOrg);
@@ -259,17 +315,24 @@ try { exp } catch (...) {}
     SET_OPT(defScreenW, integer);
     SET_OPT(defScreenH, integer);
     
+#ifndef MKXPZ_RETRO
     // Take a break real quick and witch to set game folder and read the game's ini
     if (!gameFolder.empty() && !mkxp_fs::setCurrentDirectory(gameFolder.c_str())) {
         throw Exception(Exception::MKXPError, "Unable to switch into gameFolder %s", gameFolder.c_str());
     }
+#endif // MKXPZ_RETRO
     
+    if (forceRgssVersion >= 0) {
+        rgssVersion = forceRgssVersion;
+    }
     readGameINI();
     
+#ifndef MKXPZ_RETRO
     // Now check for an extra mkxp.conf in the user's save directory and merge anything else from that
     userConfPath = mkxp_fs::normalizePath(std::string(customDataPath + "/" CONF_FILE).c_str(), 0, 1);
     json::value userConf = readConfFile(userConfPath.c_str());
     copyObject(optsJ, userConf);
+#endif // MKXPZ_RETRO
     
     // now RESUME
     
@@ -336,9 +399,9 @@ try { exp } catch (...) {}
     SET_OPT(fontOutlineCrop, boolean);
     fillStringVec(opts["rubyLoadpath"], rubyLoadpaths);
     
-    auto &bnames = opts["bindingNames"].as_object();
+    auto &bnames = opts["bindingNames"].as_object(failure);
     
-#define BINDING_NAME(btn) kbActionNames.btn = bnames[#btn].as_string()
+#define BINDING_NAME(btn) kbActionNames.btn = bnames[#btn].as_string(failure)
     BINDING_NAME(a);
     BINDING_NAME(b);
     BINDING_NAME(c);
@@ -349,9 +412,10 @@ try { exp } catch (...) {}
     BINDING_NAME(r);
     
     rgssVersion = clamp(rgssVersion, 0, 3);
-    SE.sourceCount = clamp(SE.sourceCount, 1, 64);
+    SE.sourceCount = clamp<int>(SE.sourceCount, 1, 64);
     BGM.trackCount = clamp(BGM.trackCount, 1, 16);
     
+#ifndef MKXPZ_RETRO
     // Determine whether to open a console window on... Windows
     winConsole = getEnvironmentBool("MKXPZ_WINDOWS_CONSOLE", editor.debug);
     
@@ -366,6 +430,7 @@ try { exp } catch (...) {}
     // The config is re-read after the window is already created, so some entries
     // may not take effect
     manualFolderSelect = getEnvironmentBool("MKXPZ_FOLDER_SELECT", false);
+#endif // MKXPZ_RETRO
     
     raw = optsJ;
 }
@@ -397,17 +462,32 @@ void Config::readGameINI() {
         return;
     }
     
+#ifdef MKXPZ_RETRO
+    std::string iniFileName(execName + ".ini");
+    std::shared_ptr<FileSystem::File> iniFile(new FileSystem::File(*mkxp_retro::fs, iniFileName.c_str()));
+#else
     std::string iniFileName(execName + ".ini");
     SDLRWStream iniFile(iniFileName.c_str(), "r");
+#endif // MKXPZ_RETRO
     
-    bool convSuccess = false;
+    bool convSuccess = true;
+#ifdef MKXPZ_RETRO
+    if (iniFile->is_read_open())
+#else
     if (iniFile)
+#endif // MKXPZ_RETRO
     {
         INIConfiguration ic;
+#ifdef MKXPZ_RETRO
+        PHYSFSRWBuf buf(iniFile);
+        std::istream stream(&buf);
+        if (ic.load(stream))
+#else
         if (ic.load(iniFile.stream()))
+#endif // MKXPZ_RETRO
         {
-            GUARD(game.title = ic.getStringProperty("Game", "Title"););
-            GUARD(game.scripts = ic.getStringProperty("Game", "Scripts"););
+            game.title = ic.getStringProperty("Game", "Title");
+            game.scripts = ic.getStringProperty("Game", "Scripts");
             
             strReplace(game.scripts, '\\', '/');
             
@@ -417,17 +497,34 @@ void Config::readGameINI() {
             
             if (game.scripts.empty())
                 Debug() << iniFileName + ": Could not find Game.Scripts";
+
+            std::string rtp;
+            rtp = ic.getStringProperty("Game", "RTP");
+            if (!rtp.empty()) {
+                game.rtps.push_back(rtp);
+            }
+            rtp = ic.getStringProperty("Game", "RTP1");
+            if (!rtp.empty()) {
+                game.rtps.push_back(rtp);
+            }
+            rtp = ic.getStringProperty("Game", "RTP2");
+            if (!rtp.empty()) {
+                game.rtps.push_back(rtp);
+            }
+            rtp = ic.getStringProperty("Game", "RTP3");
+            if (!rtp.empty()) {
+                game.rtps.push_back(rtp);
+            }
         }
     }
     else
         Debug() << "Could not read" << iniFileName;
     
-    try {
+    if (!game.title.empty()) {
         game.title = Encoding::convertString(game.title);
-        convSuccess = true;
-    }
-    catch (const Exception &e) {
-        Debug() << iniFileName + ": Could not determine encoding of Game.Title";
+        if (game.title.empty()) {
+            Debug() << iniFileName + ": Could not determine encoding of Game.Title";
+        }
     }
     
     if (game.title.empty() || !convSuccess)
@@ -439,7 +536,9 @@ void Config::readGameINI() {
     if (dataPathApp.empty())
         dataPathApp = game.title;
     
+#ifndef MKXPZ_RETRO
     customDataPath = mkxp_fs::normalizePath(prefPath(dataPathOrg.c_str(), dataPathApp.c_str()).c_str(), 0, 1);
+#endif // MKXPZ_RETRO
     
     if (rgssVersion == 0) {
         /* Try to guess RGSS version based on Data/Scripts extension */

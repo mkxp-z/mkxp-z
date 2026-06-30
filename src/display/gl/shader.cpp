@@ -29,6 +29,7 @@
 #include <assert.h>
 #include <string.h>
 #include <iostream>
+#include <utility>
 
 #ifndef MKXPZ_BUILD_XCODE
 #include "common.h.xxd"
@@ -74,13 +75,12 @@
 { \
     std::string v = mkxp_fs::contentsOfAssetAsString("Shaders/" #vert, "vert"); \
     std::string f = mkxp_fs::contentsOfAssetAsString("Shaders/" #frag, "frag"); \
-    Shader::init((const unsigned char*)v.c_str(), v.length(), (const unsigned char*)f.c_str(), f.length(), #vert, #frag, #name); \
+    GUARD(Shader::init(exception, (const unsigned char*)v.c_str(), v.length(), (const unsigned char*)f.c_str(), f.length(), #vert, #frag, #name)); \
 }
 #else
 #define INIT_SHADER(vert, frag, name) \
 { \
-	Shader::init(___shader_##vert##_vert, ___shader_##vert##_vert_len, ___shader_##frag##_frag, ___shader_##frag##_frag_len, \
-	#vert, #frag, #name); \
+	GUARD(Shader::init(exception, mkxp_shader_##vert##_vert, sizeof mkxp_shader_##vert##_vert, mkxp_shader_##frag##_frag, sizeof mkxp_shader_##frag##_frag, #vert, #frag, #name)); \
 }
 #endif
 
@@ -90,6 +90,9 @@
     std::string Shader::shaderCommon = "";
 #endif
 
+#define GUARD_V(value, expression) do { expression; if (exception.is_error()) return value; } while (0)
+#define GUARD(expression) GUARD_V(, expression)
+
 static void printShaderLog(GLuint shader)
 {
 	GLint logLength;
@@ -98,7 +101,15 @@ static void printShaderLog(GLuint shader)
 	std::string log(logLength, '\0');
 	gl.GetShaderInfoLog(shader, log.size(), 0, &log[0]);
 
+#ifdef MKXPZ_RETRO
+	std::istringstream stream(log);
+	std::string line;
+	while (std::getline(stream, line)) {
+		LOG_PRINTF(RETRO_LOG_ERROR, "[shader log] %s\n", line.c_str());
+	}
+#else
 	std::clog << "Shader log:\n" << log;
+#endif // MKXPZ_RETRO
 }
 
 static void printProgramLog(GLuint program)
@@ -109,7 +120,15 @@ static void printProgramLog(GLuint program)
 	std::string log(logLength, '\0');
 	gl.GetProgramInfoLog(program, log.size(), 0, &log[0]);
 
+#ifdef MKXPZ_RETRO
+	std::istringstream stream(log);
+	std::string line;
+	while (std::getline(stream, line)) {
+		LOG_PRINTF(RETRO_LOG_ERROR, "[program log] %s\n", line.c_str());
+	}
+#else
 	std::clog << "Program log:\n" << log;
+#endif // MKXPZ_RETRO
 }
 
 Shader::Shader() : initialized(false)
@@ -173,8 +192,8 @@ static void setupShaderSource(GLuint shader, GLenum type,
 	}
 
 #ifndef MKXPZ_BUILD_XCODE
-	shaderSrc[i] = (const GLchar*) ___shader_common_h;
-	shaderSrcSize[i] = ___shader_common_h_len;
+	shaderSrc[i] = (const GLchar*) mkxp_shader_common_h;
+	shaderSrcSize[i] = sizeof mkxp_shader_common_h;
 #else
     shaderSrc[i] = (const GLchar*) Shader::commonHeader().c_str();
     shaderSrcSize[i] = Shader::commonHeader().length();
@@ -188,7 +207,8 @@ static void setupShaderSource(GLuint shader, GLenum type,
 	gl.ShaderSource(shader, i, shaderSrc, shaderSrcSize);
 }
 
-void Shader::init(const unsigned char *vert, int vertSize,
+void Shader::init(Exception &exception,
+                  const unsigned char *vert, int vertSize,
                   const unsigned char *frag, int fragSize,
                   const char *vertName, const char *fragName,
                   const char *programName)
@@ -198,8 +218,9 @@ void Shader::init(const unsigned char *vert, int vertSize,
 		/* Calling Shader::init() more than once causes a small number of graphics drivers to encounter linking errors.
 		 * In particular, the Nintendo Switch homebrew toolchain's Mesa driver has this problem.
 		 * So we throw this exception on every platform to reduce the probability of regressions. */
-		throw Exception(Exception::MKXPError,
+		exception = Exception(Exception::MKXPError,
 	                    "Attempted to call Shader::init() more than once");
+		return;
 	}
 
 	GLint success;
@@ -213,9 +234,10 @@ void Shader::init(const unsigned char *vert, int vertSize,
 	if (!success)
 	{
 		printShaderLog(vertShader);
-		throw Exception(Exception::MKXPError,
+		exception = Exception(Exception::MKXPError,
 	                    "GLSL: An error occurred while compiling vertex shader '%s' in program '%s'",
 	                    vertName, programName);
+		return;
 	}
 
 	/* Compile fragment shader */
@@ -227,9 +249,10 @@ void Shader::init(const unsigned char *vert, int vertSize,
 	if (!success)
 	{
 		printShaderLog(fragShader);
-		throw Exception(Exception::MKXPError,
+		exception = Exception(Exception::MKXPError,
 	                    "GLSL: An error occurred while compiling fragment shader '%s' in program '%s'",
 	                    fragName, programName);
+		return;
 	}
 
 	/* Link shader program */
@@ -247,24 +270,27 @@ void Shader::init(const unsigned char *vert, int vertSize,
 	if (!success)
 	{
 		printProgramLog(program);
-		throw Exception(Exception::MKXPError,
+		exception = Exception(Exception::MKXPError,
 	                    "GLSL: An error occurred while linking program '%s' (vertex '%s', fragment '%s')",
 	                    programName, vertName, fragName);
+		return;
 	}
 
 	initialized = true;
 }
 
-void Shader::initFromFile(const char *_vertFile, const char *_fragFile,
+void Shader::initFromFile(Exception &exception,
+                          const char *_vertFile, const char *_fragFile,
                           const char *programName)
 {
 	std::string vertContents, fragContents;
 	readFile(_vertFile, vertContents);
 	readFile(_fragFile, fragContents);
 
-	init((const unsigned char*) vertContents.c_str(), vertContents.size(),
-	     (const unsigned char*) fragContents.c_str(), fragContents.size(),
-	     _vertFile, _fragFile, programName);
+	GUARD(init(exception,
+	           (const unsigned char*) vertContents.c_str(), vertContents.size(),
+	           (const unsigned char*) fragContents.c_str(), fragContents.size(),
+	           _vertFile, _fragFile, programName));
 }
 
 void Shader::setVec2Uniform(GLint location, const Vec2 &vec)
@@ -341,8 +367,11 @@ void ShaderBase::setTranslation(const Vec2i &value)
 }
 
 
-FlatColorShader::FlatColorShader()
+FlatColorShader::FlatColorShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(minimal, flatColor, FlatColorShader);
 
 	ShaderBase::init();
@@ -356,17 +385,16 @@ void FlatColorShader::setColor(const Vec4 &value)
 }
 
 
-SimpleShader::SimpleShader()
+SimpleShader::SimpleShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(simple, simple, SimpleShader);
 
 	ShaderBase::init();
 
 	GET_U(texOffsetX);
-}
-
-SimpleShader::SimpleShader(const ShaderNoConstructTag &)
-{
 }
 
 void SimpleShader::setTexOffsetX(int value)
@@ -375,24 +403,33 @@ void SimpleShader::setTexOffsetX(int value)
 }
 
 
-SimpleColorShader::SimpleColorShader()
+SimpleColorShader::SimpleColorShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(simpleColor, simpleColor, SimpleColorShader);
 
 	ShaderBase::init();
 }
 
 
-SimpleAlphaShader::SimpleAlphaShader()
+SimpleAlphaShader::SimpleAlphaShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(simpleColor, simpleAlpha, SimpleAlphaShader);
 
 	ShaderBase::init();
 }
 
 
-SimpleSpriteShader::SimpleSpriteShader()
+SimpleSpriteShader::SimpleSpriteShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(sprite, simple, SimpleSpriteShader);
 
 	ShaderBase::init();
@@ -400,17 +437,16 @@ SimpleSpriteShader::SimpleSpriteShader()
 	GET_U(spriteMat);
 }
 
-SimpleSpriteShader::SimpleSpriteShader(const ShaderNoConstructTag &)
-{
-}
-
 void SimpleSpriteShader::setSpriteMat(const float value[16])
 {
 	gl.UniformMatrix4fv(u_spriteMat, 1, GL_FALSE, value);
 }
 
-BicubicSpriteShader::BicubicSpriteShader() : Lanczos3SpriteShader(ShaderNoConstructTag())
+BicubicSpriteShader::BicubicSpriteShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(sprite, bicubic, BicubicSpriteShader);
 
 	ShaderBase::init();
@@ -425,18 +461,17 @@ void BicubicSpriteShader::setSharpness(int sharpness)
 	gl.Uniform2f(u_bc, 1.f - sharpness * 0.01f, sharpness * 0.005f);
 }
 
-Lanczos3SpriteShader::Lanczos3SpriteShader() : SimpleSpriteShader(ShaderNoConstructTag())
+Lanczos3SpriteShader::Lanczos3SpriteShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(sprite, lanczos3, Lanczos3SpriteShader);
 
 	ShaderBase::init();
 
 	GET_U(spriteMat);
 	GET_U(sourceSize);
-}
-
-Lanczos3SpriteShader::Lanczos3SpriteShader(const ShaderNoConstructTag &) : SimpleSpriteShader(ShaderNoConstructTag())
-{
 }
 
 void Lanczos3SpriteShader::setTexSize(const Vec2i &value)
@@ -446,8 +481,11 @@ void Lanczos3SpriteShader::setTexSize(const Vec2i &value)
 }
 
 #ifdef MKXPZ_SSL
-XbrzSpriteShader::XbrzSpriteShader() : Lanczos3SpriteShader(ShaderNoConstructTag())
+XbrzSpriteShader::XbrzSpriteShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(sprite, xbrz, XbrzSpriteShader);
 
 	ShaderBase::init();
@@ -463,8 +501,11 @@ void XbrzSpriteShader::setTargetScale(const Vec2 &value)
 }
 #endif
 
-AlphaSpriteShader::AlphaSpriteShader()
+AlphaSpriteShader::AlphaSpriteShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(sprite, simpleAlphaUni, AlphaSpriteShader);
 
 	ShaderBase::init();
@@ -484,8 +525,11 @@ void AlphaSpriteShader::setAlpha(float value)
 }
 
 
-TransShader::TransShader()
+TransShader::TransShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(simple, trans, TransShader);
 
 	ShaderBase::init();
@@ -523,8 +567,11 @@ void TransShader::setVague(float value)
 }
 
 
-SimpleTransShader::SimpleTransShader()
+SimpleTransShader::SimpleTransShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(simple, transSimple, SimpleTransShader);
 
 	ShaderBase::init();
@@ -550,8 +597,11 @@ void SimpleTransShader::setProg(float value)
 }
 
 
-SpriteShader::SpriteShader()
+SpriteShader::SpriteShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(sprite, sprite, SpriteShader);
 
 	ShaderBase::init();
@@ -651,8 +701,11 @@ void SpriteShader::setInvert(bool value)
 }
 
 
-PlaneShader::PlaneShader()
+PlaneShader::PlaneShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(simple, plane, PlaneShader);
 
 	ShaderBase::init();
@@ -684,8 +737,11 @@ void PlaneShader::setOpacity(float value)
 }
 
 
-GrayShader::GrayShader()
+GrayShader::GrayShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(simple, gray, GrayShader);
 
 	ShaderBase::init();
@@ -706,8 +762,11 @@ void GrayShader::setGray(float value)
 }
 
 
-TilemapShader::TilemapShader()
+TilemapShader::TilemapShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(tilemap, tilemap, TilemapShader);
 
 	ShaderBase::init();
@@ -747,8 +806,11 @@ void TilemapShader::setATFrames(int values[7])
 
 
 
-FlashMapShader::FlashMapShader()
+FlashMapShader::FlashMapShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(simpleColor, flashMap, FlashMapShader);
 
 	ShaderBase::init();
@@ -762,8 +824,11 @@ void FlashMapShader::setAlpha(float value)
 }
 
 
-HueShader::HueShader()
+HueShader::HueShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(simple, hue, HueShader);
 
 	ShaderBase::init();
@@ -777,8 +842,11 @@ void HueShader::setHueAdjust(float value)
 }
 
 
-SimpleMatrixShader::SimpleMatrixShader()
+SimpleMatrixShader::SimpleMatrixShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(simpleMatrix, simpleAlpha, SimpleMatrixShader);
 
 	ShaderBase::init();
@@ -792,23 +860,37 @@ void SimpleMatrixShader::setMatrix(const float value[16])
 }
 
 
-BlurShader::HPass::HPass()
+BlurShader::HPass::HPass(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(blurH, blur, BlurShader::HPass);
 
 	ShaderBase::init();
 }
 
-BlurShader::VPass::VPass()
+BlurShader::VPass::VPass(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(blurV, blur, BlurShader::VPass);
 
 	ShaderBase::init();
 }
 
+BlurShader::BlurShader(Exception &exception) :
+	pass1(exception),
+	pass2(exception)
+{}
 
-TilemapVXShader::TilemapVXShader()
+
+TilemapVXShader::TilemapVXShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(tilemapvx, simple, TilemapVXShader);
 
 	ShaderBase::init();
@@ -822,15 +904,14 @@ void TilemapVXShader::setAniOffset(const Vec2 &value)
 }
 
 
-BltShader::BltShader()
+BltShader::BltShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(simple, bitmapBlit, BltShader);
 
 	init();
-}
-
-BltShader::BltShader(const ShaderNoConstructTag &)
-{
 }
 
 void BltShader::init()
@@ -863,29 +944,41 @@ void BltShader::setOpacity(float value)
 	gl.Uniform1f(u_opacity, value);
 }
 
-KglInvertShader::KglInvertShader()
+KglInvertShader::KglInvertShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(simple, kglInvert, KglInvertShader);
 
 	ShaderBase::init();
 }
 
-KglCompressAlphaShader::KglCompressAlphaShader()
+KglCompressAlphaShader::KglCompressAlphaShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(simple, kglCompressAlpha, KglCompressAlphaShader);
 
 	ShaderBase::init();
 }
 
-KglSubtractShader::KglSubtractShader() : BltShader(ShaderNoConstructTag())
+KglSubtractShader::KglSubtractShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(simple, kglSubtract, KglSubtractShader);
 
 	BltShader::init();
 }
 
-KglShadowShaderH::KglShadowShaderH()
+KglShadowShaderH::KglShadowShaderH(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(simple, kglShadowH, KglShadowShaderH);
 
 	ShaderBase::init();
@@ -916,8 +1009,11 @@ void KglShadowShaderH::setParams(int x1, int x2, int y, bool soft, int w, int h,
 	gl.Uniform1f(u_slope2, slope2);
 }
 
-KglShadowShaderV::KglShadowShaderV()
+KglShadowShaderV::KglShadowShaderV(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(simple, kglShadowV, KglShadowShaderV);
 
 	ShaderBase::init();
@@ -950,8 +1046,11 @@ void KglShadowShaderV::setParams(int y1, int y2, int x, bool wall, bool soft, in
 	gl.Uniform1f(u_slope2, slope2);
 }
 
-BicubicShader::BicubicShader() : Lanczos3Shader(ShaderNoConstructTag())
+BicubicShader::BicubicShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(simple, bicubic, BicubicShader);
 
 	ShaderBase::init();
@@ -966,18 +1065,17 @@ void BicubicShader::setSharpness(int sharpness)
 	gl.Uniform2f(u_bc, 1.f - sharpness * 0.01f, sharpness * 0.005f);
 }
 
-Lanczos3Shader::Lanczos3Shader() : SimpleShader(ShaderNoConstructTag())
+Lanczos3Shader::Lanczos3Shader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(simple, lanczos3, Lanczos3Shader);
 
 	ShaderBase::init();
 
 	GET_U(texOffsetX);
 	GET_U(sourceSize);
-}
-
-Lanczos3Shader::Lanczos3Shader(const ShaderNoConstructTag &) : SimpleShader(ShaderNoConstructTag())
-{
 }
 
 void Lanczos3Shader::setTexSize(const Vec2i &value)
@@ -987,8 +1085,11 @@ void Lanczos3Shader::setTexSize(const Vec2i &value)
 }
 
 #ifdef MKXPZ_SSL
-XbrzShader::XbrzShader() : Lanczos3Shader(ShaderNoConstructTag())
+XbrzShader::XbrzShader(Exception &exception)
 {
+	if (exception.is_error())
+		return;
+
 	INIT_SHADER(simple, xbrz, XbrzShader);
 
 	ShaderBase::init();
@@ -1003,3 +1104,45 @@ void XbrzShader::setTargetScale(const Vec2 &value)
 	gl.Uniform2f(u_targetScale, value.x, value.y);
 }
 #endif
+
+ShaderSet::ShaderSet(Exception &exception) :
+	flatColor(exception),
+	simple(exception),
+	simpleColor(exception),
+	simpleAlpha(exception),
+	simpleSprite(exception),
+	alphaSprite(exception),
+	sprite(exception),
+	plane(exception),
+	gray(exception),
+	tilemap(exception),
+	flashMap(exception),
+	trans(exception),
+	simpleTrans(exception),
+	hue(exception),
+	blt(exception),
+	blur(exception),
+	simpleMatrix(exception),
+	tilemapVX(exception),
+	kglInvert(exception),
+	kglCompressAlpha(exception),
+	kglSubtract(exception),
+	kglShadowH(exception),
+	kglShadowV(exception),
+	bicubic(exception),
+	lanczos3(exception),
+#ifdef MKXPZ_SSL
+	xbrz(exception),
+#endif
+	lanczos3Sprite(exception),
+#ifdef MKXPZ_SSL
+	bicubicSprite(exception),
+	xbrzSprite(exception)
+#else
+	bicubicSprite(exception)
+#endif
+{}
+
+void ShaderSet::reinit(Exception &exception) {
+	new(this) ShaderSet(exception);
+}

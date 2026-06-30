@@ -27,6 +27,8 @@
 #include <algorithm>
 #include <vector>
 
+#include "exception.h"
+
 static inline int
 wrapRange(int value, int min, int max)
 {
@@ -122,29 +124,27 @@ inline C *dataPtr(std::vector<C> &v)
 #define elementsN(obj) const size_t obj##N = ARRAY_SIZE(obj)
 
 #define DECL_ATTR_DETAILED(name, type, keyword1, keyword2) \
-	keyword1 type get##name() keyword2; \
-	keyword1 void set##name(type value);
+	keyword1 type get##name(Exception &exception) keyword2; \
+	keyword1 void set##name(Exception &exception, type value);
 
 #define DECL_ATTR(name, type) DECL_ATTR_DETAILED(name, type, , const)
 #define DECL_ATTR_VIRT(name, type) DECL_ATTR_DETAILED(name, type, virtual, const)
 #define DECL_ATTR_STATIC(name, type) DECL_ATTR_DETAILED(name, type, static, )
-#define DECL_ATTR_INLINE(name, type, loc) \
-	type get##name() const { return loc; } \
-	void set##name(type value) { loc = value; }
 
 #define DEF_ATTR_RD_SIMPLE_DETAILED(klass, name, type, location, keyword1) \
-	type klass :: get##name() keyword1 \
+	type klass :: get##name(Exception &exception) keyword1 \
 	{ \
-		guardDisposed(); \
+		guardDisposed(exception); \
 		return location; \
 	}
 
 #define DEF_ATTR_SIMPLE_DETAILED(klass, name, type, location, keyword1) \
 	DEF_ATTR_RD_SIMPLE_DETAILED(klass, name, type, location, keyword1) \
-	void klass :: set##name(type value) \
+	void klass :: set##name(Exception &exception, type value) \
 { \
-	guardDisposed(); \
-	location = value; \
+	guardDisposed(exception); \
+	if (exception.is_ok()) \
+		location = value; \
 }
 
 #define DEF_ATTR_RD_SIMPLE(klass, name, type, location) \
@@ -154,5 +154,34 @@ inline C *dataPtr(std::vector<C> &v)
 
 #define DEF_ATTR_SIMPLE_STATIC(klass, name, type, location) \
 	DEF_ATTR_SIMPLE_DETAILED(klass, name, type, location, )
+
+#define DECL_ATTR_NOEXCEPT_DETAILED(name, type, keyword1, keyword2) \
+	keyword1 type get##name() keyword2; \
+	keyword1 void set##name(type value);
+
+#define DECL_ATTR_NOEXCEPT(name, type) DECL_ATTR_NOEXCEPT_DETAILED(name, type, , const)
+#define DECL_ATTR_NOEXCEPT_VIRT(name, type) DECL_ATTR_NOEXCEPT_DETAILED(name, type, virtual, const)
+#define DECL_ATTR_NOEXCEPT_STATIC(name, type) DECL_ATTR_NOEXCEPT_DETAILED(name, type, static, )
+
+#define DEF_ATTR_NOEXCEPT_RD_SIMPLE_DETAILED(klass, name, type, location, keyword1) \
+	type klass :: get##name() keyword1 \
+	{ \
+		return location; \
+	}
+
+#define DEF_ATTR_NOEXCEPT_SIMPLE_DETAILED(klass, name, type, location, keyword1) \
+	DEF_ATTR_NOEXCEPT_RD_SIMPLE_DETAILED(klass, name, type, location, keyword1) \
+	void klass :: set##name(type value) \
+{ \
+	location = value; \
+}
+
+#define DEF_ATTR_NOEXCEPT_RD_SIMPLE(klass, name, type, location) \
+	DEF_ATTR_NOEXCEPT_RD_SIMPLE_DETAILED(klass, name, type, location, const)
+#define DEF_ATTR_NOEXCEPT_SIMPLE(klass, name, type, location) \
+	DEF_ATTR_NOEXCEPT_SIMPLE_DETAILED(klass, name, type, location, const)
+
+#define DEF_ATTR_NOEXCEPT_SIMPLE_STATIC(klass, name, type, location) \
+	DEF_ATTR_NOEXCEPT_SIMPLE_DETAILED(klass, name, type, location, )
 
 #endif // UTIL_H

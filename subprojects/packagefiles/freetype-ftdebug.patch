@@ -1,0 +1,19 @@
+# Makes FreeType's build system use the platform-independent version of ftdebug instead of the Windows-specific version.
+# Otherwise, cross-compiling to Windows may fail.
+
+--- a/meson.build
++++ b/meson.build
+@@ -237,10 +237,10 @@ endif
+ # into `ftsystem.c` as well.
+ 
+ if host_machine.system() == 'windows'
+-  winmod = import('windows')
++
+   ft2_sources += [
+-    'builds/windows/ftdebug.c',
+-    winmod.compile_resources('src/base/ftver.rc'),
++    'src/base/ftdebug.c',
++
+   ]
+ else
+   ft2_sources += 'src/base/ftdebug.c'

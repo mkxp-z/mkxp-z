@@ -1,0 +1,15 @@
+# Disables building FluidSynth's tests and documentation because they cause problems on some platforms.
+
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -887,8 +887,8 @@ endif ()
+ 
+ # Process subdirectories
+ add_subdirectory ( src )
+-add_subdirectory ( test )
+-add_subdirectory ( doc )
++
++
+ 
+ # pkg-config support
+ set ( prefix "${CMAKE_INSTALL_PREFIX}" )

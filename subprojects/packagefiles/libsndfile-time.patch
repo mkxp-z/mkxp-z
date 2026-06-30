@@ -1,0 +1,21 @@
+# Disables the time functions because using some of them causes linker errors when using the PlayStation 4 toolchain.
+
+--- a/cmake/SndFileChecks.cmake
++++ b/cmake/SndFileChecks.cmake
+@@ -125,11 +125,11 @@ check_library_exists (sqlite3 sqlite3_close "" HAVE_SQLITE3)
+ 
+ check_function_exists (fstat     		HAVE_FSTAT)
+ check_function_exists (fstat64			HAVE_FSTAT64)
+-check_function_exists (gettimeofday		HAVE_GETTIMEOFDAY)
+-check_function_exists (gmtime			HAVE_GMTIME)
+-check_function_exists (gmtime_r			HAVE_GMTIME_R)
+-check_function_exists (localtime		HAVE_LOCALTIME)
+-check_function_exists (localtime_r		HAVE_LOCALTIME_R)
++
++
++
++
++
+ check_function_exists (lseek      		HAVE_LSEEK)
+ check_function_exists (open				HAVE_OPEN)
+ check_function_exists (read				HAVE_READ)

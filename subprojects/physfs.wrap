@@ -1,0 +1,5 @@
+[wrap-git]
+url = https://github.com/icculus/physfs
+revision = release-3.2.0
+depth = 1
+diff_files = physfs-0001-vfs.patch, physfs-allow-duplicates.patch, physfs-dir.patch, physfs-mkxp-polyfill.patch

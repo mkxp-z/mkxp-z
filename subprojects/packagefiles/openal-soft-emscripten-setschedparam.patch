@@ -1,0 +1,13 @@
+# Stops OpenAL Soft from trying to get realtime priority on Emscripten because Emscripten doesn't support all the necessary APIs and this will result in compilation errors when targeting Emscripten.
+
+--- a/core/helpers.cpp
++++ b/core/helpers.cpp
+@@ -374,7 +374,7 @@ namespace {
+ bool SetRTPriorityPthread(int prio [[maybe_unused]])
+ {
+     int err{ENOTSUP};
+-#if defined(HAVE_PTHREAD_SETSCHEDPARAM) && !defined(__OpenBSD__)
++#if defined(HAVE_PTHREAD_SETSCHEDPARAM) && !defined(__OpenBSD__) && !defined(__EMSCRIPTEN__)
+     /* Get the min and max priority for SCHED_RR. Limit the max priority to
+      * half, for now, to ensure the thread can't take the highest priority and
+      * go rogue.

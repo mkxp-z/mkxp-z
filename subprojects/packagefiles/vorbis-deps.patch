@@ -1,0 +1,200 @@
+# Prevents Vorbis from trying to look for Ogg externally since Meson already handles that.
+
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -61,8 +61,6 @@ message(STATUS "Configuring ${PROJECT_NAME} ${PROJECT_VERSION}")
+ 
+ check_library_exists(m floor "" HAVE_LIBM)
+ 
+-# Find ogg dependency
+-find_package(Ogg REQUIRED)
+ 
+ add_subdirectory(lib)
+ 
+--- a/include/vorbis/codec.h
++++ b/include/vorbis/codec.h
+@@ -22,7 +22,7 @@ extern "C"
+ {
+ #endif /* __cplusplus */
+ 
+-#include <ogg/ogg.h>
++#include "../ogg/include/ogg/ogg.h"
+ 
+ typedef struct vorbis_info{
+   int version;
+--- a/lib/CMakeLists.txt
++++ b/lib/CMakeLists.txt
+@@ -106,7 +106,7 @@ if (NOT BUILD_FRAMEWORK)
+     )
+ 
+     target_link_libraries(vorbis
+-        PUBLIC Ogg::ogg
++
+         PRIVATE $<$<BOOL:${HAVE_LIBM}>:m>
+     )
+     target_link_libraries(vorbisenc PUBLIC vorbis)
+--- a/lib/analysis.c
++++ b/lib/analysis.c
+@@ -17,7 +17,7 @@
+ #include <stdio.h>
+ #include <string.h>
+ #include <math.h>
+-#include <ogg/ogg.h>
++#include "../ogg/include/ogg/ogg.h"
+ #include "vorbis/codec.h"
+ #include "codec_internal.h"
+ #include "registry.h"
+--- a/lib/bitrate.c
++++ b/lib/bitrate.c
+@@ -17,7 +17,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <math.h>
+-#include <ogg/ogg.h>
++#include "../ogg/include/ogg/ogg.h"
+ #include "vorbis/codec.h"
+ #include "codec_internal.h"
+ #include "os.h"
+--- a/lib/block.c
++++ b/lib/block.c
+@@ -20,7 +20,7 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+-#include <ogg/ogg.h>
++#include "../ogg/include/ogg/ogg.h"
+ #include "vorbis/codec.h"
+ #include "codec_internal.h"
+ 
+--- a/lib/codebook.c
++++ b/lib/codebook.c
+@@ -17,7 +17,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <math.h>
+-#include <ogg/ogg.h>
++#include "../ogg/include/ogg/ogg.h"
+ #include "vorbis/codec.h"
+ #include "codebook.h"
+ #include "scales.h"
+--- a/lib/codebook.h
++++ b/lib/codebook.h
+@@ -17,7 +17,7 @@
+ #ifndef _V_CODEBOOK_H_
+ #define _V_CODEBOOK_H_
+ 
+-#include <ogg/ogg.h>
++#include "../ogg/include/ogg/ogg.h"
+ 
+ /* This structure encapsulates huffman and VQ style encoding books; it
+    doesn't do anything specific to either.
+--- a/lib/envelope.c
++++ b/lib/envelope.c
+@@ -18,7 +18,7 @@
+ #include <string.h>
+ #include <stdio.h>
+ #include <math.h>
+-#include <ogg/ogg.h>
++#include "../ogg/include/ogg/ogg.h"
+ #include "vorbis/codec.h"
+ #include "codec_internal.h"
+ 
+--- a/lib/floor0.c
++++ b/lib/floor0.c
+@@ -17,7 +17,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <math.h>
+-#include <ogg/ogg.h>
++#include "../ogg/include/ogg/ogg.h"
+ #include "vorbis/codec.h"
+ #include "codec_internal.h"
+ #include "registry.h"
+--- a/lib/floor1.c
++++ b/lib/floor1.c
+@@ -17,7 +17,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <math.h>
+-#include <ogg/ogg.h>
++#include "../ogg/include/ogg/ogg.h"
+ #include "vorbis/codec.h"
+ #include "codec_internal.h"
+ #include "registry.h"
+--- a/lib/info.c
++++ b/lib/info.c
+@@ -19,7 +19,7 @@
+ 
+ #include <stdlib.h>
+ #include <string.h>
+-#include <ogg/ogg.h>
++#include "../ogg/include/ogg/ogg.h"
+ #include "vorbis/codec.h"
+ #include "codec_internal.h"
+ #include "codebook.h"
+--- a/lib/mapping0.c
++++ b/lib/mapping0.c
+@@ -18,7 +18,7 @@
+ #include <stdio.h>
+ #include <string.h>
+ #include <math.h>
+-#include <ogg/ogg.h>
++#include "../ogg/include/ogg/ogg.h"
+ #include "vorbis/codec.h"
+ #include "codec_internal.h"
+ #include "codebook.h"
+--- a/lib/os.h
++++ b/lib/os.h
+@@ -21,7 +21,7 @@
+ #endif
+ 
+ #include <math.h>
+-#include <ogg/os_types.h>
++#include "../ogg/include/ogg/os_types.h"
+ 
+ #include "misc.h"
+ 
+--- a/lib/res0.c
++++ b/lib/res0.c
+@@ -22,7 +22,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <math.h>
+-#include <ogg/ogg.h>
++#include "../ogg/include/ogg/ogg.h"
+ #include "vorbis/codec.h"
+ #include "codec_internal.h"
+ #include "registry.h"
+--- a/lib/sharedbook.c
++++ b/lib/sharedbook.c
+@@ -18,7 +18,7 @@
+ #include <limits.h>
+ #include <math.h>
+ #include <string.h>
+-#include <ogg/ogg.h>
++#include "../ogg/include/ogg/ogg.h"
+ #include "os.h"
+ #include "misc.h"
+ #include "vorbis/codec.h"
+--- a/lib/synthesis.c
++++ b/lib/synthesis.c
+@@ -15,7 +15,7 @@
+  ********************************************************************/
+ 
+ #include <stdio.h>
+-#include <ogg/ogg.h>
++#include "../ogg/include/ogg/ogg.h"
+ #include "vorbis/codec.h"
+ #include "codec_internal.h"
+ #include "registry.h"
+--- a/vq/localcodebook.h
++++ b/vq/localcodebook.h
+@@ -17,7 +17,7 @@
+ #ifndef _V_CODEBOOK_H_
+ #define _V_CODEBOOK_H_
+ 
+-#include <ogg/ogg.h>
++#include "../ogg/include/ogg/ogg.h"
+ 
+ /* This structure encapsulates huffman and VQ style encoding books; it
+    doesn't do anything specific to either.

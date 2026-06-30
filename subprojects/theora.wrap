@@ -1,0 +1,6 @@
+[wrap-git]
+url = https://github.com/xiph/theora
+revision = v1.2.0
+depth = 1
+patch_directory = theora
+diff_files = theora-deps.patch

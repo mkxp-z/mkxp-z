@@ -21,6 +21,8 @@
 
 #include "soundemitter.h"
 
+#include "mkxp-polyfill.h" // snprintf
+
 #include "sharedstate.h"
 #include "filesystem.h"
 #include "exception.h"
@@ -28,7 +30,12 @@
 #include "util.h"
 #include "debugwriter.h"
 
-#include <SDL_sound.h>
+#ifdef MKXPZ_RETRO
+#  include <sndfile.hh>
+#  include "sandbox-serial-util.h"
+#else
+#  include <SDL_sound.h>
+#endif // MKXPZ_RETRO
 
 #define SE_CACHE_MEM (10*1024*1024) // 10 MB
 
@@ -93,6 +100,7 @@ SoundEmitter::SoundEmitter(const Config &conf)
       srcCount(conf.SE.sourceCount),
       alSrcs(srcCount),
       atchBufs(srcCount),
+      filenames(srcCount),
       srcPrio(srcCount)
 {
 	for (size_t i = 0; i < srcCount; ++i)
@@ -176,6 +184,8 @@ void SoundEmitter::play(const std::string &filename,
 	AL::Source::setPitch(src, _pitch);
 
 	AL::Source::play(src);
+
+	filenames[srcIndex] = filename;
 }
 
 void SoundEmitter::stop()
@@ -186,37 +196,79 @@ void SoundEmitter::stop()
 
 struct SoundOpenHandler : FileSystem::OpenHandler
 {
+#ifdef MKXPZ_RETRO
+	int errnum;
+#endif // MKXPZ_RETRO
 	SoundBuffer *buffer;
 
 	SoundOpenHandler()
 	    : buffer(0)
 	{}
 
-	bool tryRead(SDL_RWops &ops, const char *ext)
-	{
+	bool tryRead(
+#ifdef MKXPZ_RETRO
+		std::shared_ptr<struct FileSystem::File> ops,
+#else
+		SDL_RWops &ops,
+#endif // MKXPZ_RETRO
+		const char *ext
+	) {
+#ifdef MKXPZ_RETRO
+		extern SF_VIRTUAL_IO sfvirtual;
+		SndfileHandle handle(sfvirtual, ops.get());
+#else
 		Sound_Sample *sample = Sound_NewSample(&ops, ext, 0, STREAM_BUF_SIZE);
+#endif // MKXPZ_RETRO
 
+#ifdef MKXPZ_RETRO
+		if ((errnum = handle.error()))
+#else
 		if (!sample)
+#endif // MKXPZ_RETRO
 		{
+#ifndef MKXPZ_RETRO
 			SDL_RWclose(&ops);
+#endif // MKXPZ_RETRO
 			return false;
 		}
 
 		/* Do all of the decoding in the handler so we don't have
 		 * to keep the source ops around */
+#ifdef MKXPZ_RETRO
+		uint8_t sampleSize = 2;
+		uint32_t sampleCount = (uint32_t)handle.frames() * (uint32_t)handle.channels();
+#else
 		uint32_t decBytes = Sound_DecodeAll(sample);
 		uint8_t sampleSize = formatSampleSize(sample->actual.format);
 		uint32_t sampleCount = decBytes / sampleSize;
+#endif // MKXPZ_RETRO
 
 		buffer = new SoundBuffer;
 		buffer->bytes = sampleSize * sampleCount;
 
-		ALenum alFormat = chooseALFormat(sampleSize, sample->actual.channels);
+		ALenum alFormat = chooseALFormat(
+			sampleSize,
+#ifdef MKXPZ_RETRO
+			handle.channels()
+#else
+			sample->actual.channels
+#endif // MKXPZ_RETRO
+		);
 
+#ifdef MKXPZ_RETRO
+		int16_t *buf = (int16_t *)std::malloc(buffer->bytes);
+		if (buf == NULL) {
+			return false;
+		}
+		handle.read(buf, sampleCount);
+		AL::Buffer::uploadData(buffer->alBuffer, alFormat, buf,
+							   buffer->bytes, handle.samplerate());
+		std::free(buf);
+#else
 		AL::Buffer::uploadData(buffer->alBuffer, alFormat, sample->buffer,
 							   buffer->bytes, sample->actual.rate);
-
 		Sound_FreeSample(sample);
+#endif // MKXPZ_RETRO
 
 		return true;
 	}
@@ -239,16 +291,28 @@ SoundBuffer *SoundEmitter::allocateBuffer(const std::string &filename)
 	{
 		/* Buffer not in cache, needs to be loaded */
 		SoundOpenHandler handler;
+#ifdef MKXPZ_RETRO
+		mkxp_retro::fs->openRead(handler, filename.c_str()); // TODO: move into shState
+#else
 		shState->fileSystem().openRead(handler, filename.c_str());
+#endif // MKXPZ_RETRO
 		buffer = handler.buffer;
 
 		if (!buffer)
 		{
 			char buf[512];
-			snprintf(buf, sizeof(buf), "Unable to decode sound: %s: %s",
-			         filename.c_str(), Sound_GetError());
+			snprintf(
+				buf,
+				sizeof(buf),
+				"Unable to decode sound: %s: %s",
+				filename.c_str(),
+#ifdef MKXPZ_RETRO
+				sf_error_number(handler.errnum)
+#else
+				Sound_GetError()
+#endif // MKXPZ_RETRO
+			);
 			Debug() << buf;
-
 			return 0;
 		}
 
@@ -276,3 +340,10 @@ SoundBuffer *SoundEmitter::allocateBuffer(const std::string &filename)
 		return buffer;
 	}
 }
+
+#ifdef MKXPZ_RETRO
+#ifndef MKXPZ_SANDBOX_SERIAL_SOUNDEMITTER_H
+#define MKXPZ_SANDBOX_SERIAL_SOUNDEMITTER_H
+#include "sandbox-serial-soundemitter.h"
+#endif // MKXPZ_SANDBOX_SERIAL_SOUNDEMITTER_H
+#endif // MKXPZ_RETRO

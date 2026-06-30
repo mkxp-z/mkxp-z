@@ -21,26 +21,33 @@
 
 #include "alstream.h"
 
+#include "mkxp-polyfill.h" // snprintf
+
 #include "sharedstate.h"
 #include "sharedmidistate.h"
 #include "eventthread.h"
 #include "filesystem.h"
 #include "exception.h"
+#include "forced-assert.h"
 #include "aldatasource.h"
 #include "fluid-fun.h"
 #include "sdl-util.h"
 #include "debugwriter.h"
 
-#include <SDL_mutex.h>
-#include <SDL_thread.h>
-#include <SDL_timer.h>
+#ifndef MKXPZ_RETRO
+#  include <SDL_mutex.h>
+#  include <SDL_thread.h>
+#  include <SDL_timer.h>
+#endif // MKXPZ_RETRO
 
 ALStream::ALStream(LoopMode loopMode,
 		           const std::string &threadId)
 	: looped(loopMode == Looped),
 	  state(Closed),
 	  source(0),
+#ifndef MKXPZ_RETRO
 	  thread(0),
+#endif // MKXPZ_RETRO
 	  preemptPause(false),
       pitch(1.0f)
 {
@@ -53,9 +60,9 @@ ALStream::ALStream(LoopMode loopMode,
 	for (int i = 0; i < STREAM_BUFS; ++i)
 		alBuf[i] = AL::Buffer::gen();
 
-	pauseMut = SDL_CreateMutex();
-
+#ifndef MKXPZ_RETRO
 	threadName = std::string("al_stream (") + threadId + ")";
+#endif // MKXPZ_RETRO
 }
 
 ALStream::~ALStream()
@@ -67,8 +74,6 @@ ALStream::~ALStream()
 
 	for (int i = 0; i < STREAM_BUFS; ++i)
 		AL::Buffer::del(alBuf[i]);
-
-	SDL_DestroyMutex(pauseMut);
 }
 
 void ALStream::close()
@@ -88,11 +93,12 @@ void ALStream::close()
 	}
 }
 
-void ALStream::open(const std::string &filename)
+void ALStream::open(Exception &exception, const std::string &filename)
 {
-	openSource(filename);
+	openSource(exception, filename);
 
-	state = Stopped;
+	if (exception.is_ok())
+		state = Stopped;
 }
 
 void ALStream::stop()
@@ -199,61 +205,76 @@ struct ALStreamOpenHandler : FileSystem::OpenHandler
 	    : looped(looped), source(0)
 	{}
 
-	bool tryRead(SDL_RWops &ops, const char *ext)
-	{
+	bool tryRead(
+#ifdef MKXPZ_RETRO
+		std::shared_ptr<struct FileSystem::File> ops,
+#else
+		SDL_RWops &ops,
+#endif // MKXPZ_RETRO
+		const char *ext
+	) {
 		/* Try to read ogg file signature */
 		char sig[5] = { 0 };
+#ifdef MKXPZ_RETRO
+		PHYSFS_readBytes(ops->get_read(), sig, 4);
+		PHYSFS_seek(ops->get_read(), 0);
+#else
 		SDL_RWread(&ops, sig, 1, 4);
 		SDL_RWseek(&ops, 0, RW_SEEK_SET);
+#endif // MKXPZ_RETRO
 
-		try
+		if (!strcmp(sig, "OggS"))
 		{
-			if (!strcmp(sig, "OggS"))
-			{
-				source = createVorbisSource(ops, looped);
+			if ((source = createVorbisSource(errorMsg, ops, looped)) != nullptr)
 				return true;
-			}
 
-			if (!strcmp(sig, "MThd"))
-			{
-				shState->midiState().initIfNeeded(shState->config());
-
-				if (HAVE_FLUID)
-				{
-					source = createMidiSource(ops, looped);
-					return true;
-				}
-			}
-
-			source = createSDLSource(ops, ext, STREAM_BUF_SIZE, looped);
+#ifdef MKXPZ_RETRO
+			else if ((source = createSndfileSource(errorMsg, ops, looped)) != nullptr)
+				return true;
+#endif // MKXPZ_RETRO
 		}
-		catch (const Exception &e)
+
+		else if (!strcmp(sig, "MThd"))
 		{
-			/* All source constructors will close the passed ops
-			 * before throwing errors */
-			errorMsg = e.msg;
-			return false;
+			shState->midiState().initIfNeeded(shState->config());
+
+			if (HAVE_FLUID)
+			{
+				if ((source = createMidiSource(errorMsg, ops, looped)) != nullptr)
+					return true;
+			}
 		}
 
-		return true;
+#ifdef MKXPZ_RETRO
+		else if ((source = createSndfileSource(errorMsg, ops, looped)) != nullptr)
+#else
+		else if ((source = createSDLSource(errorMsg, ops, ext, STREAM_BUF_SIZE, looped)) != nullptr)
+#endif // MKXPZ_RETRO
+			return true;
+
+		return false;
+
 	}
 };
 
-void ALStream::openSource(const std::string &filename)
+void ALStream::openSource(Exception &exception, const std::string &filename)
 {
 	ALStreamOpenHandler handler(looped);
-	try
-	{
-		shState->fileSystem().openRead(handler, filename.c_str());
-	} catch (const Exception &e)
+#ifdef MKXPZ_RETRO
+	mkxp_retro::fs->openRead(handler, filename.c_str()); // TODO: move into shState
+#else
+	shState->fileSystem().openRead(handler, filename.c_str());
+#endif // MKXPZ_RETRO
+	if (handler.exception.is_error())
 	{
 		/* If no file was found then we leave the stream open.
 		 * A PHYSFSError means we found a match but couldn't
 		 * open the file, so we'll close it in that case. */
-		if (e.type != Exception::NoFileError)
+		if (handler.exception.type != Exception::NoFileError)
 			close();
 		
-		throw e;
+		exception = handler.exception;
+		return;
 	}
 
 	close();
@@ -275,12 +296,19 @@ void ALStream::stopStream()
 {
 	threadTermReq.set();
 
+#ifdef MKXPZ_RETRO
+	{
+		AudioMutexGuard guard(renderMut);
+		needsRewind.set();
+	}
+#else
 	if (thread)
 	{
 		SDL_WaitThread(thread, 0);
 		thread = 0;
 		needsRewind.set();
 	}
+#endif // MKXPZ_RETRO
 
 	/* Need to stop the source _after_ the thread has terminated,
 	 * because it might have accidentally started it again before
@@ -302,32 +330,32 @@ void ALStream::startStream(double offset)
 	startOffset = offset;
 	procFrames = offset * source->sampleRate();
 
+#ifdef MKXPZ_RETRO
+	renderInit();
+#else
 	thread = createSDLThread
 		<ALStream, &ALStream::streamData>(this, threadName);
+#endif // MKXPZ_RETRO
 }
 
 void ALStream::pauseStream()
 {
-	SDL_LockMutex(pauseMut);
+	AudioMutexGuard guard(pauseMut);
 
 	if (AL::Source::getState(alSrc) != AL_PLAYING)
 		preemptPause = true;
 	else
 		AL::Source::pause(alSrc);
-
-	SDL_UnlockMutex(pauseMut);
 }
 
 void ALStream::resumeStream()
 {
-	SDL_LockMutex(pauseMut);
+	AudioMutexGuard guard(pauseMut);
 
 	if (preemptPause)
 		preemptPause = false;
 	else
 		AL::Source::play(alSrc);
-
-	SDL_UnlockMutex(pauseMut);
 }
 
 void ALStream::checkStopped()
@@ -357,17 +385,19 @@ void ALStream::checkStopped()
 	state = Stopped;
 }
 
-/* thread func */
-void ALStream::streamData()
-{
-	/* Fill up queue */
+void ALStream::renderInit() {
+#ifdef MKXPZ_RETRO
+	if (threadTermReq)
+		return;
+	AudioMutexGuard guard(renderMut);
+	if (threadTermReq)
+		return;
+#endif // MKXPZ_RETRO
+
 	bool firstBuffer = true;
 	ALDataSource::Status status;
 
-	if (threadTermReq)
-		return;
-
-	//if (needsRewind)
+	if (needsRewind)
 		source->seekToOffset(startOffset);
 
 	for (int i = 0; i < STREAM_BUFS; ++i)
@@ -401,77 +431,111 @@ void ALStream::streamData()
 			break;
 		}
 	}
+}
+
+void ALStream::render() {
+#ifdef MKXPZ_RETRO
+	if (threadTermReq)
+		return;
+	AudioMutexGuard guard(renderMut);
+	if (threadTermReq)
+		return;
+#endif // MKXPZ_RETRO
+
+	ALint procBufs = AL::Source::getProcBufferCount(alSrc);
+
+	while (procBufs--)
+	{
+		if (threadTermReq)
+			break;
+
+		AL::Buffer::ID buf = AL::Source::unqueueBuffer(alSrc);
+
+#ifndef MKXPZ_NO_EXCEPTIONS // `unqueueBuffer` will abort on error if C++ exceptions are disabled so we only need to check if `buf == AL::Buffer::ID(0)` if C++ exceptions are enabled
+#  ifdef MKXPZ_RETRO
+		MKXPZ_FORCED_ASSERT(!(buf == AL::Buffer::ID(0)));
+#  else
+		/* If something went wrong, try again later */
+		if (buf == AL::Buffer::ID(0))
+			break;
+#  endif // MKXPZ_RETRO
+#endif // MKXPZ_NO_EXCEPTIONS
+
+		if (buf == lastBuf)
+		{
+			/* Reset the processed sample count so
+			 * querying the playback offset returns 0.0 again */
+			procFrames = source->loopStartFrames();
+			lastBuf = AL::Buffer::ID(0);
+		}
+		else
+		{
+			/* Add the frame count contained in this
+			 * buffer to the total count */
+			ALint bits = AL::Buffer::getBits(buf);
+			ALint size = AL::Buffer::getSize(buf);
+			ALint chan = AL::Buffer::getChannels(buf);
+
+			if (bits != 0 && chan != 0)
+				procFrames += ((size / (bits / 8)) / chan);
+		}
+
+		if (sourceExhausted)
+			continue;
+
+		ALDataSource::Status status = source->fillBuffer(buf);
+
+		if (status == ALDataSource::Error)
+		{
+			sourceExhausted.set();
+			return;
+		}
+
+		AL::Source::queueBuffer(alSrc, buf);
+
+		/* In case of buffer underrun,
+		 * start playing again */
+		if (AL::Source::getState(alSrc) == AL_STOPPED)
+			AL::Source::play(alSrc);
+
+		/* If this was the last buffer before the data
+		 * source loop wrapped around again, mark it as
+		 * such so we can catch it and reset the processed
+		 * sample count once it gets unqueued */
+		if (status == ALDataSource::WrapAround)
+			lastBuf = buf;
+
+		if (status == ALDataSource::EndOfStream)
+			sourceExhausted.set();
+	}
+}
+
+#ifndef MKXPZ_RETRO
+/* thread func */
+void ALStream::streamData()
+{
+	if (threadTermReq)
+		return;
+
+	/* Fill up queue */
+	renderInit();
+
+	if (threadTermReq)
+		return;
 
 	/* Wait for buffers to be consumed, then
 	 * refill and queue them up again */
-	while (true)
+	do
 	{
 		shState->rtData().syncPoint.passSecondarySync();
 
-		ALint procBufs = AL::Source::getProcBufferCount(alSrc);
-
-		while (procBufs--)
-		{
-			if (threadTermReq)
-				break;
-
-			AL::Buffer::ID buf = AL::Source::unqueueBuffer(alSrc);
-
-			/* If something went wrong, try again later */
-			if (buf == AL::Buffer::ID(0))
-				break;
-
-			if (buf == lastBuf)
-			{
-				/* Reset the processed sample count so
-				 * querying the playback offset returns 0.0 again */
-				procFrames = source->loopStartFrames();
-				lastBuf = AL::Buffer::ID(0);
-			}
-			else
-			{
-				/* Add the frame count contained in this
-				 * buffer to the total count */
-				ALint bits = AL::Buffer::getBits(buf);
-				ALint size = AL::Buffer::getSize(buf);
-				ALint chan = AL::Buffer::getChannels(buf);
-
-				if (bits != 0 && chan != 0)
-					procFrames += ((size / (bits / 8)) / chan);
-			}
-
-			if (sourceExhausted)
-				continue;
-
-			status = source->fillBuffer(buf);
-
-			if (status == ALDataSource::Error)
-			{
-				sourceExhausted.set();
-				return;
-			}
-
-			AL::Source::queueBuffer(alSrc, buf);
-
-			/* In case of buffer underrun,
-			 * start playing again */
-			if (AL::Source::getState(alSrc) == AL_STOPPED)
-				AL::Source::play(alSrc);
-
-			/* If this was the last buffer before the data
-			 * source loop wrapped around again, mark it as
-			 * such so we can catch it and reset the processed
-			 * sample count once it gets unqueued */
-			if (status == ALDataSource::WrapAround)
-				lastBuf = buf;
-
-			if (status == ALDataSource::EndOfStream)
-				sourceExhausted.set();
-		}
+		render();
 
 		if (threadTermReq)
 			break;
 
 		SDL_Delay(AUDIO_SLEEP);
 	}
+	while (!sourceExhausted);
 }
+#endif // MKXPZ_RETRO

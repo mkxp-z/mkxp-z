@@ -27,7 +27,18 @@
 #include "serializable.h"
 #include "etc-internal.h"
 
+#ifdef MKXPZ_RETRO
+#  include "wasm-types.h"
+struct SDL_Color
+{
+	uint8_t r;
+	uint8_t g;
+	uint8_t b;
+	uint8_t a;
+};
+#else
 struct SDL_Color;
+#endif // MKXPZ_RETRO
 
 enum BlendType
 {
@@ -54,6 +65,7 @@ struct Color : public Serializable
 	void set(double red, double green, double blue, double alpha);
 
 	bool operator==(const Color &o) const;
+	bool operator!=(const Color &o) const;
 
 	void setRed(double value);
 	void setGreen(double value);
@@ -68,7 +80,7 @@ struct Color : public Serializable
 	/* Serializable */
 	int serialSize() const;
 	void serialize(char *buffer) const;
-	static Color *deserialize(const char *data, int len);
+	static Color *deserialize(Exception &exception, const char *data, int len);
 
 	/* Internal */
 	void updateInternal();
@@ -80,6 +92,11 @@ struct Color : public Serializable
 	}
 
 	SDL_Color toSDLColor() const;
+
+#ifdef MKXPZ_RETRO
+	bool sandbox_serialize(void *&data, mkxp_sandbox::wasm_size_t &max_size) const;
+	bool sandbox_deserialize(const void *&data, mkxp_sandbox::wasm_size_t &max_size);
+#endif // MKXPZ_RETRO
 
 	/* Range (0.0 ~ 255.0) */
 	double red;
@@ -103,6 +120,7 @@ struct Tone : public Serializable
 	virtual ~Tone() {}
 
 	bool operator==(const Tone &o) const;
+	bool operator!=(const Tone &o) const;
 
 	void set(double red, double green, double blue, double gray);
 	const Tone &operator=(const Tone &o);
@@ -120,7 +138,7 @@ struct Tone : public Serializable
 	/* Serializable */
 	int serialSize() const;
 	void serialize(char *buffer) const;
-	static Tone *deserialize(const char *data, int len);
+	static Tone *deserialize(Exception &exception, const char *data, int len);
 
 	/* Internal */
 	void updateInternal();
@@ -132,6 +150,11 @@ struct Tone : public Serializable
 				(int)blue  != 0 ||
 				(int)gray  != 0);
 	}
+
+#ifdef MKXPZ_RETRO
+	bool sandbox_serialize(void *&data, mkxp_sandbox::wasm_size_t &max_size) const;
+	bool sandbox_deserialize(const void *&data, mkxp_sandbox::wasm_size_t &max_size);
+#endif // MKXPZ_RETRO
 
 	/* Range (-255.0 ~ 255.0) */
 	double red;
@@ -159,6 +182,7 @@ struct Rect : public Serializable
 	Rect(const IntRect &r);
 
 	bool operator==(const Rect &o) const;
+	bool operator!=(const Rect &o) const;
 	void operator=(const IntRect &rect);
 	void set(int x, int y, int w, int h);
 	const Rect &operator=(const Rect &o);
@@ -179,7 +203,7 @@ struct Rect : public Serializable
 	/* Serializable */
 	int serialSize() const;
 	void serialize(char *buffer) const;
-	static Rect *deserialize(const char *data, int len);
+	static Rect *deserialize(Exception &exception, const char *data, int len);
 
 	/* Internal */
 	FloatRect toFloatRect() const
@@ -191,6 +215,11 @@ struct Rect : public Serializable
 	{
 		return IntRect(x, y, width, height);
 	}
+
+#ifdef MKXPZ_RETRO
+	bool sandbox_serialize(void *&data, mkxp_sandbox::wasm_size_t &max_size) const;
+	bool sandbox_deserialize(const void *&data, mkxp_sandbox::wasm_size_t &max_size);
+#endif // MKXPZ_RETRO
 
 	int x;
 	int y;

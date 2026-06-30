@@ -1,0 +1,70 @@
+# This patch makes TheoraPlay use mkxp-polyfill.cpp instead of POSIX threads for portability reasons.
+
+--- a/theoraplay.c
++++ b/theoraplay.c
+@@ -20,16 +20,16 @@
+ #define THEORAPLAY_THREAD_T    HANDLE
+ #define THEORAPLAY_MUTEX_T     HANDLE
+ #define sleepms(x) Sleep(x)
+-#elif defined(__EMSCRIPTEN__) && !defined(__EMSCRIPTEN_PTHREADS__)
+-#define THEORAPLAY_ONLY_SINGLE_THREADED 1
++#elif THEORAPLAY_ONLY_SINGLE_THREADED
++
+ #define THEORAPLAY_THREAD_T    int
+ #define THEORAPLAY_MUTEX_T     int
+ #else
+-#include <pthread.h>
+-#include <unistd.h>
+-#define sleepms(x) usleep((x) * 1000)
+-#define THEORAPLAY_THREAD_T    pthread_t
+-#define THEORAPLAY_MUTEX_T     pthread_mutex_t *
++
++#include "../../src/mkxp-polyfill.h"
++#define sleepms(x) mkxp_sleep_ms(x)
++#define THEORAPLAY_THREAD_T    mkxp_thread_t
++#define THEORAPLAY_MUTEX_T     mkxp_mutex_t *
+ #endif
+ 
+ #if defined(__ARM_NEON__) || defined(__ARM_NEON)
+@@ -332,17 +332,17 @@ static inline void Mutex_Unlock(THEORAPLAY_MUTEX_T mutex)
+ #else
+ static inline int Thread_Create(TheoraDecoder *ctx, void *(*routine) (void*))
+ {
+-    return pthread_create(&ctx->worker, NULL, routine, ctx);
++    return mkxp_thread_create(&ctx->worker, routine, ctx);
+ }
+ static inline void Thread_Join(THEORAPLAY_THREAD_T thread)
+ {
+-    pthread_join(thread, NULL);
++    mkxp_thread_join(thread);
+ }
+ static inline THEORAPLAY_MUTEX_T Mutex_Create(TheoraDecoder *ctx)
+ {
+     THEORAPLAY_MUTEX_T retval = (THEORAPLAY_MUTEX_T) ctx->allocator.allocate(&ctx->allocator, sizeof (*retval));
+     if (retval) {
+-        if (pthread_mutex_init(retval, NULL) != 0) {
++        if (mkxp_mutex_init(retval, false) != 0) {
+             ctx->allocator.deallocate(&ctx->allocator, retval);
+             retval = NULL;
+         }
+@@ -352,17 +352,17 @@ static inline THEORAPLAY_MUTEX_T Mutex_Create(TheoraDecoder *ctx)
+ static inline void Mutex_Destroy(TheoraDecoder *ctx, THEORAPLAY_MUTEX_T mutex)
+ {
+     if (mutex) {
+-        pthread_mutex_destroy(mutex);
++        mkxp_mutex_destroy(mutex);
+         ctx->allocator.deallocate(&ctx->allocator, mutex);
+     }
+ }
+ static inline void Mutex_Lock(THEORAPLAY_MUTEX_T mutex)
+ {
+-    pthread_mutex_lock(mutex);
++    mkxp_mutex_lock(mutex);
+ }
+ static inline void Mutex_Unlock(THEORAPLAY_MUTEX_T mutex)
+ {
+-    pthread_mutex_unlock(mutex);
++    mkxp_mutex_unlock(mutex);
+ }
+ #endif
+ 

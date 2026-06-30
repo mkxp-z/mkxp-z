@@ -1,0 +1,36 @@
+# Prevents OpenAL Soft from trying to check if atomic types are lock-free since it causes compilation errors when cross building for Alpine Linux. (But why does it cause compilation errors ???)
+# Besides, who cares if the atomic types are lock-free or not? The one platform where something like this could matter, Emscripten, does have all the atomic types that OpenAL Soft uses as lock-free, so it doesn't really matter.
+
+--- a/common/atomic.h
++++ b/common/atomic.h
+@@ -94,9 +94,9 @@ public:
+     { return unique_ptr_t{mPointer.exchange(ptr.release(), m)}; }
+ 
+     [[nodiscard]]
+-    auto is_lock_free() const noexcept -> bool { return mPointer.is_lock_free(); }
++    auto is_lock_free() const noexcept -> bool { return true; }
+ 
+-    static constexpr auto is_always_lock_free = std::atomic<gsl::owner<T*>>::is_always_lock_free;
++    static constexpr auto is_always_lock_free = true;
+ };
+ 
+ } // namespace al
+--- a/core/context.cpp
++++ b/core/context.cpp
+@@ -18,12 +18,12 @@
+ #include "voice_change.h"
+ 
+ 
+-#ifdef __cpp_lib_atomic_is_always_lock_free
+-static_assert(std::atomic<ContextBase::AsyncEventBitset>::is_always_lock_free, "atomic<bitset> isn't lock-free");
+-#endif
++
++
++
+ 
+ ContextBase::ContextBase(DeviceBase *device) : mDevice{device}
+-{ assert(mEnabledEvts.is_lock_free()); }
++{ }
+ 
+ ContextBase::~ContextBase()
+ {

@@ -1,0 +1,91 @@
+# The compatibility patches from https://github.com/mkxp-z/ruby, cherry-picked for the version of Ruby used in libretro builds.
+# Doesn't include the Windows-related patches because we don't need them in libretro builds.
+
+--- a/class.c
++++ b/class.c
+@@ -992,13 +992,18 @@ rb_define_class(const char *name, VALUE super)
+                      name, rb_obj_class(klass));
+         }
+         if (rb_class_real(RCLASS_SUPER(klass)) != super) {
+-            rb_raise(rb_eTypeError, "superclass mismatch for class %s", name);
++            // edited for mkxp-z
++            // makes some hackier forms of subclassing possible again
++
++            goto override_class;
++            //rb_raise(rb_eTypeError, "superclass mismatch for class %s", name);
+         }
+ 
+         /* Class may have been defined in Ruby and not pin-rooted */
+         rb_vm_register_global_object(klass);
+         return klass;
+     }
++    override_class:
+     if (!super) {
+         rb_raise(rb_eArgError, "no super class for '%s'", name);
+     }
+--- a/sprintf.c
++++ b/sprintf.c
+@@ -937,11 +937,15 @@ rb_str_format(int argc, const VALUE *argv, VALUE fmt)
+     rb_str_tmp_frozen_release(orig, fmt);
+     /* XXX - We cannot validate the number of arguments if (digit)$ style used.
+      */
++
++    // Disabled this block to match older versions of ruby
++#if 0
+     if (posarg >= 0 && nextarg < argc && !(argc == 2 && RB_TYPE_P(argv[1], T_HASH))) {
+         const char *mesg = "too many arguments for format string";
+         if (RTEST(ruby_debug)) rb_raise(rb_eArgError, "%s", mesg);
+         if (RTEST(ruby_verbose)) rb_warn("%s", mesg);
+     }
++#endif
+     rb_str_resize(result, blen);
+ 
+     return result;
+--- a/vm_eval.c
++++ b/vm_eval.c
+@@ -825,7 +825,9 @@ rb_method_call_status(rb_execution_context_t *ec, const rb_callable_method_entry
+     rb_method_visibility_t visi = METHOD_ENTRY_VISI(me);
+ 
+     /* receiver specified form for private method */
+-    if (UNLIKELY(visi != METHOD_VISI_PUBLIC)) {
++
++    // public/private methods are disabled in mkxp-z
++    if (0) { //UNLIKELY(visi != METHOD_VISI_PUBLIC)) {
+         if (me->def->original_id == idMethodMissing) {
+             return MISSING_NONE;
+         }
+--- a/vm_insnhelper.c
++++ b/vm_insnhelper.c
+@@ -4895,9 +4895,13 @@ vm_call_method(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct rb_ca
+     if (vm_cc_cme(cc) != NULL) {
+         switch (METHOD_ENTRY_VISI(vm_cc_cme(cc))) {
+           case METHOD_VISI_PUBLIC: /* likely */
++
++            // public/private methods are disabled in mkxp-z
++            call_anyway:
+             return vm_call_method_each_type(ec, cfp, calling);
+ 
+           case METHOD_VISI_PRIVATE:
++            goto call_anyway;
+             if (!(vm_ci_flag(ci) & VM_CALL_FCALL)) {
+                 enum method_missing_reason stat = MISSING_PRIVATE;
+                 if (vm_ci_flag(ci) & VM_CALL_VCALL) stat |= MISSING_VCALL;
+@@ -4909,6 +4913,7 @@ vm_call_method(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct rb_ca
+             return vm_call_method_each_type(ec, cfp, calling);
+ 
+           case METHOD_VISI_PROTECTED:
++            goto call_anyway;
+             if (!(vm_ci_flag(ci) & (VM_CALL_OPT_SEND | VM_CALL_FCALL))) {
+                 VALUE defined_class = vm_defined_class_for_protected_call(vm_cc_cme(cc));
+                 if (!rb_obj_is_kind_of(cfp->self, defined_class)) {
+@@ -5719,7 +5724,9 @@ vm_check_if_class(ID id, rb_num_t flags, VALUE super, VALUE klass)
+     else if (VM_DEFINECLASS_HAS_SUPERCLASS_P(flags)) {
+         VALUE tmp = rb_class_real(RCLASS_SUPER(klass));
+ 
+-        if (tmp != super) {
++        // edited for mkxp-z
++        // makes some hackier forms of subclassing possible again
++        if (0) { //tmp != super) {
+             rb_raise(rb_eTypeError,
+                      "superclass mismatch for class %"PRIsVALUE"",
+                      rb_id2str(id));

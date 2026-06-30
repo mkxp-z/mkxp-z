@@ -1,0 +1,96 @@
+# This patch makes PhysFS use mkxp-polyfill.cpp instead of POSIX threads for portability reasons.
+
+--- a/src/physfs_platform_posix.c
++++ b/src/physfs_platform_posix.c
+@@ -19,7 +19,7 @@
+ #include <dirent.h>
+ #include <errno.h>
+ #include <fcntl.h>
+-#include <pthread.h>
++#include "../../src/mkxp-polyfill.h"
+ 
+ #include "physfs_internal.h"
+ #include "../../subprojects/libretro-common/include/libretro.h"
+@@ -369,15 +369,15 @@ int __PHYSFS_platformStat(const char *fname, PHYSFS_Stat *st, const int follow)
+ 
+ typedef struct
+ {
+-    pthread_mutex_t mutex;
+-    pthread_t owner;
++    mkxp_mutex_t mutex;
++    mkxp_thread_id_t owner;
+     PHYSFS_uint32 count;
+ } PthreadMutex;
+ 
+ 
+ void *__PHYSFS_platformGetThreadID(void)
+ {
+-    return ( (void *) ((size_t) pthread_self()) );
++    return ( (void *) ((size_t) mkxp_thread_self()) );
+ } /* __PHYSFS_platformGetThreadID */
+ 
+ 
+@@ -386,7 +386,7 @@ void *__PHYSFS_platformCreateMutex(void)
+     int rc;
+     PthreadMutex *m = (PthreadMutex *) allocator.Malloc(sizeof (PthreadMutex));
+     BAIL_IF(!m, PHYSFS_ERR_OUT_OF_MEMORY, NULL);
+-    rc = pthread_mutex_init(&m->mutex, NULL);
++    rc = mkxp_mutex_init(&m->mutex, false);
+     if (rc != 0)
+     {
+         allocator.Free(m);
+@@ -394,7 +394,7 @@ void *__PHYSFS_platformCreateMutex(void)
+     } /* if */
+ 
+     m->count = 0;
+-    m->owner = (pthread_t) 0xDEADBEEF;
++    m->owner = (mkxp_thread_id_t) 0xDEADBEEF;
+     return ((void *) m);
+ } /* __PHYSFS_platformCreateMutex */
+ 
+@@ -404,10 +404,10 @@ void __PHYSFS_platformDestroyMutex(void *mutex)
+     PthreadMutex *m = (PthreadMutex *) mutex;
+ 
+     /* Destroying a locked mutex is a bug, but we'll try to be helpful. */
+-    if ((m->owner == pthread_self()) && (m->count > 0))
+-        pthread_mutex_unlock(&m->mutex);
++    if ((m->owner == mkxp_thread_self()) && (m->count > 0))
++        mkxp_mutex_unlock(&m->mutex);
+ 
+-    pthread_mutex_destroy(&m->mutex);
++    mkxp_mutex_destroy(&m->mutex);
+     allocator.Free(m);
+ } /* __PHYSFS_platformDestroyMutex */
+ 
+@@ -415,10 +415,10 @@ void __PHYSFS_platformDestroyMutex(void *mutex)
+ int __PHYSFS_platformGrabMutex(void *mutex)
+ {
+     PthreadMutex *m = (PthreadMutex *) mutex;
+-    pthread_t tid = pthread_self();
++    mkxp_thread_id_t tid = mkxp_thread_self();
+     if (m->owner != tid)
+     {
+-        if (pthread_mutex_lock(&m->mutex) != 0)
++        if (mkxp_mutex_lock(&m->mutex) != 0)
+             return 0;
+         m->owner = tid;
+     } /* if */
+@@ -431,14 +431,14 @@ int __PHYSFS_platformGrabMutex(void *mutex)
+ void __PHYSFS_platformReleaseMutex(void *mutex)
+ {
+     PthreadMutex *m = (PthreadMutex *) mutex;
+-    assert(m->owner == pthread_self());  /* catch programming errors. */
++    assert(m->owner == mkxp_thread_self());  /* catch programming errors. */
+     assert(m->count > 0);  /* catch programming errors. */
+-    if (m->owner == pthread_self())
++    if (m->owner == mkxp_thread_self())
+     {
+         if (--m->count == 0)
+         {
+-            m->owner = (pthread_t) 0xDEADBEEF;
+-            pthread_mutex_unlock(&m->mutex);
++            m->owner = (mkxp_thread_id_t) 0xDEADBEEF;
++            mkxp_mutex_unlock(&m->mutex);
+         } /* if */
+     } /* if */
+ } /* __PHYSFS_platformReleaseMutex */

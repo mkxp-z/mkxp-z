@@ -22,11 +22,14 @@
 #ifndef ALSTREAM_H
 #define ALSTREAM_H
 
+#include "audio.h"
 #include "al-util.h"
 #include "sdl-util.h"
+#ifndef MKXPZ_RETRO
+#  include <SDL_rwops.h>
+#endif // MKXPZ_RETRO
 
 #include <string>
-#include <SDL_rwops.h>
 
 struct ALDataSource;
 
@@ -48,12 +51,16 @@ struct ALStream
 	State state;
 
 	ALDataSource *source;
+
+#ifdef MKXPZ_RETRO
+	AudioMutex renderMut;
+#else
 	SDL_Thread *thread;
 
 	std::string threadName;
+#endif // MKXPZ_RETRO
 
-	SDL_mutex *pauseMut;
-	bool preemptPause;
+	AudioMutex pauseMut;
 
 	/* When this flag isn't set and alSrc is
 	 * in 'STOPPED' state, stream isn't over
@@ -64,6 +71,9 @@ struct ALStream
 	AtomicFlag threadTermReq;
 
 	AtomicFlag needsRewind;
+
+	bool preemptPause;
+
 	double startOffset;
 
 	float pitch;
@@ -91,7 +101,7 @@ struct ALStream
 	~ALStream();
 
 	void close();
-	void open(const std::string &filename);
+	void open(Exception &exception, const std::string &filename);
 	void stop();
 	void play(double offset = 0);
 	void pause();
@@ -102,9 +112,18 @@ struct ALStream
 	double queryOffset();
 	bool queryNativePitch();
 
+#ifdef MKXPZ_RETRO
+	void render();
 private:
+#else
+private:
+	void render();
+#endif // MKXPZ_RETRO
+
+	void renderInit();
+
 	void closeSource();
-	void openSource(const std::string &filename);
+	void openSource(Exception &exception, const std::string &filename);
 
 	void stopStream();
 	void startStream(double offset);
@@ -113,8 +132,10 @@ private:
 
 	void checkStopped();
 
+#ifndef MKXPZ_RETRO
 	/* thread func */
 	void streamData();
+#endif // MKXPZ_RETRO
 };
 
 #endif // ALSTREAM_H

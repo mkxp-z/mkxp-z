@@ -37,12 +37,16 @@ public:
 	    : disposed(false),
 	      link(this)
 	{
+#ifndef MKXPZ_RETRO
 		shState->graphics().addDisposable(this);
+#endif // MKXPZ_RETRO
 	}
 
 	virtual ~Disposable()
 	{
+#ifndef MKXPZ_RETRO
 		shState->graphics().remDisposable(this);
+#endif // MKXPZ_RETRO
 	}
 
 	void dispose()
@@ -51,13 +55,13 @@ public:
 			return;
 
 		GFX_LOCK;
-		try {
+		MKXPZ_TRY {
 			releaseResources();
 			disposed = true;
 			wasDisposed();
-		} catch (Exception &e) {
+		} MKXPZ_CATCH (Exception &) {
 			GFX_UNLOCK;
-			throw e;
+			MKXPZ_RETHROW;
 		}
 		GFX_UNLOCK;
 	}
@@ -70,10 +74,10 @@ public:
     sigslot::signal<> wasDisposed;
 
 protected:
-	void guardDisposed() const
+	void guardDisposed(Exception &exception) const
 	{
 		if (isDisposed())
-			throw Exception(Exception::RGSSError,
+			exception = Exception(Exception::RGSSError,
 		                    "disposed %s", klassName());
 	}
 

@@ -21,6 +21,9 @@ xxd+
 mkxp.layout
 mkxp.cbp
 
+# clangd
+/.cache
+
 # General
 .DS_Store
 .AppleDouble

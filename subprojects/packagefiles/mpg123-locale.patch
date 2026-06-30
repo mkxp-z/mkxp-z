@@ -1,0 +1,24 @@
+# Disables usage of locale.h, which isn't supported by the PlayStation 4 toolchain.
+
+--- a/ports/cmake/src/CMakeLists.txt
++++ b/ports/cmake/src/CMakeLists.txt
+@@ -15,7 +15,7 @@ check_include_file("arpa/inet.h" HAVE_ARPA_INET_H)
+ check_include_file("dirent.h" HAVE_DIRENT_H)
+ check_include_file("dlfcn.h" HAVE_DLFCN_H)
+ check_include_file("langinfo.h" HAVE_LANGINFO_H)
+-check_include_file("locale.h" HAVE_LOCALE_H)
++
+ check_include_file("netdb.h" HAVE_NETDB_H)
+ check_include_file("netinet/in.h" HAVE_NETINET_IN_H)
+ check_include_file("sched.h" HAVE_SCHED_H)
+@@ -58,8 +58,8 @@ check_function_exists(nl_langinfo HAVE_NL_LANGINFO)
+ check_function_exists(random HAVE_RANDOM)
+ check_function_exists(setenv HAVE_SETENV)
+ check_function_exists(unsetenv HAVE_UNSETENV)
+-check_function_exists(setlocale HAVE_SETLOCALE)
+-check_function_exists(uselocale HAVE_USELOCALE)
++
++
+ check_function_exists(setpriority HAVE_SETPRIORITY)
+ check_function_exists(shmget HAVE_SHMGET)
+ check_function_exists(shmat HAVE_SHMAT)

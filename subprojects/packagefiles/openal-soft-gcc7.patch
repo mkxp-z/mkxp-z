@@ -1,0 +1,45 @@
+# Fixes some compilation errors when compiling OpenAL Soft using GCC 7,
+# which is currently used by the Miyoo and PlayStation 3 builds.
+
+--- a/alc/effects/reverb.cpp
++++ b/alc/effects/reverb.cpp
+@@ -931,7 +931,7 @@ void EarlyReflections::updateLines(const float density_mult, const float diffusi
+     /* Calculate the gain (coefficient) for the secondary reflections based on
+      * the average delay and decay time.
+      */
+-    const auto length = std::reduce(EARLY_LINE_LENGTHS.begin(), EARLY_LINE_LENGTHS.end(), 0.0f)
++    const auto length = std::accumulate(EARLY_LINE_LENGTHS.begin(), EARLY_LINE_LENGTHS.end(), 0.0f)
+         / float{EARLY_LINE_LENGTHS.size()} * density_mult;
+     Coeff = CalcDecayCoeff(length, decayTime);
+ 
+--- a/common/albit.h
++++ b/common/albit.h
+@@ -30,7 +30,7 @@ template<typename T>
+ std::enable_if_t<std::is_integral_v<T>,
+ T> byteswap(T value) noexcept
+ {
+-    static_assert(std::has_unique_object_representations_v<T>);
++    static_assert(std::has_unique_object_representations<T>::value);
+     auto bytes = al::bit_cast<std::array<std::byte,sizeof(T)>>(value);
+     std::reverse(bytes.begin(), bytes.end());
+     return al::bit_cast<T>(bytes);
+--- a/fmt-11.1.1/include/fmt/base.h
++++ b/fmt-11.1.1/include/fmt/base.h
+@@ -1117,7 +1117,7 @@ using use_formatter =
+ 
+ template <typename Char, typename T, typename U = remove_const_t<T>>
+ auto has_formatter_impl(T* p, buffered_context<Char>* ctx = nullptr)
+-    -> decltype(formatter<U, Char>().format(*p, *ctx), std::true_type());
++    -> decltype(formatter<U, Char>().format(*p, std::declval<buffered_context<Char>>()), std::true_type());
+ template <typename Char> auto has_formatter_impl(...) -> std::false_type;
+ 
+ // T can be const-qualified to check if it is const-formattable.
+@@ -2224,7 +2224,7 @@ template <typename Context> class value {
+   FMT_CONSTEXPR value(const T&, custom_tag) {
+     // Cannot format an argument; to make type T formattable provide a
+     // formatter<T> specialization: https://fmt.dev/latest/api.html#udt.
+-    type_is_unformattable_for<T, char_type> _;
++
+   }
+ 
+   // Formats an argument of a custom type, such as a user-defined class.

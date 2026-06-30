@@ -1,0 +1,27 @@
+# Prevents mpg123's build system from forcibly enabling position-independent code.
+# Also removes the duplicate inclusion of compat_str.c. That causes duplicate symbol errors when linking mpg123 as whole archive.
+
+--- a/ports/cmake/src/compat/CMakeLists.txt
++++ b/ports/cmake/src/compat/CMakeLists.txt
+@@ -1,19 +1,13 @@
+ set(TARGET compat)
+-add_library(${TARGET} OBJECT
++add_library(${TARGET} STATIC
+     "${CMAKE_CURRENT_SOURCE_DIR}/../../../../src/compat/compat.c"
+     "${CMAKE_CURRENT_SOURCE_DIR}/../../../../src/compat/compat_str.c")
+ if(BUILD_SHARED_LIBS)
+     set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+ endif()
+ 
+-add_library(${TARGET}_dl OBJECT
++add_library(${TARGET}_dl STATIC
+     "${CMAKE_CURRENT_SOURCE_DIR}/../../../../src/compat/compat_dl.c")
+ if(BUILD_SHARED_LIBS)
+     set_target_properties(${TARGET}_dl PROPERTIES POSITION_INDEPENDENT_CODE ON)
+ endif()
+-
+-add_library(${TARGET}_str OBJECT
+-    "${CMAKE_CURRENT_SOURCE_DIR}/../../../../src/compat/compat_str.c")
+-if(BUILD_SHARED_LIBS)
+-    set_target_properties(${TARGET}_str PROPERTIES POSITION_INDEPENDENT_CODE ON)
+-endif()

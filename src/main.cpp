@@ -152,9 +152,9 @@ int rgssThreadFun(void *userdata) {
 
   alcMakeContextCurrent(alcCtx);
 
-  try {
-    SharedState::initInstance(threadData);
-  } catch (const Exception &exc) {
+  Exception exc;
+  SharedState::initInstance(exc, threadData);
+  if (exc.is_error()) {
     rgssThreadError(threadData, exc.msg);
     alcDestroyContext(alcCtx);
 
@@ -200,7 +200,7 @@ static void setupWindowIcon(const Config &conf, SDL_Window *win) {
 
   if (conf.iconPath.empty())
 #ifndef MKXPZ_BUILD_XCODE
-    iconSrc = SDL_RWFromConstMem(___assets_icon_png, ___assets_icon_png_len);
+    iconSrc = SDL_RWFromConstMem(mkxp_assets_icon_png, sizeof mkxp_assets_icon_png);
 #else
     iconSrc = SDL_RWFromFile(mkxp_fs::getPathForAsset("icon", "png").c_str(), "rb");
 #endif
@@ -537,9 +537,9 @@ static SDL_GLContext initGL(SDL_Window *win, Config &conf,
     return 0;
   }
 
-  try {
-    initGLFunctions();
-  } catch (const Exception &exc) {
+  Exception exc;
+  initGLFunctions(exc);
+  if (exc.is_error()) {
     GLINIT_SHOWERROR(exc.msg);
     SDL_GL_DeleteContext(glCtx);
 

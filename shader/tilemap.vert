@@ -27,12 +27,14 @@ void main()
     vec2 tex = texCoord;
     lowp int atIndex = int(tex.y / autotileH);
 
-    lowp int pred = int(tex.x <= atAreaW && tex.y <= atAreaH);
-    lowp int frame = int(aniIndex - atFrames[atIndex] * (aniIndex / atFrames[atIndex]));
-    lowp int row = frame / 8;
-    lowp int col = frame - 8 * row;
-    tex.x += atAniOffsetX * float(col * pred);
-    tex.y += atAniOffsetY * float(row * pred);
+    if (atIndex < nAutotiles) {
+        lowp int pred = int(tex.x <= atAreaW && tex.y <= atAreaH);
+        lowp int frame = int(aniIndex - atFrames[atIndex] * (aniIndex / atFrames[atIndex]));
+        lowp int row = frame / 8;
+        lowp int col = frame - 8 * row;
+        tex.x += atAniOffsetX * float(col * pred);
+        tex.y += atAniOffsetY * float(row * pred);
+    }
 
     gl_Position = projMat * vec4(position + translation, 0, 1);
 

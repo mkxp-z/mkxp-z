@@ -1,0 +1,18 @@
+# In libretro builds, makes TheoraPlay use the Theora and Vorbis headers from our subprojects instead of the system Theora and Vorbis headers.
+
+--- a/theoraplay.c
++++ b/theoraplay.c
+@@ -42,8 +42,13 @@
+ #endif
+ 
+ #include "theoraplay.h"
++#ifdef MKXPZ_RETRO
++#include "../theora/include/theora/theoradec.h"
++#include "../vorbis/include/vorbis/codec.h"
++#else
+ #include "theora/theoradec.h"
+ #include "vorbis/codec.h"
++#endif
+ 
+ #define THEORAPLAY_INTERNAL 1
+ 

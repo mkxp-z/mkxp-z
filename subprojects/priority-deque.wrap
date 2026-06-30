@@ -1,0 +1,6 @@
+[wrap-git]
+url = https://github.com/nmcclatchey/Priority-Deque
+revision = 7475dacb65d112a4de7e5c24fe32cfffc2264fa9
+depth = 1
+patch_directory = priority-deque
+diff_files = priority-deque-no-exceptions.patch

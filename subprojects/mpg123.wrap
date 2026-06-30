@@ -1,0 +1,7 @@
+[wrap-git]
+url = https://github.com/madebr/mpg123
+# v1.33.3
+revision = fe143d4e9c885ec34596c561481dff96357fd797
+depth = 1
+patch_directory = mpg123
+diff_files = mpg123-debug.patch, mpg123-intrinsics.patch, mpg123-libsyn123.patch, mpg123-locale.patch, mpg123-pic.patch

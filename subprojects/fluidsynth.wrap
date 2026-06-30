@@ -1,0 +1,5 @@
+[wrap-git]
+url = https://github.com/FluidSynth/fluidsynth
+revision = v2.5.0
+depth = 1
+diff_files = fluidsynth-android-log.patch, fluidsynth-executable.patch, fluidsynth-no-exceptions.patch, fluidsynth-pic.patch, fluidsynth-test-doc.patch

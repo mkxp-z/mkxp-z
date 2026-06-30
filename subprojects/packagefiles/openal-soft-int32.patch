@@ -1,0 +1,69 @@
+# Fixes compilation errors when using the devkitARM toolchain to compile OpenAL Soft.
+# For some reason, there's no implicit casting between `int` and `int32_t` and between `unsigned int` and `uint32_t` in devkitARM even though they're the same size, so we have to do this whole song and dance to appease the compiler.
+
+--- a/alc/alu.cpp
++++ b/alc/alu.cpp
+@@ -2120,7 +2120,7 @@ inline T SampleConv(float) noexcept;
+ 
+ template<> inline float SampleConv(float val) noexcept
+ { return val; }
+-template<> inline int32_t SampleConv(float val) noexcept
++template<> inline int SampleConv(float val) noexcept
+ {
+     /* Floats have a 23-bit mantissa, plus an implied 1 bit and a sign bit.
+      * This means a normalized float has at most 25 bits of signed precision.
+@@ -2129,13 +2129,16 @@ template<> inline int32_t SampleConv(float val) noexcept
+      */
+     return fastf2i(std::clamp(val*2147483648.0f, -2147483648.0f, 2147483520.0f));
+ }
++#ifdef __DEVKITARM__
++template<> inline long SampleConv(float val) noexcept { return (long)SampleConv<int>(val); }
++#endif
+ template<> inline int16_t SampleConv(float val) noexcept
+ { return static_cast<int16_t>(fastf2i(std::clamp(val*32768.0f, -32768.0f, 32767.0f))); }
+ template<> inline int8_t SampleConv(float val) noexcept
+ { return static_cast<int8_t>(fastf2i(std::clamp(val*128.0f, -128.0f, 127.0f))); }
+ 
+ /* Define unsigned output variations. */
+-template<> inline uint32_t SampleConv(float val) noexcept
++template<> inline unsigned int SampleConv(float val) noexcept
+ { return static_cast<uint32_t>(SampleConv<int32_t>(val)) + 2147483648u; }
+ template<> inline uint16_t SampleConv(float val) noexcept
+ { return static_cast<uint16_t>(SampleConv<int16_t>(val) + 32768); }
+--- a/core/converter.cpp
++++ b/core/converter.cpp
+@@ -83,16 +83,16 @@ inline DevFmtType_t<T> StoreSample(float) noexcept;
+ 
+ template<> inline float StoreSample<DevFmtFloat>(float val) noexcept
+ { return val; }
+-template<> inline int32_t StoreSample<DevFmtInt>(float val) noexcept
+-{ return fastf2i(std::clamp(val*2147483648.0f, -2147483648.0f, 2147483520.0f)); }
++template<> inline int StoreSample<DevFmtInt>(float val) noexcept
++{ static_assert(sizeof(int) == sizeof(int32_t), "`int` should be a 32-bit integer"); return fastf2i(std::clamp(val*2147483648.0f, -2147483648.0f, 2147483520.0f)); }
+ template<> inline int16_t StoreSample<DevFmtShort>(float val) noexcept
+ { return static_cast<int16_t>(fastf2i(std::clamp(val*32768.0f, -32768.0f, 32767.0f))); }
+ template<> inline int8_t StoreSample<DevFmtByte>(float val) noexcept
+ { return static_cast<int8_t>(fastf2i(std::clamp(val*128.0f, -128.0f, 127.0f))); }
+ 
+ /* Define unsigned output variations. */
+-template<> inline uint32_t StoreSample<DevFmtUInt>(float val) noexcept
+-{ return static_cast<uint32_t>(StoreSample<DevFmtInt>(val)) + 2147483648u; }
++template<> inline unsigned int StoreSample<DevFmtUInt>(float val) noexcept
++{ static_assert(sizeof(unsigned int) == sizeof(uint32_t), "`unsigned int` should be a 32-bit integer"); return static_cast<unsigned int>(StoreSample<DevFmtInt>(val)) + 2147483648u; }
+ template<> inline uint16_t StoreSample<DevFmtUShort>(float val) noexcept
+ { return static_cast<uint16_t>(StoreSample<DevFmtShort>(val) + 32768); }
+ template<> inline uint8_t StoreSample<DevFmtUByte>(float val) noexcept
+--- a/core/devformat.h
++++ b/core/devformat.h
+@@ -94,9 +94,9 @@ struct DevFmtTypeTraits<DevFmtShort> { using Type = int16_t; };
+ template<>
+ struct DevFmtTypeTraits<DevFmtUShort> { using Type = uint16_t; };
+ template<>
+-struct DevFmtTypeTraits<DevFmtInt> { using Type = int32_t; };
++struct DevFmtTypeTraits<DevFmtInt> { static_assert(sizeof(int) == sizeof(int32_t), "`int` should be a 32-bit integer"); using Type = int; };
+ template<>
+-struct DevFmtTypeTraits<DevFmtUInt> { using Type = uint32_t; };
++struct DevFmtTypeTraits<DevFmtUInt> { static_assert(sizeof(unsigned int) == sizeof(uint32_t), "`unsigned int` should be a 32-bit integer"); using Type = unsigned int; };
+ template<>
+ struct DevFmtTypeTraits<DevFmtFloat> { using Type = float; };
+ 

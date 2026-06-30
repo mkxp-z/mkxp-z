@@ -1,0 +1,61 @@
+# Disables OpenAL Soft's event thread because we don't need it (we only need to render to the loopback driver), and because it causes problems on platforms with no threading support.
+
+--- a/al/event.cpp
++++ b/al/event.cpp
+@@ -149,34 +149,34 @@ constexpr std::optional<AsyncEnableBits> GetEventType(ALenum etype) noexcept
+ 
+ void StartEventThrd(ALCcontext *ctx)
+ {
+-    MKXPZ_TRY {
+-        ctx->mEventThread = std::thread{EventThread, ctx};
+-    }
+-    MKXPZ_CATCH(std::exception& e) {
+ 
+-    }
+-    MKXPZ_CATCH(...) {
+-        ERR("Failed to start event thread! Expect problems.");
+-    }
++
++
++
++
++
++
++
++
+ }
+ 
+ void StopEventThrd(ALCcontext *ctx)
+ {
+-    RingBuffer *ring{ctx->mAsyncEvents.get()};
+-    auto evt_data = ring->getWriteVector()[0];
+-    if(evt_data.len == 0)
+-    {
+-        do {
+-            std::this_thread::yield();
+-            evt_data = ring->getWriteVector()[0];
+-        } while(evt_data.len == 0);
+-    }
+-    std::ignore = InitAsyncEvent<AsyncKillThread>(evt_data.buf);
+-    ring->writeAdvance(1);
+ 
+-    ctx->mEventSem.post();
+-    if(ctx->mEventThread.joinable())
+-        ctx->mEventThread.join();
++
++
++
++
++
++
++
++
++
++
++
++
++
++
+ }
+ 
+ AL_API DECL_FUNCEXT3(void, alEventControl,SOFT, ALsizei,count, const ALenum*,types, ALboolean,enable)

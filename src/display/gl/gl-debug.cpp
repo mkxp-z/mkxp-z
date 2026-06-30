@@ -28,13 +28,17 @@
 
 struct GLDebugLoggerPrivate
 {
+#ifndef MKXPZ_RETRO
 	std::ostream *stream;
+#endif // MKXPZ_RETRO
 
 	GLDebugLoggerPrivate(const char *logFilename)
 	{
 		(void) logFilename;
 
+#ifndef MKXPZ_RETRO
 		stream = &std::clog;
+#endif // MKXPZ_RETRO
 	}
 
 	~GLDebugLoggerPrivate()
@@ -44,13 +48,19 @@ struct GLDebugLoggerPrivate
 	void writeTimestamp()
 	{
 		// FIXME reintroduce proper time stamps (is this even necessary??)
+#ifndef MKXPZ_RETRO
 		*stream << "[GLDEBUG] ";
+#endif // MKXPZ_RETRO
 	}
 
 	void writeLine(const char *line)
 	{
+#ifdef MKXPZ_RETRO
+		LOG_PRINTF(RETRO_LOG_DEBUG, "[GLDEBUG] %s\n", line);
+#else
 		*stream << line << "\n";
 		stream->flush();
+#endif // MKXPZ_RETRO
 	}
 };
 

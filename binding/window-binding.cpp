@@ -38,7 +38,7 @@ RB_METHOD(windowInitialize) {
     
     w->initDynAttribs();
     
-    wrapProperty(self, &w->getCursorRect(), "cursor_rect", RectType);
+    BINDING_GUARD_F(GFX_UNLOCK, wrapProperty(self, &w->getCursorRect(e), "cursor_rect", RectType));
     
     GFX_UNLOCK;
     return self;
@@ -49,7 +49,7 @@ RB_METHOD_GUARD(windowUpdate) {
     
     Window *w = getPrivateData<Window>(self);
     
-    GFX_GUARD_EXC(w->update(););
+    BINDING_GUARD_L(w->update(e));
     
     return Qnil;
 }

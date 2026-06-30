@@ -24,6 +24,13 @@
 
 #include "etc.h"
 #include "util.h"
+#include "filesystem.h"
+
+#ifdef MKXPZ_RETRO
+#  include <ft2build.h>
+#  include FT_FREETYPE_H
+#  include "wasm-types.h"
+#endif // MKXPZ_RETRO
 
 #include <vector>
 #include <string>
@@ -44,16 +51,32 @@ public:
 	 * (when "Fonts/" is scanned for available assets).
 	 * 'ops' is an opened handle to a possible font file,
 	 * 'filename' is the corresponding path */
-	void initFontSetCB(SDL_RWops &ops,
+	void initFontSetCB(
+#ifdef MKXPZ_RETRO
+	                   std::shared_ptr<struct FileSystem::File> ops,
+#else
+	                   SDL_RWops &ops,
+#endif // MKXPZ_RETRO
 	                   const std::string &filename);
 
-	_TTF_Font *getFont(std::string family,
+#ifdef MKXPZ_RETRO
+	FT_Face
+#else
+	_TTF_Font *
+#endif // MKXPZ_RETRO
+	getFont(Exception &exception, std::string family,
 	                   int size, float hiresMult, int outline_size = 0);
 
 	bool fontPresent(std::string family) const;
 
+#ifndef MKXPZ_RETRO
 	static _TTF_Font *openBundled(int size);
+#endif // MKXPZ_RETRO
     void setDefaultFontFamily(const std::string &family);
+
+#ifdef MKXPZ_RETRO
+	FT_Library getLibrary() const noexcept;
+#endif // MKXPZ_RETRO
 
 private:
 	SharedFontStatePrivate *p;
@@ -77,23 +100,24 @@ public:
 	const Font &operator=(const Font &o);
 
 	int getSize() const;
-	void setSize(int value, bool checkIllegal=true);
+	void setSizeNoCheck(int value);
+	void setSize(Exception &exception, int value, bool checkIllegal=true);
 	void setHiresMult(float value);
 
-	DECL_ATTR( Bold,     bool   )
-	DECL_ATTR( Italic,   bool   )
-	DECL_ATTR( Color,    Color& )
-	DECL_ATTR( Shadow,   bool   )
-	DECL_ATTR( Outline,  bool   )
-	DECL_ATTR( OutColor, Color& )
+	DECL_ATTR_NOEXCEPT( Bold,     bool   )
+	DECL_ATTR_NOEXCEPT( Italic,   bool   )
+	DECL_ATTR_NOEXCEPT( Color,    Color& )
+	DECL_ATTR_NOEXCEPT( Shadow,   bool   )
+	DECL_ATTR_NOEXCEPT( Outline,  bool   )
+	DECL_ATTR_NOEXCEPT( OutColor, Color& )
 
-	DECL_ATTR_STATIC( DefaultSize,     int    )
-	DECL_ATTR_STATIC( DefaultBold,     bool   )
-	DECL_ATTR_STATIC( DefaultItalic,   bool   )
-	DECL_ATTR_STATIC( DefaultColor,    Color& )
-	DECL_ATTR_STATIC( DefaultShadow,   bool   )
-	DECL_ATTR_STATIC( DefaultOutline,  bool   )
-	DECL_ATTR_STATIC( DefaultOutColor, Color& )
+	DECL_ATTR_NOEXCEPT_STATIC( DefaultSize,     int    )
+	DECL_ATTR_NOEXCEPT_STATIC( DefaultBold,     bool   )
+	DECL_ATTR_NOEXCEPT_STATIC( DefaultItalic,   bool   )
+	DECL_ATTR_NOEXCEPT_STATIC( DefaultColor,    Color& )
+	DECL_ATTR_NOEXCEPT_STATIC( DefaultShadow,   bool   )
+	DECL_ATTR_NOEXCEPT_STATIC( DefaultOutline,  bool   )
+	DECL_ATTR_NOEXCEPT_STATIC( DefaultOutColor, Color& )
 
 	/* There is no point in providing getters for these,
 	 * as the bindings will always return the stored native
@@ -117,7 +141,19 @@ public:
 	static void initDefaults(const SharedFontState &sfs);
 
 	/* internal */
-	_TTF_Font *getSdlFont(int outline_size);
+#ifdef MKXPZ_RETRO
+	FT_Face
+#else
+	_TTF_Font *
+#endif // MKXPZ_RETRO
+	getSdlFont(Exception &exception, int outline_size);
+
+#ifdef MKXPZ_RETRO
+	bool sandbox_serialize(void *&data, mkxp_sandbox::wasm_size_t &max_size) const;
+	bool sandbox_deserialize(const void *&data, mkxp_sandbox::wasm_size_t &max_size);
+	static bool sandbox_serialize_default(void *&data, mkxp_sandbox::wasm_size_t &max_size);
+	static bool sandbox_deserialize_default(const void *&data, mkxp_sandbox::wasm_size_t &max_size);
+#endif // MKXPZ_RETRO
 
 private:
 	FontPrivate *p;

@@ -61,7 +61,7 @@ CMAKE     := $(CONFIGURE_ENV) cmake .. $(CMAKE_ARGS)
 default:
 
 # Theora
-libtheora: init_dirs libvorbis libogg $(LIBDIR)/libtheora.a
+libtheora: init_dirs libvorbis libogg $(LIBDIR)/libtheora.a downloads/theoraplay/theoraplay.c
 
 $(LIBDIR)/libtheora.a: $(LIBDIR)/libogg.a $(DOWNLOADS)/theora/Makefile
 	cd $(DOWNLOADS)/theora; \
@@ -77,6 +77,14 @@ $(DOWNLOADS)/theora/configure: $(DOWNLOADS)/theora/autogen.sh
 
 $(DOWNLOADS)/theora/autogen.sh:
 	$(CLONE) $(GITHUB)/xiph/theora $(DOWNLOADS)/theora
+
+downloads/theoraplay/theoraplay.c:
+	mkdir -p downloads/theoraplay
+	cd downloads/theoraplay; \
+	$(GIT) init; \
+	$(GIT) remote add origin $(GITHUB)/icculus/theoraplay; \
+	$(GIT) fetch --depth=1 origin 672cf6d7591009612123e90a192e6f3cd9f532c2; \
+	$(GIT) checkout 672cf6d7591009612123e90a192e6f3cd9f532c2
 
 # Vorbis
 libvorbis: init_dirs libogg $(LIBDIR)/libvorbis.a

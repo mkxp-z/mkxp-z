@@ -102,7 +102,7 @@ TexPool::~TexPool()
 	delete p;
 }
 
-TEXFBO TexPool::request(int width, int height)
+TEXFBO TexPool::request(Exception &exception, int width, int height)
 {
 	CacheNode cnode;
 	Size size(width, height);
@@ -128,9 +128,12 @@ TEXFBO TexPool::request(int width, int height)
 
 	int maxSize = glState.caps.maxTexSize;
 	if (width > maxSize || height > maxSize)
-		throw Exception(Exception::MKXPError,
+	{
+		exception = Exception(Exception::MKXPError,
 		                "Texture dimensions [%d, %d] exceed hardware capabilities",
 		                width, height);
+		return TEXFBO();
+	}
 
 	/* Nope, create it instead */
 	TEXFBO::init(cnode.obj);
@@ -213,4 +216,10 @@ void TexPool::disable()
 	p->disabled = true;
 }
 
-
+void TexPool::clear()
+{
+	p->poolHash.clear();
+	p->priorityQueue.clear();
+	p->memSize = 0;
+	p->objCount = 0;
+}

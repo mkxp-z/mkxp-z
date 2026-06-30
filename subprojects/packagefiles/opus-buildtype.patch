@@ -1,0 +1,13 @@
+# Prevents Opus's build system from setting the compiler's optimization parameters (-O0, -O1, -O2, -O3, etc.) since Meson already handles that.
+
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -7,7 +7,7 @@ get_package_version(PACKAGE_VERSION PROJECT_VERSION)
+ project(Opus LANGUAGES C VERSION ${PROJECT_VERSION})
+ 
+ include(OpusFunctions)
+-include(OpusBuildtype)
++
+ include(OpusConfig)
+ include(OpusSources)
+ include(GNUInstallDirs)

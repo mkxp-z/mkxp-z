@@ -1,0 +1,16 @@
+# Stops OpenAL Soft's build system from unconditionally enabling the `-pthread` compiler flag when targeting Emscripten because it causes problems if the rest of mkxp-z isn't also building with pthread support.
+
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -579,7 +579,10 @@ if(NOT WIN32)
+         message(FATAL_ERROR "PThreads is required for non-Windows builds!")
+     endif()
+ 
+-    check_c_compiler_flag(-pthread HAVE_PTHREAD)
++    string(TOLOWER ${CMAKE_SYSTEM_NAME} SYSTEM_LOWER)
++    if(NOT SYSTEM_LOWER STREQUAL "emscripten")
++        check_c_compiler_flag(-pthread HAVE_PTHREAD)
++    endif()
+     if(HAVE_PTHREAD)
+         set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -pthread")
+         set(C_FLAGS ${C_FLAGS} -pthread)

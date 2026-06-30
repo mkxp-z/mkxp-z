@@ -29,6 +29,10 @@
 #include <string>
 #include <vector>
 
+#ifdef MKXPZ_RETRO
+#  include "wasm-types.h"
+#endif // MKXPZ_RETRO
+
 struct SoundBuffer;
 struct Config;
 
@@ -45,6 +49,7 @@ struct SoundEmitter
 	const size_t srcCount;
 	std::vector<AL::Source::ID> alSrcs;
 	std::vector<SoundBuffer*> atchBufs;
+	std::vector<std::string> filenames;
 
 	/* Indices of sources, sorted by priority (lowest first) */
 	std::vector<size_t> srcPrio;
@@ -57,6 +62,11 @@ struct SoundEmitter
 	          int pitch);
 
 	void stop();
+
+#ifdef MKXPZ_RETRO
+	bool sandbox_serialize(void *&data, mkxp_sandbox::wasm_size_t &max_size);
+	bool sandbox_deserialize(const void *&data, mkxp_sandbox::wasm_size_t &max_size);
+#endif // MKXPZ_RETRO
 
 private:
 	SoundBuffer *allocateBuffer(const std::string &filename);

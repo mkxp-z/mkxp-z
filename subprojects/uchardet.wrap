@@ -1,0 +1,6 @@
+[wrap-file]
+source_url = https://deb.debian.org/debian/pool/main/u/uchardet/uchardet_0.0.8.orig.tar.xz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/debian/pool/main/u/uchardet/uchardet_0.0.8.orig.tar.xz
+source_filename = uchardet.tar.xz
+source_hash = e97a60cfc00a1c147a674b097bb1422abd9fa78a2d9ce3f3fdcc2e78a34ac5f0
+directory = uchardet-0.0.8

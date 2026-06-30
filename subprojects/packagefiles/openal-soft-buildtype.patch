@@ -1,0 +1,21 @@
+# Prevents OpenAL Soft's build system from setting the compiler's optimization parameters (-O0, -O1, -O2, -O3, etc.) since Meson already handles that.
+
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -64,11 +64,11 @@ endif(COMMAND CMAKE_POLICY)
+ 
+ project(OpenAL)
+ 
+-if(NOT CMAKE_BUILD_TYPE)
+-    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
+-        "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel."
+-        FORCE)
+-endif()
++
++
++
++
++
+ if(NOT CMAKE_DEBUG_POSTFIX)
+     set(CMAKE_DEBUG_POSTFIX "" CACHE STRING
+         "Library postfix for debug builds. Normally left blank."

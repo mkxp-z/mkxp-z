@@ -1,0 +1,11 @@
+[binaries]
+c = '/opt/retrofw-toolchain/usr/bin/mipsel-linux-gcc'
+cpp = '/opt/retrofw-toolchain/usr/bin/mipsel-linux-g++'
+ar = 'ar'
+cmake = 'cmake'
+
+[host_machine]
+system = 'linux'
+cpu_family = 'mips'
+cpu = 'jz4760'
+endian = 'little'

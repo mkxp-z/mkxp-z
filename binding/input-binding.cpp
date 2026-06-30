@@ -519,7 +519,7 @@ RB_METHOD(inputGets) {
 
 RB_METHOD_GUARD(inputGetClipboard) {
     RB_UNUSED_PARAM;
-    return rb_utf8_str_new_cstr(shState->input().getClipboardText());
+    return rb_utf8_str_new_cstr(shState->input().getClipboardText().c_str());
 }
 RB_METHOD_GUARD_END
 

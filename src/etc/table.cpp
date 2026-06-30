@@ -26,16 +26,31 @@
 
 #include "serial-util.h"
 #include "exception.h"
+#include "forced-assert.h"
 #include "util.h"
+
+#ifdef MKXPZ_RETRO
+#  include "sandbox-serial-util.h"
+
+static uint64_t next_id = 1;
+#endif // MKXPZ_RETRO
 
 /* Init normally */
 Table::Table(int x, int y /*= 1*/, int z /*= 1*/)
-    : xs(x), ys(y), zs(z),
+    :
+#ifdef MKXPZ_RETRO
+      id(next_id++),
+#endif // MKXPZ_RETRO
+      xs(x), ys(y), zs(z),
       data(x*y*z)
 {}
 
 Table::Table(const Table &other)
-    : xs(other.xs), ys(other.ys), zs(other.zs),
+    :
+#ifdef MKXPZ_RETRO
+      id(next_id++),
+#endif // MKXPZ_RETRO
+      xs(other.xs), ys(other.ys), zs(other.zs),
       data(other.data)
 {}
 
@@ -115,14 +130,18 @@ void Table::serialize(char *buffer) const
 	writeInt32(&buffer, zs);
 	writeInt32(&buffer, size);
 
-	memcpy(buffer, dataPtr(data), sizeof(int16_t)*size);
+	if (size > 0)
+		memcpy(buffer, dataPtr(data), sizeof(int16_t)*size);
 }
 
 
-Table *Table::deserialize(const char *data, int len)
+Table *Table::deserialize(Exception &exception, const char *data, int len)
 {
 	if (len < 20)
-		throw Exception(Exception::RGSSError, "Marshal: Table: bad file format");
+	{
+		exception = Exception(Exception::RGSSError, "Marshal: Table: bad file format");
+		return nullptr;
+	}
 
 	readInt32(&data);
 	int x = readInt32(&data);
@@ -131,13 +150,28 @@ Table *Table::deserialize(const char *data, int len)
 	int size = readInt32(&data);
 
 	if (size != x*y*z)
-		throw Exception(Exception::RGSSError, "Marshal: Table: bad file format");
+	{
+		exception = Exception(Exception::RGSSError, "Marshal: Table: bad file format");
+		return nullptr;
+	}
 
 	if (len != 20 + x*y*z*2)
-		throw Exception(Exception::RGSSError, "Marshal: Table: bad file format");
+	{
+		exception = Exception(Exception::RGSSError, "Marshal: Table: bad file format");
+		return nullptr;
+	}
 
 	Table *t = new Table(x, y, z);
-	memcpy(dataPtr(t->data), data, sizeof(int16_t)*size);
+
+	if (size > 0)
+		memcpy(dataPtr(t->data), data, sizeof(int16_t)*size);
 
 	return t;
 }
+
+#ifdef MKXPZ_RETRO
+#ifndef MKXPZ_SANDBOX_SERIAL_TABLE_H
+#define MKXPZ_SANDBOX_SERIAL_TABLE_H
+#include "sandbox-serial-table.h"
+#endif // MKXPZ_SANDBOX_SERIAL_TABLE_H
+#endif // MKXPZ_RETRO

@@ -1,0 +1,45 @@
+# Makes FreeType's build system inherit our compiler flags.
+
+--- a/meson.build
++++ b/meson.build
+@@ -343,7 +343,7 @@ libpng_dep = dependency('libpng',
+   required: get_option('png'),
+   fallback: 'libpng')
+ 
+-if libpng_dep.found()
++if libpng_dep.found() and not get_option('png').disabled()
+   ftoption_command += ['--enable=FT_CONFIG_OPTION_USE_PNG']
+   ft2_deps += [libpng_dep]
+ endif
+@@ -396,7 +396,7 @@ endif
+ brotli_dep = dependency('libbrotlidec',
+   required: get_option('brotli'))
+ 
+-if brotli_dep.found()
++if brotli_dep.found() and not get_option('brotli').disabled()
+   ftoption_command += ['--enable=FT_CONFIG_OPTION_USE_BROTLI']
+   ft2_deps += [brotli_dep]
+ endif
+@@ -449,11 +449,11 @@ endif
+ 
+ ft2_lib = library('freetype',
+   sources: ft2_sources + [ftmodule_h],
+-  c_args: ft2_defines,
++  c_args: get_option('cflags') + ft2_defines,
+   gnu_symbol_visibility: 'hidden',
+   include_directories: ft2_includes,
+   dependencies: ft2_deps,
+-  install: true,
++  pic: get_option('b_staticpic'),
+   version: ft2_so_version,
+   link_args: common_ldflags,
+ )
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -59,3 +59,6 @@ option('error_strings',
+   description: 'Enable support for meaningful error descriptions')
+ 
+ # EOF
++
++option('cflags', type: 'array', value: [])
++option('cppflags', type: 'array', value: [])

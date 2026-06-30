@@ -23,6 +23,7 @@
 #define ALDATASOURCE_H
 
 #include "al-util.h"
+#include <string>
 
 struct ALDataSource
 {
@@ -47,21 +48,48 @@ struct ALDataSource
 	virtual void seekToOffset(double seconds) = 0;
 
 	/* The frame count right after wrap around */
-	virtual uint32_t loopStartFrames() = 0;
+	virtual uint64_t loopStartFrames() = 0;
 
 	/* Returns false if not supported */
 	virtual bool setPitch(float value) = 0;
 };
 
-ALDataSource *createSDLSource(SDL_RWops &ops,
+ALDataSource *createSDLSource(
+				std::string &error,
+#ifdef MKXPZ_RETRO
+				std::shared_ptr<struct FileSystem::File> ops,
+#else
+				SDL_RWops &ops,
+#endif // MKXPZ_RETRO
                               const char *extension,
 			                  uint32_t maxBufSize,
 			                  bool looped);
 
-ALDataSource *createVorbisSource(SDL_RWops &ops,
+ALDataSource *createSndfileSource(
+				std::string &error,
+#ifdef MKXPZ_RETRO
+				std::shared_ptr<struct FileSystem::File> ops,
+#else
+				SDL_RWops &ops,
+#endif // MKXPZ_RETRO
+				bool looped);
+
+ALDataSource *createVorbisSource(
+				std::string &error,
+#ifdef MKXPZ_RETRO
+				std::shared_ptr<struct FileSystem::File> ops,
+#else
+				SDL_RWops &ops,
+#endif // MKXPZ_RETRO
                                  bool looped);
 
-ALDataSource *createMidiSource(SDL_RWops &ops,
+ALDataSource *createMidiSource(
+				std::string &error,
+#ifdef MKXPZ_RETRO
+				std::shared_ptr<struct FileSystem::File> ops,
+#else
+				SDL_RWops &ops,
+#endif // MKXPZ_RETRO
                                bool looped);
 
 #endif // ALDATASOURCE_H

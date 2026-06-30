@@ -1,0 +1,33 @@
+# Disables OpenAL Soft's null backend since it fails to compile for PlayStation 3. Don't worry, we don't need the null backend.
+
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -912,7 +912,7 @@ set(ALC_OBJS  ${ALC_OBJS}
+     # Default backends, always available
+     alc/backends/loopback.cpp
+     alc/backends/loopback.h
+-    alc/backends/null.cpp
++
+     alc/backends/null.h
+ )
+ 
+--- a/alc/alc.cpp
++++ b/alc/alc.cpp
+@@ -216,7 +216,7 @@ struct BackendInfo {
+     BackendFactory& (*getFactory)();
+ };
+ 
+-std::array BackendList{
++std::array<BackendInfo, 0> BackendList{
+ #if HAVE_PIPEWIRE
+     BackendInfo{"pipewire", PipeWireBackendFactory::getFactory},
+ #endif
+@@ -269,7 +269,7 @@ std::array BackendList{
+     BackendInfo{"otherio", OtherIOBackendFactory::getFactory},
+ #endif
+ 
+-    BackendInfo{"null", NullBackendFactory::getFactory},
++
+ #if HAVE_WAVE
+     BackendInfo{"wave", WaveBackendFactory::getFactory},
+ #endif

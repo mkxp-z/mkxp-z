@@ -25,6 +25,10 @@
 #include "disposable.h"
 #include "util.h"
 
+#ifdef MKXPZ_RETRO
+#  include "wasm-types.h"
+#endif // MKXPZ_RETRO
+
 class Viewport;
 class Bitmap;
 class Table;
@@ -37,14 +41,20 @@ public:
 	class BitmapArray
 	{
 	public:
+		BitmapArray() : tilemap(nullptr) {}
+		BitmapArray(TilemapVX *tilemap) : tilemap(tilemap) {}
+		~BitmapArray() { if (tilemap) tilemap->bmProxy = nullptr; }
+
 		void set(int i, Bitmap *bitmap);
 		Bitmap *get(int i) const;
 
-	private:
-		BitmapArray() {}
-		~BitmapArray() {}
+#ifdef MKXPZ_RETRO
+		bool sandbox_serialize(void *&data, mkxp_sandbox::wasm_size_t &max_size) const;
+		bool sandbox_deserialize(const void *&data, mkxp_sandbox::wasm_size_t &max_size);
+#endif // MKXPZ_RETRO
 
-		TilemapVXPrivate *p;
+	private:
+		TilemapVX *tilemap;
 		friend class TilemapVX;
 		friend struct TilemapVXPrivate;
 	};
@@ -52,9 +62,9 @@ public:
 	TilemapVX(Viewport *viewport = 0);
 	~TilemapVX();
 
-	void update();
+	void update(Exception &exception);
 
-	BitmapArray &getBitmapArray();
+	BitmapArray *getBitmapArray(Exception &exception);
 
 	DECL_ATTR( Viewport,   Viewport* )
 	DECL_ATTR( MapData,    Table*    )
@@ -64,9 +74,17 @@ public:
 	DECL_ATTR( OX,         int       )
 	DECL_ATTR( OY,         int       )
 
+#ifdef MKXPZ_RETRO
+	bool sandbox_serialize(void *&data, mkxp_sandbox::wasm_size_t &max_size) const;
+	bool sandbox_deserialize(const void *&data, mkxp_sandbox::wasm_size_t &max_size);
+	void sandbox_deserialize_begin(bool is_new);
+	void sandbox_deserialize_end();
+	void sandbox_reinit();
+#endif // MKXPZ_RETRO
+
 private:
 	TilemapVXPrivate *p;
-	BitmapArray bmProxy;
+	BitmapArray *bmProxy;
 
 	void releaseResources();
 	const char *klassName() const { return "tilemap"; }

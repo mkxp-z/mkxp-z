@@ -55,7 +55,7 @@ public:
 		flashAlpha = flashColor.w;
 	}
 
-	virtual void update()
+	virtual void update(Exception &exception)
 	{
 		if (!flashing)
 			return;

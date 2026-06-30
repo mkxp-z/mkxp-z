@@ -1,0 +1,3 @@
+option('cflags', type: 'array', value: [])
+option('cppflags', type: 'array', value: [])
+option('have_thread', type: 'boolean', value: true)

@@ -1,14 +1,102 @@
 #ifndef SDLUTIL_H
 #define SDLUTIL_H
 
-#include <SDL_atomic.h>
-#include <SDL_thread.h>
-#include <SDL_rwops.h>
+#ifdef MKXPZ_RETRO
+#  include "filesystem.h"
+#else
+#  include <SDL_atomic.h>
+#  include <SDL_thread.h>
+#  include <SDL_rwops.h>
+#endif // MKXPZ_RETRO
 
-#include <string>
+#include <cstring>
 #include <iostream>
 #include <unistd.h>
 
+template<typename O, typename R, size_t bufSize = 248, size_t pbSize = 8>
+class RWBuf : public std::streambuf
+{
+public:
+	RWBuf(O ops)
+	    : ops(ops)
+	{
+		char *end = buf + bufSize + pbSize;
+		setg(end, end, end);
+	}
+
+private:
+	int_type underflow()
+	{
+		if (!ops)
+			return traits_type::eof();
+
+		if (gptr() < egptr())
+			return traits_type::to_int_type(*gptr());
+
+		char *base = buf;
+		char *start = base;
+
+		if (eback() == base)
+		{
+			std::memmove(base, egptr() - pbSize, pbSize);
+			start += pbSize;
+		}
+
+		size_t n = R::read(ops, start, bufSize - (start - base));
+		if (n == 0)
+			return traits_type::eof();
+
+		setg(base, start, start + n);
+
+		return underflow();
+	}
+
+	O ops;
+	char buf[bufSize+pbSize];
+};
+
+#ifdef MKXPZ_RETRO
+struct AtomicFlag
+{
+	AtomicFlag() : atom(false) {}
+
+	void set()
+	{
+		atom = true;
+	}
+
+	void clear()
+	{
+		atom = false;
+	}
+
+	void wait() {}
+
+	void reset()
+	{
+		set();
+	}
+
+	operator bool() const
+	{
+		return atom;
+	}
+
+private:
+	mutable bool atom;
+};
+
+class PHYSFSRead
+{
+public:
+	static size_t read(std::shared_ptr<struct FileSystem::File> ops, void *buf, size_t size)
+	{
+		return std::max((PHYSFS_sint64)0, PHYSFS_readBytes(ops->get_read(), buf, size));
+	}
+};
+
+typedef RWBuf<std::shared_ptr<struct FileSystem::File>, PHYSFSRead> PHYSFSRWBuf;
+#else
 struct AtomicFlag
 {
 	AtomicFlag()
@@ -96,47 +184,16 @@ inline bool readFileSDL(const char *path,
 	return true;
 }
 
-template<size_t bufSize = 248, size_t pbSize = 8>
-class SDLRWBuf : public std::streambuf
+class SDLRead
 {
 public:
-	SDLRWBuf(SDL_RWops *ops)
-	    : ops(ops)
+	static size_t read(SDL_RWops *ops, void *buf, size_t size)
 	{
-		char *end = buf + bufSize + pbSize;
-		setg(end, end, end);
+		return SDL_RWread(ops, buf, 1, size);
 	}
-
-private:
-	int_type underflow()
-	{
-		if (!ops)
-			return traits_type::eof();
-
-		if (gptr() < egptr())
-			return traits_type::to_int_type(*gptr());
-
-		char *base = buf;
-		char *start = base;
-
-		if (eback() == base)
-		{
-			memmove(base, egptr() - pbSize, pbSize);
-			start += pbSize;
-		}
-
-		size_t n = SDL_RWread(ops, start, 1, bufSize - (start - base));
-		if (n == 0)
-			return traits_type::eof();
-
-		setg(base, start, start + n);
-
-		return underflow();
-	}
-
-	SDL_RWops *ops;
-	char buf[bufSize+pbSize];
 };
+
+typedef RWBuf<SDL_RWops *, SDLRead> SDLRWBuf;
 
 class SDLRWStream
 {
@@ -166,8 +223,9 @@ public:
 
 private:
 	SDL_RWops *ops;
-	SDLRWBuf<> buf;
+	SDLRWBuf buf;
 	std::istream s;
 };
+#endif // MKXPZ_RETRO
 
 #endif // SDLUTIL_H

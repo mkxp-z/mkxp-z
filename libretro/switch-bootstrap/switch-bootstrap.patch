@@ -1,0 +1,26 @@
+diff --git a/frontend/drivers/platform_switch.c b/frontend/drivers/platform_switch.c
+index b3893afd58..58b94e67f9 100644
+--- a/frontend/drivers/platform_switch.c
++++ b/frontend/drivers/platform_switch.c
+@@ -303,7 +303,7 @@ static void frontend_switch_get_env(
+    }
+ 
+    fill_pathname_join(g_defaults.path_config,
+-         g_defaults.dirs[DEFAULT_DIR_PORT],
++         "romfs:/retroarch",
+          FILE_PATH_MAIN_CONFIG,
+          sizeof(g_defaults.path_config));
+ 
+diff --git a/retroarch.c b/retroarch.c
+index b16728310b..6deedb3ab9 100644
+--- a/retroarch.c
++++ b/retroarch.c
+@@ -6191,7 +6191,7 @@ void emscripten_mainloop(void)
+ extern "C"
+ #endif
+ int main(int argc, char *argv[])
+-{
++{ { static char *bootstrap_argv[] = {NULL, NULL, NULL}; bootstrap_argv[0] = strdup("retroarch"); bootstrap_argv[1] = strdup("romfs:/Game.mkxpz"); romfsInit(); argc = 2; argv = bootstrap_argv; }
+    return rarch_main(argc, argv, NULL);
+ }
+ #endif

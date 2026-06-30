@@ -24,6 +24,7 @@
 #include "sharedstate.h"
 #include "filesystem.h"
 #include "exception.h"
+#include "forced-assert.h"
 #include "boost-hash.h"
 #include "util.h"
 #include "config.h"
@@ -42,7 +43,12 @@
 #include "filesystem/filesystem.h"
 #endif
 
-#include <SDL_ttf.h>
+#ifdef MKXPZ_RETRO
+#  include "sandbox-serial-util.h"
+#  include <boost/optional.hpp>
+#else
+#  include <SDL_ttf.h>
+#endif // MKXPZ_RETRO
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -64,14 +70,8 @@
 #define BUNDLED_FONT wqymicrohei
 #endif
 
-#define BUNDLED_FONT_DECL(FONT) \
-	extern unsigned char ___assets_##FONT##_ttf[]; \
-	extern unsigned int ___assets_##FONT##_ttf_len;
-
-BUNDLED_FONT_DECL(liberation)
-
-#define BUNDLED_FONT_D(f) ___assets_## f ##_ttf
-#define BUNDLED_FONT_L(f) ___assets_## f ##_ttf_len
+#define BUNDLED_FONT_D(f) mkxp_assets_## f ##_ttf
+#define BUNDLED_FONT_L(f) sizeof mkxp_assets_## f ##_ttf
 
 // Go fuck yourself CPP
 #define BNDL_F_D(f) BUNDLED_FONT_D(f)
@@ -79,6 +79,7 @@ BUNDLED_FONT_DECL(liberation)
 
 #endif
 
+#ifndef MKXPZ_RETRO
 /* Dirty hack to get the FT_Face.
  * SDL_ttf will probably never move it from the beginning of the struct. */
 #define TTF_FONT_TO_FT_FACE(font) (*reinterpret_cast<FT_Face *>(font))
@@ -91,6 +92,7 @@ static SDL_RWops *openBundledFont()
     return SDL_RWFromFile(mkxp_fs::getPathForAsset("Fonts/liberation", "ttf").c_str(), "rb");
 #endif
 }
+#endif // MKXPZ_RETRO
 
 
 /* <name, size> */
@@ -126,6 +128,10 @@ struct FontSet
 
 struct SharedFontStatePrivate
 {
+#ifdef MKXPZ_RETRO
+	FT_Library library;
+#endif // MKXPZ_RETRO
+
 	/* Maps: font family name, To: substituted family name,
 	 * as specified via configuration file / arguments */
 	BoostHash<std::string, std::string> subs;
@@ -139,7 +145,38 @@ struct SharedFontStatePrivate
 
 	/* Pool of already opened fonts; once opened, they are reused
 	 * and never closed until the termination of the program */
-	BoostHash<FontPPEMKey, std::array<TTF_Font*, 2>> ppem_to_font;
+#ifdef MKXPZ_RETRO
+	struct PoolEntry
+	{
+		FT_StreamRec *rec;
+		FT_Open_Args *args;
+		FT_Face font;
+		PoolEntry() : rec(nullptr), args(nullptr), font(nullptr) {}
+		PoolEntry(const struct PoolEntry &entry) = delete;
+		PoolEntry(struct PoolEntry &&entry) noexcept : rec(std::exchange(entry.rec, nullptr)), args(std::exchange(entry.args, nullptr)), font(std::exchange(entry.font, nullptr)) {};
+		struct PoolEntry &operator=(const struct PoolEntry &entry) = delete;
+		struct PoolEntry &operator=(struct PoolEntry &&entry) noexcept {
+			rec = std::exchange(entry.rec, nullptr);
+			args = std::exchange(entry.args, nullptr);
+			font = std::exchange(entry.font, nullptr);
+			return *this;
+		}
+		~PoolEntry() {
+			if (font != nullptr) {
+				FT_Done_Face(font);
+			}
+			if (args != nullptr) {
+				delete args;
+			}
+			if (rec != nullptr) {
+				delete rec;
+			}
+		}
+	};
+	BoostHash<FontPPEMKey, PoolEntry> ppem_to_font;
+#else
+	BoostHash<FontPPEMKey, std::pair<TTF_Font*, TTF_Font*>> ppem_to_font;
+#endif // MKXPZ_RETRO
     
     /* Internal default font family that is used anytime an
      * empty/invalid family is requested */
@@ -148,6 +185,111 @@ struct SharedFontStatePrivate
 	float fontScale;
 	bool fontKerning;
 	int fontHinting;
+
+#ifdef MKXPZ_RETRO
+	boost::optional<SharedFontStatePrivate::PoolEntry> ftOpenFile(std::shared_ptr<struct FileSystem::File> ops)
+	{
+		SharedFontStatePrivate::PoolEntry entry;
+
+		if (shState->config().loadFontsIntoMemory) {
+			PHYSFS_sint64 length = PHYSFS_fileLength(ops.get()->get_read());
+			if (length == -1 || (uint64_t)length > std::min((uint64_t)SIZE_MAX, (uint64_t)ULONG_MAX)) {
+				return boost::none;
+			}
+			uint8_t *data = (uint8_t *)std::malloc((size_t)length);
+			if (data == nullptr) {
+				return boost::none;
+			}
+			PHYSFS_sint64 n = PHYSFS_readBytes(ops.get()->get_read(), data, (PHYSFS_uint64)length);
+			if (n == -1 || (uint64_t)n < (uint64_t)length) {
+				std::free(data);
+				return boost::none;
+			}
+
+			struct stream_struct {
+				uint8_t *data;
+				size_t length;
+			};
+			const struct stream_struct *stream = new stream_struct {data, (size_t)length};
+
+			entry.rec = new FT_StreamRec {
+				nullptr,
+				(unsigned long)-1,
+				0,
+				{},
+				{},
+				[](FT_Stream stream, unsigned long offset, unsigned char *buffer, unsigned long count) {
+					if ((uint64_t)offset > (uint64_t)((const struct stream_struct *)stream->descriptor.pointer)->length)
+						return (unsigned long)(count == 0);
+					if (count == 0)
+						return 0UL;
+					uint64_t end = (uint64_t)offset + (uint64_t)count;
+					if (end < offset)
+						return 0UL;
+					uint64_t n = std::min(end, (uint64_t)((const struct stream_struct *)stream->descriptor.pointer)->length) - (uint64_t)offset;
+					if (n > 0)
+						std::memcpy(buffer, ((const struct stream_struct *)stream->descriptor.pointer)->data + offset, (size_t)n);
+					return (unsigned long)n;
+				},
+				[](FT_Stream stream) {
+					std::free(((const struct stream_struct *)stream->descriptor.pointer)->data);
+					delete (const struct stream_struct *)stream->descriptor.pointer;
+				},
+			};
+
+			entry.rec->descriptor.pointer = (void *)stream;
+		} else {
+			entry.rec = new FT_StreamRec {
+				nullptr,
+				(unsigned long)-1,
+				0,
+				{},
+				{},
+				[](FT_Stream stream, unsigned long offset, unsigned char *buffer, unsigned long count) {
+					if (!PHYSFS_seek(((std::shared_ptr<struct FileSystem::File> *)stream->descriptor.pointer)->get()->get_read(), offset))
+						return (unsigned long)(count == 0);
+					if (count == 0)
+						return 0UL;
+					PHYSFS_uint64 n = PHYSFS_readBytes(((std::shared_ptr<struct FileSystem::File> *)stream->descriptor.pointer)->get()->get_read(), buffer, count);
+					return n == (PHYSFS_uint64)-1 ? 0UL : (unsigned long)n;
+				},
+				[](FT_Stream stream) {
+					delete (std::shared_ptr<struct FileSystem::File> *)stream->descriptor.pointer;
+				},
+			};
+
+			entry.rec->descriptor.pointer = new std::shared_ptr<struct FileSystem::File>(ops);
+		}
+
+		entry.args = new FT_Open_Args {
+			FT_OPEN_STREAM,
+			nullptr,
+			0,
+			nullptr,
+			entry.rec,
+			nullptr,
+			0,
+			nullptr,
+		};
+	
+		if (!FT_Open_Face(library, entry.args, 0, &entry.font)) {
+			return entry;
+		} else {
+			return boost::none;
+		}
+	}
+
+	SharedFontStatePrivate()
+	{
+		MKXPZ_FORCED_ASSERT(!FT_Init_FreeType(&library));
+	}
+
+	~SharedFontStatePrivate()
+	{
+		ppem_to_font.clear();
+		FT_Done_FreeType(library);
+	}
+#endif // MKXPZ_RETRO
 };
 
 SharedFontState::SharedFontState(const Config &conf)
@@ -180,13 +322,16 @@ SharedFontState::SharedFontState(const Config &conf)
 
 SharedFontState::~SharedFontState()
 {
-	BoostHash<FontPPEMKey, std::array<TTF_Font*, 2>>::const_iterator iter;
+#ifndef MKXPZ_RETRO
+	BoostHash<FontPPEMKey, std::pair<TTF_Font*, TTF_Font*>>::const_iterator iter;
 	for (iter = p->ppem_to_font.cbegin(); iter != p->ppem_to_font.cend(); ++iter)
 	{
-		for (int i=0; i < iter->second.size(); i++)
-			if (iter->second[i] != 0)
-				TTF_CloseFont(iter->second[i]);
+		if (iter->second.first != 0)
+			TTF_CloseFont(iter->second.first);
+		if (iter->second.second != 0)
+			TTF_CloseFont(iter->second.second);
 	}
+#endif // MKXPZ_RETRO
 
 	delete p;
 }
@@ -195,23 +340,36 @@ static std::string decodeSfntName(const FT_SfntName &aname)
 {
 	std::string str = std::string((const char *)aname.string, (size_t)aname.string_len);
 	if ((aname.platform_id == TT_PLATFORM_MICROSOFT && aname.encoding_id == TT_MS_ID_UNICODE_CS) || aname.platform_id == TT_PLATFORM_APPLE_UNICODE)
-		try
+		MKXPZ_TRY
 		{
 			str = Encoding::convertString(str, "UTF-16BE");
-		} catch (Exception)
+		} MKXPZ_CATCH (Exception)
 		{}
 	else if (aname.platform_id == TT_PLATFORM_MICROSOFT && aname.encoding_id == TT_MS_ID_UCS_4)
-		try
+		MKXPZ_TRY
 		{
 			str = Encoding::convertString(str, "UTF-32BE");
-		} catch (Exception)
+		} MKXPZ_CATCH (Exception)
 		{}
 	return str;
 }
 
-void SharedFontState::initFontSetCB(SDL_RWops &ops,
+void SharedFontState::initFontSetCB(
+#ifdef MKXPZ_RETRO
+                                    std::shared_ptr<struct FileSystem::File> ops,
+#else
+                                    SDL_RWops &ops,
+#endif // MKXPZ_RETRO
                                     const std::string &filename)
 {
+#ifdef MKXPZ_RETRO
+	boost::optional<SharedFontStatePrivate::PoolEntry> entry = p->ftOpenFile(ops);
+	if (!entry.has_value())
+		return;
+
+	std::string family(entry->font->family_name);
+	std::string style(entry->font->style_name);
+#else
 	TTF_Font *font = TTF_OpenFontRW(&ops, 0, 0);
 
 	if (!font)
@@ -219,6 +377,7 @@ void SharedFontState::initFontSetCB(SDL_RWops &ops,
 
 	std::string family = TTF_FontFaceFamilyName(font);
 	std::string style = TTF_FontFaceStyleName(font);
+#endif // MKXPZ_RETRO
 
 	std::transform(family.begin(), family.end(), family.begin(),
 		[](unsigned char c){ return std::tolower(c); });
@@ -230,7 +389,11 @@ void SharedFontState::initFontSetCB(SDL_RWops &ops,
 	else if (style != "Regular" && set.other.empty())
 		set.other = filename;
 
+#ifdef MKXPZ_RETRO
+	FT_Face face = entry->font;
+#else
 	FT_Face face = TTF_FONT_TO_FT_FACE(font);
+#endif
 
 	if (FT_IS_SFNT(face))
 	{
@@ -276,7 +439,9 @@ void SharedFontState::initFontSetCB(SDL_RWops &ops,
 		}
 	}
 
+#ifndef MKXPZ_RETRO
 	TTF_CloseFont(font);
+#endif // MKXPZ_RETRO
 }
 
 // https://github.com/wine-mirror/wine/blob/dc34fef45d491516fa8eaee45b2ae40faa7b0bfe/dlls/win32u/freetype.c
@@ -287,7 +452,11 @@ void SharedFontState::initFontSetCB(SDL_RWops &ops,
 /* We're not currently using yMax and yMin for anything,
  * but it could be useful later. */
 typedef struct {
+#ifdef MKXPZ_RETRO
+	FT_Face font;
+#else
 	TTF_Font *font;
+#endif // MKXPZ_RETRO
 	int ppem;
 	short yMax;
 	short yMin;
@@ -310,7 +479,7 @@ typedef struct {
 #define RTLUSHORTBYTESWAP(x) (uint16_t)((x >> 8) | (x << 8))
 #define RTLULONGBYTESWAP(x) (((uint32_t)RTLUSHORTBYTESWAP((uint16_t)x) << 16) | RTLUSHORTBYTESWAP((uint16_t)(x >> 16)))
 
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+#ifdef MKXPZ_BIG_ENDIAN
 #define GET_BE_WORD(x) (x)
 #else
 #define GET_BE_WORD(x) RTLUSHORTBYTESWAP(x)
@@ -319,7 +488,11 @@ typedef struct {
 static unsigned int freetype_get_font_data( Font_Container *font, uint32_t table,
                                             unsigned int offset, void *buf, unsigned int cbData)
 {
+#ifdef MKXPZ_RETRO
+	FT_Face ft_face = font->font;
+#else
 	FT_Face ft_face = *(reinterpret_cast<FT_Face *>( font->font ));
+#endif // MKXPZ_RETRO
 	FT_ULong len;
 	FT_Error err;
 
@@ -471,7 +644,11 @@ static inline USHORT get_fixed_windescent(USHORT windescent)
 
 static int calc_ppem_for_height(Font_Container *font, int height)
 {
+#ifdef MKXPZ_RETRO
+	FT_Face ft_face = font->font;
+#else
 	FT_Face ft_face = *(reinterpret_cast<FT_Face *>( font->font ));
+#endif // MKXPZ_RETRO
 	TT_OS2 *pOS2;
 	TT_HoriHeader *pHori;
 
@@ -534,8 +711,13 @@ static int calc_ppem_for_height(Font_Container *font, int height)
 }
 /* /wine */
 
-_TTF_Font *SharedFontState::getFont(std::string family,
-                                    int size, float hiresMult, int outline_size)
+#ifdef MKXPZ_RETRO
+FT_Face
+#else
+_TTF_Font *
+#endif // MKXPZ_RETRO
+SharedFontState::getFont(Exception &exception, std::string family,
+                         int size, float hiresMult, int outline_size)
 {
 	std::transform(family.begin(), family.end(), family.begin(),
 		[](unsigned char c){ return std::tolower(c); });
@@ -558,28 +740,64 @@ _TTF_Font *SharedFontState::getFont(std::string family,
 
 	FontSizeKey key(family, size);
 
+#ifndef MKXPZ_RETRO
 	TTF_Font *font;
+#endif // MKXPZ_RETRO
 	int &ppem = p->size_to_ppem[key];
 	int ppemMult;
 	
 	if (ppem != 0)
 	{
 		ppemMult = std::max<int>(ppem * hiresMult, 1);
-		auto &group = p->ppem_to_font[FontPPEMKey(family, ppemMult)];
+		const auto &group = p->ppem_to_font[FontPPEMKey(family, ppemMult)];
+
+#ifdef MKXPZ_RETRO
+		if (group.font)
+			return group.font;
+#else
 		if(outline_size == 0)
-			font = group[0];
+			font = group.first;
 		else
-			font = group[1];
-		
+			font = group.second;
 		if (font)
 		{
 			if(outline_size && TTF_GetFontOutline(font) != outline_size)
 				TTF_SetFontOutline(font, outline_size);
 			return font;
 		}
+#endif // MKXPZ_RETRO
 	}
 	
 	/* Not in pool; open new handle */
+#ifdef MKXPZ_RETRO
+	boost::optional<SharedFontStatePrivate::PoolEntry> entry;
+	if (family.empty())
+	{
+		entry = SharedFontStatePrivate::PoolEntry();
+		if (FT_New_Memory_Face(p->library, BNDL_F_D(BUNDLED_FONT), BNDL_F_L(BUNDLED_FONT), 0, &entry->font))
+		{
+			entry->font = nullptr;
+			p->size_to_ppem.remove(key);
+			exception = Exception(Exception::SDLError, "failed to load font");
+			return nullptr;
+		}
+	}
+	else
+	{
+		/* Use 'other' path as alternative in case
+		 * we have no 'regular' styled font asset */
+		const char *path = !req.regular.empty()
+		                 ? req.regular.c_str() : req.other.c_str();
+
+		entry = p->ftOpenFile(std::shared_ptr<struct FileSystem::File>(new struct FileSystem::File(*mkxp_retro::fs, path)));
+		if (!entry.has_value())
+		{
+			p->size_to_ppem.remove(key);
+			exception = Exception(Exception::SDLError, "failed to load font");
+			return nullptr;
+		}
+	}
+#else
 	SDL_RWops *ops;
 
 	if (family.empty())
@@ -602,20 +820,30 @@ _TTF_Font *SharedFontState::getFont(std::string family,
 			throw e;
 		}
 	}
+#endif // MKXPZ_RETRO
 
 	/* Try to compute the size the same way Windows does. */
+#ifndef MKXPZ_RETRO
 	font = TTF_OpenFontRW(ops, 1, 0);
-
 	if (font)
+#endif // MKXPZ_RETRO
 	{
+#ifdef MKXPZ_RETRO
+		FT_Face face = entry->font;
+#else
 		FT_Face face = TTF_FONT_TO_FT_FACE(font);
+#endif // MKXPZ_RETRO
 		/* This is should always be true, but we may as well check... */
 		if (FT_IS_SCALABLE( face ))
 		{
 			if (ppem == 0)
 			{
 				Font_Container c = { 0 };
+#ifdef MKXPZ_RETRO
+				c.font = face;
+#else
 				c.font = font;
+#endif // MKXPZ_RETRO
 				c.ppem = load_VDMX(&c, size);
 				if (!c.ppem)
 					c.ppem = calc_ppem_for_height( &c, size );
@@ -623,11 +851,16 @@ _TTF_Font *SharedFontState::getFont(std::string family,
 				ppem = std::max<int>(c.ppem * p->fontScale, 1);
 				ppemMult = std::max<int>(ppem * hiresMult, 1);
 			}
+#ifdef MKXPZ_RETRO
+			if (FT_Set_Char_Size(entry->font, 0, ppemMult * 64, 0, 0))
+				entry.reset();
+#else
 			if (TTF_SetFontSize(font, ppemMult))
 			{
 				TTF_CloseFont(font);
 				font = 0;
 			}
+#endif // MKXPZ_RETRO
 		} else {
 			/* Someone must have renamed a non-scalable font file to ttf or otf.
 			 * Wine has a scaling setup for these, but I'll just fall back to
@@ -637,39 +870,61 @@ _TTF_Font *SharedFontState::getFont(std::string family,
 				ppem = std::max<int>(size * p->fontScale, 5);
 				ppemMult = std::max<int>(ppem * hiresMult, 1);
 			}
+#ifdef MKXPZ_RETRO
+			if (FT_Set_Char_Size(entry->font, 0, ppemMult * 64, 0, 0))
+				entry.reset();
+#else
 			if (TTF_SetFontSize(font, ppemMult))
 			{
 				TTF_CloseFont(font);
 				font = 0;
 			}
+#endif // MKXPZ_RETRO
 		}
+#ifndef MKXPZ_RETRO
 		if (font)
 		{
 			/* RGSS doesn't use font hinting */
 			TTF_SetFontHinting(font, p->fontHinting);
 		}
+#endif // MKXPZ_RETRO
 	}
 	
+#ifdef MKXPZ_RETRO
+	if (!entry.has_value())
+	{
+		p->size_to_ppem.remove(key);
+		exception = Exception(Exception::SDLError, "failed to load font");
+		return nullptr;
+	}
+#else
 	if (!font)
 	{
 		p->size_to_ppem.remove(key);
-		throw Exception(Exception::SDLError, "%s", SDL_GetError());
+		exception = Exception(Exception::SDLError, "%s", SDL_GetError());
+		return nullptr;
 	}
-	
+#endif // MKXPZ_RETRO
+
 	auto &group = p->ppem_to_font[FontPPEMKey(family, std::max<int>(ppem * hiresMult, 1))];
+#ifdef MKXPZ_RETRO
+	group = std::move(*entry);
+	return group.font;
+#else
 	if(outline_size == 0)
 	{
-		group[0] = font;
+		group.first = font;
 	} else {
 		if(TTF_GetFontOutline(font) != outline_size)
 			TTF_SetFontOutline(font, outline_size);
-		group[1] = font;
+		group.second = font;
 	}
-	
+
 	if (!p->fontKerning)
 		TTF_SetFontKerning(font, 0);
 	
 	return font;
+#endif // MKXPZ_RETRO
 }
 
 bool SharedFontState::fontPresent(std::string family) const
@@ -686,12 +941,19 @@ bool SharedFontState::fontPresent(std::string family) const
 	return !set->empty();
 }
 
+#ifdef MKXPZ_RETRO
+FT_Library SharedFontState::getLibrary() const noexcept
+{
+	return p->library;
+}
+#else
 _TTF_Font *SharedFontState::openBundled(int size)
 {
 	SDL_RWops *ops = openBundledFont();
 
 	return TTF_OpenFontRW(ops, 1, size);
 }
+#endif // MKXPZ_RETRO
 
 void SharedFontState::setDefaultFontFamily(const std::string &family) {
     p->defaultFamily = family;
@@ -766,8 +1028,12 @@ struct FontPrivate
 	/* The actual font is opened as late as possible
 	 * (when it is queried by a Bitmap), prior it is
 	 * set to null */
+#ifdef MKXPZ_RETRO
+	FT_Face sdlFont;
+#else
 	TTF_Font *sdlFont;
 	TTF_Font *sdlFontOutline;
+#endif // MKXPZ_RETRO
     
     bool isSolid;
 
@@ -783,7 +1049,9 @@ struct FontPrivate
 	      colorTmp(*defaultColor),
 	      outColorTmp(*defaultOutColor),
 	      sdlFont(0),
+#ifndef MKXPZ_RETRO
 	      sdlFontOutline(0),
+#endif // MKXPZ_RETRO
           isSolid(false)
 	{}
 
@@ -800,7 +1068,9 @@ struct FontPrivate
 	      colorTmp(*other.color),
 	      outColorTmp(*other.outColor),
 	      sdlFont(other.sdlFont),
+#ifndef MKXPZ_RETRO
 	      sdlFontOutline(other.sdlFontOutline),
+#endif // MKXPZ_RETRO
           isSolid(false)
 	{}
 
@@ -809,12 +1079,16 @@ struct FontPrivate
 		if (size != o.size || name != o.name)
 		{
 			sdlFont = 0;
+#ifndef MKXPZ_RETRO
 			sdlFontOutline = 0;
+#endif // MKXPZ_RETRO
 		}
 		if (hiresMult == o.hiresMult)
 		{
 			sdlFont = sdlFont == 0 ? o.sdlFont : sdlFont;
+#ifndef MKXPZ_RETRO
 			sdlFontOutline = sdlFontOutline == 0 ? o.sdlFontOutline : sdlFontOutline;
+#endif // MKXPZ_RETRO
 		}
 
 		 name     =  o.name;
@@ -889,12 +1163,23 @@ void Font::setName(const std::vector<std::string> &names)
 	if (pickExistingFontName(names, p->name, shState->fontState()))
 	{
 		p->sdlFont = 0;
+#ifndef MKXPZ_RETRO
 		p->sdlFontOutline = 0;
+#endif // MKXPZ_RETRO
 	}
 	p->isSolid = strcmp(p->name.c_str(), "") && shState->config().fontIsSolid(p->name.c_str());
 }
 
-void Font::setSize(int value, bool checkIllegal)
+void Font::setSizeNoCheck(int value)
+{
+	if (p->size == value)
+		return;
+
+	p->size = value;
+	p->sdlFont = 0;
+}
+
+void Font::setSize(Exception &exception, int value, bool checkIllegal)
 {
 	if (p->size == value)
 		return;
@@ -902,13 +1187,16 @@ void Font::setSize(int value, bool checkIllegal)
 	/* Catch illegal values (according to RMXP) */
 	if (value < 6 || value > 96) {
 		if (checkIllegal) {
-			throw Exception(Exception::ArgumentError, "%s", "bad value for size");
+			exception = Exception(Exception::ArgumentError, "%s", "bad value for size");
+			return;
 		}
 	}
 
 	p->size = value;
 	p->sdlFont = 0;
+#ifndef MKXPZ_RETRO
 	p->sdlFontOutline = 0;
+#endif // MKXPZ_RETRO
 }
 
 void Font::setHiresMult(float value)
@@ -918,27 +1206,27 @@ void Font::setHiresMult(float value)
 
 	p->hiresMult = value;
 	p->sdlFont = 0;
+#ifndef MKXPZ_RETRO
 	p->sdlFontOutline = 0;
+#endif // MKXPZ_RETRO
 }
 
-static void guardDisposed() {}
+DEF_ATTR_NOEXCEPT_RD_SIMPLE(Font, Size, int, p->size)
 
-DEF_ATTR_RD_SIMPLE(Font, Size, int, p->size)
+DEF_ATTR_NOEXCEPT_SIMPLE(Font, Bold,     bool,    p->bold)
+DEF_ATTR_NOEXCEPT_SIMPLE(Font, Italic,   bool,    p->italic)
+DEF_ATTR_NOEXCEPT_SIMPLE(Font, Shadow,   bool,    p->shadow)
+DEF_ATTR_NOEXCEPT_SIMPLE(Font, Outline,  bool,    p->outline)
+DEF_ATTR_NOEXCEPT_SIMPLE(Font, Color,    Color&, *p->color)
+DEF_ATTR_NOEXCEPT_SIMPLE(Font, OutColor, Color&, *p->outColor)
 
-DEF_ATTR_SIMPLE(Font, Bold,     bool,    p->bold)
-DEF_ATTR_SIMPLE(Font, Italic,   bool,    p->italic)
-DEF_ATTR_SIMPLE(Font, Shadow,   bool,    p->shadow)
-DEF_ATTR_SIMPLE(Font, Outline,  bool,    p->outline)
-DEF_ATTR_SIMPLE(Font, Color,    Color&, *p->color)
-DEF_ATTR_SIMPLE(Font, OutColor, Color&, *p->outColor)
-
-DEF_ATTR_SIMPLE_STATIC(Font, DefaultSize,     int,     FontPrivate::defaultSize)
-DEF_ATTR_SIMPLE_STATIC(Font, DefaultBold,     bool,    FontPrivate::defaultBold)
-DEF_ATTR_SIMPLE_STATIC(Font, DefaultItalic,   bool,    FontPrivate::defaultItalic)
-DEF_ATTR_SIMPLE_STATIC(Font, DefaultShadow,   bool,    FontPrivate::defaultShadow)
-DEF_ATTR_SIMPLE_STATIC(Font, DefaultOutline,  bool,    FontPrivate::defaultOutline)
-DEF_ATTR_SIMPLE_STATIC(Font, DefaultColor,    Color&, *FontPrivate::defaultColor)
-DEF_ATTR_SIMPLE_STATIC(Font, DefaultOutColor, Color&, *FontPrivate::defaultOutColor)
+DEF_ATTR_NOEXCEPT_SIMPLE_STATIC(Font, DefaultSize,     int,     FontPrivate::defaultSize)
+DEF_ATTR_NOEXCEPT_SIMPLE_STATIC(Font, DefaultBold,     bool,    FontPrivate::defaultBold)
+DEF_ATTR_NOEXCEPT_SIMPLE_STATIC(Font, DefaultItalic,   bool,    FontPrivate::defaultItalic)
+DEF_ATTR_NOEXCEPT_SIMPLE_STATIC(Font, DefaultShadow,   bool,    FontPrivate::defaultShadow)
+DEF_ATTR_NOEXCEPT_SIMPLE_STATIC(Font, DefaultOutline,  bool,    FontPrivate::defaultOutline)
+DEF_ATTR_NOEXCEPT_SIMPLE_STATIC(Font, DefaultColor,    Color&, *FontPrivate::defaultColor)
+DEF_ATTR_NOEXCEPT_SIMPLE_STATIC(Font, DefaultOutColor, Color&, *FontPrivate::defaultOutColor)
 
 void Font::setDefaultName(const std::vector<std::string> &names,
                           const SharedFontState &sfs)
@@ -970,6 +1258,7 @@ void Font::initDefaultDynAttribs()
 void Font::initDefaults(const SharedFontState &sfs)
 {
 	std::vector<std::string> &names = FontPrivate::initialDefaultNames;
+	names.clear();
 
 	switch (rgssVer)
 	{
@@ -997,18 +1286,32 @@ void Font::initDefaults(const SharedFontState &sfs)
 	FontPrivate::defaultShadow  = (rgssVer == 2 ? true : false);
 }
 
-_TTF_Font *Font::getSdlFont(int outline_size)
+#ifdef MKXPZ_RETRO
+FT_Face
+#else
+_TTF_Font *
+#endif // MKXPZ_RETRO
+Font::getSdlFont(Exception &exception, int outline_size)
 {
+#ifdef MKXPZ_RETRO
+	FT_Face *font = &p->sdlFont;
+#else
 	_TTF_Font **font;
 	if (outline_size == 0)
 		font = &p->sdlFont;
 	else
 		font = &p->sdlFontOutline;
+#endif // MKXPZ_RETRO
 
 	if (!*font)
-		*font = shState->fontState().getFont(p->name.c_str(),
+	{
+		*font = shState->fontState().getFont(exception, p->name.c_str(),
 		                                     p->size, p->hiresMult, outline_size);
+		if (exception.is_error())
+			return nullptr;
+	}
 
+#ifndef MKXPZ_RETRO
 	if(outline_size && TTF_GetFontOutline(*font) != outline_size)
 		TTF_SetFontOutline(*font, outline_size);
 
@@ -1021,6 +1324,14 @@ _TTF_Font *Font::getSdlFont(int outline_size)
 		style |= TTF_STYLE_ITALIC;
 
 	TTF_SetFontStyle(*font, style);
+#endif // MKXPZ_RETRO
 
 	return *font;
 }
+
+#ifdef MKXPZ_RETRO
+#ifndef MKXPZ_SANDBOX_SERIAL_FONT_H
+#define MKXPZ_SANDBOX_SERIAL_FONT_H
+#include "sandbox-serial-font.h"
+#endif // MKXPZ_SANDBOX_SERIAL_FONT_H
+#endif // MKXPZ_RETRO

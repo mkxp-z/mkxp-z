@@ -1,0 +1,6 @@
+[wrap-git]
+url = https://github.com/icculus/theoraplay
+revision = 672cf6d7591009612123e90a192e6f3cd9f532c2
+depth = 1
+patch_directory = theoraplay
+diff_files = theoraplay-deps.patch, theoraplay-mkxp-polyfill.patch

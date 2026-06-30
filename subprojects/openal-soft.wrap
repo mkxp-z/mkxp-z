@@ -1,0 +1,5 @@
+[wrap-git]
+url = https://github.com/kcat/openal-soft
+revision = 1.24.3
+depth = 1
+diff_files = openal-soft-0001-no-exceptions.patch, openal-soft-android-log.patch, openal-soft-atomic.patch, openal-soft-buildtype.patch, openal-soft-c11.patch, openal-soft-constexpr.patch, openal-soft-emscripten-pthread.patch, openal-soft-emscripten-setschedparam.patch, openal-soft-emscripten-symbol-conflict.patch, openal-soft-event-thread.patch, openal-soft-filesystem.patch, openal-soft-flockfile.patch, openal-soft-gcc7.patch, openal-soft-int32.patch, openal-soft-mkxp-polyfill.patch, openal-soft-null.patch, openal-soft-pic.patch

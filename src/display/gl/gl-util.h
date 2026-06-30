@@ -26,6 +26,9 @@
 #include "etc-internal.h"
 #include "sharedstate.h"
 #include "config.h"
+#ifdef MKXPZ_RETRO
+#  include "core.h"
+#endif // MKXPZ_RETRO
 
 /* Struct wrapping GLuint for some light type safety */
 #define DEF_GL_ID \

@@ -1,0 +1,4066 @@
+# Allows OpenAL Soft to compile with C++ exceptions and RTTI disabled.
+
+--- a/al/auxeffectslot.cpp
++++ b/al/auxeffectslot.cpp
+@@ -145,11 +145,11 @@ void AddActiveEffectSlots(const al::span<ALeffectslot*> auxslots, ALCcontext *co
+     if(auxslots.empty()) return;
+     EffectSlotArray *curarray{context->mActiveAuxSlots.load(std::memory_order_acquire)};
+     if((curarray->size()>>1) > std::numeric_limits<size_t>::max()-auxslots.size())
+-        throw std::runtime_error{"Too many active effect slots"};
++        MKXPZ_THROW(std::runtime_error{"Too many active effect slots"});
+ 
+     size_t newcount{(curarray->size()>>1) + auxslots.size()};
+     if(newcount > std::numeric_limits<size_t>::max()>>1)
+-        throw std::runtime_error{"Too many active effect slots"};
++        MKXPZ_THROW(std::runtime_error{"Too many active effect slots"});
+ 
+     /* Insert the new effect slots into the head of the new array, followed by
+      * the existing ones.
+@@ -248,7 +248,7 @@ constexpr auto EffectSlotTypeFromEnum(ALenum type) noexcept -> EffectSlotType
+ 
+ [[nodiscard]]
+ auto EnsureEffectSlots(ALCcontext *context, size_t needed) noexcept -> bool
+-try {
++{MKXPZ_TRY {
+     size_t count{std::accumulate(context->mEffectSlotList.cbegin(),
+         context->mEffectSlotList.cend(), 0_uz,
+         [](size_t cur, const EffectSlotSubList &sublist) noexcept -> size_t
+@@ -267,9 +267,9 @@ try {
+     }
+     return true;
+ }
+-catch(...) {
++MKXPZ_CATCH(...) {
+     return false;
+-}
++}}
+ 
+ [[nodiscard]]
+ auto AllocEffectSlot(ALCcontext *context) -> ALeffectslot*
+@@ -325,7 +325,7 @@ inline void UpdateProps(ALeffectslot *slot, ALCcontext *context)
+ AL_API DECL_FUNC2(void, alGenAuxiliaryEffectSlots, ALsizei,n, ALuint*,effectslots)
+ FORCE_ALIGN void AL_APIENTRY alGenAuxiliaryEffectSlotsDirect(ALCcontext *context, ALsizei n,
+     ALuint *effectslots) noexcept
+-try {
++{MKXPZ_TRY {
+     if(n < 0)
+         context->throw_error(AL_INVALID_VALUE, "Generating {} effect slots", n);
+     if(n <= 0) UNLIKELY return;
+@@ -344,7 +344,7 @@ try {
+             (n==1) ? "" : "s");
+ 
+     std::vector<ALeffectslot*> slots;
+-    try {
++    MKXPZ_TRY {
+         if(eids.size() == 1)
+         {
+             /* Special handling for the easy and normal case. */
+@@ -360,25 +360,25 @@ try {
+                 [](ALeffectslot *slot) -> ALuint { return slot->id; });
+         }
+     }
+-    catch(std::exception& e) {
+-        ERR("Exception allocating effectslot {} of {}: {}", slots.size()+1, n, e.what());
++    MKXPZ_CATCH(std::exception& e) {
++
+         auto delete_effectslot = [context](ALeffectslot *slot) -> void
+         { FreeEffectSlot(context, slot); };
+         std::for_each(slots.begin(), slots.end(), delete_effectslot);
+-        context->throw_error(AL_INVALID_OPERATION, "Exception allocating {} effectslots: {}", n,
+-            e.what());
++        context->throw_error(AL_INVALID_OPERATION, "Exception allocating {} effectslots", n);
++
+     }
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC2(void, alDeleteAuxiliaryEffectSlots, ALsizei,n, const ALuint*,effectslots)
+ FORCE_ALIGN void AL_APIENTRY alDeleteAuxiliaryEffectSlotsDirect(ALCcontext *context, ALsizei n,
+     const ALuint *effectslots) noexcept
+-try {
++{MKXPZ_TRY {
+     if(n < 0) UNLIKELY
+         context->throw_error(AL_INVALID_VALUE, "Deleting {} effect slots", n);
+     if(n <= 0) UNLIKELY return;
+@@ -424,11 +424,11 @@ try {
+         std::for_each(eids.begin(), eids.end(), delete_effectslot);
+     }
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC1(ALboolean, alIsAuxiliaryEffectSlot, ALuint,effectslot)
+ FORCE_ALIGN ALboolean AL_APIENTRY alIsAuxiliaryEffectSlotDirect(ALCcontext *context,
+@@ -473,7 +473,7 @@ AL_API void AL_APIENTRY alAuxiliaryEffectSlotStopvSOFT(ALsizei, const ALuint*) n
+ AL_API DECL_FUNC3(void, alAuxiliaryEffectSloti, ALuint,effectslot, ALenum,param, ALint,value)
+ FORCE_ALIGN void AL_APIENTRY alAuxiliaryEffectSlotiDirect(ALCcontext *context, ALuint effectslot,
+     ALenum param, ALint value) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> proplock{context->mPropLock};
+     std::lock_guard<std::mutex> slotlock{context->mEffectSlotLock};
+ 
+@@ -643,16 +643,16 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid effect slot integer property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alAuxiliaryEffectSlotiv, ALuint,effectslot, ALenum,param, const ALint*,values)
+ FORCE_ALIGN void AL_APIENTRY alAuxiliaryEffectSlotivDirect(ALCcontext *context, ALuint effectslot,
+     ALenum param, const ALint *values) noexcept
+-try {
++{MKXPZ_TRY {
+     switch(param)
+     {
+     case AL_EFFECTSLOT_EFFECT:
+@@ -672,16 +672,16 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid effect slot integer-vector property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alAuxiliaryEffectSlotf, ALuint,effectslot, ALenum,param, ALfloat,value)
+ FORCE_ALIGN void AL_APIENTRY alAuxiliaryEffectSlotfDirect(ALCcontext *context, ALuint effectslot,
+     ALenum param, ALfloat value) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> proplock{context->mPropLock};
+     std::lock_guard<std::mutex> slotlock{context->mEffectSlotLock};
+ 
+@@ -705,16 +705,16 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid effect slot float property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alAuxiliaryEffectSlotfv, ALuint,effectslot, ALenum,param, const ALfloat*,values)
+ FORCE_ALIGN void AL_APIENTRY alAuxiliaryEffectSlotfvDirect(ALCcontext *context, ALuint effectslot,
+     ALenum param, const ALfloat *values) noexcept
+-try {
++{MKXPZ_TRY {
+     switch(param)
+     {
+     case AL_EFFECTSLOT_GAIN:
+@@ -730,17 +730,17 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid effect slot float-vector property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API DECL_FUNC3(void, alGetAuxiliaryEffectSloti, ALuint,effectslot, ALenum,param, ALint*,value)
+ FORCE_ALIGN void AL_APIENTRY alGetAuxiliaryEffectSlotiDirect(ALCcontext *context,
+     ALuint effectslot, ALenum param, ALint *value) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> slotlock{context->mEffectSlotLock};
+     ALeffectslot *slot{LookupEffectSlot(context, effectslot)};
+     if(!slot)
+@@ -778,16 +778,16 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid effect slot integer property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alGetAuxiliaryEffectSlotiv, ALuint,effectslot, ALenum,param, ALint*,values)
+ FORCE_ALIGN void AL_APIENTRY alGetAuxiliaryEffectSlotivDirect(ALCcontext *context,
+     ALuint effectslot, ALenum param, ALint *values) noexcept
+-try {
++{MKXPZ_TRY {
+     switch(param)
+     {
+     case AL_EFFECTSLOT_EFFECT:
+@@ -807,16 +807,16 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid effect slot integer-vector property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alGetAuxiliaryEffectSlotf, ALuint,effectslot, ALenum,param, ALfloat*,value)
+ FORCE_ALIGN void AL_APIENTRY alGetAuxiliaryEffectSlotfDirect(ALCcontext *context,
+     ALuint effectslot, ALenum param, ALfloat *value) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> slotlock{context->mEffectSlotLock};
+     ALeffectslot *slot{LookupEffectSlot(context, effectslot)};
+     if(!slot)
+@@ -830,16 +830,16 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid effect slot float property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alGetAuxiliaryEffectSlotfv, ALuint,effectslot, ALenum,param, ALfloat*,values)
+ FORCE_ALIGN void AL_APIENTRY alGetAuxiliaryEffectSlotfvDirect(ALCcontext *context,
+     ALuint effectslot, ALenum param, ALfloat *values) noexcept
+-try {
++{MKXPZ_TRY {
+     switch(param)
+     {
+     case AL_EFFECTSLOT_GAIN:
+@@ -855,17 +855,17 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid effect slot float-vector property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ ALeffectslot::ALeffectslot(ALCcontext *context)
+ {
+     EffectStateFactory *factory{getFactoryByType(EffectSlotType::None)};
+-    if(!factory) throw std::runtime_error{"Failed to get null effect factory"};
++    if(!factory) MKXPZ_THROW(std::runtime_error{"Failed to get null effect factory"});
+ 
+     al::intrusive_ptr<EffectState> state{factory->create()};
+     Effect.State = state;
+--- a/al/buffer.cpp
++++ b/al/buffer.cpp
+@@ -88,8 +88,8 @@ constexpr auto EnumFromAmbiLayout(AmbiLayout layout) -> ALenum
+     case AmbiLayout::FuMa: return AL_FUMA_SOFT;
+     case AmbiLayout::ACN: return AL_ACN_SOFT;
+     }
+-    throw std::runtime_error{fmt::format("Invalid AmbiLayout: {}",
+-        int{al::to_underlying(layout)})};
++    MKXPZ_THROW(std::runtime_error{fmt::format("Invalid AmbiLayout: {}",
++        int{al::to_underlying(layout)})});
+ }
+ 
+ constexpr auto AmbiScalingFromEnum(ALenum scale) noexcept -> std::optional<AmbiScaling>
+@@ -111,8 +111,8 @@ constexpr auto EnumFromAmbiScaling(AmbiScaling scale) -> ALenum
+     case AmbiScaling::N3D: return AL_N3D_SOFT;
+     case AmbiScaling::UHJ: break;
+     }
+-    throw std::runtime_error{fmt::format("Invalid AmbiScaling: {}",
+-        int{al::to_underlying(scale)})};
++    MKXPZ_THROW(std::runtime_error{fmt::format("Invalid AmbiScaling: {}",
++        int{al::to_underlying(scale)})});
+ }
+ 
+ #if ALSOFT_EAX
+@@ -134,8 +134,8 @@ constexpr auto EnumFromEaxStorage(EaxStorage storage) -> ALenum
+     case EaxStorage::Accessible: return AL_STORAGE_ACCESSIBLE;
+     case EaxStorage::Hardware: return AL_STORAGE_HARDWARE;
+     }
+-    throw std::runtime_error{fmt::format("Invalid EaxStorage: {}",
+-        int{al::to_underlying(storage)})};
++    MKXPZ_THROW(std::runtime_error{fmt::format("Invalid EaxStorage: {}",
++        int{al::to_underlying(storage)})});
+ }
+ 
+ 
+@@ -180,8 +180,8 @@ constexpr ALbitfieldSOFT INVALID_MAP_FLAGS{~unsigned(AL_MAP_READ_BIT_SOFT | AL_M
+ 
+ 
+ [[nodiscard]]
+-auto EnsureBuffers(al::Device *device, size_t needed) noexcept -> bool
+-try {
++auto EnsureBuffers(al::Device *device, size_t needed) noexcept -> bool {
++MKXPZ_TRY {
+     size_t count{std::accumulate(device->BufferList.cbegin(), device->BufferList.cend(), 0_uz,
+         [](size_t cur, const BufferSubList &sublist) noexcept -> size_t
+         { return cur + static_cast<ALuint>(al::popcount(sublist.FreeMask)); })};
+@@ -199,9 +199,9 @@ try {
+     }
+     return true;
+ }
+-catch(...) {
++MKXPZ_CATCH(...) {
+     return false;
+-}
++}}
+ 
+ [[nodiscard]]
+ auto AllocBuffer(al::Device *device) noexcept -> ALbuffer*
+@@ -677,8 +677,8 @@ auto DecomposeUserFormat(ALenum format) noexcept -> std::optional<DecompResult>
+ 
+ 
+ AL_API DECL_FUNC2(void, alGenBuffers, ALsizei,n, ALuint*,buffers)
+-FORCE_ALIGN void AL_APIENTRY alGenBuffersDirect(ALCcontext *context, ALsizei n, ALuint *buffers) noexcept
+-try {
++FORCE_ALIGN void AL_APIENTRY alGenBuffersDirect(ALCcontext *context, ALsizei n, ALuint *buffers) noexcept {
++MKXPZ_TRY {
+     if(n < 0)
+         context->throw_error(AL_INVALID_VALUE, "Generating {} buffers", n);
+     if(n <= 0) UNLIKELY return;
+@@ -693,16 +693,16 @@ try {
+ 
+     std::generate(bids.begin(), bids.end(), [device]{ return AllocBuffer(device)->id; });
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC2(void, alDeleteBuffers, ALsizei,n, const ALuint*,buffers)
+ FORCE_ALIGN void AL_APIENTRY alDeleteBuffersDirect(ALCcontext *context, ALsizei n,
+-    const ALuint *buffers) noexcept
+-try {
++    const ALuint *buffers) noexcept {
++MKXPZ_TRY {
+     if(n < 0)
+         context->throw_error(AL_INVALID_VALUE, "Deleting {} buffers", n);
+     if(n <= 0) UNLIKELY return;
+@@ -732,11 +732,11 @@ try {
+     };
+     std::for_each(bids.begin(), bids.end(), delete_buffer);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC1(ALboolean, alIsBuffer, ALuint,buffer)
+ FORCE_ALIGN ALboolean AL_APIENTRY alIsBufferDirect(ALCcontext *context, ALuint buffer) noexcept
+@@ -762,7 +762,7 @@ FORCE_ALIGN void AL_APIENTRY alBufferDataDirect(ALCcontext *context, ALuint buff
+ AL_API DECL_FUNCEXT6(void, alBufferStorage,SOFT, ALuint,buffer, ALenum,format, const ALvoid*,data, ALsizei,size, ALsizei,freq, ALbitfieldSOFT,flags)
+ FORCE_ALIGN void AL_APIENTRY alBufferStorageDirectSOFT(ALCcontext *context, ALuint buffer,
+     ALenum format, const ALvoid *data, ALsizei size, ALsizei freq, ALbitfieldSOFT flags) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto buflock = std::lock_guard{device->BufferLock};
+ 
+@@ -788,16 +788,16 @@ try {
+     LoadData(context, albuf, freq, static_cast<ALuint>(size), usrfmt->channels, usrfmt->type,
+         al::span{bdata, bdata ? static_cast<ALuint>(size) : 0u}, flags);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ FORCE_ALIGN DECL_FUNC5(void, alBufferDataStatic, ALuint,buffer, ALenum,format, ALvoid*,data, ALsizei,size, ALsizei,freq)
+ FORCE_ALIGN void AL_APIENTRY alBufferDataStaticDirect(ALCcontext *context, const ALuint buffer,
+     ALenum format, ALvoid *data, ALsizei size, ALsizei freq) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto buflock = std::lock_guard{device->BufferLock};
+ 
+@@ -816,16 +816,16 @@ try {
+     PrepareUserPtr(context, albuf, freq, usrfmt->channels, usrfmt->type,
+         static_cast<std::byte*>(data), static_cast<ALuint>(size));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNCEXT4(void*, alMapBuffer,SOFT, ALuint,buffer, ALsizei,offset, ALsizei,length, ALbitfieldSOFT,access)
+ FORCE_ALIGN void* AL_APIENTRY alMapBufferDirectSOFT(ALCcontext *context, ALuint buffer,
+     ALsizei offset, ALsizei length, ALbitfieldSOFT access) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto buflock = std::lock_guard{device->BufferLock};
+ 
+@@ -865,17 +865,17 @@ try {
+     albuf->MappedSize = length;
+     return retval;
+ }
+-catch(al::base_exception&) {
++MKXPZ_CATCH(al::base_exception&) {
+     return nullptr;
+ }
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(std::exception &e) {
++
+     return nullptr;
+-}
++}}
+ 
+ AL_API DECL_FUNCEXT1(void, alUnmapBuffer,SOFT, ALuint,buffer)
+ FORCE_ALIGN void AL_APIENTRY alUnmapBufferDirectSOFT(ALCcontext *context, ALuint buffer) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto buflock = std::lock_guard{device->BufferLock};
+ 
+@@ -889,16 +889,16 @@ try {
+     albuf->MappedOffset = 0;
+     albuf->MappedSize = 0;
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNCEXT3(void, alFlushMappedBuffer,SOFT, ALuint,buffer, ALsizei,offset, ALsizei,length)
+ FORCE_ALIGN void AL_APIENTRY alFlushMappedBufferDirectSOFT(ALCcontext *context, ALuint buffer,
+     ALsizei offset, ALsizei length) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto buflock = std::lock_guard{device->BufferLock};
+ 
+@@ -921,16 +921,16 @@ try {
+      */
+     std::atomic_thread_fence(std::memory_order_seq_cst);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNCEXT5(void, alBufferSubData,SOFT, ALuint,buffer, ALenum,format, const ALvoid*,data, ALsizei,offset, ALsizei,length)
+ FORCE_ALIGN void AL_APIENTRY alBufferSubDataDirectSOFT(ALCcontext *context, ALuint buffer,
+     ALenum format, const ALvoid *data, ALsizei offset, ALsizei length) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto buflock = std::lock_guard{device->BufferLock};
+ 
+@@ -978,17 +978,17 @@ try {
+ 
+     std::memcpy(albuf->mData.data()+offset, data, static_cast<ALuint>(length));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API DECL_FUNC3(void, alBufferf, ALuint,buffer, ALenum,param, ALfloat,value)
+ FORCE_ALIGN void AL_APIENTRY alBufferfDirect(ALCcontext *context, ALuint buffer, ALenum param,
+     ALfloat value [[maybe_unused]]) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto buflock = std::lock_guard{device->BufferLock};
+ 
+@@ -998,17 +998,17 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid buffer float property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC5(void, alBuffer3f, ALuint,buffer, ALenum,param, ALfloat,value1, ALfloat,value2, ALfloat,value3)
+ FORCE_ALIGN void AL_APIENTRY alBuffer3fDirect(ALCcontext *context, ALuint buffer, ALenum param,
+     ALfloat value1 [[maybe_unused]], ALfloat value2 [[maybe_unused]],
+     ALfloat value3 [[maybe_unused]]) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto buflock = std::lock_guard{device->BufferLock};
+ 
+@@ -1018,16 +1018,16 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid buffer 3-float property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alBufferfv, ALuint,buffer, ALenum,param, const ALfloat*,values)
+ FORCE_ALIGN void AL_APIENTRY alBufferfvDirect(ALCcontext *context, ALuint buffer, ALenum param,
+     const ALfloat *values) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto buflock = std::lock_guard{device->BufferLock};
+ 
+@@ -1039,17 +1039,17 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid buffer float-vector property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API DECL_FUNC3(void, alBufferi, ALuint,buffer, ALenum,param, ALint,value)
+ FORCE_ALIGN void AL_APIENTRY alBufferiDirect(ALCcontext *context, ALuint buffer, ALenum param,
+     ALint value) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto buflock = std::lock_guard{device->BufferLock};
+ 
+@@ -1113,16 +1113,16 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid buffer integer property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC5(void, alBuffer3i, ALuint,buffer, ALenum,param, ALint,value1, ALint,value2, ALint,value3)
+ FORCE_ALIGN void AL_APIENTRY alBuffer3iDirect(ALCcontext *context, ALuint buffer, ALenum param,
+     ALint value1 [[maybe_unused]], ALint value2 [[maybe_unused]], ALint value3 [[maybe_unused]]) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto buflock = std::lock_guard{device->BufferLock};
+ 
+@@ -1132,16 +1132,16 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid buffer 3-integer property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alBufferiv, ALuint,buffer, ALenum,param, const ALint*,values)
+ FORCE_ALIGN void AL_APIENTRY alBufferivDirect(ALCcontext *context, ALuint buffer, ALenum param,
+     const ALint *values) noexcept
+-try {
++{MKXPZ_TRY {
+     if(!values)
+         context->throw_error(AL_INVALID_VALUE, "NULL pointer");
+ 
+@@ -1182,17 +1182,17 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid buffer integer-vector property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API DECL_FUNC3(void, alGetBufferf, ALuint,buffer, ALenum,param, ALfloat*,value)
+ FORCE_ALIGN void AL_APIENTRY alGetBufferfDirect(ALCcontext *context, ALuint buffer, ALenum param,
+     ALfloat *value) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto buflock = std::lock_guard{device->BufferLock};
+ 
+@@ -1213,16 +1213,16 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid buffer float property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC5(void, alGetBuffer3f, ALuint,buffer, ALenum,param, ALfloat*,value1, ALfloat*,value2, ALfloat*,value3)
+ FORCE_ALIGN void AL_APIENTRY alGetBuffer3fDirect(ALCcontext *context, ALuint buffer, ALenum param,
+     ALfloat *value1, ALfloat *value2, ALfloat *value3) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto buflock = std::lock_guard{device->BufferLock};
+ 
+@@ -1234,16 +1234,16 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid buffer 3-float property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alGetBufferfv, ALuint,buffer, ALenum,param, ALfloat*,values)
+ FORCE_ALIGN void AL_APIENTRY alGetBufferfvDirect(ALCcontext *context, ALuint buffer, ALenum param,
+     ALfloat *values) noexcept
+-try {
++{MKXPZ_TRY {
+     switch(param)
+     {
+     case AL_SEC_LENGTH_SOFT:
+@@ -1262,17 +1262,17 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid buffer float-vector property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API DECL_FUNC3(void, alGetBufferi, ALuint,buffer, ALenum,param, ALint*,value)
+ FORCE_ALIGN void AL_APIENTRY alGetBufferiDirect(ALCcontext *context, ALuint buffer, ALenum param,
+     ALint *value) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto buflock = std::lock_guard{device->BufferLock};
+ 
+@@ -1334,16 +1334,16 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid buffer integer property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC5(void, alGetBuffer3i, ALuint,buffer, ALenum,param, ALint*,value1, ALint*,value2, ALint*,value3)
+ FORCE_ALIGN void AL_APIENTRY alGetBuffer3iDirect(ALCcontext *context, ALuint buffer, ALenum param,
+     ALint *value1, ALint *value2, ALint *value3) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto buflock = std::lock_guard{device->BufferLock};
+ 
+@@ -1355,16 +1355,16 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid buffer 3-integer property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alGetBufferiv, ALuint,buffer, ALenum,param, ALint*,values)
+ FORCE_ALIGN void AL_APIENTRY alGetBufferivDirect(ALCcontext *context, ALuint buffer, ALenum param,
+     ALint *values) noexcept
+-try {
++{MKXPZ_TRY {
+     switch(param)
+     {
+     case AL_FREQUENCY:
+@@ -1404,17 +1404,17 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid buffer integer-vector property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API DECL_FUNCEXT5(void, alBufferCallback,SOFT, ALuint,buffer, ALenum,format, ALsizei,freq, ALBUFFERCALLBACKTYPESOFT,callback, ALvoid*,userptr)
+ FORCE_ALIGN void AL_APIENTRY alBufferCallbackDirectSOFT(ALCcontext *context, ALuint buffer,
+     ALenum format, ALsizei freq, ALBUFFERCALLBACKTYPESOFT callback, ALvoid *userptr) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto buflock = std::lock_guard{device->BufferLock};
+ 
+@@ -1432,16 +1432,16 @@ try {
+ 
+     PrepareCallback(context, albuf, freq, usrfmt->channels, usrfmt->type, callback, userptr);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNCEXT3(void, alGetBufferPtr,SOFT, ALuint,buffer, ALenum,param, ALvoid**,value)
+ FORCE_ALIGN void AL_APIENTRY alGetBufferPtrDirectSOFT(ALCcontext *context, ALuint buffer,
+     ALenum param, ALvoid **value) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto buflock = std::lock_guard{device->BufferLock};
+ 
+@@ -1464,16 +1464,16 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid buffer pointer property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNCEXT5(void, alGetBuffer3Ptr,SOFT, ALuint,buffer, ALenum,param, ALvoid**,value1, ALvoid**,value2, ALvoid**,value3)
+ FORCE_ALIGN void AL_APIENTRY alGetBuffer3PtrDirectSOFT(ALCcontext *context, ALuint buffer,
+     ALenum param, ALvoid **value1, ALvoid **value2, ALvoid **value3) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto buflock = std::lock_guard{device->BufferLock};
+ 
+@@ -1485,16 +1485,16 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid buffer 3-pointer property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNCEXT3(void, alGetBufferPtrv,SOFT, ALuint,buffer, ALenum,param, ALvoid**,values)
+ FORCE_ALIGN void AL_APIENTRY alGetBufferPtrvDirectSOFT(ALCcontext *context, ALuint buffer,
+     ALenum param, ALvoid **values) noexcept
+-try {
++{MKXPZ_TRY {
+     switch(param)
+     {
+     case AL_BUFFER_CALLBACK_FUNCTION_SOFT:
+@@ -1514,11 +1514,11 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid buffer pointer-vector property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API void AL_APIENTRY alBufferSamplesSOFT(ALuint /*buffer*/, ALuint /*samplerate*/,
+@@ -1594,7 +1594,7 @@ BufferSubList::~BufferSubList()
+ FORCE_ALIGN DECL_FUNC3(ALboolean, EAXSetBufferMode, ALsizei,n, const ALuint*,buffers, ALint,value)
+ FORCE_ALIGN ALboolean AL_APIENTRY EAXSetBufferModeDirect(ALCcontext *context, ALsizei n,
+     const ALuint *buffers, ALint value) noexcept
+-try {
++{MKXPZ_TRY {
+     if(!eax_g_is_enabled)
+         context->throw_error(AL_INVALID_OPERATION, "EAX not enabled");
+ 
+@@ -1693,18 +1693,18 @@ try {
+ 
+     return AL_TRUE;
+ }
+-catch(al::base_exception&) {
++MKXPZ_CATCH(al::base_exception&) {
+     return AL_FALSE;
+ }
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(std::exception &e) {
++
+     return AL_FALSE;
+-}
++}}
+ 
+ FORCE_ALIGN DECL_FUNC2(ALenum, EAXGetBufferMode, ALuint,buffer, ALint*,pReserved)
+ FORCE_ALIGN ALenum AL_APIENTRY EAXGetBufferModeDirect(ALCcontext *context, ALuint buffer,
+     ALint *pReserved) noexcept
+-try {
++{MKXPZ_TRY {
+     if(!eax_g_is_enabled)
+         context->throw_error(AL_INVALID_OPERATION, "EAX not enabled.");
+ 
+@@ -1720,12 +1720,12 @@ try {
+ 
+     return EnumFromEaxStorage(al_buffer->eax_x_ram_mode);
+ }
+-catch(al::base_exception&) {
++MKXPZ_CATCH(al::base_exception&) {
+     return AL_NONE;
+ }
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(std::exception &e) {
++
+     return AL_NONE;
+-}
++}}
+ 
+ #endif // ALSOFT_EAX
+--- a/al/debug.cpp
++++ b/al/debug.cpp
+@@ -110,8 +110,8 @@ constexpr auto GetDebugSourceEnum(DebugSource source) -> ALenum
+     case DebugSource::Application: return AL_DEBUG_SOURCE_APPLICATION_EXT;
+     case DebugSource::Other: return AL_DEBUG_SOURCE_OTHER_EXT;
+     }
+-    throw std::runtime_error{fmt::format("Unexpected debug source value: {}",
+-        int{al::to_underlying(source)})};
++    MKXPZ_THROW(std::runtime_error{fmt::format("Unexpected debug source value: {}",
++        int{al::to_underlying(source)})});
+ }
+ 
+ constexpr auto GetDebugTypeEnum(DebugType type) -> ALenum
+@@ -128,8 +128,8 @@ constexpr auto GetDebugTypeEnum(DebugType type) -> ALenum
+     case DebugType::PopGroup: return AL_DEBUG_TYPE_POP_GROUP_EXT;
+     case DebugType::Other: return AL_DEBUG_TYPE_OTHER_EXT;
+     }
+-    throw std::runtime_error{fmt::format("Unexpected debug type value: {}",
+-        int{al::to_underlying(type)})};
++    MKXPZ_THROW(std::runtime_error{fmt::format("Unexpected debug type value: {}",
++        int{al::to_underlying(type)})});
+ }
+ 
+ constexpr auto GetDebugSeverityEnum(DebugSeverity severity) -> ALenum
+@@ -141,8 +141,8 @@ constexpr auto GetDebugSeverityEnum(DebugSeverity severity) -> ALenum
+     case DebugSeverity::Low: return AL_DEBUG_SEVERITY_LOW_EXT;
+     case DebugSeverity::Notification: return AL_DEBUG_SEVERITY_NOTIFICATION_EXT;
+     }
+-    throw std::runtime_error{fmt::format("Unexpected debug severity value: {}",
+-        int{al::to_underlying(severity)})};
++    MKXPZ_THROW(std::runtime_error{fmt::format("Unexpected debug severity value: {}",
++        int{al::to_underlying(severity)})});
+ }
+ 
+ 
+@@ -259,7 +259,7 @@ FORCE_ALIGN void AL_APIENTRY alDebugMessageCallbackDirectEXT(ALCcontext *context
+ FORCE_ALIGN DECL_FUNCEXT6(void, alDebugMessageInsert,EXT, ALenum,source, ALenum,type, ALuint,id, ALenum,severity, ALsizei,length, const ALchar*,message)
+ FORCE_ALIGN void AL_APIENTRY alDebugMessageInsertDirectEXT(ALCcontext *context, ALenum source,
+     ALenum type, ALuint id, ALenum severity, ALsizei length, const ALchar *message) noexcept
+-try {
++{MKXPZ_TRY {
+     if(!context->mContextFlags.test(ContextFlags::DebugBit))
+         return;
+ 
+@@ -290,17 +290,17 @@ try {
+ 
+     context->debugMessage(*dsource, *dtype, id, *dseverity, msgview);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ FORCE_ALIGN DECL_FUNCEXT6(void, alDebugMessageControl,EXT, ALenum,source, ALenum,type, ALenum,severity, ALsizei,count, const ALuint*,ids, ALboolean,enable)
+ FORCE_ALIGN void AL_APIENTRY alDebugMessageControlDirectEXT(ALCcontext *context, ALenum source,
+     ALenum type, ALenum severity, ALsizei count, const ALuint *ids, ALboolean enable) noexcept
+-try {
++{MKXPZ_TRY {
+     if(count > 0)
+     {
+         if(!ids)
+@@ -393,17 +393,17 @@ try {
+             [apply_type](const uint idx){ apply_type(1<<idx); });
+     }
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ FORCE_ALIGN DECL_FUNCEXT4(void, alPushDebugGroup,EXT, ALenum,source, ALuint,id, ALsizei,length, const ALchar*,message)
+ FORCE_ALIGN void AL_APIENTRY alPushDebugGroupDirectEXT(ALCcontext *context, ALenum source,
+     ALuint id, ALsizei length, const ALchar *message) noexcept
+-try {
++{MKXPZ_TRY {
+     if(length < 0)
+     {
+         size_t newlen{std::strlen(message)};
+@@ -439,15 +439,15 @@ try {
+         context->sendDebugMessage(debuglock, newback.mSource, DebugType::PushGroup, newback.mId,
+             DebugSeverity::Notification, newback.mMessage);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ FORCE_ALIGN DECL_FUNCEXT(void, alPopDebugGroup,EXT)
+ FORCE_ALIGN void AL_APIENTRY alPopDebugGroupDirectEXT(ALCcontext *context) noexcept
+-try {
++{MKXPZ_TRY {
+     std::unique_lock<std::mutex> debuglock{context->mDebugCbLock};
+     if(context->mDebugGroups.size() <= 1)
+         context->throw_error(AL_STACK_UNDERFLOW_EXT, "Attempting to pop the default debug group");
+@@ -462,18 +462,18 @@ try {
+         context->sendDebugMessage(debuglock, source, DebugType::PopGroup, id,
+             DebugSeverity::Notification, message);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ FORCE_ALIGN DECL_FUNCEXT8(ALuint, alGetDebugMessageLog,EXT, ALuint,count, ALsizei,logBufSize, ALenum*,sources, ALenum*,types, ALuint*,ids, ALenum*,severities, ALsizei*,lengths, ALchar*,logBuf)
+ FORCE_ALIGN ALuint AL_APIENTRY alGetDebugMessageLogDirectEXT(ALCcontext *context, ALuint count,
+     ALsizei logBufSize, ALenum *sources, ALenum *types, ALuint *ids, ALenum *severities,
+     ALsizei *lengths, ALchar *logBuf) noexcept
+-try {
++{MKXPZ_TRY {
+     if(logBuf && logBufSize < 0)
+         context->throw_error(AL_INVALID_VALUE, "Negative debug log buffer size");
+ 
+@@ -523,18 +523,18 @@ try {
+ 
+     return count;
+ }
+-catch(al::base_exception&) {
++MKXPZ_CATCH(al::base_exception&) {
+     return 0;
+ }
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(std::exception &e) {
++
+     return 0;
+-}
++}}
+ 
+ FORCE_ALIGN DECL_FUNCEXT4(void, alObjectLabel,EXT, ALenum,identifier, ALuint,name, ALsizei,length, const ALchar*,label)
+ FORCE_ALIGN void AL_APIENTRY alObjectLabelDirectEXT(ALCcontext *context, ALenum identifier,
+     ALuint name, ALsizei length, const ALchar *label) noexcept
+-try {
++{MKXPZ_TRY {
+     if(!label && length != 0)
+         context->throw_error(AL_INVALID_VALUE, "Null label pointer");
+ 
+@@ -556,16 +556,16 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid name identifier {:#04x}",
+         as_unsigned(identifier));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ FORCE_ALIGN DECL_FUNCEXT5(void, alGetObjectLabel,EXT, ALenum,identifier, ALuint,name, ALsizei,bufSize, ALsizei*,length, ALchar*,label)
+ FORCE_ALIGN void AL_APIENTRY alGetObjectLabelDirectEXT(ALCcontext *context, ALenum identifier,
+     ALuint name, ALsizei bufSize, ALsizei *length, ALchar *label) noexcept
+-try {
++{MKXPZ_TRY {
+     if(bufSize < 0)
+         context->throw_error(AL_INVALID_VALUE, "Negative label bufSize");
+ 
+@@ -627,8 +627,8 @@ try {
+         context->throw_error(AL_INVALID_ENUM, "Invalid name identifier {:#04x}",
+             as_unsigned(identifier));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+--- a/al/eax/call.cpp
++++ b/al/eax/call.cpp
+@@ -194,7 +194,7 @@ EaxCall::EaxCall(EaxCallType type, const GUID &property_set_guid, ALuint propert
+ 
+ [[noreturn]] void EaxCall::fail(const char* message)
+ {
+-    throw EaxCallException{message};
++    MKXPZ_THROW(EaxCallException{message});
+ }
+ 
+ [[noreturn]] void EaxCall::fail_too_small()
+@@ -211,7 +211,7 @@ EaxCall create_eax_call(
+     ALuint property_size)
+ {
+     if(!property_set_id)
+-        throw EaxCallException{"Null property set ID."};
++        MKXPZ_THROW(EaxCallException{"Null property set ID."});
+ 
+     return EaxCall{
+         type,
+--- a/al/eax/fx_slot_index.cpp
++++ b/al/eax/fx_slot_index.cpp
+@@ -4,7 +4,7 @@
+ 
+ #include "exception.h"
+ 
+-
++#include "../../src/mkxp-polyfill.h"
+ namespace
+ {
+ 
+@@ -67,5 +67,5 @@ void EaxFxSlotIndex::set(const GUID &guid)
+ [[noreturn]]
+ void EaxFxSlotIndex::fail(const char* message)
+ {
+-    throw EaxFxSlotIndexException{message};
++    MKXPZ_THROW(EaxFxSlotIndexException{message});
+ }
+--- a/al/eax/fx_slots.cpp
++++ b/al/eax/fx_slots.cpp
+@@ -59,7 +59,7 @@ ALeffectslot& EaxFxSlots::get(EaxFxSlotIndex index)
+ void EaxFxSlots::fail(
+     const char* message)
+ {
+-    throw EaxFxSlotsException{message};
++    MKXPZ_THROW(EaxFxSlotsException{message});
+ }
+ 
+ void EaxFxSlots::initialize_fx_slots(ALCcontext& al_context)
+--- a/al/eax/utils.cpp
++++ b/al/eax/utils.cpp
+@@ -13,13 +13,13 @@ void eax_log_exception(std::string_view message) noexcept
+     const auto exception_ptr = std::current_exception();
+     assert(exception_ptr);
+ 
+-    try {
++    MKXPZ_TRY {
+         std::rethrow_exception(exception_ptr);
+     }
+-    catch(const std::exception& ex) {
+-        ERR("{} {}", message, ex.what());
++    MKXPZ_CATCH(const std::exception& ex) {
++
+     }
+-    catch(...) {
+-        ERR("{} {}", message, "Generic exception.");
++    MKXPZ_CATCH(...) {
++
+     }
+ }
+--- a/al/eax/utils.h
++++ b/al/eax/utils.h
+@@ -5,7 +5,7 @@
+ 
+ #include "fmt/core.h"
+ #include "opthelpers.h"
+-
++#include "../../src/mkxp-polyfill.h"
+ 
+ struct EaxAlLowPassParam {
+     float gain;
+@@ -23,7 +23,7 @@ void eax_validate_range(std::string_view value_name, const TValue& value, const
+ 
+     const auto message = fmt::format("{} out of range (value: {}; min: {}; max: {}).", value_name,
+         value, min_value, max_value);
+-    throw TException{message.c_str()};
++    MKXPZ_THROW(TException{message.c_str()});
+ }
+ 
+ #endif // !EAX_UTILS_INCLUDED
+--- a/al/effect.cpp
++++ b/al/effect.cpp
+@@ -141,7 +141,7 @@ void InitEffectParams(ALeffect *effect, ALenum type) noexcept
+ 
+ [[nodiscard]]
+ auto EnsureEffects(al::Device *device, size_t needed) noexcept -> bool
+-try {
++{MKXPZ_TRY {
+     size_t count{std::accumulate(device->EffectList.cbegin(), device->EffectList.cend(), 0_uz,
+         [](size_t cur, const EffectSubList &sublist) noexcept -> size_t
+         { return cur + static_cast<ALuint>(al::popcount(sublist.FreeMask)); })};
+@@ -159,9 +159,9 @@ try {
+     }
+     return true;
+ }
+-catch(...) {
++MKXPZ_CATCH(...) {
+     return false;
+-}
++}}
+ 
+ [[nodiscard]]
+ auto AllocEffect(al::Device *device) noexcept -> ALeffect*
+@@ -215,7 +215,7 @@ auto LookupEffect(al::Device *device, ALuint id) noexcept -> ALeffect*
+ 
+ AL_API DECL_FUNC2(void, alGenEffects, ALsizei,n, ALuint*,effects)
+ FORCE_ALIGN void AL_APIENTRY alGenEffectsDirect(ALCcontext *context, ALsizei n, ALuint *effects) noexcept
+-try {
++{MKXPZ_TRY {
+     if(n < 0)
+         context->throw_error(AL_INVALID_VALUE, "Generating {} effects", n);
+     if(n <= 0) UNLIKELY return;
+@@ -230,16 +230,16 @@ try {
+ 
+     std::generate(eids.begin(), eids.end(), [device]{ return AllocEffect(device)->id; });
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC2(void, alDeleteEffects, ALsizei,n, const ALuint*,effects)
+ FORCE_ALIGN void AL_APIENTRY alDeleteEffectsDirect(ALCcontext *context, ALsizei n,
+     const ALuint *effects) noexcept
+-try {
++{MKXPZ_TRY {
+     if(n < 0)
+         context->throw_error(AL_INVALID_VALUE, "Deleting {} effects", n);
+     if(n <= 0) UNLIKELY return;
+@@ -264,11 +264,11 @@ try {
+     };
+     std::for_each(eids.begin(), eids.end(), delete_effect);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC1(ALboolean, alIsEffect, ALuint,effect)
+ FORCE_ALIGN ALboolean AL_APIENTRY alIsEffectDirect(ALCcontext *context, ALuint effect) noexcept
+@@ -283,7 +283,7 @@ FORCE_ALIGN ALboolean AL_APIENTRY alIsEffectDirect(ALCcontext *context, ALuint e
+ AL_API DECL_FUNC3(void, alEffecti, ALuint,effect, ALenum,param, ALint,value)
+ FORCE_ALIGN void AL_APIENTRY alEffectiDirect(ALCcontext *context, ALuint effect, ALenum param,
+     ALint value) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto effectlock = std::lock_guard{device->EffectLock};
+ 
+@@ -315,16 +315,16 @@ try {
+         return arg.SetParami(context, std::get<PropType>(aleffect->Props), param, value);
+     }, aleffect->PropsVariant);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alEffectiv, ALuint,effect, ALenum,param, const ALint*,values)
+ FORCE_ALIGN void AL_APIENTRY alEffectivDirect(ALCcontext *context, ALuint effect, ALenum param,
+     const ALint *values) noexcept
+-try {
++{MKXPZ_TRY {
+     switch(param)
+     {
+     case AL_EFFECT_TYPE:
+@@ -347,16 +347,16 @@ try {
+         return arg.SetParamiv(context, std::get<PropType>(aleffect->Props), param, values);
+     }, aleffect->PropsVariant);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alEffectf, ALuint,effect, ALenum,param, ALfloat,value)
+ FORCE_ALIGN void AL_APIENTRY alEffectfDirect(ALCcontext *context, ALuint effect, ALenum param,
+     ALfloat value) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto effectlock = std::lock_guard{device->EffectLock};
+ 
+@@ -372,16 +372,16 @@ try {
+         return arg.SetParamf(context, std::get<PropType>(aleffect->Props), param, value);
+     }, aleffect->PropsVariant);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alEffectfv, ALuint,effect, ALenum,param, const ALfloat*,values)
+ FORCE_ALIGN void AL_APIENTRY alEffectfvDirect(ALCcontext *context, ALuint effect, ALenum param,
+     const ALfloat *values) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto effectlock = std::lock_guard{device->EffectLock};
+ 
+@@ -397,16 +397,16 @@ try {
+         return arg.SetParamfv(context, std::get<PropType>(aleffect->Props), param, values);
+     }, aleffect->PropsVariant);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alGetEffecti, ALuint,effect, ALenum,param, ALint*,value)
+ FORCE_ALIGN void AL_APIENTRY alGetEffectiDirect(ALCcontext *context, ALuint effect, ALenum param,
+     ALint *value) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto effectlock = std::lock_guard{device->EffectLock};
+ 
+@@ -429,16 +429,16 @@ try {
+         return arg.GetParami(context, std::get<PropType>(aleffect->Props), param, value);
+     }, aleffect->PropsVariant);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alGetEffectiv, ALuint,effect, ALenum,param, ALint*,values)
+ FORCE_ALIGN void AL_APIENTRY alGetEffectivDirect(ALCcontext *context, ALuint effect, ALenum param,
+     ALint *values) noexcept
+-try {
++{MKXPZ_TRY {
+     switch(param)
+     {
+     case AL_EFFECT_TYPE:
+@@ -461,16 +461,16 @@ try {
+         return arg.GetParamiv(context, std::get<PropType>(aleffect->Props), param, values);
+     }, aleffect->PropsVariant);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alGetEffectf, ALuint,effect, ALenum,param, ALfloat*,value)
+ FORCE_ALIGN void AL_APIENTRY alGetEffectfDirect(ALCcontext *context, ALuint effect, ALenum param,
+     ALfloat *value) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto effectlock = std::lock_guard{device->EffectLock};
+ 
+@@ -486,16 +486,16 @@ try {
+         return arg.GetParamf(context, std::get<PropType>(aleffect->Props), param, value);
+     }, aleffect->PropsVariant);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alGetEffectfv, ALuint,effect, ALenum,param, ALfloat*,values)
+ FORCE_ALIGN void AL_APIENTRY alGetEffectfvDirect(ALCcontext *context, ALuint effect, ALenum param,
+     ALfloat *values) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto effectlock = std::lock_guard{device->EffectLock};
+ 
+@@ -511,11 +511,11 @@ try {
+         return arg.GetParamfv(context, std::get<PropType>(aleffect->Props), param, values);
+     }, aleffect->PropsVariant);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ void InitEffect(ALeffect *effect)
+--- a/al/effects/autowah.cpp
++++ b/al/effects/autowah.cpp
+@@ -165,7 +165,7 @@ struct AutowahCommitter::Exception : public EaxException
+ template<>
+ [[noreturn]] void AutowahCommitter::fail(const char *message)
+ {
+-    throw Exception{message};
++    MKXPZ_THROW(Exception{message});
+ }
+ 
+ bool EaxAutowahCommitter::commit(const EAXAUTOWAHPROPERTIES &props)
+--- a/al/effects/chorus.cpp
++++ b/al/effects/chorus.cpp
+@@ -44,8 +44,8 @@ constexpr ALenum EnumFromWaveform(ChorusWaveform type)
+     case ChorusWaveform::Sinusoid: return AL_CHORUS_WAVEFORM_SINUSOID;
+     case ChorusWaveform::Triangle: return AL_CHORUS_WAVEFORM_TRIANGLE;
+     }
+-    throw std::runtime_error{fmt::format("Invalid chorus waveform: {}",
+-        int{al::to_underlying(type)})};
++    MKXPZ_THROW(std::runtime_error{fmt::format("Invalid chorus waveform: {}",
++        int{al::to_underlying(type)})});
+ }
+ 
+ constexpr EffectProps genDefaultChorusProps() noexcept
+@@ -596,7 +596,7 @@ struct ChorusCommitter::Exception : public EaxException
+ template<>
+ [[noreturn]] void ChorusCommitter::fail(const char *message)
+ {
+-    throw Exception{message};
++    MKXPZ_THROW(Exception{message});
+ }
+ 
+ bool EaxChorusCommitter::commit(const EAXCHORUSPROPERTIES &props)
+@@ -633,7 +633,7 @@ struct FlangerCommitter::Exception : public EaxException
+ template<>
+ [[noreturn]] void FlangerCommitter::fail(const char *message)
+ {
+-    throw Exception{message};
++    MKXPZ_THROW(Exception{message});
+ }
+ 
+ bool EaxFlangerCommitter::commit(const EAXFLANGERPROPERTIES &props)
+--- a/al/effects/compressor.cpp
++++ b/al/effects/compressor.cpp
+@@ -102,7 +102,7 @@ struct CompressorCommitter::Exception : public EaxException
+ template<>
+ [[noreturn]] void CompressorCommitter::fail(const char *message)
+ {
+-    throw Exception{message};
++    MKXPZ_THROW(Exception{message});
+ }
+ 
+ bool EaxCompressorCommitter::commit(const EAXAGCCOMPRESSORPROPERTIES &props)
+--- a/al/effects/distortion.cpp
++++ b/al/effects/distortion.cpp
+@@ -183,7 +183,7 @@ struct DistortionCommitter::Exception : public EaxException {
+ template<>
+ [[noreturn]] void DistortionCommitter::fail(const char *message)
+ {
+-    throw Exception{message};
++    MKXPZ_THROW(Exception{message});
+ }
+ 
+ bool EaxDistortionCommitter::commit(const EAXDISTORTIONPROPERTIES &props)
+--- a/al/effects/echo.cpp
++++ b/al/effects/echo.cpp
+@@ -184,7 +184,7 @@ struct EchoCommitter::Exception : public EaxException {
+ template<>
+ [[noreturn]] void EchoCommitter::fail(const char *message)
+ {
+-    throw Exception{message};
++    MKXPZ_THROW(Exception{message});
+ }
+ 
+ bool EaxEchoCommitter::commit(const EAXECHOPROPERTIES &props)
+--- a/al/effects/equalizer.cpp
++++ b/al/effects/equalizer.cpp
+@@ -281,7 +281,7 @@ struct EqualizerCommitter::Exception : public EaxException {
+ template<>
+ [[noreturn]] void EqualizerCommitter::fail(const char *message)
+ {
+-    throw Exception{message};
++    MKXPZ_THROW(Exception{message});
+ }
+ 
+ bool EaxEqualizerCommitter::commit(const EAXEQUALIZERPROPERTIES &props)
+--- a/al/effects/fshifter.cpp
++++ b/al/effects/fshifter.cpp
+@@ -40,7 +40,7 @@ constexpr ALenum EnumFromDirection(FShifterDirection dir)
+     case FShifterDirection::Up: return AL_FREQUENCY_SHIFTER_DIRECTION_UP;
+     case FShifterDirection::Off: return AL_FREQUENCY_SHIFTER_DIRECTION_OFF;
+     }
+-    throw std::runtime_error{fmt::format("Invalid direction: {}", int{al::to_underlying(dir)})};
++    MKXPZ_THROW(std::runtime_error{fmt::format("Invalid direction: {}", int{al::to_underlying(dir)})});
+ }
+ 
+ constexpr EffectProps genDefaultProps() noexcept
+@@ -190,7 +190,7 @@ struct FrequencyShifterCommitter::Exception : public EaxException {
+ template<>
+ [[noreturn]] void FrequencyShifterCommitter::fail(const char *message)
+ {
+-    throw Exception{message};
++    MKXPZ_THROW(Exception{message});
+ }
+ 
+ bool EaxFrequencyShifterCommitter::commit(const EAXFREQUENCYSHIFTERPROPERTIES &props)
+--- a/al/effects/modulator.cpp
++++ b/al/effects/modulator.cpp
+@@ -40,8 +40,8 @@ constexpr ALenum EnumFromWaveform(ModulatorWaveform type)
+     case ModulatorWaveform::Sawtooth: return AL_RING_MODULATOR_SAWTOOTH;
+     case ModulatorWaveform::Square: return AL_RING_MODULATOR_SQUARE;
+     }
+-    throw std::runtime_error{fmt::format("Invalid modulator waveform: {}",
+-        int{al::to_underlying(type)})};
++    MKXPZ_THROW(std::runtime_error{fmt::format("Invalid modulator waveform: {}",
++        int{al::to_underlying(type)})});
+ }
+ 
+ constexpr EffectProps genDefaultProps() noexcept
+@@ -192,7 +192,7 @@ struct ModulatorCommitter::Exception : public EaxException {
+ template<>
+ [[noreturn]] void ModulatorCommitter::fail(const char *message)
+ {
+-    throw Exception{message};
++    MKXPZ_THROW(Exception{message});
+ }
+ 
+ bool EaxModulatorCommitter::commit(const EAXRINGMODULATORPROPERTIES &props)
+--- a/al/effects/null.cpp
++++ b/al/effects/null.cpp
+@@ -81,7 +81,7 @@ struct NullCommitter::Exception : public EaxException
+ template<>
+ [[noreturn]] void NullCommitter::fail(const char *message)
+ {
+-    throw Exception{message};
++    MKXPZ_THROW(Exception{message});
+ }
+ 
+ bool EaxNullCommitter::commit(const std::monostate &props)
+--- a/al/effects/pshifter.cpp
++++ b/al/effects/pshifter.cpp
+@@ -123,7 +123,7 @@ struct PitchShifterCommitter::Exception : public EaxException {
+ template<>
+ [[noreturn]] void PitchShifterCommitter::fail(const char *message)
+ {
+-    throw Exception{message};
++    MKXPZ_THROW(Exception{message});
+ }
+ 
+ bool EaxPitchShifterCommitter::commit(const EAXPITCHSHIFTERPROPERTIES &props)
+--- a/al/effects/reverb.cpp
++++ b/al/effects/reverb.cpp
+@@ -976,7 +976,7 @@ struct EaxReverbCommitter::Exception : public EaxReverbEffectException
+ 
+ [[noreturn]] void EaxReverbCommitter::fail(const char* message)
+ {
+-    throw Exception{message};
++    MKXPZ_THROW(Exception{message});
+ }
+ 
+ void EaxReverbCommitter::translate(const EAX_REVERBPROPERTIES& src, EAXREVERBPROPERTIES& dst) noexcept
+--- a/al/effects/vmorpher.cpp
++++ b/al/effects/vmorpher.cpp
+@@ -97,7 +97,7 @@ constexpr ALenum EnumFromPhenome(VMorpherPhenome phenome)
+     HANDLE_PHENOME(V);
+     HANDLE_PHENOME(Z);
+     }
+-    throw std::runtime_error{fmt::format("Invalid phenome: {}", int{al::to_underlying(phenome)})};
++    MKXPZ_THROW(std::runtime_error{fmt::format("Invalid phenome: {}", int{al::to_underlying(phenome)})});
+ #undef HANDLE_PHENOME
+ }
+ 
+@@ -119,8 +119,8 @@ constexpr ALenum EnumFromWaveform(VMorpherWaveform type)
+     case VMorpherWaveform::Triangle: return AL_VOCAL_MORPHER_WAVEFORM_TRIANGLE;
+     case VMorpherWaveform::Sawtooth: return AL_VOCAL_MORPHER_WAVEFORM_SAWTOOTH;
+     }
+-    throw std::runtime_error{fmt::format("Invalid vocal morpher waveform: {}",
+-        int{al::to_underlying(type)})};
++    MKXPZ_THROW(std::runtime_error{fmt::format("Invalid vocal morpher waveform: {}",
++        int{al::to_underlying(type)})});
+ }
+ 
+ constexpr EffectProps genDefaultProps() noexcept
+@@ -328,7 +328,7 @@ struct VocalMorpherCommitter::Exception : public EaxException {
+ template<>
+ [[noreturn]] void VocalMorpherCommitter::fail(const char *message)
+ {
+-    throw Exception{message};
++    MKXPZ_THROW(Exception{message});
+ }
+ 
+ bool EaxVocalMorpherCommitter::commit(const EAXVOCALMORPHERPROPERTIES &props)
+--- a/al/error.cpp
++++ b/al/error.cpp
+@@ -75,7 +75,7 @@ void ALCcontext::throw_error_impl(ALenum errorCode, const fmt::string_view fmt,
+     fmt::format_args args)
+ {
+     setErrorImpl(errorCode, fmt, std::move(args));
+-    throw al::base_exception{};
++    MKXPZ_THROW(al::base_exception{});
+ }
+ 
+ 
+@@ -94,12 +94,12 @@ AL_API auto AL_APIENTRY alGetError() noexcept -> ALenum
+             optstr = ConfigValueStr({}, "game_compat", optname);
+         if(optstr)
+         {
+-            try {
++            MKXPZ_TRY {
+                 auto idx = 0_uz;
+                 auto value = std::stoi(*optstr, &idx, 0);
+                 if(idx >= optstr->size() || std::isspace(optstr->at(idx)))
+                     return static_cast<ALenum>(value);
+-            } catch(...) {
++            } MKXPZ_CATCH(...) {
+             }
+             ERR("Invalid default error value: \"{}\"", *optstr);
+         }
+--- a/al/event.cpp
++++ b/al/event.cpp
+@@ -149,13 +149,13 @@ constexpr std::optional<AsyncEnableBits> GetEventType(ALenum etype) noexcept
+ 
+ void StartEventThrd(ALCcontext *ctx)
+ {
+-    try {
++    MKXPZ_TRY {
+         ctx->mEventThread = std::thread{EventThread, ctx};
+     }
+-    catch(std::exception& e) {
+-        ERR("Failed to start event thread: {}", e.what());
++    MKXPZ_CATCH(std::exception& e) {
++
+     }
+-    catch(...) {
++    MKXPZ_CATCH(...) {
+         ERR("Failed to start event thread! Expect problems.");
+     }
+ }
+@@ -182,7 +182,7 @@ void StopEventThrd(ALCcontext *ctx)
+ AL_API DECL_FUNCEXT3(void, alEventControl,SOFT, ALsizei,count, const ALenum*,types, ALboolean,enable)
+ FORCE_ALIGN void AL_APIENTRY alEventControlDirectSOFT(ALCcontext *context, ALsizei count,
+     const ALenum *types, ALboolean enable) noexcept
+-try {
++{MKXPZ_TRY {
+     if(count < 0)
+         context->throw_error(AL_INVALID_VALUE, "Controlling {} events", count);
+     if(count <= 0) UNLIKELY return;
+@@ -224,22 +224,22 @@ try {
+         std::lock_guard<std::mutex> eventlock{context->mEventCbLock};
+     }
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNCEXT2(void, alEventCallback,SOFT, ALEVENTPROCSOFT,callback, void*,userParam)
+ FORCE_ALIGN void AL_APIENTRY alEventCallbackDirectSOFT(ALCcontext *context,
+     ALEVENTPROCSOFT callback, void *userParam) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> eventlock{context->mEventCbLock};
+     context->mEventCb = callback;
+     context->mEventParam = userParam;
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+--- a/al/filter.cpp
++++ b/al/filter.cpp
+@@ -98,7 +98,7 @@ void InitFilterParams(ALfilter *filter, ALenum type)
+ 
+ [[nodiscard]]
+ auto EnsureFilters(al::Device *device, size_t needed) noexcept -> bool
+-try {
++{MKXPZ_TRY {
+     size_t count{std::accumulate(device->FilterList.cbegin(), device->FilterList.cend(), 0_uz,
+         [](size_t cur, const FilterSubList &sublist) noexcept -> size_t
+         { return cur + static_cast<ALuint>(al::popcount(sublist.FreeMask)); })};
+@@ -116,12 +116,11 @@ try {
+     }
+     return true;
+ }
+-catch(...) {
++MKXPZ_CATCH(...) {
+     return false;
+-}
++}}
+ 
+ 
+-[[nodiscard]]
+ auto AllocFilter(al::Device *device) noexcept -> ALfilter*
+ {
+     auto sublist = std::find_if(device->FilterList.begin(), device->FilterList.end(),
+@@ -361,7 +360,7 @@ void FilterTable<BandpassFilterTable>::getParamfv(ALCcontext *context, const ALf
+ 
+ AL_API DECL_FUNC2(void, alGenFilters, ALsizei,n, ALuint*,filters)
+ FORCE_ALIGN void AL_APIENTRY alGenFiltersDirect(ALCcontext *context, ALsizei n, ALuint *filters) noexcept
+-try {
++{MKXPZ_TRY {
+     if(n < 0)
+         context->throw_error(AL_INVALID_VALUE, "Generating {} filters", n);
+     if(n <= 0) UNLIKELY return;
+@@ -376,16 +375,16 @@ try {
+ 
+     std::generate(fids.begin(), fids.end(), [device]{ return AllocFilter(device)->id; });
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC2(void, alDeleteFilters, ALsizei,n, const ALuint*,filters)
+ FORCE_ALIGN void AL_APIENTRY alDeleteFiltersDirect(ALCcontext *context, ALsizei n,
+     const ALuint *filters) noexcept
+-try {
++{MKXPZ_TRY {
+     if(n < 0)
+         context->throw_error(AL_INVALID_VALUE, "Deleting {} filters", n);
+     if(n <= 0) UNLIKELY return;
+@@ -410,11 +409,11 @@ try {
+     };
+     std::for_each(fids.begin(), fids.end(), delete_filter);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC1(ALboolean, alIsFilter, ALuint,filter)
+ FORCE_ALIGN ALboolean AL_APIENTRY alIsFilterDirect(ALCcontext *context, ALuint filter) noexcept
+@@ -430,7 +429,7 @@ FORCE_ALIGN ALboolean AL_APIENTRY alIsFilterDirect(ALCcontext *context, ALuint f
+ AL_API DECL_FUNC3(void, alFilteri, ALuint,filter, ALenum,param, ALint,value)
+ FORCE_ALIGN void AL_APIENTRY alFilteriDirect(ALCcontext *context, ALuint filter, ALenum param,
+     ALint value) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto filterlock = std::lock_guard{device->FilterLock};
+ 
+@@ -453,16 +452,16 @@ try {
+     std::visit([context,alfilt,param,value](auto&& thunk)
+         { thunk.setParami(context, alfilt, param, value); }, alfilt->mTypeVariant);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alFilteriv, ALuint,filter, ALenum,param, const ALint*,values)
+ FORCE_ALIGN void AL_APIENTRY alFilterivDirect(ALCcontext *context, ALuint filter, ALenum param,
+     const ALint *values) noexcept
+-try {
++{MKXPZ_TRY {
+     switch(param)
+     {
+     case AL_FILTER_TYPE:
+@@ -481,16 +480,16 @@ try {
+     std::visit([context,alfilt,param,values](auto&& thunk)
+         { thunk.setParamiv(context, alfilt, param, values); }, alfilt->mTypeVariant);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alFilterf, ALuint,filter, ALenum,param, ALfloat,value)
+ FORCE_ALIGN void AL_APIENTRY alFilterfDirect(ALCcontext *context, ALuint filter, ALenum param,
+     ALfloat value) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto filterlock = std::lock_guard{device->FilterLock};
+ 
+@@ -502,16 +501,16 @@ try {
+     std::visit([context,alfilt,param,value](auto&& thunk)
+         { thunk.setParamf(context, alfilt, param, value); }, alfilt->mTypeVariant);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alFilterfv, ALuint,filter, ALenum,param, const ALfloat*,values)
+ FORCE_ALIGN void AL_APIENTRY alFilterfvDirect(ALCcontext *context, ALuint filter, ALenum param,
+     const ALfloat *values) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto filterlock = std::lock_guard{device->FilterLock};
+ 
+@@ -523,16 +522,16 @@ try {
+     std::visit([context,alfilt,param,values](auto&& thunk)
+         { thunk.setParamfv(context, alfilt, param, values); }, alfilt->mTypeVariant);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alGetFilteri, ALuint,filter, ALenum,param, ALint*,value)
+ FORCE_ALIGN void AL_APIENTRY alGetFilteriDirect(ALCcontext *context, ALuint filter, ALenum param,
+     ALint *value) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto filterlock = std::lock_guard{device->FilterLock};
+ 
+@@ -549,16 +548,16 @@ try {
+     std::visit([context,alfilt,param,value](auto&& thunk)
+         { thunk.getParami(context, alfilt, param, value); }, alfilt->mTypeVariant);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alGetFilteriv, ALuint,filter, ALenum,param, ALint*,values)
+ FORCE_ALIGN void AL_APIENTRY alGetFilterivDirect(ALCcontext *context, ALuint filter, ALenum param,
+     ALint *values) noexcept
+-try {
++{MKXPZ_TRY {
+     switch(param)
+     {
+     case AL_FILTER_TYPE:
+@@ -577,16 +576,16 @@ try {
+     std::visit([context,alfilt,param,values](auto&& thunk)
+         { thunk.getParamiv(context, alfilt, param, values); }, alfilt->mTypeVariant);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alGetFilterf, ALuint,filter, ALenum,param, ALfloat*,value)
+ FORCE_ALIGN void AL_APIENTRY alGetFilterfDirect(ALCcontext *context, ALuint filter, ALenum param,
+     ALfloat *value) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto filterlock = std::lock_guard{device->FilterLock};
+ 
+@@ -598,16 +597,16 @@ try {
+     std::visit([context,alfilt,param,value](auto&& thunk)
+         { thunk.getParamf(context, alfilt, param, value); }, alfilt->mTypeVariant);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alGetFilterfv, ALuint,filter, ALenum,param, ALfloat*,values)
+ FORCE_ALIGN void AL_APIENTRY alGetFilterfvDirect(ALCcontext *context, ALuint filter, ALenum param,
+     ALfloat *values) noexcept
+-try {
++{MKXPZ_TRY {
+     auto *device = context->mALDevice.get();
+     auto filterlock = std::lock_guard{device->FilterLock};
+ 
+@@ -619,11 +618,11 @@ try {
+     std::visit([context,alfilt,param,values](auto&& thunk)
+         { thunk.getParamfv(context, alfilt, param, values); }, alfilt->mTypeVariant);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ void ALfilter::SetName(ALCcontext *context, ALuint id, std::string_view name)
+--- a/al/listener.cpp
++++ b/al/listener.cpp
+@@ -72,7 +72,7 @@ inline void CommitAndUpdateProps(ALCcontext *context)
+ 
+ AL_API DECL_FUNC2(void, alListenerf, ALenum,param, ALfloat,value)
+ FORCE_ALIGN void AL_APIENTRY alListenerfDirect(ALCcontext *context, ALenum param, ALfloat value) noexcept
+-try {
++{MKXPZ_TRY {
+     ALlistener &listener = context->mListener;
+     std::lock_guard<std::mutex> proplock{context->mPropLock};
+     switch(param)
+@@ -95,16 +95,16 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid listener float property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC4(void, alListener3f, ALenum,param, ALfloat,value1, ALfloat,value2, ALfloat,value3)
+ FORCE_ALIGN void AL_APIENTRY alListener3fDirect(ALCcontext *context, ALenum param, ALfloat value1,
+     ALfloat value2, ALfloat value3) noexcept
+-try {
++{MKXPZ_TRY {
+     ALlistener &listener = context->mListener;
+     std::lock_guard<std::mutex> proplock{context->mPropLock};
+     switch(param)
+@@ -130,16 +130,16 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid listener 3-float property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC2(void, alListenerfv, ALenum,param, const ALfloat*,values)
+ FORCE_ALIGN void AL_APIENTRY alListenerfvDirect(ALCcontext *context, ALenum param,
+     const ALfloat *values) noexcept
+-try {
++{MKXPZ_TRY {
+     if(!values)
+         context->throw_error(AL_INVALID_VALUE, "NULL pointer");
+ 
+@@ -174,30 +174,30 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid listener float-vector property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API DECL_FUNC2(void, alListeneri, ALenum,param, ALint,value)
+ FORCE_ALIGN void AL_APIENTRY alListeneriDirect(ALCcontext *context, ALenum param, ALint /*value*/) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> proplock{context->mPropLock};
+     context->throw_error(AL_INVALID_ENUM, "Invalid listener integer property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC4(void, alListener3i, ALenum,param, ALint,value1, ALint,value2, ALint,value3)
+ FORCE_ALIGN void AL_APIENTRY alListener3iDirect(ALCcontext *context, ALenum param, ALint value1,
+     ALint value2, ALint value3) noexcept
+-try {
++{MKXPZ_TRY {
+     switch(param)
+     {
+     case AL_POSITION:
+@@ -211,16 +211,16 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid listener 3-integer property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC2(void, alListeneriv, ALenum,param, const ALint*,values)
+ FORCE_ALIGN void AL_APIENTRY alListenerivDirect(ALCcontext *context, ALenum param,
+     const ALint *values) noexcept
+-try {
++{MKXPZ_TRY {
+     if(!values)
+         context->throw_error(AL_INVALID_VALUE, "NULL pointer");
+ 
+@@ -248,17 +248,17 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid listener integer-vector property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API DECL_FUNC2(void, alGetListenerf, ALenum,param, ALfloat*,value)
+ FORCE_ALIGN void AL_APIENTRY alGetListenerfDirect(ALCcontext *context, ALenum param,
+     ALfloat *value) noexcept
+-try {
++{MKXPZ_TRY {
+     if(!value)
+         context->throw_error(AL_INVALID_VALUE, "NULL pointer");
+ 
+@@ -272,16 +272,16 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid listener float property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC4(void, alGetListener3f, ALenum,param, ALfloat*,value1, ALfloat*,value2, ALfloat*,value3)
+ FORCE_ALIGN void AL_APIENTRY alGetListener3fDirect(ALCcontext *context, ALenum param,
+     ALfloat *value1, ALfloat *value2, ALfloat *value3) noexcept
+-try {
++{MKXPZ_TRY {
+     if(!value1 || !value2 || !value3)
+         context->throw_error(AL_INVALID_VALUE, "NULL pointer");
+ 
+@@ -304,16 +304,16 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid listener 3-float property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC2(void, alGetListenerfv, ALenum,param, ALfloat*,values)
+ FORCE_ALIGN void AL_APIENTRY alGetListenerfvDirect(ALCcontext *context, ALenum param,
+     ALfloat *values) noexcept
+-try {
++{MKXPZ_TRY {
+     if(!values)
+         context->throw_error(AL_INVALID_VALUE, "NULL pointer");
+ 
+@@ -345,31 +345,31 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid listener float-vector property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API DECL_FUNC2(void, alGetListeneri, ALenum,param, ALint*,value)
+ FORCE_ALIGN void AL_APIENTRY alGetListeneriDirect(ALCcontext *context, ALenum param, ALint *value) noexcept
+-try {
++{MKXPZ_TRY {
+     if(!value) context->throw_error(AL_INVALID_VALUE, "NULL pointer");
+     std::lock_guard<std::mutex> proplock{context->mPropLock};
+     context->throw_error(AL_INVALID_ENUM, "Invalid listener integer property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC4(void, alGetListener3i, ALenum,param, ALint*,value1, ALint*,value2, ALint*,value3)
+ FORCE_ALIGN void AL_APIENTRY alGetListener3iDirect(ALCcontext *context, ALenum param,
+     ALint *value1, ALint *value2, ALint *value3) noexcept
+-try {
++{MKXPZ_TRY {
+     if(!value1 || !value2 || !value3)
+         context->throw_error(AL_INVALID_VALUE, "NULL pointer");
+ 
+@@ -392,16 +392,16 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid listener 3-integer property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC2(void, alGetListeneriv, ALenum,param, ALint*,values)
+ FORCE_ALIGN void AL_APIENTRY alGetListenerivDirect(ALCcontext *context, ALenum param,
+     ALint *values) noexcept
+-try {
++{MKXPZ_TRY {
+     if(!values)
+         context->throw_error(AL_INVALID_VALUE, "NULL pointer");
+ 
+@@ -430,8 +430,8 @@ try {
+     context->throw_error(AL_INVALID_ENUM, "Invalid listener integer-vector property {:#04x}",
+         as_unsigned(param));
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+--- a/al/source.cpp
++++ b/al/source.cpp
+@@ -722,7 +722,7 @@ bool EnsureSources(ALCcontext *context, size_t needed)
+         [](size_t cur, const SourceSubList &sublist) noexcept -> size_t
+         { return cur + static_cast<ALuint>(al::popcount(sublist.FreeMask)); })};
+ 
+-    try {
++    MKXPZ_TRY {
+         while(needed > count)
+         {
+             if(context->mSourceList.size() >= 1<<25) UNLIKELY
+@@ -735,7 +735,7 @@ bool EnsureSources(ALCcontext *context, size_t needed)
+             count += std::tuple_size_v<SubListAllocator::value_type>;
+         }
+     }
+-    catch(...) {
++    MKXPZ_CATCH(...) {
+         return false;
+     }
+     return true;
+@@ -860,7 +860,7 @@ ALenum EnumFromStereoMode(SourceStereo mode)
+     case SourceStereo::Normal: return AL_NORMAL_SOFT;
+     case SourceStereo::Enhanced: return AL_SUPER_STEREO_SOFT;
+     }
+-    throw std::runtime_error{"Invalid SourceStereo: "+std::to_string(int(mode))};
++    MKXPZ_THROW(std::runtime_error{"Invalid SourceStereo: "+std::to_string(int(mode))});
+ }
+ 
+ auto SpatializeModeFromEnum = [](auto mode) noexcept -> std::optional<SpatializeMode>
+@@ -881,8 +881,8 @@ ALenum EnumFromSpatializeMode(SpatializeMode mode)
+     case SpatializeMode::On: return AL_TRUE;
+     case SpatializeMode::Auto: return AL_AUTO_SOFT;
+     }
+-    throw std::runtime_error{fmt::format("Invalid SpatializeMode: {}",
+-        int{al::to_underlying(mode)})};
++    MKXPZ_THROW(std::runtime_error{fmt::format("Invalid SpatializeMode: {}",
++        int{al::to_underlying(mode)})});
+ }
+ 
+ auto DirectModeFromEnum = [](auto mode) noexcept -> std::optional<DirectMode>
+@@ -903,7 +903,7 @@ ALenum EnumFromDirectMode(DirectMode mode)
+     case DirectMode::DropMismatch: return AL_DROP_UNMATCHED_SOFT;
+     case DirectMode::RemixMismatch: return AL_REMIX_UNMATCHED_SOFT;
+     }
+-    throw std::runtime_error{fmt::format("Invalid DirectMode: {}", int{al::to_underlying(mode)})};
++    MKXPZ_THROW(std::runtime_error{fmt::format("Invalid DirectMode: {}", int{al::to_underlying(mode)})});
+ }
+ 
+ auto DistanceModelFromALenum = [](auto model) noexcept -> std::optional<DistanceModel>
+@@ -932,8 +932,8 @@ ALenum ALenumFromDistanceModel(DistanceModel model)
+     case DistanceModel::Exponent: return AL_EXPONENT_DISTANCE;
+     case DistanceModel::ExponentClamped: return AL_EXPONENT_DISTANCE_CLAMPED;
+     }
+-    throw std::runtime_error{fmt::format("Unexpected distance model: {}",
+-        int{al::to_underlying(model)})};
++    MKXPZ_THROW(std::runtime_error{fmt::format("Unexpected distance model: {}",
++        int{al::to_underlying(model)})});
+ }
+ 
+ enum SourceProp : ALenum {
+@@ -2662,7 +2662,7 @@ void StartSources(ALCcontext *const context, const al::span<ALsource*> srchandle
+ 
+ AL_API DECL_FUNC2(void, alGenSources, ALsizei,n, ALuint*,sources)
+ FORCE_ALIGN void AL_APIENTRY alGenSourcesDirect(ALCcontext *context, ALsizei n, ALuint *sources) noexcept
+-try {
++{MKXPZ_TRY {
+     if(n < 0)
+         context->throw_error(AL_INVALID_VALUE, "Generating {} sources", n);
+     if(n <= 0) UNLIKELY return;
+@@ -2681,16 +2681,16 @@ try {
+ 
+     std::generate(sids.begin(), sids.end(), [context]{ return AllocSource(context)->id; });
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC2(void, alDeleteSources, ALsizei,n, const ALuint*,sources)
+ FORCE_ALIGN void AL_APIENTRY alDeleteSourcesDirect(ALCcontext *context, ALsizei n,
+     const ALuint *sources) noexcept
+-try {
++{MKXPZ_TRY {
+     if(n < 0)
+         context->throw_error(AL_INVALID_VALUE, "Deleting {} sources", n);
+     if(n <= 0) UNLIKELY return;
+@@ -2714,11 +2714,11 @@ try {
+     };
+     std::for_each(sids.begin(), sids.end(), delete_source);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC1(ALboolean, alIsSource, ALuint,source)
+ FORCE_ALIGN ALboolean AL_APIENTRY alIsSourceDirect(ALCcontext *context, ALuint source) noexcept
+@@ -2733,7 +2733,7 @@ FORCE_ALIGN ALboolean AL_APIENTRY alIsSourceDirect(ALCcontext *context, ALuint s
+ AL_API DECL_FUNC3(void, alSourcef, ALuint,source, ALenum,param, ALfloat,value)
+ FORCE_ALIGN void AL_APIENTRY alSourcefDirect(ALCcontext *context, ALuint source, ALenum param,
+     ALfloat value) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> proplock{context->mPropLock};
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+@@ -2742,16 +2742,16 @@ try {
+ 
+     SetProperty<float>(Source, context, static_cast<SourceProp>(param), {&value, 1u});
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC5(void, alSource3f, ALuint,source, ALenum,param, ALfloat,value1, ALfloat,value2, ALfloat,value3)
+ FORCE_ALIGN void AL_APIENTRY alSource3fDirect(ALCcontext *context, ALuint source, ALenum param,
+     ALfloat value1, ALfloat value2, ALfloat value3) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> proplock{context->mPropLock};
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+@@ -2761,16 +2761,16 @@ try {
+     const std::array fvals{value1, value2, value3};
+     SetProperty<float>(Source, context, static_cast<SourceProp>(param), fvals);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alSourcefv, ALuint,source, ALenum,param, const ALfloat*,values)
+ FORCE_ALIGN void AL_APIENTRY alSourcefvDirect(ALCcontext *context, ALuint source, ALenum param,
+     const ALfloat *values) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> proplock{context->mPropLock};
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+@@ -2782,17 +2782,17 @@ try {
+     const ALuint count{FloatValsByProp(param)};
+     SetProperty(Source, context, static_cast<SourceProp>(param), al::span{values, count});
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API DECL_FUNCEXT3(void, alSourced,SOFT, ALuint,source, ALenum,param, ALdouble,value)
+ FORCE_ALIGN void AL_APIENTRY alSourcedDirectSOFT(ALCcontext *context, ALuint source, ALenum param,
+     ALdouble value) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> proplock{context->mPropLock};
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+@@ -2801,16 +2801,16 @@ try {
+ 
+     SetProperty<double>(Source, context, static_cast<SourceProp>(param), {&value, 1});
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNCEXT5(void, alSource3d,SOFT, ALuint,source, ALenum,param, ALdouble,value1, ALdouble,value2, ALdouble,value3)
+ FORCE_ALIGN void AL_APIENTRY alSource3dDirectSOFT(ALCcontext *context, ALuint source, ALenum param,
+     ALdouble value1, ALdouble value2, ALdouble value3) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> proplock{context->mPropLock};
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+@@ -2820,16 +2820,16 @@ try {
+     const std::array dvals{value1, value2, value3};
+     SetProperty<double>(Source, context, static_cast<SourceProp>(param), dvals);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNCEXT3(void, alSourcedv,SOFT, ALuint,source, ALenum,param, const ALdouble*,values)
+ FORCE_ALIGN void AL_APIENTRY alSourcedvDirectSOFT(ALCcontext *context, ALuint source, ALenum param,
+     const ALdouble *values) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> proplock{context->mPropLock};
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+@@ -2841,17 +2841,17 @@ try {
+     const ALuint count{DoubleValsByProp(param)};
+     SetProperty(Source, context, static_cast<SourceProp>(param), al::span{values, count});
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API DECL_FUNC3(void, alSourcei, ALuint,source, ALenum,param, ALint,value)
+ FORCE_ALIGN void AL_APIENTRY alSourceiDirect(ALCcontext *context, ALuint source, ALenum param,
+     ALint value) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> proplock{context->mPropLock};
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+@@ -2860,16 +2860,16 @@ try {
+ 
+     SetProperty<int>(Source, context, static_cast<SourceProp>(param), {&value, 1u});
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC5(void, alSource3i, ALuint,buffer, ALenum,param, ALint,value1, ALint,value2, ALint,value3)
+ FORCE_ALIGN void AL_APIENTRY alSource3iDirect(ALCcontext *context, ALuint source, ALenum param,
+     ALint value1, ALint value2, ALint value3) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> proplock{context->mPropLock};
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+@@ -2879,16 +2879,16 @@ try {
+     const std::array ivals{value1, value2, value3};
+     SetProperty<int>(Source, context, static_cast<SourceProp>(param), ivals);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alSourceiv, ALuint,source, ALenum,param, const ALint*,values)
+ FORCE_ALIGN void AL_APIENTRY alSourceivDirect(ALCcontext *context, ALuint source, ALenum param,
+     const ALint *values) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> proplock{context->mPropLock};
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+@@ -2900,17 +2900,17 @@ try {
+     const ALuint count{IntValsByProp(param)};
+     SetProperty(Source, context, static_cast<SourceProp>(param), al::span{values, count});
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API DECL_FUNCEXT3(void, alSourcei64,SOFT, ALuint,source, ALenum,param, ALint64SOFT,value)
+ FORCE_ALIGN void AL_APIENTRY alSourcei64DirectSOFT(ALCcontext *context, ALuint source,
+     ALenum param, ALint64SOFT value) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> proplock{context->mPropLock};
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+@@ -2919,16 +2919,16 @@ try {
+ 
+     SetProperty<int64_t>(Source, context, static_cast<SourceProp>(param), {&value, 1u});
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNCEXT5(void, alSource3i64,SOFT, ALuint,source, ALenum,param, ALint64SOFT,value1, ALint64SOFT,value2, ALint64SOFT,value3)
+ FORCE_ALIGN void AL_APIENTRY alSource3i64DirectSOFT(ALCcontext *context, ALuint source,
+     ALenum param, ALint64SOFT value1, ALint64SOFT value2, ALint64SOFT value3) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> proplock{context->mPropLock};
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+@@ -2938,16 +2938,16 @@ try {
+     const std::array i64vals{value1, value2, value3};
+     SetProperty<int64_t>(Source, context, static_cast<SourceProp>(param), i64vals);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNCEXT3(void, alSourcei64v,SOFT, ALuint,source, ALenum,param, const ALint64SOFT*,values)
+ FORCE_ALIGN void AL_APIENTRY alSourcei64vDirectSOFT(ALCcontext *context, ALuint source,
+     ALenum param, const ALint64SOFT *values) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> proplock{context->mPropLock};
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+@@ -2959,17 +2959,17 @@ try {
+     const ALuint count{Int64ValsByProp(param)};
+     SetProperty(Source, context, static_cast<SourceProp>(param), al::span{values, count});
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API DECL_FUNC3(void, alGetSourcef, ALuint,source, ALenum,param, ALfloat*,value)
+ FORCE_ALIGN void AL_APIENTRY alGetSourcefDirect(ALCcontext *context, ALuint source, ALenum param,
+     ALfloat *value) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+     if(!Source)
+@@ -2979,16 +2979,16 @@ try {
+ 
+     GetProperty(Source, context, static_cast<SourceProp>(param), al::span{value, 1u});
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC5(void, alGetSource3f, ALuint,source, ALenum,param, ALfloat*,value1, ALfloat*,value2, ALfloat*,value3)
+ FORCE_ALIGN void AL_APIENTRY alGetSource3fDirect(ALCcontext *context, ALuint source, ALenum param,
+     ALfloat *value1, ALfloat *value2, ALfloat *value3) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+     if(!Source)
+@@ -3002,16 +3002,16 @@ try {
+     *value2 = fvals[1];
+     *value3 = fvals[2];
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alGetSourcefv, ALuint,source, ALenum,param, ALfloat*,values)
+ FORCE_ALIGN void AL_APIENTRY alGetSourcefvDirect(ALCcontext *context, ALuint source, ALenum param,
+     ALfloat *values) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+     if(!Source)
+@@ -3022,17 +3022,17 @@ try {
+     const ALuint count{FloatValsByProp(param)};
+     GetProperty(Source, context, static_cast<SourceProp>(param), al::span{values, count});
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API DECL_FUNCEXT3(void, alGetSourced,SOFT, ALuint,source, ALenum,param, ALdouble*,value)
+ FORCE_ALIGN void AL_APIENTRY alGetSourcedDirectSOFT(ALCcontext *context, ALuint source,
+     ALenum param, ALdouble *value) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+     if(!Source)
+@@ -3042,16 +3042,16 @@ try {
+ 
+     GetProperty(Source, context, static_cast<SourceProp>(param), al::span{value, 1u});
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNCEXT5(void, alGetSource3d,SOFT, ALuint,source, ALenum,param, ALdouble*,value1, ALdouble*,value2, ALdouble*,value3)
+ FORCE_ALIGN void AL_APIENTRY alGetSource3dDirectSOFT(ALCcontext *context, ALuint source,
+     ALenum param, ALdouble *value1, ALdouble *value2, ALdouble *value3) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+     if(!Source)
+@@ -3065,16 +3065,16 @@ try {
+     *value2 = dvals[1];
+     *value3 = dvals[2];
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNCEXT3(void, alGetSourcedv,SOFT, ALuint,source, ALenum,param, ALdouble*,values)
+ FORCE_ALIGN void AL_APIENTRY alGetSourcedvDirectSOFT(ALCcontext *context, ALuint source,
+     ALenum param, ALdouble *values) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+     if(!Source)
+@@ -3085,17 +3085,17 @@ try {
+     const ALuint count{DoubleValsByProp(param)};
+     GetProperty(Source, context, static_cast<SourceProp>(param), al::span{values, count});
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API DECL_FUNC3(void, alGetSourcei, ALuint,source, ALenum,param, ALint*,value)
+ FORCE_ALIGN void AL_APIENTRY alGetSourceiDirect(ALCcontext *context, ALuint source, ALenum param,
+     ALint *value) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+     if(!Source)
+@@ -3105,16 +3105,16 @@ try {
+ 
+     GetProperty(Source, context, static_cast<SourceProp>(param), al::span{value, 1u});
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC5(void, alGetSource3i, ALuint,source, ALenum,param, ALint*,value1, ALint*,value2, ALint*,value3)
+ FORCE_ALIGN void AL_APIENTRY alGetSource3iDirect(ALCcontext *context, ALuint source, ALenum param,
+     ALint *value1, ALint *value2, ALint *value3) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+     if(!Source)
+@@ -3128,16 +3128,16 @@ try {
+     *value2 = ivals[1];
+     *value3 = ivals[2];
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alGetSourceiv, ALuint,source, ALenum,param, ALint*,values)
+ FORCE_ALIGN void AL_APIENTRY alGetSourceivDirect(ALCcontext *context, ALuint source, ALenum param,
+     ALint *values) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+     if(!Source)
+@@ -3148,16 +3148,16 @@ try {
+     const ALuint count{IntValsByProp(param)};
+     GetProperty(Source, context, static_cast<SourceProp>(param), al::span{values, count});
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API DECL_FUNCEXT3(void, alGetSourcei64,SOFT, ALuint,source, ALenum,param, ALint64SOFT*,value)
+ FORCE_ALIGN void AL_APIENTRY alGetSourcei64DirectSOFT(ALCcontext *context, ALuint source, ALenum param, ALint64SOFT *value) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+     if(!Source)
+@@ -3167,16 +3167,16 @@ try {
+ 
+     GetProperty(Source, context, static_cast<SourceProp>(param), al::span{value, 1u});
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNCEXT5(void, alGetSource3i64,SOFT, ALuint,source, ALenum,param, ALint64SOFT*,value1, ALint64SOFT*,value2, ALint64SOFT*,value3)
+ FORCE_ALIGN void AL_APIENTRY alGetSource3i64DirectSOFT(ALCcontext *context, ALuint source,
+     ALenum param, ALint64SOFT *value1, ALint64SOFT *value2, ALint64SOFT *value3) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+     if(!Source)
+@@ -3190,16 +3190,16 @@ try {
+     *value2 = i64vals[1];
+     *value3 = i64vals[2];
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNCEXT3(void, alGetSourcei64v,SOFT, ALuint,source, ALenum,param, ALint64SOFT*,values)
+ FORCE_ALIGN void AL_APIENTRY alGetSourcei64vDirectSOFT(ALCcontext *context, ALuint source,
+     ALenum param, ALint64SOFT *values) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+     if(!Source)
+@@ -3210,16 +3210,16 @@ try {
+     const ALuint count{Int64ValsByProp(param)};
+     GetProperty(Source, context, static_cast<SourceProp>(param), al::span{values, count});
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API DECL_FUNC1(void, alSourcePlay, ALuint,source)
+ FORCE_ALIGN void AL_APIENTRY alSourcePlayDirect(ALCcontext *context, ALuint source) noexcept
+-try {
++{MKXPZ_TRY {
+     std::lock_guard<std::mutex> sourcelock{context->mSourceLock};
+     ALsource *Source{LookupSource(context, source)};
+     if(!Source)
+@@ -3227,16 +3227,16 @@ try {
+ 
+     StartSources(context, {&Source, 1});
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ FORCE_ALIGN DECL_FUNCEXT2(void, alSourcePlayAtTime,SOFT, ALuint,source, ALint64SOFT,start_time)
+ FORCE_ALIGN void AL_APIENTRY alSourcePlayAtTimeDirectSOFT(ALCcontext *context, ALuint source,
+     ALint64SOFT start_time) noexcept
+-try {
++{MKXPZ_TRY {
+     if(start_time < 0)
+         context->throw_error(AL_INVALID_VALUE, "Invalid time point {}", start_time);
+ 
+@@ -3247,16 +3247,16 @@ try {
+ 
+     StartSources(context, {&Source, 1}, nanoseconds{start_time});
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC2(void, alSourcePlayv, ALsizei,n, const ALuint*,sources)
+ FORCE_ALIGN void AL_APIENTRY alSourcePlayvDirect(ALCcontext *context, ALsizei n,
+     const ALuint *sources) noexcept
+-try {
++{MKXPZ_TRY {
+     if(n < 0)
+         context->throw_error(AL_INVALID_VALUE, "Playing {} sources", n);
+     if(n <= 0) UNLIKELY return;
+@@ -3281,16 +3281,16 @@ try {
+ 
+     StartSources(context, srchandles);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ FORCE_ALIGN DECL_FUNCEXT3(void, alSourcePlayAtTimev,SOFT, ALsizei,n, const ALuint*,sources, ALint64SOFT,start_time)
+ FORCE_ALIGN void AL_APIENTRY alSourcePlayAtTimevDirectSOFT(ALCcontext *context, ALsizei n,
+     const ALuint *sources, ALint64SOFT start_time) noexcept
+-try {
++{MKXPZ_TRY {
+     if(n < 0)
+         context->throw_error(AL_INVALID_VALUE, "Playing {} sources", n);
+     if(n <= 0) UNLIKELY return;
+@@ -3318,11 +3318,11 @@ try {
+ 
+     StartSources(context, srchandles, nanoseconds{start_time});
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API DECL_FUNC1(void, alSourcePause, ALuint,source)
+@@ -3332,7 +3332,7 @@ FORCE_ALIGN void AL_APIENTRY alSourcePauseDirect(ALCcontext *context, ALuint sou
+ AL_API DECL_FUNC2(void, alSourcePausev, ALsizei,n, const ALuint*,sources)
+ FORCE_ALIGN void AL_APIENTRY alSourcePausevDirect(ALCcontext *context, ALsizei n,
+     const ALuint *sources) noexcept
+-try {
++{MKXPZ_TRY {
+     if(n < 0)
+         context->throw_error(AL_INVALID_VALUE, "Pausing {} sources", n);
+     if(n <= 0) UNLIKELY return;
+@@ -3393,11 +3393,11 @@ try {
+         }
+     }
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API DECL_FUNC1(void, alSourceStop, ALuint,source)
+@@ -3407,7 +3407,7 @@ FORCE_ALIGN void AL_APIENTRY alSourceStopDirect(ALCcontext *context, ALuint sour
+ AL_API DECL_FUNC2(void, alSourceStopv, ALsizei,n, const ALuint*,sources)
+ FORCE_ALIGN void AL_APIENTRY alSourceStopvDirect(ALCcontext *context, ALsizei n,
+     const ALuint *sources) noexcept
+-try {
++{MKXPZ_TRY {
+     if(n < 0)
+         context->throw_error(AL_INVALID_VALUE, "Stopping {} sources", n);
+     if(n <= 0) UNLIKELY return;
+@@ -3455,11 +3455,11 @@ try {
+     if(tail) LIKELY
+         SendVoiceChanges(context, tail);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API DECL_FUNC1(void, alSourceRewind, ALuint,source)
+@@ -3469,7 +3469,7 @@ FORCE_ALIGN void AL_APIENTRY alSourceRewindDirect(ALCcontext *context, ALuint so
+ AL_API DECL_FUNC2(void, alSourceRewindv, ALsizei,n, const ALuint*,sources)
+ FORCE_ALIGN void AL_APIENTRY alSourceRewindvDirect(ALCcontext *context, ALsizei n,
+     const ALuint *sources) noexcept
+-try {
++{MKXPZ_TRY {
+     if(n < 0)
+         context->throw_error(AL_INVALID_VALUE, "Rewinding {} sources", n);
+     if(n <= 0) UNLIKELY return;
+@@ -3519,17 +3519,17 @@ try {
+     if(tail) LIKELY
+         SendVoiceChanges(context, tail);
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API DECL_FUNC3(void, alSourceQueueBuffers, ALuint,source, ALsizei,nb, const ALuint*,buffers)
+ FORCE_ALIGN void AL_APIENTRY alSourceQueueBuffersDirect(ALCcontext *context, ALuint src,
+     ALsizei nb, const ALuint *buffers) noexcept
+-try {
++{MKXPZ_TRY {
+     if(nb < 0)
+         context->throw_error(AL_INVALID_VALUE, "Queueing {} buffers", nb);
+     if(nb <= 0) UNLIKELY return;
+@@ -3555,7 +3555,7 @@ try {
+     std::unique_lock<std::mutex> buflock{device->BufferLock};
+     const auto bids = al::span{buffers, static_cast<ALuint>(nb)};
+     const size_t NewListStart{source->mQueue.size()};
+-    try {
++    MKXPZ_TRY {
+         ALbufferQueueItem *BufferList{nullptr};
+         auto append_buffer = [context,source,device,&BufferFmt,&BufferList](const ALuint bid)
+         {
+@@ -3620,7 +3620,7 @@ try {
+         };
+         std::for_each(bids.cbegin(), bids.cend(), append_buffer);
+     }
+-    catch(...) {
++    MKXPZ_CATCH(...) {
+         /* A buffer failed (invalid ID or format), or there was some other
+          * unexpected error, so unlock and release each buffer we had.
+          */
+@@ -3631,7 +3631,7 @@ try {
+                 DecrementRef(buf->ref);
+         }
+         source->mQueue.resize(NewListStart);
+-        throw;
++        MKXPZ_RETHROW;
+     }
+     /* All buffers good. */
+     buflock.unlock();
+@@ -3645,16 +3645,16 @@ try {
+         (iter-1)->mNext.store(al::to_address(iter), std::memory_order_release);
+     }
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ AL_API DECL_FUNC3(void, alSourceUnqueueBuffers, ALuint,source, ALsizei,nb, ALuint*,buffers)
+ FORCE_ALIGN void AL_APIENTRY alSourceUnqueueBuffersDirect(ALCcontext *context, ALuint src,
+     ALsizei nb, ALuint *buffers) noexcept
+-try {
++{MKXPZ_TRY {
+     if(nb < 0)
+         context->throw_error(AL_INVALID_VALUE, "Unqueueing {} buffers", nb);
+     if(nb <= 0) UNLIKELY return;
+@@ -3701,11 +3701,11 @@ try {
+         return bid;
+     });
+ }
+-catch(al::base_exception&) {
+-}
+-catch(std::exception &e) {
+-    ERR("Caught exception: {}", e.what());
++MKXPZ_CATCH(al::base_exception&) {
+ }
++MKXPZ_CATCH(std::exception &e) {
++
++}}
+ 
+ 
+ AL_API void AL_APIENTRY alSourceQueueBufferLayersSOFT(ALuint, ALsizei, const ALuint*) noexcept
+--- a/al/state.cpp
++++ b/al/state.cpp
+@@ -118,7 +118,7 @@ const ALchar *GetResamplerName(const Resampler rtype)
+     }
+ #undef HANDLE_RESAMPLER
+     /* Should never get here. */
+-    throw std::runtime_error{"Unexpected resampler index"};
++    MKXPZ_THROW(std::runtime_error{"Unexpected resampler index"});
+ }
+ 
+ constexpr auto DistanceModelFromALenum(ALenum model) noexcept -> std::optional<DistanceModel>
+@@ -147,7 +147,7 @@ constexpr auto ALenumFromDistanceModel(DistanceModel model) -> ALenum
+     case DistanceModel::Exponent: return AL_EXPONENT_DISTANCE;
+     case DistanceModel::ExponentClamped: return AL_EXPONENT_DISTANCE_CLAMPED;
+     }
+-    throw std::runtime_error{"Unexpected distance model "+std::to_string(static_cast<int>(model))};
++    MKXPZ_THROW(std::runtime_error{"Unexpected distance model "+std::to_string(static_cast<int>(model))});
+ }
+ 
+ enum PropertyValue : ALenum {
+--- a/alc/alc.cpp
++++ b/alc/alc.cpp
+@@ -901,7 +901,7 @@ ALCenum EnumFromDevFmt(DevFmtType type)
+     case DevFmtUInt: return ALC_UNSIGNED_INT_SOFT;
+     case DevFmtFloat: return ALC_FLOAT_SOFT;
+     }
+-    throw std::runtime_error{fmt::format("Invalid DevFmtType: {}", int{al::to_underlying(type)})};
++    MKXPZ_THROW(std::runtime_error{fmt::format("Invalid DevFmtType: {}", int{al::to_underlying(type)})});
+ }
+ 
+ std::optional<DevFmtChannels> DevFmtChannelsFromEnum(ALCenum channels)
+@@ -935,8 +935,8 @@ ALCenum EnumFromDevFmt(DevFmtChannels channels)
+     case DevFmtX7144:
+     case DevFmtX3D71: break;
+     }
+-    throw std::runtime_error{fmt::format("Invalid DevFmtChannels: {}",
+-        int{al::to_underlying(channels)})};
++    MKXPZ_THROW(std::runtime_error{fmt::format("Invalid DevFmtChannels: {}",
++        int{al::to_underlying(channels)})});
+ }
+ 
+ std::optional<DevAmbiLayout> DevAmbiLayoutFromEnum(ALCenum layout)
+@@ -956,8 +956,8 @@ ALCenum EnumFromDevAmbi(DevAmbiLayout layout)
+     case DevAmbiLayout::FuMa: return ALC_FUMA_SOFT;
+     case DevAmbiLayout::ACN: return ALC_ACN_SOFT;
+     }
+-    throw std::runtime_error{fmt::format("Invalid DevAmbiLayout: {}",
+-        int{al::to_underlying(layout)})};
++    MKXPZ_THROW(std::runtime_error{fmt::format("Invalid DevAmbiLayout: {}",
++        int{al::to_underlying(layout)})});
+ }
+ 
+ std::optional<DevAmbiScaling> DevAmbiScalingFromEnum(ALCenum scaling)
+@@ -979,8 +979,8 @@ ALCenum EnumFromDevAmbi(DevAmbiScaling scaling)
+     case DevAmbiScaling::SN3D: return ALC_SN3D_SOFT;
+     case DevAmbiScaling::N3D: return ALC_N3D_SOFT;
+     }
+-    throw std::runtime_error{fmt::format("Invalid DevAmbiScaling: {}",
+-        int{al::to_underlying(scaling)})};
++    MKXPZ_THROW(std::runtime_error{fmt::format("Invalid DevAmbiScaling: {}",
++        int{al::to_underlying(scaling)})});
+ }
+ 
+ 
+@@ -1536,14 +1536,14 @@ auto UpdateDeviceParams(al::Device *device, const al::span<const int> attrList)
+     const uint oldFreq{device->mSampleRate};
+     const DevFmtChannels oldChans{device->FmtChans};
+     const DevFmtType oldType{device->FmtType};
+-    try {
++    MKXPZ_TRY {
+         auto backend = device->Backend.get();
+         if(!backend->reset())
+-            throw al::backend_exception{al::backend_error::DeviceError, "Device reset failure"};
++            MKXPZ_THROW(al::backend_exception{al::backend_error::DeviceError, "Device reset failure"});
+     }
+-    catch(std::exception &e) {
+-        ERR("Device error: {}", e.what());
+-        device->handleDisconnect("{}", e.what());
++    MKXPZ_CATCH(std::exception &e) {
++
++        device->handleDisconnect("");
+         return ALC_INVALID_DEVICE;
+     }
+ 
+@@ -1728,7 +1728,7 @@ auto UpdateDeviceParams(al::Device *device, const al::span<const int> attrList)
+     FPUCtl mixer_mode{};
+     auto reset_context = [device](ContextBase *ctxbase)
+     {
+-        auto *context = dynamic_cast<ALCcontext*>(ctxbase);
++        auto *context = static_cast<ALCcontext*>(ctxbase);
+         assert(context != nullptr);
+         if(!context) return;
+ 
+@@ -1882,14 +1882,14 @@ auto UpdateDeviceParams(al::Device *device, const al::span<const int> attrList)
+     device->mDeviceState = DeviceState::Configured;
+     if(!device->Flags.test(DevicePaused))
+     {
+-        try {
++        MKXPZ_TRY {
+             auto backend = device->Backend.get();
+             backend->start();
+             device->mDeviceState = DeviceState::Playing;
+         }
+-        catch(al::backend_exception& e) {
+-            ERR("{}", e.what());
+-            device->handleDisconnect("{}", e.what());
++        MKXPZ_CATCH(al::backend_exception& e) {
++
++            device->handleDisconnect("");
+             return ALC_INVALID_DEVICE;
+         }
+         TRACE("Post-start: {}, {}, {}hz, {} / {} buffer",
+@@ -1914,7 +1914,7 @@ auto ResetDeviceParams(al::Device *device, const al::span<const int> attrList) -
+ 
+         for(ContextBase *ctxbase : *device->mContexts.load(std::memory_order_acquire))
+         {
+-            auto *ctx = dynamic_cast<ALCcontext*>(ctxbase);
++            auto *ctx = static_cast<ALCcontext*>(ctxbase);
+             assert(ctx != nullptr);
+             if(!ctx || !ctx->mStopVoicesOnDisconnect.load(std::memory_order_acquire))
+                 continue;
+@@ -3016,16 +3016,16 @@ ALC_API ALCdevice* ALC_APIENTRY alcOpenDevice(const ALCchar *deviceName) noexcep
+     device->AuxiliaryEffectSlotMax = 64;
+     device->NumAuxSends = DefaultSends;
+ 
+-    try {
++    MKXPZ_TRY {
+         auto backend = PlaybackFactory->createBackend(device.get(), BackendType::Playback);
+         std::lock_guard<std::recursive_mutex> listlock{ListLock};
+         backend->open(devname);
+         device->mDeviceName = std::string{GetDevicePrefix()}+backend->mDeviceName;
+         device->Backend = std::move(backend);
+     }
+-    catch(al::backend_exception &e) {
+-        WARN("Failed to open playback device: {}", e.what());
+-        alcSetError(nullptr, (e.errorCode() == al::backend_error::OutOfMemory)
++    MKXPZ_CATCH(al::backend_exception &e) {
++
++        alcSetError(nullptr, (false)
+             ? ALC_OUT_OF_MEMORY : ALC_INVALID_VALUE);
+         return nullptr;
+     }
+@@ -3181,16 +3181,16 @@ ALC_API ALCdevice* ALC_APIENTRY alcCaptureOpenDevice(const ALCchar *deviceName,
+         DevFmtChannelsString(device->FmtChans), DevFmtTypeString(device->FmtType),
+         device->mSampleRate, device->mUpdateSize, device->mBufferSize);
+ 
+-    try {
++    MKXPZ_TRY {
+         auto backend = CaptureFactory->createBackend(device.get(), BackendType::Capture);
+         std::lock_guard<std::recursive_mutex> listlock{ListLock};
+         backend->open(devname);
+         device->mDeviceName = std::string{GetDevicePrefix()}+backend->mDeviceName;
+         device->Backend = std::move(backend);
+     }
+-    catch(al::backend_exception &e) {
+-        WARN("Failed to open capture device: {}", e.what());
+-        alcSetError(nullptr, (e.errorCode() == al::backend_error::OutOfMemory)
++    MKXPZ_CATCH(al::backend_exception &e) {
++
++        alcSetError(nullptr, (false)
+             ? ALC_OUT_OF_MEMORY : ALC_INVALID_VALUE);
+         return nullptr;
+     }
+@@ -3253,14 +3253,14 @@ ALC_API void ALC_APIENTRY alcCaptureStart(ALCdevice *device) noexcept
+         alcSetError(dev.get(), ALC_INVALID_DEVICE);
+     else if(dev->mDeviceState != DeviceState::Playing)
+     {
+-        try {
++        MKXPZ_TRY {
+             auto backend = dev->Backend.get();
+             backend->start();
+             dev->mDeviceState = DeviceState::Playing;
+         }
+-        catch(al::backend_exception& e) {
+-            ERR("{}", e.what());
+-            dev->handleDisconnect("{}", e.what());
++        MKXPZ_CATCH(al::backend_exception& e) {
++
++            dev->handleDisconnect("");
+             alcSetError(dev.get(), ALC_INVALID_DEVICE);
+         }
+     }
+@@ -3359,16 +3359,16 @@ ALC_API ALCdevice* ALC_APIENTRY alcLoopbackOpenDeviceSOFT(const ALCchar *deviceN
+     device->NumStereoSources = 1;
+     device->NumMonoSources = device->SourcesMax - device->NumStereoSources;
+ 
+-    try {
++    MKXPZ_TRY {
+         auto backend = LoopbackBackendFactory::getFactory().createBackend(device.get(),
+             BackendType::Playback);
+         backend->open("Loopback");
+         device->mDeviceName = std::string{GetDevicePrefix()}+backend->mDeviceName;
+         device->Backend = std::move(backend);
+     }
+-    catch(al::backend_exception &e) {
+-        WARN("Failed to open loopback device: {}", e.what());
+-        alcSetError(nullptr, (e.errorCode() == al::backend_error::OutOfMemory)
++    MKXPZ_CATCH(al::backend_exception &e) {
++
++        alcSetError(nullptr, (false)
+             ? ALC_OUT_OF_MEMORY : ALC_INVALID_VALUE);
+         return nullptr;
+     }
+@@ -3415,7 +3415,7 @@ ALC_API ALCboolean ALC_APIENTRY alcIsRenderFormatSupportedSOFT(ALCdevice *device
+ #endif
+ ALC_API void ALC_APIENTRY alcRenderSamplesSOFT(ALCdevice *device, ALCvoid *buffer, ALCsizei samples) noexcept
+ {
+-    auto aldev = dynamic_cast<al::Device*>(device);
++    auto aldev = static_cast<al::Device*>(device);
+     if(!aldev || aldev->Type != DeviceType::Loopback) UNLIKELY
+         alcSetError(aldev, ALC_INVALID_DEVICE);
+     else if(samples < 0 || (samples > 0 && buffer == nullptr)) UNLIKELY
+@@ -3476,14 +3476,14 @@ ALC_API void ALC_APIENTRY alcDeviceResumeSOFT(ALCdevice *device) noexcept
+     if(dev->mContexts.load()->empty())
+         return;
+ 
+-    try {
++    MKXPZ_TRY {
+         auto backend = dev->Backend.get();
+         backend->start();
+         dev->mDeviceState = DeviceState::Playing;
+     }
+-    catch(al::backend_exception& e) {
+-        ERR("{}", e.what());
+-        dev->handleDisconnect("{}", e.what());
++    MKXPZ_CATCH(al::backend_exception& e) {
++
++        dev->handleDisconnect("");
+         alcSetError(dev.get(), ALC_INVALID_DEVICE);
+         return;
+     }
+@@ -3594,28 +3594,28 @@ FORCE_ALIGN ALCboolean ALC_APIENTRY alcReopenDeviceSOFT(ALCdevice *device,
+     }
+ 
+     BackendPtr newbackend;
+-    try {
++    MKXPZ_TRY {
+         newbackend = PlaybackFactory->createBackend(dev.get(), BackendType::Playback);
+         newbackend->open(devname);
+     }
+-    catch(al::backend_exception &e) {
++    MKXPZ_CATCH(al::backend_exception &e) {
+         listlock.unlock();
+         newbackend = nullptr;
+ 
+-        WARN("Failed to reopen playback device: {}", e.what());
+-        alcSetError(dev.get(), (e.errorCode() == al::backend_error::OutOfMemory)
++
++        alcSetError(dev.get(), (false)
+             ? ALC_OUT_OF_MEMORY : ALC_INVALID_VALUE);
+ 
+         if(dev->Connected.load(std::memory_order_relaxed) && wasPlaying)
+         {
+-            try {
++            MKXPZ_TRY {
+                 auto backend = dev->Backend.get();
+                 backend->start();
+                 dev->mDeviceState = DeviceState::Playing;
+             }
+-            catch(al::backend_exception &be) {
+-                ERR("{}", be.what());
+-                dev->handleDisconnect("{}", be.what());
++            MKXPZ_CATCH(al::backend_exception &be) {
++
++                dev->handleDisconnect("");
+             }
+         }
+         return ALC_FALSE;
+--- a/alc/alconfig.cpp
++++ b/alc/alconfig.cpp
+@@ -496,11 +496,11 @@ auto ConfigValueStr(const std::string_view devName, const std::string_view block
+ auto ConfigValueInt(const std::string_view devName, const std::string_view blockName,
+     const std::string_view keyName) -> std::optional<int>
+ {
+-    if(auto&& val = GetConfigValue(devName, blockName, keyName); !val.empty()) try {
++    if(auto&& val = GetConfigValue(devName, blockName, keyName); !val.empty()) MKXPZ_TRY {
+         return static_cast<int>(std::stol(val, nullptr, 0));
+     }
+-    catch(std::exception&) {
+-        WARN("Option is not an int: {} = {}", keyName, val);
++    MKXPZ_CATCH(std::exception&) {
++        WARN("Option is not an int");
+     }
+ 
+     return std::nullopt;
+@@ -509,11 +509,11 @@ auto ConfigValueInt(const std::string_view devName, const std::string_view block
+ auto ConfigValueUInt(const std::string_view devName, const std::string_view blockName,
+     const std::string_view keyName) -> std::optional<unsigned int>
+ {
+-    if(auto&& val = GetConfigValue(devName, blockName, keyName); !val.empty()) try {
++    if(auto&& val = GetConfigValue(devName, blockName, keyName); !val.empty()) MKXPZ_TRY {
+         return static_cast<unsigned int>(std::stoul(val, nullptr, 0));
+     }
+-    catch(std::exception&) {
+-        WARN("Option is not an unsigned int: {} = {}", keyName, val);
++    MKXPZ_CATCH(std::exception&) {
++        WARN("Option is not an unsigned int");
+     }
+     return std::nullopt;
+ }
+@@ -521,11 +521,11 @@ auto ConfigValueUInt(const std::string_view devName, const std::string_view bloc
+ auto ConfigValueFloat(const std::string_view devName, const std::string_view blockName,
+     const std::string_view keyName) -> std::optional<float>
+ {
+-    if(auto&& val = GetConfigValue(devName, blockName, keyName); !val.empty()) try {
++    if(auto&& val = GetConfigValue(devName, blockName, keyName); !val.empty()) MKXPZ_TRY {
+         return std::stof(val);
+     }
+-    catch(std::exception&) {
+-        WARN("Option is not a float: {} = {}", keyName, val);
++    MKXPZ_CATCH(std::exception&) {
++        WARN("Option is not a float");
+     }
+     return std::nullopt;
+ }
+@@ -533,17 +533,17 @@ auto ConfigValueFloat(const std::string_view devName, const std::string_view blo
+ auto ConfigValueBool(const std::string_view devName, const std::string_view blockName,
+     const std::string_view keyName) -> std::optional<bool>
+ {
+-    if(auto&& val = GetConfigValue(devName, blockName, keyName); !val.empty()) try {
++    if(auto&& val = GetConfigValue(devName, blockName, keyName); !val.empty()) MKXPZ_TRY {
+         return al::case_compare(val, "on"sv) == 0 || al::case_compare(val, "yes"sv) == 0
+             || al::case_compare(val, "true"sv) == 0 || std::stoll(val) != 0;
+     }
+-    catch(std::out_of_range&) {
++    MKXPZ_CATCH(std::out_of_range&) {
+         /* If out of range, the value is some non-0 (true) value and it doesn't
+          * matter that it's too big or small.
+          */
+         return true;
+     }
+-    catch(std::exception&) {
++    MKXPZ_CATCH(std::exception&) {
+         /* If stoll fails to convert for any other reason, it's some other word
+          * that's treated as false.
+          */
+@@ -555,14 +555,14 @@ auto ConfigValueBool(const std::string_view devName, const std::string_view bloc
+ auto GetConfigValueBool(const std::string_view devName, const std::string_view blockName,
+     const std::string_view keyName, bool def) -> bool
+ {
+-    if(auto&& val = GetConfigValue(devName, blockName, keyName); !val.empty()) try {
++    if(auto&& val = GetConfigValue(devName, blockName, keyName); !val.empty()) MKXPZ_TRY {
+         return al::case_compare(val, "on"sv) == 0 || al::case_compare(val, "yes"sv) == 0
+             || al::case_compare(val, "true"sv) == 0 || std::stoll(val) != 0;
+     }
+-    catch(std::out_of_range&) {
++    MKXPZ_CATCH(std::out_of_range&) {
+         return true;
+     }
+-    catch(std::exception&) {
++    MKXPZ_CATCH(std::exception&) {
+         return false;
+     }
+     return def;
+--- a/alc/backends/base.cpp
++++ b/alc/backends/base.cpp
+@@ -19,7 +19,7 @@ backend_exception::~backend_exception() = default;
+ 
+ 
+ bool BackendBase::reset()
+-{ throw al::backend_exception{al::backend_error::DeviceError, "Invalid BackendBase call"}; }
++{ MKXPZ_THROW(al::backend_exception{al::backend_error::DeviceError, "Invalid BackendBase call"}); }
+ 
+ void BackendBase::captureSamples(std::byte*, uint)
+ { }
+--- a/alc/backends/null.cpp
++++ b/alc/backends/null.cpp
+@@ -108,8 +108,8 @@ void NullBackend::open(std::string_view name)
+     if(name.empty())
+         name = GetDeviceName();
+     else if(name != GetDeviceName())
+-        throw al::backend_exception{al::backend_error::NoDevice, "Device name \"{}\" not found",
+-            name};
++        MKXPZ_THROW(al::backend_exception{al::backend_error::NoDevice, "Device name \"{}\" not found",
++            name});
+ 
+     mDeviceName = name;
+ }
+@@ -122,13 +122,13 @@ bool NullBackend::reset()
+ 
+ void NullBackend::start()
+ {
+-    try {
++    MKXPZ_TRY {
+         mKillNow.store(false, std::memory_order_release);
+         mThread = std::thread{&NullBackend::mixerProc, this};
+     }
+-    catch(std::exception& e) {
+-        throw al::backend_exception{al::backend_error::DeviceError,
+-            "Failed to start mixing thread: {}", e.what()};
++    MKXPZ_CATCH(std::exception& e) {
++        MKXPZ_THROW(al::backend_exception{al::backend_error::DeviceError,
++            "Failed to start mixing thread"});
+     }
+ }
+ 
+--- a/alc/context.cpp
++++ b/alc/context.cpp
+@@ -458,7 +458,7 @@ void ALCcontext::eaxSetLastError() noexcept
+ 
+ [[noreturn]] void ALCcontext::eax_fail(const char* message)
+ {
+-    throw ContextException{message};
++    MKXPZ_THROW(ContextException{message});
+ }
+ 
+ [[noreturn]] void ALCcontext::eax_fail_unknown_property_set_id()
+--- a/alc/events.cpp
++++ b/alc/events.cpp
+@@ -21,7 +21,7 @@ ALCenum EnumFromEventType(const alc::EventType type)
+     case alc::EventType::DeviceRemoved: return ALC_EVENT_TYPE_DEVICE_REMOVED_SOFT;
+     case alc::EventType::Count: break;
+     }
+-    throw std::runtime_error{fmt::format("Invalid EventType: {}", int{al::to_underlying(type)})};
++    MKXPZ_THROW(std::runtime_error{fmt::format("Invalid EventType: {}", int{al::to_underlying(type)})});
+ }
+ 
+ } // namespace
+--- a/common/alassert.cpp
++++ b/common/alassert.cpp
+@@ -3,13 +3,13 @@
+ 
+ #include <stdexcept>
+ #include <string>
+-
++#include "../../src/mkxp-polyfill.h"
+ namespace {
+ 
+ [[noreturn]]
+ void throw_error(const std::string &message)
+ {
+-    throw std::runtime_error{message};
++    MKXPZ_THROW(std::runtime_error{message});
+ }
+ 
+ } /* namespace */
+--- a/common/almalloc.h
++++ b/common/almalloc.h
+@@ -8,7 +8,7 @@
+ #include <type_traits>
+ #include <utility>
+ #include <variant>
+-
++#include "../../src/mkxp-polyfill.h"
+ 
+ namespace gsl {
+ template<typename T> using owner = T;
+@@ -74,7 +74,7 @@ struct allocator {
+ 
+     gsl::owner<T*> allocate(std::size_t n)
+     {
+-        if(n > std::numeric_limits<std::size_t>::max()/sizeof(T)) throw std::bad_alloc();
++        if(n > std::numeric_limits<std::size_t>::max()/sizeof(T)) MKXPZ_THROW(std::bad_alloc());
+         return static_cast<gsl::owner<T*>>(::operator new[](n*sizeof(T), AlignVal));
+     }
+     void deallocate(gsl::owner<T*> p, std::size_t) noexcept
+--- a/common/alsem.cpp
++++ b/common/alsem.cpp
+@@ -36,11 +36,11 @@ namespace al {
+ semaphore::semaphore(unsigned int initial)
+ {
+     if(initial > static_cast<unsigned int>(std::numeric_limits<int>::max()))
+-        throw std::system_error(std::make_error_code(std::errc::value_too_large));
++        MKXPZ_THROW(std::system_error(std::make_error_code(std::errc::value_too_large)));
+     mSem = CreateSemaphoreW(nullptr, static_cast<LONG>(initial), std::numeric_limits<int>::max(),
+         nullptr);
+     if(mSem == nullptr)
+-        throw std::system_error(std::make_error_code(std::errc::resource_unavailable_try_again));
++        MKXPZ_THROW(std::system_error(std::make_error_code(std::errc::resource_unavailable_try_again)));
+ }
+ 
+ semaphore::~semaphore()
+@@ -49,7 +49,7 @@ semaphore::~semaphore()
+ void semaphore::post()
+ {
+     if(!ReleaseSemaphore(static_cast<HANDLE>(mSem), 1, nullptr))
+-        throw std::system_error(std::make_error_code(std::errc::value_too_large));
++        MKXPZ_THROW(std::system_error(std::make_error_code(std::errc::value_too_large)));
+ }
+ 
+ void semaphore::wait() noexcept
+@@ -71,7 +71,7 @@ semaphore::semaphore(unsigned int initial)
+ {
+     mSem = dispatch_semaphore_create(initial);
+     if(!mSem)
+-        throw std::system_error(std::make_error_code(std::errc::resource_unavailable_try_again));
++        MKXPZ_THROW(std::system_error(std::make_error_code(std::errc::resource_unavailable_try_again)));
+ }
+ 
+ semaphore::~semaphore()
+@@ -97,7 +97,7 @@ namespace al {
+ semaphore::semaphore(unsigned int initial)
+ {
+     if(sem_init(&mSem, 0, initial) != 0)
+-        throw std::system_error(std::make_error_code(std::errc::resource_unavailable_try_again));
++        MKXPZ_THROW(std::system_error(std::make_error_code(std::errc::resource_unavailable_try_again)));
+ }
+ 
+ semaphore::~semaphore()
+@@ -106,7 +106,7 @@ semaphore::~semaphore()
+ void semaphore::post()
+ {
+     if(sem_post(&mSem) != 0)
+-        throw std::system_error(std::make_error_code(std::errc::value_too_large));
++        MKXPZ_THROW(std::system_error(std::make_error_code(std::errc::value_too_large)));
+ }
+ 
+ void semaphore::wait() noexcept
+--- a/common/alsem.h
++++ b/common/alsem.h
+@@ -1,6 +1,6 @@
+ #ifndef COMMON_ALSEM_H
+ #define COMMON_ALSEM_H
+-
++#include "../../src/mkxp-polyfill.h"
+ #if defined(__APPLE__)
+ #include <AvailabilityMacros.h>
+ #include <TargetConditionals.h>
+--- a/common/althreads.h
++++ b/common/althreads.h
+@@ -4,7 +4,7 @@
+ #include <cstdint>
+ #include <stdexcept>
+ #include <type_traits>
+-
++#include "../../src/mkxp-polyfill.h"
+ #ifdef _WIN32
+ #define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+@@ -61,19 +61,19 @@ public:
+     tss() : mTss{TlsAlloc()}
+     {
+         if(mTss == TLS_OUT_OF_INDEXES)
+-            throw std::runtime_error{"al::tss::tss()"};
++            MKXPZ_THROW(std::runtime_error{"al::tss::tss()"});
+     }
+     explicit tss(const T &init) : tss{}
+     {
+         if(TlsSetValue(mTss, to_ptr(init)) == FALSE)
+-            throw std::runtime_error{"al::tss::tss(T)"};
++            MKXPZ_THROW(std::runtime_error{"al::tss::tss(T)"});
+     }
+     ~tss() { TlsFree(mTss); }
+ 
+     void set(const T &value) const
+     {
+         if(TlsSetValue(mTss, to_ptr(value)) == FALSE)
+-            throw std::runtime_error{"al::tss::set(T)"};
++            MKXPZ_THROW(std::runtime_error{"al::tss::set(T)"});
+     }
+ 
+     [[nodiscard]]
+@@ -87,19 +87,19 @@ public:
+     tss()
+     {
+         if(int res{pthread_key_create(&mTss, nullptr)}; res != 0)
+-            throw std::runtime_error{"al::tss::tss()"};
++            MKXPZ_THROW(std::runtime_error{"al::tss::tss()"});
+     }
+     explicit tss(const T &init) : tss{}
+     {
+         if(int res{pthread_setspecific(mTss, to_ptr(init))}; res != 0)
+-            throw std::runtime_error{"al::tss::tss(T)"};
++            MKXPZ_THROW(std::runtime_error{"al::tss::tss(T)"});
+     }
+     ~tss() { pthread_key_delete(mTss); }
+ 
+     void set(const T &value) const
+     {
+         if(int res{pthread_setspecific(mTss, to_ptr(value))}; res != 0)
+-            throw std::runtime_error{"al::tss::set(T)"};
++            MKXPZ_THROW(std::runtime_error{"al::tss::set(T)"});
+     }
+ 
+     [[nodiscard]]
+@@ -113,19 +113,19 @@ public:
+     tss()
+     {
+         if(int res{tss_create(&mTss, nullptr)}; res != thrd_success)
+-            throw std::runtime_error{"al::tss::tss()"};
++            MKXPZ_THROW(std::runtime_error{"al::tss::tss()"});
+     }
+     explicit tss(const T &init) : tss{}
+     {
+         if(int res{tss_set(mTss, to_ptr(init))}; res != thrd_success)
+-            throw std::runtime_error{"al::tss::tss(T)"};
++            MKXPZ_THROW(std::runtime_error{"al::tss::tss(T)"});
+     }
+     ~tss() { tss_delete(mTss); }
+ 
+     void set(const T &value) const
+     {
+         if(int res{tss_set(mTss, to_ptr(value))}; res != thrd_success)
+-            throw std::runtime_error{"al::tss::set(T)"};
++            MKXPZ_THROW(std::runtime_error{"al::tss::set(T)"});
+     }
+ 
+     [[nodiscard]]
+--- a/common/polyphase_resampler.cpp
++++ b/common/polyphase_resampler.cpp
+@@ -32,7 +32,7 @@ template<typename T, typename U>
+ constexpr auto cyl_bessel_i(T nu, U x) -> U
+ {
+     if(nu != T{0})
+-        throw std::runtime_error{"cyl_bessel_i: nu != 0"};
++        MKXPZ_THROW(std::runtime_error{"cyl_bessel_i: nu != 0"});
+ 
+     /* Start at k=1 since k=0 is trivial. */
+     const double x2{x/2.0};
+--- a/common/ringbuffer.cpp
++++ b/common/ringbuffer.cpp
+@@ -49,7 +49,7 @@ auto RingBuffer::Create(std::size_t sz, std::size_t elem_sz, bool limit_writes)
+     ++power_of_two;
+     if(power_of_two < sz || power_of_two > std::numeric_limits<std::size_t>::max()>>1
+         || power_of_two > std::numeric_limits<std::size_t>::max()/elem_sz)
+-        throw std::overflow_error{"Ring buffer size overflow"};
++        MKXPZ_THROW(std::overflow_error{"Ring buffer size overflow"});
+ 
+     const std::size_t bufbytes{power_of_two * elem_sz};
+     RingBufferPtr rb{new(FamCount(bufbytes)) RingBuffer{limit_writes ? sz : power_of_two,
+--- a/core/bs2b.cpp
++++ b/core/bs2b.cpp
+@@ -114,7 +114,7 @@ namespace Bs2b {
+ void bs2b::set_params(int level_, int srate_)
+ {
+     if(srate_ < 1)
+-        throw std::runtime_error{"BS2B srate < 1"};
++        MKXPZ_THROW(std::runtime_error{"BS2B srate < 1"});
+ 
+     level = level_;
+     srate = srate_;
+--- a/core/bsinc_tables.cpp
++++ b/core/bsinc_tables.cpp
+@@ -37,7 +37,7 @@ template<typename T, typename U>
+ constexpr auto cyl_bessel_i(T nu, U x) -> U
+ {
+     if(nu != T{0})
+-        throw std::runtime_error{"cyl_bessel_i: nu != 0"};
++        MKXPZ_THROW(std::runtime_error{"cyl_bessel_i: nu != 0"});
+ 
+     /* Start at k=1 since k=0 is trivial. */
+     const double x2{x/2.0};
+--- a/core/context.cpp
++++ b/core/context.cpp
+@@ -97,7 +97,7 @@ void ContextBase::allocVoices(size_t addcount)
+     }
+ 
+     if(addcount >= std::numeric_limits<int>::max()/clustersize - mVoiceClusters.size())
+-        throw std::runtime_error{"Allocating too many voices"};
++        MKXPZ_THROW(std::runtime_error{"Allocating too many voices"});
+     const size_t totalcount{(mVoiceClusters.size()+addcount) * clustersize};
+     TRACE("Increasing allocated voices to {}", totalcount);
+ 
+@@ -150,7 +150,7 @@ EffectSlot *ContextBase::getEffectSlot()
+ 
+     auto clusterptr = std::make_unique<EffectSlotCluster::element_type>();
+     if(1 >= std::numeric_limits<int>::max()/clusterptr->size() - mEffectSlotClusters.size())
+-        throw std::runtime_error{"Allocating too many effect slots"};
++        MKXPZ_THROW(std::runtime_error{"Allocating too many effect slots"});
+     const size_t totalcount{(mEffectSlotClusters.size()+1) * clusterptr->size()};
+     TRACE("Increasing allocated effect slots to {}", totalcount);
+ 
+--- a/core/helpers.cpp
++++ b/core/helpers.cpp
+@@ -38,7 +38,7 @@ void DirectorySearch(const fs::path &path, const std::string_view ext,
+ {
+     const auto base = results->size();
+ 
+-    try {
++    MKXPZ_TRY {
+         auto fpath = path.lexically_normal();
+         if(!fs::exists(fpath))
+             return;
+@@ -57,8 +57,8 @@ void DirectorySearch(const fs::path &path, const std::string_view ext,
+                 results->emplace_back(al::u8_as_char(entrypath.u8string()));
+         }
+     }
+-    catch(std::exception& e) {
+-        ERR("Exception enumerating files: {}", e.what());
++    MKXPZ_CATCH(std::exception& e) {
++
+     }
+ 
+     const auto newlist = al::span{*results}.subspan(base);
+@@ -278,7 +278,7 @@ const PathNamePair &GetProcBinary()
+ 
+             for(const std::string_view name : SelfLinkNames)
+             {
+-                try {
++                MKXPZ_TRY {
+                     if(!fs::exists(name))
+                         continue;
+                     if(auto path = fs::read_symlink(name); !path.empty())
+@@ -287,8 +287,8 @@ const PathNamePair &GetProcBinary()
+                         break;
+                     }
+                 }
+-                catch(std::exception& e) {
+-                    WARN("Exception getting symlink {}: {}", name, e.what());
++                MKXPZ_CATCH(std::exception& e) {
++
+                 }
+             }
+         }
+--- a/core/hrtf.cpp
++++ b/core/hrtf.cpp
+@@ -411,7 +411,7 @@ std::unique_ptr<HrtfStore> CreateHrtfStore(uint rate, uint8_t irSize,
+     static_assert(16 <= alignof(HrtfStore));
+ 
+     if(rate > MaxSampleRate)
+-        throw std::runtime_error{"Sample rate is too large (max: "+std::to_string(MaxSampleRate)+"hz)"};
++        MKXPZ_THROW(std::runtime_error{"Sample rate is too large (max: "+std::to_string(MaxSampleRate)+"hz)"});
+ 
+     const size_t irCount{size_t{elevs.back().azCount} + elevs.back().irOffset};
+     size_t total{sizeof(HrtfStore)};
+@@ -452,7 +452,7 @@ std::unique_ptr<HrtfStore> CreateHrtfStore(uint rate, uint8_t irSize,
+     offset += ptrdiff_t(sizeof(delays_[0])*irCount);
+ 
+     if(size_t(offset) != total)
+-        throw std::runtime_error{"HrtfStore allocation size mismatch"};
++        MKXPZ_THROW(std::runtime_error{"HrtfStore allocation size mismatch"});
+ 
+     /* Copy input data to storage. */
+     std::uninitialized_copy(fields.cbegin(), fields.cend(), field_.begin());
+@@ -544,7 +544,7 @@ std::unique_ptr<HrtfStore> LoadHrtf00(std::istream &data)
+     ushort irSize{readle<uint16_t>(data)};
+     ubyte evCount{readle<uint8_t>(data)};
+     if(!data || data.eof())
+-        throw std::runtime_error{"Premature end of file"};
++        MKXPZ_THROW(std::runtime_error{"Premature end of file"});
+ 
+     if(irSize < MinIrLength || irSize > HrirLength)
+     {
+@@ -562,7 +562,7 @@ std::unique_ptr<HrtfStore> LoadHrtf00(std::istream &data)
+     for(auto &elev : elevs)
+         elev.irOffset = readle<uint16_t>(data);
+     if(!data || data.eof())
+-        throw std::runtime_error{"Premature end of file"};
++        MKXPZ_THROW(std::runtime_error{"Premature end of file"});
+ 
+     for(size_t i{1};i < evCount;i++)
+     {
+@@ -608,7 +608,7 @@ std::unique_ptr<HrtfStore> LoadHrtf00(std::istream &data)
+     for(auto &val : delays)
+         val[0] = readle<uint8_t>(data);
+     if(!data || data.eof())
+-        throw std::runtime_error{"Premature end of file"};
++        MKXPZ_THROW(std::runtime_error{"Premature end of file"});
+ 
+     for(size_t i{0};i < irCount;i++)
+     {
+@@ -634,7 +634,7 @@ std::unique_ptr<HrtfStore> LoadHrtf01(std::istream &data)
+     uint8_t irSize{readle<uint8_t>(data)};
+     ubyte evCount{readle<uint8_t>(data)};
+     if(!data || data.eof())
+-        throw std::runtime_error{"Premature end of file"};
++        MKXPZ_THROW(std::runtime_error{"Premature end of file"});
+ 
+     if(irSize < MinIrLength || irSize > HrirLength)
+     {
+@@ -652,7 +652,7 @@ std::unique_ptr<HrtfStore> LoadHrtf01(std::istream &data)
+     for(auto &elev : elevs)
+         elev.azCount = readle<uint8_t>(data);
+     if(!data || data.eof())
+-        throw std::runtime_error{"Premature end of file"};
++        MKXPZ_THROW(std::runtime_error{"Premature end of file"});
+ 
+     for(size_t i{0};i < evCount;++i)
+     {
+@@ -679,7 +679,7 @@ std::unique_ptr<HrtfStore> LoadHrtf01(std::istream &data)
+     for(auto &val : delays)
+         val[0] = readle<uint8_t>(data);
+     if(!data || data.eof())
+-        throw std::runtime_error{"Premature end of file"};
++        MKXPZ_THROW(std::runtime_error{"Premature end of file"});
+ 
+     for(size_t i{0};i < irCount;i++)
+     {
+@@ -711,7 +711,7 @@ std::unique_ptr<HrtfStore> LoadHrtf02(std::istream &data)
+     uint8_t irSize{readle<uint8_t>(data)};
+     ubyte fdCount{readle<uint8_t>(data)};
+     if(!data || data.eof())
+-        throw std::runtime_error{"Premature end of file"};
++        MKXPZ_THROW(std::runtime_error{"Premature end of file"});
+ 
+     if(sampleType > SampleType_S24)
+     {
+@@ -743,7 +743,7 @@ std::unique_ptr<HrtfStore> LoadHrtf02(std::istream &data)
+         const ushort distance{readle<uint16_t>(data)};
+         const ubyte evCount{readle<uint8_t>(data)};
+         if(!data || data.eof())
+-            throw std::runtime_error{"Premature end of file"};
++            MKXPZ_THROW(std::runtime_error{"Premature end of file"});
+ 
+         if(distance < MinFdDistance || distance > MaxFdDistance)
+         {
+@@ -772,7 +772,7 @@ std::unique_ptr<HrtfStore> LoadHrtf02(std::istream &data)
+         for(auto &elev : al::span{elevs}.subspan(ebase, evCount))
+             elev.azCount = readle<uint8_t>(data);
+         if(!data || data.eof())
+-            throw std::runtime_error{"Premature end of file"};
++            MKXPZ_THROW(std::runtime_error{"Premature end of file"});
+ 
+         for(size_t e{0};e < evCount;e++)
+         {
+@@ -818,7 +818,7 @@ std::unique_ptr<HrtfStore> LoadHrtf02(std::istream &data)
+         for(auto &val : delays)
+             val[0] = readle<uint8_t>(data);
+         if(!data || data.eof())
+-            throw std::runtime_error{"Premature end of file"};
++            MKXPZ_THROW(std::runtime_error{"Premature end of file"});
+ 
+         for(size_t i{0};i < irTotal;++i)
+         {
+@@ -863,7 +863,7 @@ std::unique_ptr<HrtfStore> LoadHrtf02(std::istream &data)
+             val[1] = readle<uint8_t>(data);
+         }
+         if(!data || data.eof())
+-            throw std::runtime_error{"Premature end of file"};
++            MKXPZ_THROW(std::runtime_error{"Premature end of file"});
+ 
+         for(size_t i{0};i < irTotal;++i)
+         {
+@@ -963,7 +963,7 @@ std::unique_ptr<HrtfStore> LoadHrtf03(std::istream &data)
+     uint8_t irSize{readle<uint8_t>(data)};
+     ubyte fdCount{readle<uint8_t>(data)};
+     if(!data || data.eof())
+-        throw std::runtime_error{"Premature end of file"};
++        MKXPZ_THROW(std::runtime_error{"Premature end of file"});
+ 
+     if(channelType > ChanType_LeftRight)
+     {
+@@ -990,7 +990,7 @@ std::unique_ptr<HrtfStore> LoadHrtf03(std::istream &data)
+         const ushort distance{readle<uint16_t>(data)};
+         const ubyte evCount{readle<uint8_t>(data)};
+         if(!data || data.eof())
+-            throw std::runtime_error{"Premature end of file"};
++            MKXPZ_THROW(std::runtime_error{"Premature end of file"});
+ 
+         if(distance < MinFdDistance || distance > MaxFdDistance)
+         {
+@@ -1019,7 +1019,7 @@ std::unique_ptr<HrtfStore> LoadHrtf03(std::istream &data)
+         for(auto &elev : al::span{elevs}.subspan(ebase, evCount))
+             elev.azCount = readle<uint8_t>(data);
+         if(!data || data.eof())
+-            throw std::runtime_error{"Premature end of file"};
++            MKXPZ_THROW(std::runtime_error{"Premature end of file"});
+ 
+         for(size_t e{0};e < evCount;e++)
+         {
+@@ -1054,7 +1054,7 @@ std::unique_ptr<HrtfStore> LoadHrtf03(std::istream &data)
+         for(auto &val : delays)
+             val[0] = readle<uint8_t>(data);
+         if(!data || data.eof())
+-            throw std::runtime_error{"Premature end of file"};
++            MKXPZ_THROW(std::runtime_error{"Premature end of file"});
+ 
+         for(size_t i{0};i < irTotal;++i)
+         {
+@@ -1085,7 +1085,7 @@ std::unique_ptr<HrtfStore> LoadHrtf03(std::istream &data)
+             val[1] = readle<uint8_t>(data);
+         }
+         if(!data || data.eof())
+-            throw std::runtime_error{"Premature end of file"};
++            MKXPZ_THROW(std::runtime_error{"Premature end of file"});
+ 
+         for(size_t i{0};i < irTotal;++i)
+         {
+@@ -1254,7 +1254,7 @@ std::vector<std::string> EnumerateHrtf(std::optional<std::string> pathopt)
+ }
+ 
+ HrtfStorePtr GetLoadedHrtf(const std::string_view name, const uint devrate)
+-try {
++{MKXPZ_TRY {
+     if(devrate > MaxSampleRate)
+     {
+         WARN("Device sample rate too large for HRTF ({}hz > {}hz)", devrate, MaxSampleRate);
+@@ -1424,10 +1424,10 @@ try {
+ 
+     return HrtfStorePtr{handle->mEntry.get()};
+ }
+-catch(std::exception& e) {
+-    ERR("Failed to load {}: {}", name, e.what());
++MKXPZ_CATCH(std::exception& e) {
++
+     return nullptr;
+-}
++}}
+ 
+ 
+ void HrtfStore::add_ref()
+--- a/core/logging.h
++++ b/core/logging.h
+@@ -5,7 +5,7 @@
+ 
+ #include "fmt/core.h"
+ #include "opthelpers.h"
+-
++#include "../../src/mkxp-polyfill.h"
+ 
+ enum class LogLevel {
+     Disable,
+@@ -27,9 +27,9 @@ void al_print_impl(LogLevel level, const fmt::string_view fmt, fmt::format_args
+ 
+ template<typename ...Args>
+ void al_print(LogLevel level, fmt::format_string<Args...> fmt, Args&& ...args) noexcept
+-try {
++{MKXPZ_TRY {
+     al_print_impl(level, fmt, fmt::make_format_args(args...));
+-} catch(...) { }
++} MKXPZ_CATCH(...) { }}
+ 
+ #define TRACE(...) al_print(LogLevel::Trace, __VA_ARGS__)
+ 

@@ -22,17 +22,94 @@
 #ifndef INPUT_H
 #define INPUT_H
 
+#include <cstdint>
 #include <unordered_map>
-#include <SDL_gamecontroller.h>
 #include <string>
 #include <vector>
 
+#ifdef MKXPZ_RETRO
+enum SDL_GameControllerAxis
+{
+	SDL_CONTROLLER_AXIS_LEFTX = 0,
+	SDL_CONTROLLER_AXIS_LEFTY = 1,
+	SDL_CONTROLLER_AXIS_RIGHTX = 2,
+	SDL_CONTROLLER_AXIS_RIGHTY = 3,
+	SDL_CONTROLLER_AXIS_TRIGGERLEFT = 4,
+	SDL_CONTROLLER_AXIS_TRIGGERRIGHT = 5,
+};
+
+enum SDL_GameControllerButton
+{
+	SDL_CONTROLLER_BUTTON_A = 0,
+	SDL_CONTROLLER_BUTTON_B = 1,
+	SDL_CONTROLLER_BUTTON_X = 2,
+	SDL_CONTROLLER_BUTTON_Y = 3,
+	SDL_CONTROLLER_BUTTON_BACK = 4,
+	SDL_CONTROLLER_BUTTON_GUIDE = 5,
+	SDL_CONTROLLER_BUTTON_START = 6,
+	SDL_CONTROLLER_BUTTON_LEFTSTICK = 7,
+	SDL_CONTROLLER_BUTTON_RIGHTSTICK = 8,
+	SDL_CONTROLLER_BUTTON_LEFTSHOULDER = 9,
+	SDL_CONTROLLER_BUTTON_RIGHTSHOULDER = 10,
+	SDL_CONTROLLER_BUTTON_DPAD_UP = 11,
+	SDL_CONTROLLER_BUTTON_DPAD_DOWN = 12,
+	SDL_CONTROLLER_BUTTON_DPAD_LEFT = 13,
+	SDL_CONTROLLER_BUTTON_DPAD_RIGHT = 14,
+	SDL_CONTROLLER_BUTTON_MISC1 = 15,
+	SDL_CONTROLLER_BUTTON_PADDLE1 = 16,
+	SDL_CONTROLLER_BUTTON_PADDLE2 = 17,
+	SDL_CONTROLLER_BUTTON_PADDLE3 = 18,
+	SDL_CONTROLLER_BUTTON_PADDLE4 = 19,
+	SDL_CONTROLLER_BUTTON_TOUCHPAD = 20,
+};
+
+enum SDL_JoystickPowerLevel
+{
+	SDL_JOYSTICK_POWER_UNKNOWN = 0,
+	SDL_JOYSTICK_POWER_EMPTY = 1,
+	SDL_JOYSTICK_POWER_LOW = 2,
+	SDL_JOYSTICK_POWER_MEDIUM = 3,
+	SDL_JOYSTICK_POWER_FULL = 4,
+	SDL_JOYSTICK_POWER_WIRED = 5,
+};
+#else
+#include <SDL_gamecontroller.h>
 extern std::unordered_map<int, int> vKeyToScancode;
 extern std::unordered_map<std::string, int> strToScancode;
 extern std::unordered_map<std::string, SDL_GameControllerButton> strToGCButton;
+#endif // MKXPZ_RETRO
 
 struct InputPrivate;
 struct RGSSThreadData;
+
+#define NUM_INPUT_PORTS 3
+#define NUM_BUTTONCODES 43
+#define NUM_SCANCODES 291
+#define NUM_CONTROLLER_BUTTONS 21
+
+#ifdef MKXPZ_RETRO
+enum mkxp_input_retro_mapping_type {
+	DEFAULT = 0,
+	NONE,
+	BUTTON,
+	JOYPAD,
+	LIGHTGUN,
+	MOUSE,
+};
+
+struct mkxp_input_retro_binding {
+	enum mkxp_input_retro_mapping_type type;
+	uint8_t id;
+	uint8_t port;
+};
+
+extern struct mkxp_input_retro_binding mkxpButtonMapping[NUM_BUTTONCODES];
+extern const struct mkxp_input_retro_binding mkxpDefaultButtonMapping[NUM_BUTTONCODES];
+extern struct mkxp_input_retro_binding mkxpScancodeMapping[NUM_SCANCODES];
+extern const struct mkxp_input_retro_binding mkxpDefaultScancodeMapping[NUM_SCANCODES];
+extern struct mkxp_input_retro_binding mkxpControllerMapping[NUM_CONTROLLER_BUTTONS];
+extern const struct mkxp_input_retro_binding mkxpDefaultControllerMapping[NUM_CONTROLLER_BUTTONS];
+#endif // MKXPZ_RETRO
 
 class Input
 {
@@ -60,8 +137,6 @@ public:
 
     double getDelta();
 	void update();
-    
-    std::vector<std::string> getBindings(ButtonCode code);
     
 	bool isPressed(int button);
 	bool isTriggered(int button);
@@ -110,17 +185,23 @@ public:
     const char *getText();
     void clearText();
     
-    char *getClipboardText();
-    void setClipboardText(char *text);
+    std::string getClipboardText();
+    void setClipboardText(const char *text);
     
     const char *getAxisName(SDL_GameControllerAxis axis);
     const char *getButtonName(SDL_GameControllerButton button);
 
+#ifdef MKXPZ_RETRO
+	Input();
+	~Input();
+private:
+#else
 private:
 	Input(const RGSSThreadData &rtData);
 	~Input();
 
 	friend struct SharedStatePrivate;
+#endif // MKXPZ_RETRO
 
 	InputPrivate *p;
 };

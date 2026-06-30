@@ -22,19 +22,39 @@
 #ifndef BITMAP_H
 #define BITMAP_H
 
+#ifdef MKXPZ_RETRO
+#  include <ft2build.h>
+#  include FT_FREETYPE_H
+#  include "wasm-types.h"
+#endif // MKXPZ_RETRO
+
 #include "disposable.h"
 #include "etc-internal.h"
 #include "etc.h"
+
+#include "gl-util.h"
+
+#include <string>
+#include <vector>
 
 #include "sigslot/signal.hpp"
 
 class Font;
 class ShaderBase;
-struct TEXFBO;
 struct SDL_Surface;
 
+struct BitmapFrame
+{
+    TEXFBO gl;
+#ifdef MKXPZ_RETRO
+    std::vector<std::vector<uint32_t>> diff;
+    std::string path;
+    int originalFrameIndex;
+#endif // MKXPZ_RETRO
+};
+
 struct BitmapPrivate;
-struct ChildPrivate;
+
 struct ChildPublic
 {
     // The real offset and zoom. Initialized to -1.0f, to determine if it's a Window.
@@ -53,10 +73,14 @@ struct ChildPublic
     IntRect realSrcRect;
     IntRect srcRect;
     
-    // sceneRect is the viewport, used for determining what's actually visible.
-    // sceneOrig is the viewport's offset, and functions similarly to x/y.
-    const IntRect *sceneRect;
-    const Vec2i *sceneOrig;
+    enum {
+        NONE,
+        PLANE,
+        SPRITE,
+        WINDOW,
+        WINDOWVX,
+    } sceneElementType;
+    void *sceneElement;
     
     // The Sprite or Window's position, for modifying the offset and as the origin for rotations.
     // Also used for Planes instead of realOffset, due to how zooming interacts with it.
@@ -82,8 +106,8 @@ struct ChildPublic
     height(0),
     x(0),
     y(0),
-    sceneRect(0),
-    sceneOrig(0),
+    sceneElementType(NONE),
+    sceneElement(nullptr),
     wrap(false),
     mirrored(false),
     angle(0),
@@ -93,42 +117,101 @@ struct ChildPublic
     	realZoom.x = realZoom.y = -1.0f;
     	zoom.x = zoom.y = -1.0f;
     }
+
+    // sceneRect is the viewport, used for determining what's actually visible.
+    const IntRect *sceneRect() const noexcept;
+
+    // sceneOrig is the viewport's offset, and functions similarly to x/y.
+    const Vec2i *sceneOrig() const noexcept;
 };
 
+/* "Child" bitmaps are a hack to support mega surfaces in Windows, Planes, and Sprites.
+ * They determine which part of the parent will be visible, manually shrink it if necessary,
+ * and send back new values for zoom and offsets. */
+struct ChildPrivate
+{
+    Bitmap *self;
+    Bitmap *parent;
+
+    ChildPublic shared;
+
+    sigslot::connection dirtyCon;
+    sigslot::connection disposeCon;
+
+    Vec2i parentPos;
+    IntRect srcRect;
+    IntRect oldSrcRect;
+    bool dirty;
+    Vec2 maxShrink;
+    Vec2 currentShrink;
+    bool mirrored;
+    IntRect oldVR;
+    Vec2i oldOff;
+
+    ChildPrivate();
+    ~ChildPrivate();
+    void init(Bitmap *self, Bitmap *parent);
+    void childDirty();
+    void parentDisposed();
+
+#ifdef MKXPZ_RETRO
+    bool sandbox_serialize(void *&data, mkxp_sandbox::wasm_size_t &max_size) const;
+    bool sandbox_deserialize(const void *&data, mkxp_sandbox::wasm_size_t &max_size);
+    void sandbox_deserialize_begin();
+    void sandbox_deserialize_end();
+#endif // MKXPZ_RETRO
+};
 
 // FIXME make this class use proper RGSS classes again
 class Bitmap : public Disposable
 {
+	friend struct BitmapPrivate;
+	friend class Plane;
+	friend struct PlanePrivate;
+	friend class Sprite;
+	friend struct SpritePrivate;
+	friend struct TilemapPrivate;
+	friend struct TilemapVXPrivate;
+	friend class Window;
+	friend struct WindowPrivate;
+	friend class WindowVX;
+	friend struct WindowVXPrivate;
+	friend struct ChildPrivate;
+
 public:
-	Bitmap(const char *filename);
-	Bitmap(int width, int height, bool isHires = false);
-	Bitmap(void *pixeldata, int width, int height);
-	Bitmap(TEXFBO &other);
-	Bitmap(SDL_Surface *imgSurf, SDL_Surface *imgSurfHires, bool forceMega = false);
+	Bitmap(Exception &exception, const char *filename, bool useDiff = true);
+	Bitmap(Exception &exception, int width = 1, int height = 1, bool isHires = false, bool useDiff = true);
+	Bitmap(Exception &exception, void *pixeldata, int width, int height, bool useDiff = true);
+	Bitmap(Exception &exception, TEXFBO &other, bool useDiff = true);
+	Bitmap(Exception &exception, SDL_Surface *imgSurf, SDL_Surface *imgSurfHires, bool forceMega = false, bool useDiff = true);
 
 	/* Clone constructor */
     
     // frame is -2 for "any and all", -1 for "current", anything else for a specific frame
-	Bitmap(const Bitmap &other, int frame = -2);
+	Bitmap(Exception &exception, const Bitmap &other, int frame = -2, bool useDiff = true);
 	~Bitmap();
 
-	void initFromSurface(SDL_Surface *imgSurf, Bitmap *hiresBitmap, bool forceMega = false);
+	void initFromFilename(Exception &exception, const char *filename, bool useDiff = true);
+	void initFromDimensions(Exception &exception, int width = 1, int height = 1, bool isHires = false, bool useDiff = true);
+	void initFromSurface(Exception &exception, SDL_Surface *imgSurf, Bitmap *hiresBitmap, bool forceMega = false, bool useDiff = true);
 
-	Bitmap *spawnChild();
+	Bitmap *spawnChild(Exception &exception);
 	ChildPublic *getChildInfo();
-	void childUpdate();
+	void childUpdate(Exception &exception);
 
-	int width()  const;
-	int height() const;
-	bool hasHires() const;
+	int getWidth(Exception &exception)  const;
+	int getHeight(Exception &exception) const;
+	bool getHasHires(Exception &exception) const;
+	void setHiresRaw(Exception &exception, Bitmap *hires);
 	DECL_ATTR(Hires, Bitmap*)
-	void setLores(Bitmap *lores);
-	bool isMega() const;
-    bool isAnimated() const;
+	void setLoresRaw(Exception &exception, Bitmap *lores);
+	void setLores(Exception &exception, Bitmap *lores);
+	bool getIsMega(Exception &exception) const;
+	bool getIsAnimated(Exception &exception) const;
+	IntRect getRect(Exception &exception) const;
 
-	IntRect rect() const;
-
-	void blt(int x, int y,
+	void blt(Exception &exception,
+	         int x, int y,
 	         const Bitmap &source, const IntRect &rect,
 	         int opacity = 255);
 
@@ -137,44 +220,50 @@ public:
 	    KGL_SUBTRACT,
 	};
 
-	void stretchBlt(IntRect destRect,
+	void stretchBlt(Exception &exception,
+	                IntRect destRect,
 	                const Bitmap &source, IntRect sourceRect,
 	                int opacity = 255, bool smooth = false,
 			enum BitmapBltMode mode = NORMAL);
 
-	void fillRect(int x, int y,
+	void fillRect(Exception &exception,
+	              int x, int y,
 	              int width, int height,
 	              const Vec4 &color);
-	void fillRect(const IntRect &rect, const Vec4 &color);
+	void fillRect(Exception &exception, const IntRect &rect, const Vec4 &color);
 
-	void gradientFillRect(int x, int y,
+	void gradientFillRect(Exception &exception,
+	                      int x, int y,
 	                      int width, int height,
 	                      const Vec4 &color1, const Vec4 &color2,
 	                      bool vertical = false);
-	void gradientFillRect(const IntRect &rect,
+	void gradientFillRect(Exception &exception,
+	                      const IntRect &rect,
 	                      const Vec4 &color1, const Vec4 &color2,
 	                      bool vertical = false);
 
-	void clearRect(int x, int y,
+	void clearRect(Exception &exception,
+	               int x, int y,
 	               int width, int height);
-	void clearRect(const IntRect &rect);
+	void clearRect(Exception &exception,
+	               const IntRect &rect);
 
-	void blur();
-	void radialBlur(int angle, int divisions);
+	void blur(Exception &exception);
+	void radialBlur(Exception &exception, int angle, int divisions);
 
-	void clear();
+	void clear(Exception &exception);
 
 	/* Creates a surface and assigns it to p->surface */
 	void createSurface() const;
 
-	Color getPixel(int x, int y) const;
-	void setPixel(int x, int y, const Color &color);
+	Color getPixel(Exception &exception, int x, int y) const;
+	void setPixel(Exception &exception, int x, int y, const Color &color);
     
-    bool getRaw(void *output, int output_size);
-    void replaceRaw(void *pixel_data, int size);
-    void saveToFile(const char *filename);
+    bool getRaw(Exception &exception, void *output, int output_size);
+    void replaceRaw(Exception &exception, void *pixel_data, int size);
+    void saveToFile(Exception &exception, const char *filename);
 
-	void hueChange(int hue);
+	void hueChange(Exception &exception, int hue);
 
 	enum TextAlign
 	{
@@ -183,16 +272,19 @@ public:
 		Right = 2
 	};
 
-	void drawText(int x, int y,
+	void drawText(Exception &exception,
+	              int x, int y,
 	              int width, int height,
 	              const char *str, int align = Left);
 
-	void drawText(const IntRect &rect,
+	void drawText(Exception &exception,
+	              const IntRect &rect,
 	              const char *str, int align = Left);
 
-	IntRect textSize(const char *str);
+	IntRect textSize(Exception &exception, const char *str);
 
-	DECL_ATTR(Font, Font&)
+	Font &getFont(Exception &exception) const;
+	void setFont(Font &value);
 
 	/* Sets initial reference without copying by value,
 	 * use at construction */
@@ -202,38 +294,40 @@ public:
 	TEXFBO &getGLTypes() const;
     SDL_Surface *surface() const;
 	SDL_Surface *megaSurface() const;
-	void ensureNonMega() const;
-    void ensureNonAnimated() const;
-    void ensureAnimated() const;
+	void ensureNonMega(Exception &exception) const;
+    void ensureNonAnimated(Exception &exception) const;
+    void ensureAnimated(Exception &exception) const;
     
     // Animation functions
-    void stop();
-    void play();
-    bool isPlaying() const;
-    void gotoAndStop(int frame);
-    void gotoAndPlay(int frame);
-    int numFrames() const;
-    int currentFrameI() const;
+    void stop(Exception &exception);
+    void play(Exception &exception);
+    bool isPlaying(Exception &exception) const;
+    bool getPlaying(Exception &exception) const;
+    void setPlaying(Exception &exception, bool playing);
+    void gotoAndStop(Exception &exception, int frame);
+    void gotoAndPlay(Exception &exception, int frame);
+    int numFrames(Exception &exception) const;
+    int currentFrameI(Exception &exception) const;
     
-    int addFrame(Bitmap &source, int position = -1);
-    void removeFrame(int position = -1);
+    int addFrame(Exception &exception, Bitmap &source, int position = -1);
+    void removeFrame(Exception &exception, int position = -1);
     
-    void nextFrame();
-    void previousFrame();
-    std::vector<TEXFBO> &getFrames() const;
+    void nextFrame(Exception &exception);
+    void previousFrame(Exception &exception);
+    std::vector<BitmapFrame> &getFrames() const;
     
-    void setAnimationFPS(float FPS);
-    float getAnimationFPS() const;
+    void setAnimationFPS(Exception &exception, float FPS);
+    float getAnimationFPS(Exception &exception) const;
     
-    void setLooping(bool loop);
-    bool getLooping() const;
+    void setLooping(Exception &exception, bool loop);
+    bool getLooping(Exception &exception) const;
 
-    void ensureNotPlaying() const;
+    void ensureNotPlaying(Exception &exception) const;
 
-    void kglInvert();
-    void kglCompressAlpha();
-    int kglShadowShaderH(int x1, int x2, int y, bool soft);
-    int kglShadowShaderV(int y1, int y2, int x, bool wall, bool soft);
+    void kglInvert(Exception &exception);
+    void kglCompressAlpha(Exception &exception);
+    int kglShadowShaderH(Exception &exception, int x1, int x2, int y, bool soft);
+    int kglShadowShaderV(Exception &exception, int y1, int y2, int x, bool wall, bool soft);
 
     // ----------
     
@@ -245,12 +339,37 @@ public:
 	void taintArea(const IntRect &rect);
 
 	sigslot::signal<> modified;
+#ifdef MKXPZ_RETRO
+	const uint64_t id; // Globally unique nonzero ID for this bitmap, for change detection during save state deserialization
+	bool deserModified;
+	bool deserSizeChanged;
+#endif // MKXPZ_RETRO
 
 	static int maxSize();
 
-    void assumeRubyGC();
+    void assumeRubyGC(bool value = true);
+
+#ifdef MKXPZ_RETRO
+	static void syncDiffs();
+	bool sandbox_serialize_without_hires(void *&data, mkxp_sandbox::wasm_size_t &max_size) const;
+	bool sandbox_serialize(void *&data, mkxp_sandbox::wasm_size_t &max_size) const;
+	bool sandbox_deserialize_without_hires(const void *&data, mkxp_sandbox::wasm_size_t &max_size);
+	bool sandbox_deserialize(const void *&data, mkxp_sandbox::wasm_size_t &max_size);
+	void sandbox_deserialize_begin(bool is_new);
+	void sandbox_deserialize_end(bool is_sandbox_object);
+	void sandbox_reinit();
+#endif // MKXPZ_RETRO
 
 private:
+	int width()  const;
+	int height() const;
+	bool hasHires() const;
+	bool isMega() const;
+	bool isAnimated() const;
+	IntRect rect() const;
+	float animationFPS() const;
+	bool looping() const;
+
 	void releaseResources();
 	sigslot::connection loresDispCon;
 	const char *klassName() const { return "bitmap"; }
@@ -258,6 +377,13 @@ private:
 	BitmapPrivate *p;
 
 	void loresDisposal();
+
+#ifdef MKXPZ_RETRO
+	SDL_Surface *drawTextInner(FT_Face font, const char *str, SDL_Color &c, size_t outline);
+	bool sandbox_serialize_pixels(void *&data, mkxp_sandbox::wasm_size_t &max_size, const std::vector<std::vector<uint32_t>> &diff) const;
+	bool sandbox_deserialize_pixels_check_need_reload(const void *&data, mkxp_sandbox::wasm_size_t &max_size, const std::vector<std::vector<uint32_t>> &diff, bool &need_reload, bool &need_reload_if_path_not_empty, bool modify_data_and_max_size) const;
+	bool sandbox_deserialize_pixels(const void *&data, mkxp_sandbox::wasm_size_t &max_size, std::vector<std::vector<uint32_t>> &diff, mkxp_sandbox::wasm_size_t frame_number = 0);
+#endif // MKXPZ_RETRO
 };
 
 #endif // BITMAP_H

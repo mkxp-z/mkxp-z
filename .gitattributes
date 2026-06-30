@@ -1,0 +1,2 @@
+# Makes GitHub Linguist actually recognize Makefile.libretro as a makefile, for the purposes of syntax highlighting, searching for files by language and the language breakdown on the GitHub website
+/Makefile.libretro linguist-language=Makefile

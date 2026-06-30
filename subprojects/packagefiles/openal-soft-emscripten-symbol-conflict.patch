@@ -1,0 +1,83 @@
+# Applies C++ name mangling to all of OpenAL Soft's functions so that they don't conflict with the functions in Emscripten's OpenAL implementation.
+# Otherwise, the Emscripten build crashes on startup because the Emscripten version of RetroArch also depends on OpenAL, and it will incorrectly try to use our OpenAL implementation instead of Emscripten's.
+
+--- a/include/AL/al.h
++++ b/include/AL/al.h
+@@ -3,7 +3,7 @@
+ 
+ /* NOLINTBEGIN */
+ #ifdef __cplusplus
+-extern "C" {
++
+ 
+ #ifdef _MSVC_LANG
+ #define AL_CPLUSPLUS _MSVC_LANG
+@@ -700,7 +700,7 @@ typedef void          (AL_APIENTRY *LPALSPEEDOFSOUND)(ALfloat value) AL_API_NOEX
+ typedef void          (AL_APIENTRY *LPALDISTANCEMODEL)(ALenum distanceModel) AL_API_NOEXCEPT17;
+ 
+ #ifdef __cplusplus
+-}  /* extern "C" */
++
+ #endif
+ /* NOLINTEND */
+ 
+--- a/include/AL/alc.h
++++ b/include/AL/alc.h
+@@ -3,7 +3,7 @@
+ 
+ /* NOLINTBEGIN */
+ #ifdef __cplusplus
+-extern "C" {
++
+ 
+ #ifdef _MSVC_LANG
+ #define ALC_CPLUSPLUS _MSVC_LANG
+@@ -300,7 +300,7 @@ typedef void           (ALC_APIENTRY *LPALCCAPTURESTOP)(ALCdevice *device) ALC_A
+ typedef void           (ALC_APIENTRY *LPALCCAPTURESAMPLES)(ALCdevice *device, ALCvoid *buffer, ALCsizei samples) ALC_API_NOEXCEPT17;
+ 
+ #ifdef __cplusplus
+-} /* extern "C" */
++
+ #endif
+ /* NOLINTEND */
+ 
+--- a/include/AL/alext.h
++++ b/include/AL/alext.h
+@@ -23,7 +23,7 @@ typedef uint64_t _alsoft_uint64_t;
+ #include "al.h"
+ 
+ #ifdef __cplusplus
+-extern "C" {
++
+ #endif
+ 
+ struct _GUID;
+@@ -1085,7 +1085,7 @@ ALenum AL_APIENTRY EAXGetBufferModeDirect(ALCcontext *context, ALuint buffer, AL
+ #endif
+ 
+ #ifdef __cplusplus
+-}
++
+ #endif
+ /* NOLINTEND */
+ 
+--- a/include/AL/efx.h
++++ b/include/AL/efx.h
+@@ -8,7 +8,7 @@
+ #include "al.h"
+ 
+ #ifdef __cplusplus
+-extern "C" {
++
+ #endif
+ 
+ #define ALC_EXT_EFX_NAME                         "ALC_EXT_EFX"
+@@ -757,7 +757,7 @@ AL_API void AL_APIENTRY alGetAuxiliaryEffectSlotfv(ALuint effectslot, ALenum par
+ 
+ 
+ #ifdef __cplusplus
+-}  /* extern "C" */
++
+ #endif
+ /* NOLINTEND */
+ 

@@ -24,7 +24,12 @@
 #include "boost-hash.h"
 #include "exception.h"
 
-#include <SDL_video.h>
+#ifdef MKXPZ_RETRO
+#  include "core.h"
+#else
+#  include <SDL_video.h>
+#endif // MKXPZ_RETRO
+#include <cstring>
 #include <string>
 
 GLFunctions gl;
@@ -34,7 +39,11 @@ typedef const GLubyte* (APIENTRYP _PFNGLGETSTRINGIPROC) (GLenum, GLuint);
 static void parseExtensionsCore(_PFNGLGETINTEGERVPROC GetIntegerv, BoostSet<std::string> &out)
 {
     _PFNGLGETSTRINGIPROC GetStringi =
+#ifdef MKXPZ_RETRO
+    (_PFNGLGETSTRINGIPROC) mkxp_retro::hw_render.get_proc_address("glGetStringi");
+#else
     (_PFNGLGETSTRINGIPROC) SDL_GL_GetProcAddress("glGetStringi");
+#endif // MKXPZ_RETRO
     
     GLint extCount = 0;
     GetIntegerv(GL_NUM_EXTENSIONS, &extCount);
@@ -68,13 +77,16 @@ static void parseExtensionsCompat(_PFNGLGETSTRINGPROC GetString, BoostSet<std::s
     }
 }
 
-#define GL_FUN(name, type) \
-gl.name = (type) SDL_GL_GetProcAddress("gl" #name EXT_SUFFIX);
+#ifdef MKXPZ_RETRO
+#  define GL_FUN(name, type) gl.name = (type) mkxp_retro::hw_render.get_proc_address("gl" #name EXT_SUFFIX);
+#else
+#  define GL_FUN(name, type) gl.name = (type) SDL_GL_GetProcAddress("gl" #name EXT_SUFFIX);
+#endif // MKXPZ_RETRO
 
 #define EXC(msg) \
 Exception(Exception::MKXPError, "%s", msg)
 
-void initGLFunctions()
+void initGLFunctions(Exception &exception)
 {
 #define EXT_SUFFIX ""
     GL_20_FUN;
@@ -99,8 +111,9 @@ void initGLFunctions()
     int glMajor = *ver - '0';
     
     if (glMajor < 2)
+    {
 #ifndef GLES2_HEADER
-        throw Exception(Exception::MKXPError,
+        exception = Exception(Exception::MKXPError,
                   "A graphics card that supports OpenGL 2.0 or later is required.\n\n"
                   "Driver information:\n"
                   "Vendor: %s\n"
@@ -112,8 +125,10 @@ void initGLFunctions()
 #else
         // on macOS, we're actually using either desktop GL or Metal due to ANGLE, but every Mac that supports Sierra
         // (officially or otherwise) should support ANGLE, so this should never be seen. Probably, anyway. Don't @ me
-        throw EXC("A graphics card that supports OpenGL ES 2.0 or later is required.");
+        exception = EXC("A graphics card that supports OpenGL ES 2.0 or later is required.");
 #endif
+        return;
+    }
     
     if (gles)
     {
@@ -154,7 +169,8 @@ void initGLFunctions()
     }
     else
     {
-        throw EXC("No FBO support available");
+        exception = EXC("No FBO support available");
+        return;
     }
     
     /* VAO entrypoints */

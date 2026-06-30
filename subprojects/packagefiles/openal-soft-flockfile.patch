@@ -1,0 +1,14 @@
+# Disables OpenAL Soft's use of flockfile and funlockfile since not every platform we support has those functions.
+# Besides, OpenAL Soft shouldn't even be using the filesystem or the standard streams.
+
+--- a/fmt-11.1.1/include/fmt/format-inl.h
++++ b/fmt-11.1.1/include/fmt/format-inl.h
+@@ -1479,7 +1479,7 @@ struct has_flockfile : std::false_type {};
+ 
+ template <typename F>
+ struct has_flockfile<F, void_t<decltype(flockfile(&std::declval<F&>()))>>
+-    : std::true_type {};
++    : std::false_type {};
+ 
+ // A FILE wrapper. F is FILE defined as a template parameter to make system API
+ // detection work.

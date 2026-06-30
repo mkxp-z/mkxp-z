@@ -28,10 +28,14 @@
 #include "sigslot/signal.hpp"
 #include <vector>
 
+#ifdef MKXPZ_RETRO
+#  include "wasm-types.h"
+#endif // MKXPZ_RETRO
+
 class Table : public Serializable
 {
 public:
-	Table(int x, int y = 1, int z = 1);
+	Table(int x = 1, int y = 1, int z = 1);
 	/* Clone constructor */
 	Table(const Table &other);
 	virtual ~Table() {}
@@ -49,7 +53,7 @@ public:
 
 	int serialSize() const;
 	void serialize(char *buffer) const;
-	static Table *deserialize(const char *data, int len);
+	static Table *deserialize(Exception &exception, const char *data, int len);
 
 	/* <internal */
 	inline int16_t &at(int x, int y = 0, int z = 0)
@@ -63,6 +67,15 @@ public:
 	}
 
     sigslot::signal<> modified;
+
+#ifdef MKXPZ_RETRO
+	const uint64_t id; // Globally unique nonzero ID for this table, for change detection during save state deserialization
+	bool deserModified;
+
+	bool sandbox_serialize(void *&data, mkxp_sandbox::wasm_size_t &max_size) const;
+	bool sandbox_deserialize(const void *&data, mkxp_sandbox::wasm_size_t &max_size);
+	void sandbox_deserialize_begin(bool is_new);
+#endif // MKXPZ_RETRO
 
 private:
 	int xs, ys, zs;

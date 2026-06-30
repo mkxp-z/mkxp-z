@@ -23,6 +23,7 @@
 #define TEXPOOL_H
 
 #include "gl-util.h"
+#include "exception.h"
 
 struct TexPoolPrivate;
 
@@ -32,10 +33,12 @@ public:
 	TexPool(uint32_t maxMemSize = 20000000 /* 20 MB */);
 	~TexPool();
 
-	TEXFBO request(int width, int height);
+	TEXFBO request(Exception &exception, int width, int height);
 	void release(TEXFBO &obj);
 
 	void disable();
+
+	void clear();
 
 private:
 	TexPoolPrivate *p;

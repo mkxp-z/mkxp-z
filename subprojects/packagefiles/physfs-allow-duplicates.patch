@@ -1,0 +1,14 @@
+# Causes PhysFS to allow duplicate mounts if the variable `mkxp_physfs_allow_duplicates` is true.
+# We use this to force PhysFS to mount the libretro save directory at two mountpoints at the same time.
+
+--- a/src/physfs.c
++++ b/src/physfs.c
+@@ -1812,7 +1812,7 @@ static int doMount(PHYSFS_Io *io, const char *fname,
+     for (i = searchPath; i != NULL; i = i->next)
+     {
+         /* already in search path? */
+-        if ((i->dirName != NULL) && (strcmp(fname, i->dirName) == 0))
++        extern int mkxp_physfs_allow_duplicates; if (!mkxp_physfs_allow_duplicates && (i->dirName != NULL) && (strcmp(fname, i->dirName) == 0))
+             BAIL_MUTEX_ERRPASS(stateLock, 1);
+         prev = i;
+     } /* for */

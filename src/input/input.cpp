@@ -32,6 +32,7 @@
 #include <SDL_mouse.h>
 #include <SDL_clipboard.h>
 
+#include <string>
 #include <vector>
 #include <cmath>
 #include <unordered_map>
@@ -1264,26 +1265,6 @@ void Input::update()
     p->last_update = shState->runTime();
 }
 
-std::vector<std::string> Input::getBindings(ButtonCode code) {
-    std::vector<std::string> ret;
-    for (const auto &b : p->kbBindings) {
-        if (b.target != code) continue;
-        ret.push_back(SDL_GetScancodeName(b.source));
-    }
-    
-    for (const auto &b : p->ctrlBBindings) {
-        if (b.target != code) continue;
-        ret.push_back(std::string("CBUTTON") + std::to_string(b.source));
-    }
-    
-    for (const auto &b : p->ctrlABindings) {
-        if (b.target != code) continue;
-        ret.push_back(std::string("CAXIS") + std::to_string(b.source));
-    }
-    
-    return ret;
-}
-
 bool Input::isPressed(int button)
 {
     return p->getStateCheck(button).pressed;
@@ -1515,15 +1496,15 @@ void Input::clearText()
     shState->eThread().textInputBuffer.clear();
 }
 
-char *Input::getClipboardText()
+std::string Input::getClipboardText()
 {
-    char *tx = SDL_GetClipboardText();
-    if (!tx)
-        throw Exception(Exception::SDLError, "Failed to get clipboard text: %s", SDL_GetError());
-    return tx;
+    const char *tx = SDL_GetClipboardText();
+    std::string str(tx);
+    SDL_free((void *)tx);
+    return str;
 }
 
-void Input::setClipboardText(char *text)
+void Input::setClipboardText(const char *text)
 {
     if (SDL_SetClipboardText(text) < 0)
         throw Exception(Exception::SDLError, "Failed to set clipboard text: %s", SDL_GetError());

@@ -1,0 +1,63 @@
+# Fixes compilation errors when building other subprojects have Ogg as a dependency (e.g. Vorbis).
+
+--- a/include/ogg/ogg.h
++++ b/include/ogg/ogg.h
+@@ -21,7 +21,7 @@ extern "C" {
+ #endif
+ 
+ #include <stddef.h>
+-#include <ogg/os_types.h>
++#include "../ogg/include/ogg/os_types.h"
+ 
+ typedef struct {
+   void *iov_base;
+--- a/include/ogg/os_types.h
++++ b/include/ogg/os_types.h
+@@ -151,7 +151,13 @@
+ 
+ #else
+ 
+-#  include <ogg/config_types.h>
++#  include <stdint.h>
++   typedef int16_t ogg_int16_t;
++   typedef uint16_t ogg_uint16_t;
++   typedef int32_t ogg_int32_t;
++   typedef uint32_t ogg_uint32_t;
++   typedef int64_t ogg_int64_t;
++   typedef uint64_t ogg_uint64_t;
+ 
+ #endif
+ 
+--- a/src/bitwise.c
++++ b/src/bitwise.c
+@@ -20,7 +20,7 @@
+ #include <string.h>
+ #include <stdlib.h>
+ #include <limits.h>
+-#include <ogg/ogg.h>
++#include "../ogg/include/ogg/ogg.h"
+ 
+ #define BUFFER_INCREMENT 256
+ 
+--- a/src/crctable.h
++++ b/src/crctable.h
+@@ -10,7 +10,7 @@
+  *                                                                  *
+  ********************************************************************/
+ 
+-#include <ogg/os_types.h>
++#include "../ogg/include/ogg/os_types.h"
+ 
+ static const ogg_uint32_t crc_lookup[8][256]={
+ {0x00000000,0x04c11db7,0x09823b6e,0x0d4326d9,0x130476dc,0x17c56b6b,0x1a864db2,0x1e475005,
+--- a/src/framing.c
++++ b/src/framing.c
+@@ -26,7 +26,7 @@
+ #include <stdlib.h>
+ #include <limits.h>
+ #include <string.h>
+-#include <ogg/ogg.h>
++#include "../ogg/include/ogg/ogg.h"
+ 
+ /* A complete description of Ogg framing exists in docs/framing.html */
+ 

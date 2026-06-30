@@ -26,8 +26,6 @@
 #include "gl-util.h"
 #include "glstate.h"
 
-class ShaderNoConstructTag {};
-
 class Shader
 {
 public:
@@ -45,13 +43,19 @@ public:
 
 protected:
 	Shader();
+	Shader(const Shader &) = delete;
+	Shader(Shader &&) = delete;
+	Shader &operator=(const Shader &) = delete;
+	Shader &operator=(Shader &&) = delete;
 	~Shader();
 
-    void init(const unsigned char *vert, int vertSize,
-              const unsigned char *frag, int fragSize,
+	void init(Exception &exception,
+	          const unsigned char *vert, int vertSize,
+	          const unsigned char *frag, int fragSize,
 	          const char *vertName, const char *fragName,
 	          const char *programName);
-	void initFromFile(const char *vertFile, const char *fragFile,
+	void initFromFile(Exception &exception,
+	                  const char *vertFile, const char *fragFile,
 	                  const char *programName);
 
 	static void setVec4Uniform(GLint location, const Vec4 &vec);
@@ -61,7 +65,7 @@ protected:
 	GLuint vertShader, fragShader;
 	GLuint program;
 	bool initialized;
-    
+
 private:
 #ifdef MKXPZ_BUILD_XCODE
     static std::string shaderCommon;
@@ -102,7 +106,7 @@ protected:
 class FlatColorShader : public ShaderBase
 {
 public:
-	FlatColorShader();
+	FlatColorShader(Exception &exception);
 
 	void setColor(const Vec4 &value);
 
@@ -113,8 +117,8 @@ private:
 class SimpleShader : public ShaderBase
 {
 public:
-	SimpleShader();
-	SimpleShader(const ShaderNoConstructTag &);
+	SimpleShader() = default;
+	SimpleShader(Exception &exception);
 
 	void setTexOffsetX(int value);
 
@@ -125,20 +129,22 @@ protected:
 class SimpleColorShader : public ShaderBase
 {
 public:
-	SimpleColorShader();
+	SimpleColorShader() = default;
+	SimpleColorShader(Exception &exception);
 };
 
 class SimpleAlphaShader : public ShaderBase
 {
 public:
-	SimpleAlphaShader();
+	SimpleAlphaShader() = default;
+	SimpleAlphaShader(Exception &exception);
 };
 
 class SimpleSpriteShader : public ShaderBase
 {
 public:
-	SimpleSpriteShader();
-	SimpleSpriteShader(const ShaderNoConstructTag &);
+	SimpleSpriteShader() = default;
+	SimpleSpriteShader(Exception &exception);
 
 	void setSpriteMat(const float value[16]);
 
@@ -149,7 +155,8 @@ protected:
 class AlphaSpriteShader : public ShaderBase
 {
 public:
-	AlphaSpriteShader();
+	AlphaSpriteShader() = default;
+	AlphaSpriteShader(Exception &exception);
 
 	void setSpriteMat(const float value[16]);
 	void setAlpha(float value);
@@ -161,7 +168,8 @@ private:
 class TransShader : public ShaderBase
 {
 public:
-	TransShader();
+	TransShader() = default;
+	TransShader(Exception &exception);
 
 	void setCurrentScene(TEX::ID tex);
 	void setFrozenScene(TEX::ID tex);
@@ -176,7 +184,8 @@ private:
 class SimpleTransShader : public ShaderBase
 {
 public:
-	SimpleTransShader();
+	SimpleTransShader() = default;
+	SimpleTransShader(Exception &exception);
 
 	void setCurrentScene(TEX::ID tex);
 	void setFrozenScene(TEX::ID tex);
@@ -189,7 +198,8 @@ private:
 class SpriteShader : public ShaderBase
 {
 public:
-	SpriteShader();
+	SpriteShader() = default;
+	SpriteShader(Exception &exception);
 
 	void setSpriteMat(const float value[16]);
 	void setTone(const Vec4 &value);
@@ -215,7 +225,8 @@ private:
 class PlaneShader : public ShaderBase
 {
 public:
-	PlaneShader();
+	PlaneShader() = default;
+	PlaneShader(Exception &exception);
 
 	void setTone(const Vec4 &value);
 	void setColor(const Vec4 &value);
@@ -229,7 +240,8 @@ private:
 class GrayShader : public ShaderBase
 {
 public:
-	GrayShader();
+	GrayShader() = default;
+	GrayShader(Exception &exception);
 
 	void setGray(float value);
 
@@ -243,7 +255,8 @@ private:
 class TilemapShader : public ShaderBase
 {
 public:
-	TilemapShader();
+	TilemapShader() = default;
+	TilemapShader(Exception &exception);
 
 	void setAniIndex(int value);
 
@@ -260,7 +273,8 @@ private:
 class FlashMapShader : public ShaderBase
 {
 public:
-	FlashMapShader();
+	FlashMapShader() = default;
+	FlashMapShader(Exception &exception);
 
 	void setAlpha(float value);
 
@@ -271,7 +285,8 @@ private:
 class HueShader : public ShaderBase
 {
 public:
-	HueShader();
+	HueShader() = default;
+	HueShader(Exception &exception);
 
 	void setHueAdjust(float value);
 
@@ -282,7 +297,8 @@ private:
 class SimpleMatrixShader : public ShaderBase
 {
 public:
-	SimpleMatrixShader();
+	SimpleMatrixShader() = default;
+	SimpleMatrixShader(Exception &exception);
 
 	void setMatrix(const float value[16]);
 
@@ -296,14 +312,19 @@ struct BlurShader
 	class HPass : public ShaderBase
 	{
 	public:
-		HPass();
+		HPass() = default;
+		HPass(Exception &exception);
 	};
 
 	class VPass : public ShaderBase
 	{
 	public:
-		VPass();
+		VPass() = default;
+		VPass(Exception &exception);
 	};
+
+	BlurShader() = default;
+	BlurShader(Exception &exception);
 
 	HPass pass1;
 	VPass pass2;
@@ -312,7 +333,8 @@ struct BlurShader
 class TilemapVXShader : public ShaderBase
 {
 public:
-	TilemapVXShader();
+	TilemapVXShader() = default;
+	TilemapVXShader(Exception &exception);
 
 	void setAniOffset(const Vec2 &value);
 
@@ -324,8 +346,8 @@ private:
 class BltShader : public ShaderBase
 {
 public:
-	BltShader();
-	BltShader(const ShaderNoConstructTag &);
+	BltShader() = default;
+	BltShader(Exception &exception);
 
 	void init();
 
@@ -342,25 +364,29 @@ private:
 class KglInvertShader : public ShaderBase
 {
 public:
-	KglInvertShader();
+	KglInvertShader() = default;
+	KglInvertShader(Exception &exception);
 };
 
 class KglCompressAlphaShader : public ShaderBase
 {
 public:
-	KglCompressAlphaShader();
+	KglCompressAlphaShader() = default;
+	KglCompressAlphaShader(Exception &exception);
 };
 
 class KglSubtractShader : public BltShader
 {
 public:
-	KglSubtractShader();
+	KglSubtractShader() = default;
+	KglSubtractShader(Exception &exception);
 };
 
 class KglShadowShaderH : public ShaderBase
 {
 public:
-	KglShadowShaderH();
+	KglShadowShaderH() = default;
+	KglShadowShaderH(Exception &exception);
 
 	void setParams(int x1, int x2, int y, bool soft, int w, int h, int x_center, int y_center, double slope1, double slope2);
 
@@ -371,7 +397,8 @@ private:
 class KglShadowShaderV : public ShaderBase
 {
 public:
-	KglShadowShaderV();
+	KglShadowShaderV() = default;
+	KglShadowShaderV(Exception &exception);
 
 	void setParams(int y1, int y2, int x, bool wall, bool soft, int w, int h, int x_center, int y_center, double slope1, double slope2);
 
@@ -382,8 +409,8 @@ private:
 class Lanczos3Shader : public SimpleShader
 {
 public:
-	Lanczos3Shader();
-	Lanczos3Shader(const ShaderNoConstructTag &);
+	Lanczos3Shader() = default;
+	Lanczos3Shader(Exception &exception);
 
 	void setTexSize(const Vec2i &value);
 
@@ -394,7 +421,8 @@ protected:
 class BicubicShader : public Lanczos3Shader
 {
 public:
-	BicubicShader();
+	BicubicShader() = default;
+	BicubicShader(Exception &exception);
 
 	void setSharpness(int sharpness);
 
@@ -406,7 +434,8 @@ protected:
 class XbrzShader : public Lanczos3Shader
 {
 public:
-	XbrzShader();
+	XbrzShader() = default;
+	XbrzShader(Exception &exception);
 
 	void setTargetScale(const Vec2 &value);
 
@@ -418,8 +447,8 @@ protected:
 class Lanczos3SpriteShader : public SimpleSpriteShader
 {
 public:
-	Lanczos3SpriteShader();
-	Lanczos3SpriteShader(const ShaderNoConstructTag &);
+	Lanczos3SpriteShader() = default;
+	Lanczos3SpriteShader(Exception &exception);
 
 	void setTexSize(const Vec2i &value);
 
@@ -430,7 +459,8 @@ protected:
 class BicubicSpriteShader : public Lanczos3SpriteShader
 {
 public:
-	BicubicSpriteShader();
+	BicubicSpriteShader() = default;
+	BicubicSpriteShader(Exception &exception);
 
 	void setSharpness(int sharpness);
 
@@ -441,7 +471,8 @@ protected:
 class XbrzSpriteShader : public Lanczos3SpriteShader
 {
 public:
-	XbrzSpriteShader();
+	XbrzSpriteShader() = default;
+	XbrzSpriteShader(Exception &exception);
 
 	void setTargetScale(const Vec2 &value);
 
@@ -485,6 +516,10 @@ struct ShaderSet
 #ifdef MKXPZ_SSL
 	XbrzSpriteShader xbrzSprite;
 #endif
+
+	ShaderSet(Exception &exception);
+
+	void reinit(Exception &exception);
 };
 
 #endif // SHADER_H

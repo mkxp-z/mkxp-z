@@ -23,6 +23,7 @@
 #define SHAREDSTATE_H
 
 #include "sigslot/signal.hpp"
+#include "exception.h"
 
 #define shState SharedState::instance
 #define glState shState->_glState()
@@ -83,7 +84,7 @@ struct SharedState
 
 	sigslot::signal<> prepareDraw;
 
-	unsigned int genTimeStamp();
+	uint64_t genTimeStamp();
     
     // Returns time since SharedState was constructed in microseconds
     double runTime();
@@ -91,7 +92,7 @@ struct SharedState
 	/* Returns global quad IBO, and ensures it has indices
 	 * for at least minSize quads */
 	void ensureQuadIBO(size_t minSize);
-	GlobalIBO &globalIBO();
+	static GlobalIBO &globalIBO();
 
 	/* Global general purpose texture */
 	void bindTex();
@@ -118,11 +119,15 @@ struct SharedState
 
 	/* This function will throw an Exception instance
 	 * on initialization error */
-	static void initInstance(RGSSThreadData *threadData);
+	static void initInstance(Exception &exception, RGSSThreadData *threadData);
 	static void finiInstance();
 
+#ifdef MKXPZ_RETRO
+	void sandbox_reinit();
+#endif // MKXPZ_RETRO
+
 private:
-	SharedState(RGSSThreadData *threadData);
+	SharedState(Exception &exception, RGSSThreadData *threadData);
 	~SharedState();
 
 	SharedStatePrivate *p;

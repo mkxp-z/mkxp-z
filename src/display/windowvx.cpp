@@ -36,10 +36,17 @@
 #include <algorithm>
 #include "sigslot/signal.hpp"
 
+#ifdef MKXPZ_RETRO
+#  include "sandbox-serial-util.h"
+#endif // MKXPZ_RETRO
+
 #define DEF_Z         (rgssVer >= 3 ? 100 :   0)
 #define DEF_PADDING   (rgssVer >= 3 ?  12 :  16)
 #define DEF_BACK_OPAC (rgssVer >= 3 ? 192 : 255)
 #define DEF_SPRITE_Y  (rgssVer >= 3 ? std::numeric_limits<int>::max() : 0) /* See scene.h */
+
+#define GUARD_V(value, expression) do { expression; if (exception.is_error()) return value; } while (0)
+#define GUARD(expression) GUARD_V(, expression)
 
 template<typename T>
 struct Sides
@@ -184,8 +191,18 @@ struct WindowVXPrivate
 	NormValue openness;
 	Tone *tone;
 
+#ifdef MKXPZ_RETRO
+	uint64_t deserSavedWindowskinId;
+	uint64_t deserSavedContentsId;
+#endif // MKXPZ_RETRO
 	sigslot::connection cursorRectCon;
+#ifdef MKXPZ_RETRO
+	Rect deserSavedCursorRect;
+#endif // MKXPZ_RETRO
 	sigslot::connection toneCon;
+#ifdef MKXPZ_RETRO
+	Tone deserSavedTone;
+#endif // MKXPZ_RETRO
 	sigslot::connection prepareCon;
 
 	EtcTemps tmp;
@@ -306,7 +323,7 @@ struct WindowVXPrivate
 		contentsDispCon.disconnect();
 	}
 
-	void updateChild()
+	void updateChild(Exception &exception)
 	{
 		if (!contentsOpacity)
 		{
@@ -331,7 +348,7 @@ struct WindowVXPrivate
 		shared.width = clipRect.w;
 		shared.height = clipRect.h;
 		
-		contents->childUpdate();
+		GUARD(contents->childUpdate(exception));
 		
 		contentsOff = Vec2i(shared.offset.x, shared.offset.y);
 		contentsVisible = shared.isVisible;
@@ -361,7 +378,7 @@ struct WindowVXPrivate
 			(&WindowVXPrivate::invalidateBaseTex, this);
 	}
 
-	void updateBaseTexSize()
+	void updateBaseTexSize(Exception &exception)
 	{
 		if (base.tex.width >= geo.w && base.tex.height >= geo.h)
 			return;
@@ -378,7 +395,7 @@ struct WindowVXPrivate
 		if (geo.w == 0 || geo.h == 0)
 			return;
 
-		base.tex = shState->texPool().request(geo.w, geo.h);
+		GUARD(base.tex = shState->texPool().request(exception, geo.w, geo.h));
 		TEX::bind(base.tex.tex);
 		TEX::setSmooth(true);
 	}
@@ -735,7 +752,10 @@ struct WindowVXPrivate
 
 		if (base.texSizeDirty)
 		{
-			updateBaseTexSize();
+			Exception e;
+			updateBaseTexSize(e);
+			if (e.is_error())
+				return;
 			base.texSizeDirty = false;
 			base.texDirty = true;
 		}
@@ -752,7 +772,11 @@ struct WindowVXPrivate
 			clipRectDirty = false;
 		}
 
-		updateChild();
+		{
+			// Ignore errors
+			Exception e;
+			updateChild(e);
+		}
 
 		if (ctrlVertDirty)
 		{
@@ -873,15 +897,20 @@ struct WindowVXPrivate
 	}
 };
 
+static void disposePtr(void *ptr)
+{
+	((WindowVX *)ptr)->dispose();
+}
+
 WindowVX::WindowVX(Viewport *viewport)
-    : ViewportElement(viewport, DEF_Z, DEF_SPRITE_Y)
+    : ViewportElement(disposePtr, viewport, DEF_Z, DEF_SPRITE_Y)
 {
 	p = new WindowVXPrivate(0, 0, 0, 0);
 	onGeometryChange(scene->getGeometry());
 }
 
 WindowVX::WindowVX(int x, int y, int width, int height)
-    : ViewportElement(0, DEF_Z, DEF_SPRITE_Y)
+    : ViewportElement(disposePtr, 0, DEF_Z, DEF_SPRITE_Y)
 {
 	p = new WindowVXPrivate(x, y, width, height);
 	onGeometryChange(scene->getGeometry());
@@ -892,9 +921,9 @@ WindowVX::~WindowVX()
 	dispose();
 }
 
-void WindowVX::update()
+void WindowVX::update(Exception &exception)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	p->stepAnimations();
 
@@ -902,9 +931,9 @@ void WindowVX::update()
 	p->updateCursorAlpha();
 }
 
-void WindowVX::move(int x, int y, int width, int height)
+void WindowVX::move(Exception &exception, int x, int y, int width, int height)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	p->width = width;
 	p->height = height;
@@ -923,16 +952,16 @@ void WindowVX::move(int x, int y, int width, int height)
 	p->updateBaseQuad();
 }
 
-bool WindowVX::isOpen() const
+bool WindowVX::isOpen(Exception &exception) const
 {
-	guardDisposed();
+	GUARD_V(false, guardDisposed(exception));
 
 	return p->openness == 255;
 }
 
-bool WindowVX::isClosed() const
+bool WindowVX::isClosed(Exception &exception) const
 {
-	guardDisposed();
+	GUARD_V(false, guardDisposed(exception));
 
 	return p->openness == 0;
 }
@@ -958,9 +987,9 @@ DEF_ATTR_RD_SIMPLE(WindowVX, BackOpacity,     int,     p->backOpacity)
 DEF_ATTR_RD_SIMPLE(WindowVX, ContentsOpacity, int,     p->contentsOpacity)
 DEF_ATTR_RD_SIMPLE(WindowVX, Openness,        int,     p->openness)
 
-void WindowVX::setWindowskin(Bitmap *value)
+void WindowVX::setWindowskin(Exception &exception, Bitmap *value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (p->windowskin == value)
 		return;
@@ -979,9 +1008,9 @@ void WindowVX::setWindowskin(Bitmap *value)
 	p->windowskinDispCon = value->wasDisposed.connect(&WindowVXPrivate::windowskinDisposal, p);
 }
 
-void WindowVX::setContents(Bitmap *value)
+void WindowVX::setContents(Exception &exception, Bitmap *value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (p->realContents == value)
 		return;
@@ -1004,11 +1033,11 @@ void WindowVX::setContents(Bitmap *value)
 
 	if (value->isMega())
 	{
-		p->contents = value->spawnChild();
+		GUARD(p->contents = value->spawnChild(exception));
 		
 		ChildPublic &shared = *p->contents->getChildInfo();
-		shared.sceneRect = &scene->getGeometry().rect;
-		shared.sceneOrig = &scene->getGeometry().orig;
+		shared.sceneElementType = ChildPublic::WINDOWVX;
+		shared.sceneElement = this;
 	}
 
 	FloatRect rect = p->contents->rect();
@@ -1016,9 +1045,9 @@ void WindowVX::setContents(Bitmap *value)
 	p->ctrlVertDirty = true;
 }
 
-void WindowVX::setActive(bool value)
+void WindowVX::setActive(Exception &exception, bool value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (p->active == value)
 		return;
@@ -1028,9 +1057,9 @@ void WindowVX::setActive(bool value)
 	p->updateCursorAlpha();
 }
 
-void WindowVX::setArrowsVisible(bool value)
+void WindowVX::setArrowsVisible(Exception &exception, bool value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (p->arrowsVisible == value)
 		return;
@@ -1039,9 +1068,9 @@ void WindowVX::setArrowsVisible(bool value)
 	p->ctrlVertDirty = true;
 }
 
-void WindowVX::setPause(bool value)
+void WindowVX::setPause(Exception &exception, bool value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (p->pause == value)
 		return;
@@ -1052,9 +1081,9 @@ void WindowVX::setPause(bool value)
 	p->ctrlVertDirty = true;
 }
 
-void WindowVX::setWidth(int value)
+void WindowVX::setWidth(Exception &exception, int value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (p->width == value)
 		return;
@@ -1068,9 +1097,9 @@ void WindowVX::setWidth(int value)
 	p->updateBaseQuad();
 }
 
-void WindowVX::setHeight(int value)
+void WindowVX::setHeight(Exception &exception, int value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (p->height == value)
 		return;
@@ -1084,9 +1113,9 @@ void WindowVX::setHeight(int value)
 	p->updateBaseQuad();
 }
 
-void WindowVX::setOX(int value)
+void WindowVX::setOX(Exception &exception, int value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (p->realContentsOff.x == value)
 		return;
@@ -1095,9 +1124,9 @@ void WindowVX::setOX(int value)
 	p->ctrlVertDirty = true;
 }
 
-void WindowVX::setOY(int value)
+void WindowVX::setOY(Exception &exception, int value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (p->realContentsOff.y == value)
 		return;
@@ -1106,9 +1135,9 @@ void WindowVX::setOY(int value)
 	p->ctrlVertDirty = true;
 }
 
-void WindowVX::setPadding(int value)
+void WindowVX::setPadding(Exception &exception, int value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (p->padding == value)
 		return;
@@ -1118,9 +1147,9 @@ void WindowVX::setPadding(int value)
 	p->clipRectDirty = true;
 }
 
-void WindowVX::setPaddingBottom(int value)
+void WindowVX::setPaddingBottom(Exception &exception, int value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (p->paddingBottom == value)
 		return;
@@ -1129,9 +1158,9 @@ void WindowVX::setPaddingBottom(int value)
 	p->clipRectDirty = true;
 }
 
-void WindowVX::setOpacity(int value)
+void WindowVX::setOpacity(Exception &exception, int value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (p->opacity == value)
 		return;
@@ -1140,9 +1169,9 @@ void WindowVX::setOpacity(int value)
 	p->base.quad.setColor(Vec4(1, 1, 1, p->opacity.norm));
 }
 
-void WindowVX::setBackOpacity(int value)
+void WindowVX::setBackOpacity(Exception &exception, int value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (p->backOpacity == value)
 		return;
@@ -1151,9 +1180,9 @@ void WindowVX::setBackOpacity(int value)
 	p->base.texDirty = true;
 }
 
-void WindowVX::setContentsOpacity(int value)
+void WindowVX::setContentsOpacity(Exception &exception, int value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (p->contentsOpacity == value)
 		return;
@@ -1162,9 +1191,9 @@ void WindowVX::setContentsOpacity(int value)
 	p->contentsQuad.setColor(Vec4(1, 1, 1, p->contentsOpacity.norm));
 }
 
-void WindowVX::setOpenness(int value)
+void WindowVX::setOpenness(Exception &exception, int value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (p->openness == value)
 		return;
@@ -1185,7 +1214,17 @@ void WindowVX::initDynAttribs()
 	}
 }
 
-void WindowVX::draw()
+const IntRect *WindowVX::sceneRect() const noexcept
+{
+	return &scene->getGeometry().rect;
+}
+
+const Vec2i *WindowVX::sceneOrig() const noexcept
+{
+	return &scene->getGeometry().orig;
+}
+
+void WindowVX::draw(Exception &exception)
 {
 	p->draw();
 }
@@ -1201,3 +1240,30 @@ void WindowVX::releaseResources()
 
 	delete p;
 }
+
+#ifdef MKXPZ_RETRO
+void WindowVX::sandbox_reinit()
+{
+	if (isDisposed()) return;
+
+	TEXFBO::clear(p->base.tex);
+	p->base.quad.reinit();
+	p->contentsQuad.reinit();
+	p->base.vert.reinit();
+	p->ctrlVert.reinit();
+	p->cursorVert.reinit();
+	p->base.vertDirty = true;
+	p->base.texSizeDirty = true;
+	p->base.texDirty = true;
+	p->ctrlVertDirty = true;
+	p->ctrlVertArrayDirty = true;
+	p->clipRectDirty = true;
+	p->cursorVertDirty = true;
+	p->cursorVertArrayDirty = true;
+}
+
+#ifndef MKXPZ_SANDBOX_SERIAL_WINDOWVX_H
+#define MKXPZ_SANDBOX_SERIAL_WINDOWVX_H
+#include "sandbox-serial-windowvx.h"
+#endif // MKXPZ_SANDBOX_SERIAL_WINDOWVX_H
+#endif // MKXPZ_RETRO

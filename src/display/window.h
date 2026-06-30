@@ -27,6 +27,10 @@
 
 #include "util.h"
 
+#ifdef MKXPZ_RETRO
+#  include "wasm-types.h"
+#endif // MKXPZ_RETRO
+
 class Bitmap;
 struct Rect;
 
@@ -38,7 +42,7 @@ public:
 	Window(Viewport *viewport = 0);
 	~Window();
 
-	void update();
+	void update(Exception &exception);
 
 	DECL_ATTR( Windowskin,      Bitmap* )
 	DECL_ATTR( Contents,        Bitmap* )
@@ -58,13 +62,25 @@ public:
 
 	void initDynAttribs();
 
+	const IntRect *sceneRect() const noexcept;
+	const Vec2i *sceneOrig() const noexcept;
+
+	void setZ(Exception &exception, int value);
+	void setVisible(Exception &exception, bool value);
+
+#ifdef MKXPZ_RETRO
+	bool sandbox_serialize(void *&data, mkxp_sandbox::wasm_size_t &max_size) const;
+	bool sandbox_deserialize(const void *&data, mkxp_sandbox::wasm_size_t &max_size);
+	void sandbox_deserialize_begin();
+	void sandbox_deserialize_end();
+	void sandbox_reinit();
+#endif // MKXPZ_RETRO
+
 private:
 	WindowPrivate *p;
 
-	void draw();
+	void draw(Exception &exception);
 	void onGeometryChange(const Scene::Geometry &);
-	void setZ(int value);
-	void setVisible(bool value);
 
 	void onViewportChange();
 

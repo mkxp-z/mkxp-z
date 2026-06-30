@@ -34,7 +34,7 @@ RB_METHOD_GUARD(sceneElementGetZ)
 	SceneElement *se = getPrivateData<C>(self);
 
 	int value = 0;
-	value = se->getZ();
+	BINDING_GUARD(value = se->getZ(e));
 
 	return rb_fix_new(value);
 }
@@ -48,7 +48,7 @@ RB_METHOD_GUARD(sceneElementSetZ)
 	int z;
 	rb_get_args(argc, argv, "i", &z RB_ARG_END);
 
-	GFX_GUARD_EXC( se->setZ(z); );
+	BINDING_GUARD_L(se->setZ(e, z));
 
 	return rb_fix_new(z);
 }
@@ -62,7 +62,7 @@ RB_METHOD_GUARD(sceneElementGetVisible)
 	SceneElement *se = getPrivateData<C>(self);
 
 	bool value = false;
-	value = se->getVisible();
+	BINDING_GUARD(value = se->getVisible(e));
 
 	return rb_bool_new(value);
 }
@@ -76,7 +76,7 @@ RB_METHOD_GUARD(sceneElementSetVisible)
 	bool visible;
 	rb_get_args(argc, argv, "b", &visible RB_ARG_END);
 
-	GFX_GUARD_EXC( se->setVisible(visible); );
+	BINDING_GUARD_L(se->setVisible(e, visible));
 
 	return rb_bool_new(visible);
 }

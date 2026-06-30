@@ -1,0 +1,63 @@
+# Fixes a compilation error when using the devkitARM toolchain or Vita SDK toolchain to compile libsndfile.
+# For some reason, there's no implicit casting between `int` and `int32_t` and between `unsigned int` and `uint32_t` in devkitARM or Vita SDK even though they're the same size, so we have to do this whole song and dance to appease the compiler.
+
+--- a/src/alac.c
++++ b/src/alac.c
+@@ -427,7 +427,7 @@ alac_decode_block (SF_PRIVATE *psf, ALAC_PRIVATE *plac)
+ 
+ 	plac->input_data_pos += packet_size ;
+ 	plac->frames_this_block = 0 ;
+-	alac_decode (pdec, &bit_buffer, plac->buffer, plac->frames_per_block, &plac->frames_this_block) ;
++	alac_decode (pdec, &bit_buffer, (int32_t *)plac->buffer, plac->frames_per_block, &plac->frames_this_block) ;
+ 
+ 	plac->partial_block_frames = 0 ;
+ 
+@@ -440,7 +440,7 @@ alac_encode_block (ALAC_PRIVATE *plac)
+ {	ALAC_ENCODER *penc = &plac->u.encoder ;
+ 	uint32_t num_bytes = 0 ;
+ 
+-	alac_encode (penc, plac->partial_block_frames, plac->buffer, plac->byte_buffer, &num_bytes) ;
++	alac_encode (penc, plac->partial_block_frames, (int32_t *)plac->buffer, plac->byte_buffer, &num_bytes) ;
+ 
+ 	if (fwrite (plac->byte_buffer, 1, num_bytes, plac->enctmp) != num_bytes)
+ 		return 0 ;
+--- a/src/flac.c
++++ b/src/flac.c
+@@ -132,7 +132,7 @@ static void sf_flac_error_callback (const FLAC__StreamDecoder *decoder, FLAC__St
+ /* Encoder Callbacks */
+ static FLAC__StreamEncoderSeekStatus sf_flac_enc_seek_callback (const FLAC__StreamEncoder *encoder, FLAC__uint64 absolute_byte_offset, void *client_data) ;
+ static FLAC__StreamEncoderTellStatus sf_flac_enc_tell_callback (const FLAC__StreamEncoder *encoder, FLAC__uint64 *absolute_byte_offset, void *client_data) ;
+-static FLAC__StreamEncoderWriteStatus sf_flac_enc_write_callback (const FLAC__StreamEncoder *encoder, const FLAC__byte buffer [], size_t bytes, unsigned samples, unsigned current_frame, void *client_data) ;
++static FLAC__StreamEncoderWriteStatus sf_flac_enc_write_callback (const FLAC__StreamEncoder *encoder, const FLAC__byte buffer [], size_t bytes, uint32_t samples, uint32_t current_frame, void *client_data) ;
+ 
+ static void
+ s2flac8_array (const short *src, int32_t *dest, int count)
+@@ -579,7 +579,7 @@ sf_flac_enc_tell_callback (const FLAC__StreamEncoder *UNUSED (encoder), FLAC__ui
+ } /* sf_flac_enc_tell_callback */
+ 
+ static FLAC__StreamEncoderWriteStatus
+-sf_flac_enc_write_callback (const FLAC__StreamEncoder * UNUSED (encoder), const FLAC__byte buffer [], size_t bytes, unsigned UNUSED (samples), unsigned UNUSED (current_frame), void *client_data)
++sf_flac_enc_write_callback (const FLAC__StreamEncoder * UNUSED (encoder), const FLAC__byte buffer [], size_t bytes, uint32_t UNUSED (samples), uint32_t UNUSED (current_frame), void *client_data)
+ {	SF_PRIVATE *psf = (SF_PRIVATE*) client_data ;
+ 
+ 	if (psf_fwrite (buffer, 1, bytes, psf) == (sf_count_t) bytes && psf->error == 0)
+--- a/src/ogg_opus.c
++++ b/src/ogg_opus.c
+@@ -713,7 +713,7 @@ ogg_opus_setup_encoder (SF_PRIVATE *psf, OGG_PRIVATE *odata, OPUS_PRIVATE *oopus
+ 	oopus->header.nb_streams = nb_streams ;
+ 	oopus->header.nb_coupled = nb_coupled ;
+ 
+-	opus_multistream_encoder_ctl (oopus->u.encode.state, OPUS_GET_BITRATE (&oopus->u.encode.bitrate)) ;
++	opus_multistream_encoder_ctl (oopus->u.encode.state, OPUS_GET_BITRATE ((opus_int32 *)&oopus->u.encode.bitrate)) ;
+ 	psf_log_printf (psf, "Encoding at target bitrate of %dbps\n", oopus->u.encode.bitrate) ;
+ 
+ 	/* TODO: Make configurable? */
+@@ -729,7 +729,7 @@ ogg_opus_setup_encoder (SF_PRIVATE *psf, OGG_PRIVATE *odata, OPUS_PRIVATE *oopus
+ 	** GOTCHA: This returns the preskip at the encoder samplerate, not the
+ 	** granulepos rate of 48000Hz needed for header.preskip.
+ 	*/
+-	error = opus_multistream_encoder_ctl (oopus->u.encode.state, OPUS_GET_LOOKAHEAD (&lookahead)) ;
++	error = opus_multistream_encoder_ctl (oopus->u.encode.state, OPUS_GET_LOOKAHEAD ((opus_int32 *)&lookahead)) ;
+ 	if (error != OPUS_OK)
+ 	{	psf_log_printf (psf, "Opus : OPUS_GET_LOOKAHEAD returned: %s\n", opus_strerror (error)) ;
+ 		return SFE_BAD_OPEN_FORMAT ;

@@ -1,0 +1,35 @@
+# Prevents FLAC from trying to look for Ogg externally since Meson already handles that.
+
+--- a/src/libFLAC/include/private/ogg_decoder_aspect.h
++++ b/src/libFLAC/include/private/ogg_decoder_aspect.h
+@@ -33,7 +33,7 @@
+ #ifndef FLAC__PRIVATE__OGG_DECODER_ASPECT_H
+ #define FLAC__PRIVATE__OGG_DECODER_ASPECT_H
+ 
+-#include <ogg/ogg.h>
++#include "../ogg/include/ogg/ogg.h"
+ 
+ #include "FLAC/ordinals.h"
+ #include "FLAC/stream_decoder.h" /* for FLAC__StreamDecoderReadStatus */
+--- a/src/libFLAC/include/private/ogg_encoder_aspect.h
++++ b/src/libFLAC/include/private/ogg_encoder_aspect.h
+@@ -33,7 +33,7 @@
+ #ifndef FLAC__PRIVATE__OGG_ENCODER_ASPECT_H
+ #define FLAC__PRIVATE__OGG_ENCODER_ASPECT_H
+ 
+-#include <ogg/ogg.h>
++#include "../ogg/include/ogg/ogg.h"
+ 
+ #include "FLAC/ordinals.h"
+ #include "FLAC/stream_encoder.h" /* for FLAC__StreamEncoderWriteStatus */
+--- a/src/libFLAC/include/private/ogg_helper.h
++++ b/src/libFLAC/include/private/ogg_helper.h
+@@ -33,7 +33,7 @@
+ #ifndef FLAC__PRIVATE__OGG_HELPER_H
+ #define FLAC__PRIVATE__OGG_HELPER_H
+ 
+-#include <ogg/ogg.h>
++#include "../ogg/include/ogg/ogg.h"
+ #include "FLAC/stream_encoder.h" /* for FLAC__StreamEncoder */
+ 
+ void simple_ogg_page__init(ogg_page *page);

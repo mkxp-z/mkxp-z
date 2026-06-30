@@ -3,7 +3,7 @@ if get_option('mri_includes') == ''
     ver = get_option('mri_version')
     if ver.version_compare('<=1.8')
         global_args += '-DMKXPZ_LEGACY_RUBY'
-    elif ver.version_compare('>=3.0') and compilers['cpp'].get_id() == 'clang'
+    elif ver.version_compare('>=3.0') and is_clang
         global_args += '-fdeclspec'
     endif
     global_dependencies += dependency('ruby-' + ver)

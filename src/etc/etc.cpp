@@ -24,8 +24,32 @@
 #include "serial-util.h"
 #include "exception.h"
 
-#include <SDL_types.h>
-#include <SDL_pixels.h>
+#ifdef MKXPZ_RETRO
+#  include "sandbox-serial-util.h"
+bool SDL_IntersectRect(const SDL_Rect *in1, const SDL_Rect *in2, SDL_Rect *out)
+{
+	if (in1 == NULL || in2 == NULL || out == NULL)
+		return false;
+	if (in1->w <= 0 || in1->h <= 0 || in2->w <= 0 || in2->h <= 0)
+		return false;
+	out->x = std::max(in1->x, in2->x);
+	out->y = std::max(in1->y, in2->y);
+	out->w = std::min(in1->x + in1->w, in2->x + in2->w) - out->x;
+	out->h = std::min(in1->y + in1->h, in2->y + in2->h) - out->y;
+	if (out->w <= 0 || out->h <= 0)
+		return false;
+	return true;
+}
+
+bool SDL_HasIntersection(const SDL_Rect *in1, const SDL_Rect *in2)
+{
+	SDL_Rect out;
+	return SDL_IntersectRect(in1, in2, &out);
+}
+#else
+#  include <SDL_types.h>
+#  include <SDL_pixels.h>
+#endif // MKXPZ_RETRO
 
 Color::Color(double red, double green, double blue, double alpha)
 	: red(red), green(green), blue(blue), alpha(alpha)
@@ -50,6 +74,11 @@ bool Color::operator==(const Color &o) const
 	       green == o.green &&
 	       blue  == o.blue  &&
 	       alpha == o.alpha;
+}
+
+bool Color::operator!=(const Color &o) const
+{
+	return !(*this == o);
 }
 
 const Color &Color::operator=(const Color &o)
@@ -111,10 +140,13 @@ void Color::serialize(char *buffer) const
 	writeDouble(&buffer, alpha);
 }
 
-Color *Color::deserialize(const char *data, int len)
+Color *Color::deserialize(Exception &exception, const char *data, int len)
 {
 	if (len != 32)
-		throw Exception(Exception::ArgumentError, "Color: Serialized data invalid");
+	{
+		exception = Exception(Exception::ArgumentError, "Color: Serialized data invalid");
+		return nullptr;
+	}
 
 	Color *c = new Color();
 
@@ -172,6 +204,11 @@ bool Tone::operator==(const Tone &o) const
 	       green == o.green &&
 	       blue  == o.blue  &&
 	       gray  == o.gray;
+}
+
+bool Tone::operator!=(const Tone &o) const
+{
+	return !(*this == o);
 }
 
 void Tone::set(double red, double green, double blue, double gray)
@@ -244,10 +281,13 @@ void Tone::serialize(char *buffer) const
 	writeDouble(&buffer, gray);
 }
 
-Tone *Tone::deserialize(const char *data, int len)
+Tone *Tone::deserialize(Exception &exception, const char *data, int len)
 {
 	if (len != 32)
-		throw Exception(Exception::ArgumentError, "Tone: Serialized data invalid");
+	{
+		exception = Exception(Exception::ArgumentError, "Tone: Serialized data invalid");
+		return nullptr;
+	}
 
 	Tone *t = new Tone();
 
@@ -288,6 +328,11 @@ bool Rect::operator==(const Rect &o) const
 	       y      == o.y     &&
 	       width  == o.width &&
 	       height == o.height;
+}
+
+bool Rect::operator!=(const Rect &o) const
+{
+	return !(*this == o);
 }
 
 void Rect::operator=(const IntRect &rect)
@@ -390,10 +435,13 @@ void Rect::serialize(char *buffer) const
 	writeInt32(&buffer, height);
 }
 
-Rect *Rect::deserialize(const char *data, int len)
+Rect *Rect::deserialize(Exception &exception, const char *data, int len)
 {
 	if (len != 16)
-		throw Exception(Exception::ArgumentError, "Rect: Serialized data invalid");
+	{
+		exception = Exception(Exception::ArgumentError, "Rect: Serialized data invalid");
+		return nullptr;
+	}
 
 	Rect *r = new Rect();
 
@@ -404,3 +452,10 @@ Rect *Rect::deserialize(const char *data, int len)
 
 	return r;
 }
+
+#ifdef MKXPZ_RETRO
+#ifndef MKXPZ_SANDBOX_SERIAL_ETC_H
+#define MKXPZ_SANDBOX_SERIAL_ETC_H
+#include "sandbox-serial-etc.h"
+#endif // MKXPZ_SANDBOX_SERIAL_ETC_H
+#endif // MKXPZ_RETRO

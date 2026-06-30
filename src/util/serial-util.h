@@ -26,8 +26,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <SDL_endian.h>
-
 static inline int32_t
 readInt32(const char **dataP)
 {
@@ -36,7 +34,7 @@ readInt32(const char **dataP)
 	memcpy(&result, *dataP, 4);
 	*dataP += 4;
 
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+#ifdef MKXPZ_BIG_ENDIAN
 #  ifdef _MSC_VER
 	static_assert(sizeof(unsigned long) == sizeof(int32_t), "unsigned long should be 32 bits");
 	result = (int32_t)_byteswap_ulong((unsigned long)result);
@@ -51,7 +49,7 @@ readInt32(const char **dataP)
 static inline double
 readDouble(const char **dataP)
 {
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+#ifdef MKXPZ_BIG_ENDIAN
 	uint64_t result;
 
 	memcpy(&result, *dataP, 8);
@@ -77,7 +75,7 @@ readDouble(const char **dataP)
 static inline void
 writeInt32(char **dataP, int32_t value)
 {
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+#ifdef MKXPZ_BIG_ENDIAN
 #  ifdef _MSC_VER
 	static_assert(sizeof(unsigned long) == sizeof(int32_t), "unsigned long should be 32 bits");
 	value = (int32_t)_byteswap_ulong((unsigned long)value);
@@ -93,7 +91,7 @@ writeInt32(char **dataP, int32_t value)
 static inline void
 writeDouble(char **dataP, double value)
 {
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+#ifdef MKXPZ_BIG_ENDIAN
 	uint64_t valueUint = *(uint64_t *)&value;
 
 #  ifdef _MSC_VER

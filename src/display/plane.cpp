@@ -21,6 +21,8 @@
 
 #include "plane.h"
 
+#include <cmath>
+
 #include "sharedstate.h"
 #include "bitmap.h"
 #include "etc.h"
@@ -36,14 +38,23 @@
 
 #include "sigslot/signal.hpp"
 
+#ifdef MKXPZ_RETRO
+#  include "sandbox-serial-util.h"
+#endif // MKXPZ_RETRO
+
+#define GUARD_V(value, expression) do { expression; if (exception.is_error()) return value; } while (0)
+#define GUARD(expression) GUARD_V(, expression)
+
 static float fwrap(float value, float range)
 {
-	float res = fmod(value, range);
+	float res = std::fmod(value, range);
 	return res < 0 ? res + range : res;
 }
 
 struct PlanePrivate
 {
+	Plane *plane;
+
 	Bitmap *bitmap;
 	Bitmap *realBitmap;
 
@@ -71,8 +82,9 @@ struct PlanePrivate
 
 	sigslot::connection prepareCon;
 
-	PlanePrivate()
-	    : bitmap(0),
+	PlanePrivate(Plane *plane)
+	    : plane(plane),
+	      bitmap(0),
 	      realBitmap(0),
 	      opacity(255),
 	      blendType(BlendNormal),
@@ -159,7 +171,7 @@ struct PlanePrivate
 		qArray.commit();
 	}
 
-	void updateChild()
+	void updateChild(Exception &exception)
 	{
 		if (!opacity || !realZoomX || !realZoomY)
 		{
@@ -178,8 +190,8 @@ struct PlanePrivate
 		
 		ChildPublic &shared = *bitmap->getChildInfo();
 		
-		shared.sceneRect = &sceneGeo.rect;
-		shared.sceneOrig = &sceneGeo.orig;
+		shared.sceneElementType = ChildPublic::PLANE;
+		shared.sceneElement = plane;
 		
 		// Unlike Sprites, ox/oy in Planes is unaffected by zoom. So we treat it as x/y like Sprites instead.
 		shared.x = -realOX;
@@ -188,7 +200,7 @@ struct PlanePrivate
 		
 		shared.width = sceneGeo.rect.w;
 		shared.height = sceneGeo.rect.h;
-		bitmap->childUpdate();
+		GUARD(bitmap->childUpdate(exception));
 		
 		isVisible = shared.isVisible;
 		
@@ -216,7 +228,11 @@ struct PlanePrivate
 		if (nullOrDisposed(bitmap))
 			return;
 		
-		updateChild();
+		{
+			// Ignore errors
+			Exception e;
+			updateChild(e);
+		}
 		
 		if (!isVisible)
 			return;
@@ -229,10 +245,15 @@ struct PlanePrivate
 	}
 };
 
-Plane::Plane(Viewport *viewport)
-    : ViewportElement(viewport)
+static void disposePtr(void *ptr)
 {
-	p = new PlanePrivate();
+	((Plane *)ptr)->dispose();
+}
+
+Plane::Plane(Viewport *viewport)
+    : ViewportElement(disposePtr, viewport)
+{
+	p = new PlanePrivate(this);
 
 	onGeometryChange(scene->getGeometry());
 }
@@ -253,9 +274,9 @@ Plane::~Plane()
 	dispose();
 }
 
-void Plane::setBitmap(Bitmap *value)
+void Plane::setBitmap(Exception &exception, Bitmap *value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (p->bitmap != p->realBitmap)
 		delete p->bitmap;
@@ -275,14 +296,14 @@ void Plane::setBitmap(Bitmap *value)
 
 	if (value->isMega())
 	{
-		p->bitmap = value->spawnChild();
+		GUARD(p->bitmap = value->spawnChild(exception));
 		p->bitmap->getChildInfo()->wrap = true;
 	}
 }
 
-void Plane::setOX(int value)
+void Plane::setOX(Exception &exception, int value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (p->realOX == value)
 	        return;
@@ -291,9 +312,9 @@ void Plane::setOX(int value)
 	p->quadSourceDirty = true;
 }
 
-void Plane::setOY(int value)
+void Plane::setOY(Exception &exception, int value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	if (p->realOY == value)
 	        return;
@@ -302,9 +323,9 @@ void Plane::setOY(int value)
 	p->quadSourceDirty = true;
 }
 
-void Plane::setZoomX(float value)
+void Plane::setZoomX(Exception &exception, float value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	// RGSS hangs if you set this below 0
 	value = std::max(value, 0.0f);
@@ -316,9 +337,9 @@ void Plane::setZoomX(float value)
 	p->quadSourceDirty = true;
 }
 
-void Plane::setZoomY(float value)
+void Plane::setZoomY(Exception &exception, float value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	// RGSS hangs if you set this below 0
 	value = std::max(value, 0.0f);
@@ -330,9 +351,9 @@ void Plane::setZoomY(float value)
 	p->quadSourceDirty = true;
 }
 
-void Plane::setBlendType(int value)
+void Plane::setBlendType(Exception &exception, int value)
 {
-	guardDisposed();
+	GUARD(guardDisposed(exception));
 
 	switch (value)
 	{
@@ -355,7 +376,17 @@ void Plane::initDynAttribs()
 	p->tone = new Tone;
 }
 
-void Plane::draw()
+const IntRect *Plane::sceneRect() const noexcept
+{
+	return &p->sceneGeo.rect;
+}
+
+const Vec2i *Plane::sceneOrig() const noexcept
+{
+	return &p->sceneGeo.orig;
+}
+
+void Plane::draw(Exception &exception)
 {
 	if (nullOrDisposed(p->bitmap))
 		return;
@@ -419,3 +450,18 @@ void Plane::releaseResources()
 
 	delete p;
 }
+
+#ifdef MKXPZ_RETRO
+void Plane::sandbox_reinit()
+{
+	if (isDisposed()) return;
+
+	p->qArray.reinit();
+	p->quadSourceDirty = true;
+}
+
+#ifndef MKXPZ_SANDBOX_SERIAL_PLANE_H
+#define MKXPZ_SANDBOX_SERIAL_PLANE_H
+#include "sandbox-serial-plane.h"
+#endif // MKXPZ_SANDBOX_SERIAL_PLANE_H
+#endif // MKXPZ_RETRO

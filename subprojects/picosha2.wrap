@@ -1,0 +1,5 @@
+[wrap-git]
+url = https://github.com/okdshin/PicoSHA2
+revision = v1.0.1
+depth = 1
+patch_directory = picosha2

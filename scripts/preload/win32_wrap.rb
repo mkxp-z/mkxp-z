@@ -19,6 +19,8 @@
 # TOLERATE_ERRORS=false
 # LOG_NATIVE=true
 
+unless Win32API.method_defined? :mkxp_native_call
+
 module Scancodes
 	SDL = { :UNKNOWN => 0x00,
 		:A => 0x04, :B => 0x05, :C => 0x06, :D => 0x07,
@@ -402,4 +404,6 @@ class Win32API
 			raise RuntimeError, "[Win32API] [#{@dll}:#{@func}] #{args.to_s}"
 		end
 	end
+end
+
 end
