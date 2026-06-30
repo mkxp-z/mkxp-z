@@ -48,6 +48,8 @@
 		3B10ECED2568E83D00372D13 /* kglShadowH.frag in CopyFiles */ = {isa = PBXBuildFile; fileRef = 3B10ECA82568E7B600372D13 /* kglShadowH.frag */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		3B10ECEE2568E83D00372D13 /* kglShadowV.frag in CopyFiles */ = {isa = PBXBuildFile; fileRef = 3B10ECA92568E7B600372D13 /* kglShadowV.frag */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		3B10ECEF2568E83D00372D13 /* kglSubtract.frag in CopyFiles */ = {isa = PBXBuildFile; fileRef = 3B10ECAA2568E7B600372D13 /* kglSubtract.frag */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		3B10ECEF2568E83D00372D14 /* win32_wrap.rb in CopyFiles */ = {isa = PBXBuildFile; fileRef = 3B10ECAA2568E7B600372D13 /* win32_wrap.rb */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		3B10ECEF2568E83D00372D15 /* kgl2_wrap.rb in CopyFiles */ = {isa = PBXBuildFile; fileRef = 3B10ECAA2568E7B600372D13 /* kgl2_wrap.rb */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		3B10ECF52568E86B00372D13 /* liberation.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 3B10EC842568E78400372D13 /* liberation.ttf */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		3B10EDA62568E95E00372D13 /* eventthread.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3B10ED352568E95D00372D13 /* eventthread.cpp */; };
 		3B10EDA72568E95E00372D13 /* rgssad.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3B10ED382568E95D00372D13 /* rgssad.cpp */; };
@@ -777,6 +779,8 @@
 				3B10ECED2568E83D00372D13 /* kglShadowH.frag in CopyFiles */,
 				3B10ECEE2568E83D00372D13 /* kglShadowV.frag in CopyFiles */,
 				3B10ECEF2568E83D00372D13 /* kglSubtract.frag in CopyFiles */,
+				3B10ECEF2568E83D00372D14 /* win32_wrap.rb in CopyFiles */,
+				3B10ECEF2568E83D00372D15 /* kgl2_wrap.rb in CopyFiles */,
 				3F7F41D98CEDE6F418AAB0D2 /* bicubic.frag in CopyFiles */,
 				3D094509A210271690AF48F7 /* xbrz.frag in CopyFiles */,
 			);
@@ -897,6 +901,8 @@
 		3B10ECA82568E7B600372D13 /* kglShadowH.frag */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.glsl; name = kglShadowH.frag; path = ../shader/kglShadowH.frag; sourceTree = "<group>"; };
 		3B10ECA92568E7B600372D13 /* kglShadowV.frag */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.glsl; name = kglShadowV.frag; path = ../shader/kglShadowV.frag; sourceTree = "<group>"; };
 		3B10ECAA2568E7B600372D13 /* kglSubtract.frag */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.glsl; name = kglSubtract.frag; path = ../shader/kglSubtract.frag; sourceTree = "<group>"; };
+		3B10ECAA2568E7B600372D14 /* win32_wrap.rb */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.rb; name = win32_wrap.rb; path = ../scripts/preload/win32_wrap.rb; sourceTree = "<group>"; };
+		3B10ECAA2568E7B600372D15 /* kgl2_wrap.rb */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.rb; name = kgl2_wrap.rb; path = ../scripts/preload/kgl2_wrap.rb; sourceTree = "<group>"; };
 		3B10ED352568E95D00372D13 /* eventthread.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = eventthread.cpp; sourceTree = "<group>"; };
 		3B10ED372568E95D00372D13 /* rgssad.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = rgssad.h; sourceTree = "<group>"; };
 		3B10ED382568E95D00372D13 /* rgssad.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = rgssad.cpp; sourceTree = "<group>"; };
@@ -1423,6 +1429,15 @@
 			name = Shaders;
 			sourceTree = "<group>";
 		};
+		3B10EC8B2568E79800372D14 /* preload */ = {
+			isa = PBXGroup;
+			children = (
+				3B10ECAA2568E7B600372D14 /* win32_wrap.rb */,
+				3B10ECAA2568E7B600372D15 /* kgl2_wrap.rb */,
+			);
+			name = preload;
+			sourceTree = "<group>";
+		};
 		3B10ED342568E95D00372D13 /* src */ = {
 			isa = PBXGroup;
 			children = (
@@ -1859,6 +1874,7 @@
 				3BDB23E22564546E00C4A63D /* icon.icns */,
 				3BDB2409256470AE00C4A63D /* Player */,
 				3BDB23E12564545F00C4A63D /* Assets */,
+				3BDB23E12564545F00C4A63E /* scripts */,
 				3BA08EA5256641ED00449CFF /* misc */,
 				3BDB22F72564501400C4A63D /* Products */,
 				3BDB23E5256455A400C4A63D /* Frameworks */,
@@ -1888,6 +1904,14 @@
 				3B10EC852568E78400372D13 /* wqymicrohei.ttf */,
 			);
 			name = Assets;
+			sourceTree = "<group>";
+		};
+		3BDB23E12564545F00C4A63E /* scripts */ = {
+			isa = PBXGroup;
+			children = (
+				3B10EC8B2568E79800372D14 /* preload */,
+			);
+			name = scripts;
 			sourceTree = "<group>";
 		};
 		3BDB23E5256455A400C4A63D /* Frameworks */ = {

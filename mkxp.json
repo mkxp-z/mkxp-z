@@ -405,6 +405,13 @@
     //     "/path/to/patch2",
     // ],
 
+    // Built-in scripts to disable.
+    // (default: none)
+    //
+    // "disabledBuiltInScripts": [
+    //     "win32_wrap",
+    //     "kgl2_wrap",
+    // ],
 
     // Use the script's name as filename in warnings and error messages
     // (default: enabled)

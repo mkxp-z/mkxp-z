@@ -6,6 +6,8 @@
 # to the public domain worldwide.
 # https://creativecommons.org/publicdomain/zero/1.0/
 
+unless Win32API.method_defined? :kgl2_native_call
+
 require_relative 'win32_wrap' unless Win32API.method_defined? :mkxp_native_call
 require 'objspace'
 
@@ -325,4 +327,6 @@ class Win32API
 
 		return kgl2_native_call(*args)
 	end
+end
+
 end

@@ -119,6 +119,7 @@ subdir('src')
 subdir('binding')
 subdir('shader')
 subdir('assets')
+subdir('scripts')
 
 global_include_dirs += include_directories('src', 'binding')
 

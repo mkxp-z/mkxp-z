@@ -116,6 +116,7 @@ struct Config {
     std::vector<std::string> postloadScripts;
     std::vector<std::string> rtps;
     std::vector<std::string> patches;
+    std::vector<std::string> disabledBuiltInScripts;
     
     std::vector<std::string> fontSubs;
     float fontScale;

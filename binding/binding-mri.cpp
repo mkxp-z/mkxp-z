@@ -41,6 +41,7 @@
 #include "eventthread.h"
 
 #include <vector>
+#include <unordered_set>
 #include "util/rapidcsv.h"
 
 extern "C" {
@@ -63,6 +64,11 @@ extern "C" {
 #include <SDL_filesystem.h>
 #include <SDL_loadso.h>
 #include <SDL_power.h>
+
+#ifndef MKXPZ_BUILD_XCODE
+#include "scripts/preload/win32_wrap.rb.xxd"
+#include "scripts/preload/kgl2_wrap.rb.xxd"
+#endif
 
 extern const char module_rpg1[];
 extern const char module_rpg2[];
@@ -1025,7 +1031,36 @@ static void runRMXPScripts(BacktraceData &btData) {
         
         rb_ary_store(script, 3, rb_utf8_str_new_cstr(decodeBuffer.c_str()));
     }
-    
+
+    /* Execute built-in preload scripts */
+    {
+        int state;
+        std::unordered_set<std::string> disabledBuiltInScripts(conf.disabledBuiltInScripts.begin(), conf.disabledBuiltInScripts.end());
+#ifndef MKXPZ_BUILD_XCODE
+#  define LOAD_BUILTIN_SCRIPT(name) do { \
+            if (disabledBuiltInScripts.count(#name) == 0 || (strcmp(#name, "win32_wrap") == 0 && disabledBuiltInScripts.size() != 0)) { \
+                evalString(rb_utf8_str_new((const char *)___scripts_preload_##name##_rb, ___scripts_preload_##name##_rb_len), rb_utf8_str_new_cstr(#name ".rb"), &state); \
+                if (state) { \
+                    showMsg("Failed to load " #name ".rb"); \
+                } \
+            } \
+        } while (0)
+#else
+#  define LOAD_BUILTIN_SCRIPT(name) do { \
+            if (disabledBuiltInScripts.count(#name) == 0 || (strcmp(#name, "win32_wrap") == 0 && disabledBuiltInScripts.size() != 0)) { \
+                std::string script = mkxp_fs::contentsOfAssetAsString("scripts/preload/" #name, "rb"); \
+                evalString(rb_utf8_str_new(script.c_str(), script.length()), rb_utf8_str_new_cstr(#name ".rb"), &state); \
+                if (state) { \
+                    showMsg("Failed to load " #name ".rb"); \
+                } \
+            } \
+        } while (0)
+#endif
+        LOAD_BUILTIN_SCRIPT(win32_wrap);
+        LOAD_BUILTIN_SCRIPT(kgl2_wrap);
+#undef LOAD_BUILTIN_SCRIPT
+    }
+
     /* Execute preloaded scripts */
     for (std::vector<std::string>::const_iterator i = conf.preloadScripts.begin();
          i != conf.preloadScripts.end(); ++i)
@@ -1034,7 +1069,7 @@ static void runRMXPScripts(BacktraceData &btData) {
             break;
         runCustomScript(*i);
     }
-    
+
     VALUE exc = rb_gv_get("$!");
     if (exc != Qnil)
         return;
