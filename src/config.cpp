@@ -128,6 +128,7 @@ Config::Config() {}
 void Config::read(int argc, char *argv[]) {
     auto optsJ = json::object({
         {"rgssVersion", 0},
+        {"delta", 0},
         {"debugMode", false},
         {"displayFPS", false},
         {"printFPS", false},
@@ -256,6 +257,7 @@ try { exp } catch (...) {}
     SET_OPT_CUSTOMKEY(jit.minCalls, JITMinCalls, integer);
     SET_OPT_CUSTOMKEY(yjit.enabled, YJITEnable, boolean);
     SET_OPT(rgssVersion, integer);
+    SET_OPT(delta, integer);
     SET_OPT(defScreenW, integer);
     SET_OPT(defScreenH, integer);
     

@@ -42,6 +42,15 @@
     // "rgssVersion": 1,
 
 
+    // Controls what units the `Graphics.delta`, `Input.delta`, `System.delta` and `System.uptime` functions return.
+    // 0: Automatically detect whether 1 or 2 should be used for the current game, defaulting to 1 if the autodetection failed.
+    // 1: The functions return time in seconds as a `Float`.
+    // 2: The functions return time in microseconds as an `Integer`.
+    // (default: 0)
+    //
+    // "delta": 0,
+
+
     // Continuously display average FPS in window title.
     // This can always be toggled with F2 at runtime.
     // (default: disabled)

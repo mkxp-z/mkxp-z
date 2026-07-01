@@ -33,6 +33,7 @@ struct Config {
     json5pp::value raw;
     
     int rgssVersion;
+    int delta;
     
     bool debugMode;
     bool winConsole;

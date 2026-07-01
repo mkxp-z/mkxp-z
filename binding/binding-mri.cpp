@@ -348,7 +348,17 @@ RB_METHOD_GUARD_END
 
 RB_METHOD(mkxpDelta) {
     RB_UNUSED_PARAM;
-    return rb_float_new(shState->runTime());
+    for (;;) {
+        switch (shState->config().delta) {
+            case 1:
+                return rb_float_new(shState->runTime());
+            case 2:
+                return RB_ULL2NUM(shState->runTime() * 1000000.0);
+            default:
+                shState->config().delta = mkxp_use_legacy_delta() ? 2 : 1;
+                break;
+        }
+    }
 }
 
 RB_METHOD(mkxpDataDirectory) {
