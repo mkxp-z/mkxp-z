@@ -455,8 +455,8 @@
     // Controls the algorithm for reporting the height of rendered text.
     // 0: Nominal (TTF_FontHeight); matches RGSS behavior; may cut off bottoms of some characters.
     // 1: Rendered (TTF_SizeUTF8); deviates from RGSS; may look better.
-    // (default: 0)
-    // "fontHeightReporting": 0,
+    // (default: 1)
+    // "fontHeightReporting": 1,
 
     // Crops top row and left column of text that has an outline.
     // Disabling it generally looks nicer, but RGSS enables it, so enabling it

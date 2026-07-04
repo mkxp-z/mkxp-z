@@ -194,7 +194,7 @@ void Config::read(int argc, char *argv[]) {
         {"fontScale", 0.0f},
         {"fontKerning", true},
         {"fontHinting", 3}, // TTF_HINTING_NONE
-        {"fontHeightReporting", 0},
+        {"fontHeightReporting", 1},
         {"fontOutlineCrop", true},
         {"rubyLoadpath", json::array({})},
         {"JITEnable", false},
