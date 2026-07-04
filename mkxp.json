@@ -387,6 +387,18 @@
     // (multiple allowed). You can use folders, RGSS archives, and any archive
     // formats supported by PhysicsFS; see the compatibility list at:
     // https://www.icculus.org/physfs/docs/html/
+    // If a relative path is provided, it's first searched for in the game
+    // directory, and then if it isn't there it's searched for in the RTP
+    // subdirectory of the preferences directory, located at
+    // "%appdata%/mkxp-z/RTP" on Windows,
+    // "~/Library/Application Support/mkxp-z/RTP" on macOS and
+    // "~/.local/share/mkxp-z/RTP" on Linux. On Windows only, if a
+    // relative path is provided and the RTP isn't found in the game directory
+    // or the RTP subdirectory of the preferences directory, the Windows
+    // registry will be searched for installation paths of RTPs installed by the
+    // official RTP installers. RTPs specified in Game.ini will also be searched
+    // in this way, however the game directory will not be searched for RTPs
+    // specified in Game.ini.
     // (default: none)
     //
     // "RTP": [

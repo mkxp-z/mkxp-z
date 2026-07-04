@@ -408,6 +408,24 @@ void Config::readGameINI() {
         {
             GUARD(game.title = ic.getStringProperty("Game", "Title"););
             GUARD(game.scripts = ic.getStringProperty("Game", "Scripts"););
+#define LOAD_INI_RTP(property) do { \
+                std::string str; \
+                GUARD(str = ic.getStringProperty("Game", #property);); \
+                if (!str.empty()) { \
+                    iniRtps.push_back(str); \
+                } \
+            } while (0)
+            LOAD_INI_RTP(RTP);
+            LOAD_INI_RTP(RTP1);
+            LOAD_INI_RTP(RTP2);
+            LOAD_INI_RTP(RTP3);
+            LOAD_INI_RTP(RTP4);
+            LOAD_INI_RTP(RTP5);
+            LOAD_INI_RTP(RTP6);
+            LOAD_INI_RTP(RTP7);
+            LOAD_INI_RTP(RTP8);
+            LOAD_INI_RTP(RTP9);
+#undef LOAD_INI_RTP
             
             strReplace(game.scripts, '\\', '/');
             
