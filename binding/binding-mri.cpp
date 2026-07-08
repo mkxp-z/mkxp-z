@@ -113,7 +113,6 @@ RB_METHOD(mriP);
 RB_METHOD(mkxpDataDirectory);
 RB_METHOD(mkxpSetTitle);
 RB_METHOD(mkxpGetTitle);
-RB_METHOD(mkxpDesensitize);
 RB_METHOD(mkxpPuts);
 
 RB_METHOD(mkxpPlatform);
@@ -133,7 +132,6 @@ RB_METHOD(mkxpPowerState);
 RB_METHOD(mkxpSettingsMenu);
 RB_METHOD(mkxpCpuCount);
 RB_METHOD(mkxpSystemMemory);
-RB_METHOD(mkxpReloadPathCache);
 RB_METHOD(mkxpAddPath);
 RB_METHOD(mkxpRemovePath);
 RB_METHOD(mkxpFileExists);
@@ -225,7 +223,6 @@ static void mriBindingInit() {
     _rb_define_module_function(mod, "window_title=", mkxpSetTitle);
     _rb_define_module_function(mod, "show_settings", mkxpSettingsMenu);
     _rb_define_module_function(mod, "puts", mkxpPuts);
-    _rb_define_module_function(mod, "desensitize", mkxpDesensitize);
     _rb_define_module_function(mod, "platform", mkxpPlatform);
     
     _rb_define_module_function(mod, "is_mac?", mkxpIsMacHost);
@@ -246,7 +243,6 @@ static void mriBindingInit() {
     _rb_define_module_function(mod, "power_state", mkxpPowerState);
     _rb_define_module_function(mod, "nproc", mkxpCpuCount);
     _rb_define_module_function(mod, "memory", mkxpSystemMemory);
-    _rb_define_module_function(mod, "reload_cache", mkxpReloadPathCache);
     _rb_define_module_function(mod, "mount", mkxpAddPath);
     _rb_define_module_function(mod, "unmount", mkxpRemovePath);
     _rb_define_module_function(mod, "file_exist?", mkxpFileExists);
@@ -380,17 +376,6 @@ RB_METHOD(mkxpGetTitle) {
     rb_check_argc(argc, 0);
     
     return rb_utf8_str_new_cstr(SDL_GetWindowTitle(shState->sdlWindow()));
-}
-
-RB_METHOD(mkxpDesensitize) {
-    RB_UNUSED_PARAM;
-    
-    VALUE filename;
-    rb_scan_args(argc, argv, "1", &filename);
-    SafeStringValue(filename);
-    
-    return rb_utf8_str_new_cstr(
-                                shState->fileSystem().desensitize(RSTRING_PTR(filename)));
 }
 
 RB_METHOD(mkxpPuts) {
@@ -543,14 +528,6 @@ RB_METHOD(mkxpSystemMemory) {
     return INT2NUM(SDL_GetSystemRAM());
 }
 
-RB_METHOD_GUARD(mkxpReloadPathCache) {
-    RB_UNUSED_PARAM;
-    
-    shState->fileSystem().reloadPathCache();
-    return Qnil;
-}
-RB_METHOD_GUARD_END
-
 RB_METHOD_GUARD(mkxpAddPath) {
     RB_UNUSED_PARAM;
     
@@ -565,7 +542,7 @@ RB_METHOD_GUARD(mkxpAddPath) {
     if (reload != Qnil)
         rb_bool_arg(reload, &rl);
     
-    shState->fileSystem().addPath(RSTRING_PTR(path), mp, rl);
+    shState->fileSystem().addPath(RSTRING_PTR(path), mp);
     
     return path;
 }
@@ -582,7 +559,7 @@ RB_METHOD_GUARD(mkxpRemovePath) {
     if (reload != Qnil)
         rb_bool_arg(reload, &rl);
     
-    shState->fileSystem().removePath(RSTRING_PTR(path), rl);
+    shState->fileSystem().removePath(RSTRING_PTR(path));
     
     return path;
 }
