@@ -48,6 +48,7 @@ extern "C" {
 
 #if RAPI_FULL >= 190
 #include <ruby/encoding.h>
+#include <ruby/re.h>
 #endif
 }
 
@@ -149,6 +150,11 @@ RB_METHOD(mriRgssMain);
 RB_METHOD(mriRgssStop);
 RB_METHOD(_kernelCaller);
 
+#if RAPI_FULL >= 190
+RB_METHOD(kernelEval18);
+RB_METHOD(basicObjectInstanceEval18);
+#endif // RAPI_FULL >= 190
+
 RB_METHOD(mkxpStringToUTF8);
 RB_METHOD(mkxpStringToUTF8Bang);
 
@@ -206,6 +212,15 @@ static void mriBindingInit() {
                         "caller");
         _rb_define_module_function(rb_mKernel, "caller", _kernelCaller);
     }
+
+#if RAPI_FULL >= 190
+    if (shState->rtData().config.syntaxTransformCustomVersionMajor < 1 || (shState->rtData().config.syntaxTransformCustomVersionMajor == 1 && shState->rtData().config.syntaxTransformCustomVersionMajor <= 8)) {
+        rb_define_alias(rb_singleton_class(rb_mKernel), "_mkxp_kernel_eval_alias", "eval");
+        _rb_define_module_function(rb_mKernel, "eval", kernelEval18);
+        rb_define_alias(rb_cBasicObject, "_mkxp_basic_object_instance_eval_alias", "instance_eval");
+        _rb_define_method(rb_cBasicObject, "instance_eval", basicObjectInstanceEval18);
+    }
+#endif // RAPI_FULL >= 190
     
     if (rgssVer == 1)
         rb_eval_string(module_rpg1);
@@ -926,6 +941,86 @@ RB_METHOD(_kernelCaller) {
     
     return trace;
 }
+
+#if RAPI_FULL >= 190
+struct KernelEvalArgs {
+    int argc;
+    VALUE *argv;
+    VALUE result;
+    VALUE exception;
+};
+
+static VALUE kernelEval18Func(KernelEvalArgs *args) {
+    args->result = rb_funcall2(rb_mKernel, rb_intern("_mkxp_kernel_eval_alias"), args->argc, args->argv);
+    return Qnil;
+}
+
+static VALUE kernelEval18Rescue(KernelEvalArgs *args, VALUE exception) {
+    args->exception = exception;
+    return Qnil;
+}
+
+static void kernelEval18Sub(int argc, VALUE *argv) {
+    if (argc >= 1 && RB_TYPE_P(argv[0], T_STRING)) {
+        /* Remove whitespace from between the method name and the opening parenthesis in method calls to before the method name; e.g. "f (1, 2)" -> "f(1, 2)" */
+        argv[0] = rb_funcall(argv[0], rb_intern("gsub"), 2, rb_reg_regcomp(rb_utf8_str_new_cstr("\\b([A-Za-z_]\\w*)\\s+\\(")), rb_utf8_str_new_cstr("\\1("));
+    }
+}
+
+RB_METHOD(kernelEval18) {
+    RB_UNUSED_PARAM;
+
+    KernelEvalArgs args {argc, argv, Qundef, Qundef};
+#if RAPI_FULL < 270
+    rb_rescue2((VALUE(*)(ANYARGS))kernelEval18Func, (VALUE)&args, (VALUE(*)(ANYARGS))kernelEval18Rescue, (VALUE)&args, rb_eSyntaxError, (VALUE)0);
+#else
+    rb_rescue2((VALUE(*)(VALUE))kernelEval18Func, (VALUE)&args, (VALUE(*)(VALUE, VALUE))kernelEval18Rescue, (VALUE)&args, rb_eSyntaxError, (VALUE)0);
+#endif
+
+    if (args.exception != Qundef) {
+        kernelEval18Sub(argc, argv);
+        args.result = rb_funcall2(rb_mKernel, rb_intern("_mkxp_kernel_eval_alias"), argc, argv);
+    }
+
+    return args.result;
+}
+
+struct BasicObjectInstanceEvalArgs {
+    int argc;
+    VALUE *argv;
+    VALUE self;
+    VALUE result;
+    VALUE exception;
+};
+
+static VALUE basicObjectInstanceEval18Func(BasicObjectInstanceEvalArgs *args) {
+    args->result = rb_funcall2(args->self, rb_intern("_mkxp_basic_object_instance_eval_alias"), args->argc, args->argv);
+    return Qnil;
+}
+
+static VALUE basicObjectInstanceEval18Rescue(BasicObjectInstanceEvalArgs *args, VALUE exception) {
+    args->exception = exception;
+    return Qnil;
+}
+
+RB_METHOD(basicObjectInstanceEval18) {
+    RB_UNUSED_PARAM;
+
+    BasicObjectInstanceEvalArgs args {argc, argv, self, Qundef, Qundef};
+#if RAPI_FULL < 270
+    rb_rescue2((VALUE(*)(ANYARGS))basicObjectInstanceEval18Func, (VALUE)&args, (VALUE(*)(ANYARGS))basicObjectInstanceEval18Rescue, (VALUE)&args, rb_eSyntaxError, (VALUE)0);
+#else
+    rb_rescue2((VALUE(*)(VALUE))basicObjectInstanceEval18Func, (VALUE)&args, (VALUE(*)(VALUE, VALUE))basicObjectInstanceEval18Rescue, (VALUE)&args, rb_eSyntaxError, (VALUE)0);
+#endif
+
+    if (args.exception != Qundef) {
+        kernelEval18Sub(argc, argv);
+        args.result = rb_funcall2(self, rb_intern("_mkxp_basic_object_instance_eval_alias"), argc, argv);
+    }
+
+    return args.result;
+}
+#endif // RAPI_FULL >= 190
 
 VALUE kernelLoadDataInt(const char *filename, bool rubyExc, bool raw);
 

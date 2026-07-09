@@ -32,6 +32,31 @@
     //       the built-in framerate display.
 
 
+    // Apply a syntax transform to help games that require old Ruby syntax run
+    // in modern Ruby. If this is enabled, the syntax transform is only applied
+    // to the game scripts in Scripts.rxdata, Scripts.rvdata or Scripts.rvdata2.
+    // Any `eval` or `instance_eval` calls made from code with syntax transform
+    // enabled also enable syntax transform for the evaluated code. The syntax
+    // transform is not applied to any other Ruby scripts, such as preload
+    // scripts, postload scripts, the `customScript` specified in mkxp.json, the
+    // Ruby standard library, or scripts imported using `require` or
+    // `require_relative`.
+    // 0: Disabled (use modern Ruby syntax for all Ruby scripts)
+    // 1: Custom (use the Ruby version specified by `syntaxTransformCustomVersionMajor`, `syntaxTransformCustomVersionMinor` and `syntaxTransformCustomVersionTeeny`)
+    // 2: Compatibility mode (equivalent to Ruby 1.9.2 if the RGSS version is 3, or Ruby 1.8.1 otherwise)
+    // (default: 0 if mkxp.json exists, 2 if mkxp.json does not exist)
+    //
+    // "syntaxTransform": 0,
+
+
+    // When syntax transform is set to 1, these settings control the targeted
+    // Ruby version.
+    //
+    // "syntaxTransformCustomVersionMajor": 1,
+    // "syntaxTransformCustomVersionMinor": 0,
+    // "syntaxTransformCustomVersionTeeny": 0,
+
+
     // Specify the RGSS version to run under.
     // Possible values are 0, 1, 2, 3. If set to 0,
     // mkxp will try to guess the required version
