@@ -566,10 +566,16 @@
     //  "x": ...,
     // },
 
-
     // Dump tile atlas (for debugging purposes)
     // (default: false)
     //
     // "dumpAtlas": false,
 
+    // Changes the initial delay for input repeat when a button
+    // is held (approximate time in seconds).
+    // "inputRepeatStart": 0.4,
+
+    // Changes how often an input repeat is triggered when a button
+    // is held (approximate time in seconds).
+    // "inputRepeatDelay": 0.1,
 }
