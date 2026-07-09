@@ -134,11 +134,12 @@ $(DOWNLOADS)/libiconv-1.18/Makefile: $(DOWNLOADS)/libiconv-1.18/configure
 	$(CONFIGURE) --enable-static=true --enable-shared=false
 
 $(DOWNLOADS)/libiconv-1.18/configure: $(DOWNLOADS)/libiconv-1.18.tar.gz
+	if [ "$$(sha256sum $(DOWNLOADS)/libiconv-1.18.tar.gz | cut -d ' ' -f 1)" != '3b08f5f4f9b4eb82f151a7040bfd6fe6c6fb922efe4b1659c66ea933276965e8' ]; then echo 'Error: integrity check for libiconv failed'; exit 1; fi
 	cd $(DOWNLOADS); \
 	tar -xzf libiconv-1.18.tar.gz;
 
 $(DOWNLOADS)/libiconv-1.18.tar.gz:
-	wget https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.18.tar.gz -P $(DOWNLOADS)
+	wget https://ftpmirror.gnu.org/libiconv/libiconv-1.18.tar.gz -P $(DOWNLOADS)
 
 # uchardet
 uchardet: init_dirs $(LIBDIR)/libuchardet.a
