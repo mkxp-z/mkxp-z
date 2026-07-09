@@ -240,6 +240,17 @@ static void _blitBegin(FBO::ID fbo, const Vec2i &size, int scaleIsSpecial)
 
 			break;
 #endif
+		case Area:
+		{
+			AreaShader &shader = shState->shaders().area;
+			shader.bind();
+			shader.applyViewportProj();
+			shader.setTranslation(Vec2i());
+			shader.setTexSize(Vec2i(size.x, size.y));
+			shader.setTargetSize(Vec2(size.x, size.y)); // Dummy value
+		}
+
+			break;
 		default:
 		{
 			SimpleShader &shader = shState->shaders().simple;
@@ -336,6 +347,14 @@ void blitSource(TEXFBO &source, int scaleIsSpecial)
 
 			break;
 #endif
+		case Area:
+		{
+			AreaShader &shader = shState->shaders().area;
+			shader.bind();
+			shader.setTexSize(Vec2i(blitSrcWidthHires, blitSrcHeightHires));
+		}
+
+			break;
 		default:
 		{
 			SimpleShader &shader = shState->shaders().simple;
@@ -381,13 +400,30 @@ void blitRectangle(const IntRect &src, const IntRect &dst, bool smooth)
 	}
 	else
 	{
+		int scaleIsSpecial = UpScale;
+		if (abs(scaledDstWidth) == abs(scaledSrcWidth) && abs(scaledDstHeight) == abs(scaledSrcHeight))
+		{
+			scaleIsSpecial = SameScale;
+		}
+		if (abs(scaledDstWidth) < abs(scaledSrcWidth) && abs(scaledDstHeight) < abs(scaledSrcHeight))
+		{
+			scaleIsSpecial = DownScale;
+		}
+		int method = smoothScalingMethod(scaleIsSpecial);
+
 #ifdef MKXPZ_SSL
-		if (shState->config().smoothScaling == xBRZ)
+		if (method == xBRZ)
 		{
 			XbrzShader &shader = shState->shaders().xbrz;
 			shader.setTargetScale(Vec2((float)(shState->config().xbrzScalingFactor), (float)(shState->config().xbrzScalingFactor)));
 		}
 #endif
+		if (method == Area)
+		{
+			AreaShader &shader = shState->shaders().area;
+			// Sometimes the dest height is negative, but the area shader can't handle that, so take abs of it.
+			shader.setTargetSize(Vec2((float)blitSrcWidthHires * (float)scaledDstWidth / (float)scaledSrcWidth, (float)blitSrcHeightHires * (float)abs(scaledDstHeight) / (float)scaledSrcHeight));
+		}
 		if (smooth)
 			TEX::setSmooth(true);
 

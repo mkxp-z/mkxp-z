@@ -84,6 +84,7 @@
     // 2: Bicubic
     // 3: Lanczos3
     // 4: xBRZ
+    // 5: Area
     // (default: 0)
     //
     // "smoothScaling": 0,
