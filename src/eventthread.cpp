@@ -425,10 +425,34 @@ void EventThread::process(RGSSThreadData &rtData)
                 break;
                 
             case SDL_CONTROLLERBUTTONDOWN:
+                if (event.cbutton.button == SDL_CONTROLLER_BUTTON_GUIDE)
+                {
+                    if (!rtData.config.enableReset)
+                        break;
+
+                    if (resetting)
+                        break;
+
+                    resetting = true;
+                    rtData.rqResetFinish.clear();
+                    rtData.rqReset.set();
+                    break;
+                }
+
                 controllerState.buttons[event.cbutton.button] = true;
                 break;
                 
             case SDL_CONTROLLERBUTTONUP:
+                if (event.cbutton.button == SDL_CONTROLLER_BUTTON_GUIDE)
+                {
+                    if (!rtData.config.enableReset)
+                        break;
+
+                    resetting = false;
+                    rtData.rqResetFinish.set();
+                    break;
+                }
+
                 controllerState.buttons[event.cbutton.button] = false;
                 break;
                 

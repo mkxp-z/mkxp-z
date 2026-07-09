@@ -1105,6 +1105,13 @@ bool SettingsMenu::onEvent(const SDL_Event &event)
 		}
 
 	case SDL_CONTROLLERBUTTONDOWN:
+        /* Don't let the user bind keys that trigger
+         * mkxp functions */
+        if (event.cbutton.button == SDL_CONTROLLER_BUTTON_GUIDE) {
+            return true;
+        }
+        // intentionally no break
+
 	case SDL_CONTROLLERAXISMOTION:
 		if (p->state != AwaitingInput)
 			return true;
