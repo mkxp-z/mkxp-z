@@ -1000,10 +1000,10 @@ void Sprite::draw()
 
     if (renderEffect)
     {
-        if (scalingMethod != NearestNeighbor)
+        if (scalingMethod > Bilinear)
         {
             Debug() << "BUG: Smooth SpriteShader not implemented:" << scalingMethod;
-            scalingMethod = NearestNeighbor;
+            scalingMethod = Bilinear;
         }
 
         SpriteShader &shader = shState->shaders().sprite;
@@ -1047,10 +1047,10 @@ void Sprite::draw()
     }
     else if (p->opacity != 255)
     {
-        if (scalingMethod != NearestNeighbor)
+        if (scalingMethod > Bilinear)
         {
             Debug() << "BUG: Smooth AlphaSpriteShader not implemented:" << scalingMethod;
-            scalingMethod = NearestNeighbor;
+            scalingMethod = Bilinear;
         }
 
         AlphaSpriteShader &shader = shState->shaders().alphaSprite;
