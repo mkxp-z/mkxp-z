@@ -68,7 +68,7 @@ extern const char module_rpg1[];
 extern const char module_rpg2[];
 extern const char module_rpg3[];
 
-static VALUE topSelf;
+static VALUE toplevelBinding;
 
 static void mriBindingExecute();
 static void mriBindingTerminate();
@@ -827,8 +827,11 @@ struct evalArg {
 };
 
 static VALUE evalHelper(evalArg *arg) {
-    VALUE argv[] = {arg->string, Qnil, arg->filename};
-    return rb_funcall2(topSelf, rb_intern("eval"), ARRAY_SIZE(argv), argv);
+    if (toplevelBinding == Qnil) {
+        return rb_funcall(Qnil, rb_intern("eval"), 3, arg->string, Qnil, arg->filename);
+    } else {
+        return rb_funcall(toplevelBinding, rb_intern("eval"), 2, arg->string, arg->filename);
+    }
 }
 
 static VALUE evalString(VALUE string, VALUE filename, int *state) {
@@ -1252,7 +1255,29 @@ static void mriBindingExecute() {
 #endif
 #endif
     
-    topSelf = rgssVer == 1 ? Qnil : rb_eval_string("self");
+    toplevelBinding = rb_eval_string("TOPLEVEL_BINDING");
+    if (rgssVer <= 2) {
+        /* Make it so that all toplevel methods defined in a script are
+         * public methods of Object by default instead of private methods of Object
+         * to match the behavior of RPG Maker XP and RPG Maker VX.
+         * For example, this script should run in RPG Maker XP and RPG Maker VX without errors:
+         * ```
+         *     def my_method
+         *     end
+         *     Kernel.my_method # This will throw an error if my_method is a private method of Object
+         * ```
+         * This only works if executed in the toplevel binding,
+         * so we can't just use rb_eval_string here. */
+        int state;
+        evalString(rb_str_new_cstr("public"), rb_str_new_cstr("<prelude>"), &state);
+    }
+    if (rgssVer == 1) {
+        /* In RPG Maker XP, scripts run in the context of nil instead of in the toplevel binding */
+        toplevelBinding = Qnil;
+    } else {
+        /* Prevent the garbage collector from garbage collecting the toplevel binding if a script overwrites the TOPLEVEL_BINDING constant */
+        rb_iv_set(rb_mKernel, "_mkxp_toplevel_binding", toplevelBinding);
+    }
     
     VALUE rbArgv = rb_get_argv();
     for (const auto &str : conf.launchArgs)
