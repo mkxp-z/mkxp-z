@@ -310,8 +310,6 @@ module Win32API_Impl
 			end
 		end
 
-
-		# Example: GetClientRect.call (use same safe_memcpy_string)
 		class GetClientRect
 			def call(args)
 				return 0 if args[0] != 42
@@ -325,7 +323,6 @@ module Win32API_Impl
 				return 1
 			end
 		end
-
 
 		class ScreenToClient
 			def call(args)
@@ -371,8 +368,7 @@ end
 
 class Win32API
 	NATIVE_ON_WINDOWS = true unless const_defined?("NATIVE_ON_WINDOWS")
-	TOLERATE_ERRORS = true
-	# unless const_defined?("TOLERATE_ERRORS")
+	TOLERATE_ERRORS = true unless const_defined?("TOLERATE_ERRORS")
 	LOG_NATIVE = false unless const_defined?("LOG_NATIVE")
 
 	alias_method :mkxp_native_initialize, :initialize
@@ -405,7 +401,6 @@ class Win32API
 
 		# Try native call (for actual DLLs on Windows)
 		@mkxp_native_available = false
-		@last_error = nil
 		begin
 			# For local DLLs on Windows, try native call with original names
 			if @is_local_dll && System.is_windows?
@@ -418,20 +413,17 @@ class Win32API
 			mkxp_native_initialize(dll_for_lookup, func_for_lookup, *args)
 			@mkxp_native_available = true
 			return
-		rescue => e
-			@last_error = e
+		rescue
 		end
 
 	end
 
 	alias_method :mkxp_native_call, :call
 	def call(*args)
-		# Use polyfill implementation if available
 		if @mkxp_wrap_impl
 			return @mkxp_wrap_impl.call(args)
 		end
 
-		# Use native Win32API if available
 		if @mkxp_native_available
 			if LOG_NATIVE
 				System.puts("[Win32API] [#{@dll}:#{@func}] #{args.to_s}")
@@ -439,14 +431,12 @@ class Win32API
 			return mkxp_native_call(*args)
 		end
 
-		# Error handling
 		if TOLERATE_ERRORS
 			System.puts("[Win32API] [#{@dll}:#{@func}] #{args.to_s}") if !@called
 			@called = true
 			return 0
 		else
-			error_msg = @last_error ? @last_error.message : "DLL or function not found"
-			raise RuntimeError, "[Win32API] [#{@dll}:#{@func}] #{error_msg}"
+			raise RuntimeError, "[Win32API] [#{@dll}:#{@func}] #{args.to_s}"
 		end
 	end
 end
