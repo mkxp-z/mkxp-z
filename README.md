@@ -4,16 +4,11 @@
   <a href="https://github.com/mkxp-z/mkxp-z/actions/workflows/autobuild.yml?query=event%3Apush">Automatic Builds</a>
   ・
   <a href="https://github.com/mkxp-z/mkxp-z/wiki">Documentation</a>
+  ・
+  <a href="https://matrix.to/#/#rpgmaker:mapleshrine.eu">Matrix Space</a>
+  ・
+  <a href="https://discord.gg/A8xHE8P">Discord server</a>
 </b></p>
-
-I don't like the idea of doing straight "releases" anymore, since mkxp-z was never something I considered 'stable' to begin with, and the way I have to do things usually means I don't get to have things stress-tested until a build has already been posted and I eventually find out something is wrong. Automated builds are retained for 60 days and require logging in to access. Past that, you're probably on your own (though I've tried to make sure that building mkxp-z yourself is [as easy as possible](https://github.com/mkxp-z/mkxp-z/wiki/Compilation))
-
-I'm usually *very* slow with responding to things on Github, so if you have something you want to say and you want a faster response, you're probably better off asking in [The Maple Shrine's Matrix space](https://matrix.to/#/#rpgmaker:mapleshrine.eu) ([bridged to Discord](https://discord.gg/A8xHE8P)). I don't have my own.
-The place is basically a ghost town haunted by myself and a few others, so expect me to pipe up if no one else does. I do not currently frequent anyplace else that you might care about.
-
-I wouldn't expect too much activity from me from now on. I'm basically quitting, but I'm still willing to answer questions, take pull requests, that kind of thing. I'm still willing to hunt down bugs, but given the vast majority of my past troubleshooting came from trying to search through forum threads and snooping through Discord logs, chances are that if it's not something that I just broke, it's probably not a thing that I have the resources or help to fix. I'm not doing second-hand customer service anymore.
-
------------
 
 <p align=center>
     <img src="screenshot.png?raw=true" width=512 height=412>

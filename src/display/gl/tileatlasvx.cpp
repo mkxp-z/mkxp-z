@@ -52,14 +52,14 @@ extern const int autotileVXRectsBN;
 /* Waterfall (C) autotile patterns */
 static const StaticRect autotileVXRectsC[] =
 {
-	{ 32.5f, 0.5f, 15.0f, 31.0f },
-	{ 16.5f, 0.5f, 15.0f, 31.0f },
-	{  0.0f, 0.5f, 15.0f, 31.0f },
-	{ 16.5f, 0.5f, 15.0f, 31.0f },
-	{ 32.5f, 0.5f, 15.0f, 31.0f },
-	{ 48.5f, 0.5f, 15.0f, 31.0f },
-	{  0.0f, 0.5f, 15.0f, 31.0f },
-	{ 48.5f, 0.5f, 15.0f, 31.0f }
+	{ 32, 0, 16, 32 },
+	{ 16, 0, 16, 32 },
+	{  0, 0, 16, 32 },
+	{ 16, 0, 16, 32 },
+	{ 32, 0, 16, 32 },
+	{ 48, 0, 16, 32 },
+	{  0, 0, 16, 32 },
+	{ 48, 0, 16, 32 }
 };
 
 static elementsN(autotileVXRectsC);
@@ -358,6 +358,10 @@ readAutotile(Reader &reader, int patternID,
 		assert((patternID*4 + i) < rectSourceN);
 
 		tex[i] = FloatRect(rectSource[patternID*4 + i]);
+		tex[i].x += 0.5f/(float)shState->config().framebufferScalingFactor;
+		tex[i].y += 0.5f/(float)shState->config().framebufferScalingFactor;
+		tex[i].w -= 1.0f/(float)shState->config().framebufferScalingFactor;
+		tex[i].h -= 1.0f/(float)shState->config().framebufferScalingFactor;
 		tex[i].x += orig.x*32;
 		tex[i].y += orig.y*32;
 
@@ -387,6 +391,14 @@ readAutotileA2(Reader &reader, int patternID,
 		assert((patternID*6 + i) < autotileVXRectsA2N);
 
 		tex[i] = FloatRect(autotileVXRectsA2[patternID*6 + i]);
+		tex[i].x += 0.5f/(float)shState->config().framebufferScalingFactor;
+		tex[i].y += 0.5f/(float)shState->config().framebufferScalingFactor;
+		tex[i].w -= 1.0f/(float)shState->config().framebufferScalingFactor;
+		tex[i].h -= 1.0f/(float)shState->config().framebufferScalingFactor;
+		if (tex[i].w < 0.0f)
+			tex[i].w = 0.0f;
+		if (tex[i].h < 0.0f)
+			tex[i].h = 0.0f;
 		tex[i].x += orig.x*32;
 		tex[i].y += orig.y*32;
 
@@ -422,6 +434,10 @@ readAutotileC(Reader &reader, int patternID,
 	for (size_t i = 0; i < 2; ++i)
 	{
 		tex[i] = autotileVXRectsC[patternID*2+i];
+		tex[i].x += 0.5f/(float)shState->config().framebufferScalingFactor;
+		tex[i].y += 0.5f/(float)shState->config().framebufferScalingFactor;
+		tex[i].w -= 1.0f/(float)shState->config().framebufferScalingFactor;
+		tex[i].h -= 1.0f/(float)shState->config().framebufferScalingFactor;
 		tex[i].x += orig.x*32;
 		tex[i].y += orig.y*32;
 
@@ -549,7 +565,7 @@ onTileA5(Reader &reader, int16_t tileID,
 	int ox = tileID % 0x8;
 	int oy = tileID / 0x8;
 
-	FloatRect tex((orig.x+ox)*32+0.5, (orig.y+oy)*32+0.5, 31, 31);
+	FloatRect tex((orig.x+ox)*32 + 0.5f/(float)shState->config().framebufferScalingFactor, (orig.y+oy)*32 + 0.5f/(float)shState->config().framebufferScalingFactor, 32 - 1.0f/(float)shState->config().framebufferScalingFactor, 32 - 1.0f/(float)shState->config().framebufferScalingFactor);
 	FloatRect pos(x*32, y*32, 32, 32);
 
 	reader.onQuads(&tex, &pos, 1, overPlayer);
@@ -566,7 +582,7 @@ onTileBCDE(Reader &reader, int16_t tileID,
 	ox += (ob % 2) * 0x8;
 	oy += (ob / 2) * 0x10;
 
-	FloatRect tex((CDEArea.x+ox)*32+0.5, (CDEArea.y+oy)*32+0.5, 31, 31);
+	FloatRect tex((CDEArea.x+ox)*32 + 0.5f/(float)shState->config().framebufferScalingFactor, (CDEArea.y+oy)*32 + 0.5f/(float)shState->config().framebufferScalingFactor, 32 - 1.0f/(float)shState->config().framebufferScalingFactor, 32 - 1.0f/(float)shState->config().framebufferScalingFactor);
 	FloatRect pos(x*32, y*32, 32, 32);
 
 	reader.onQuads(&tex, &pos, 1, overPlayer);
@@ -657,7 +673,7 @@ onShadowTile(Reader &reader, int8_t value,
 
 	int oy = value;
 
-	FloatRect tex((shadowArea.x)*32+0.5, (shadowArea.y+oy)*32+0.5, 31, 31);
+	FloatRect tex((shadowArea.x)*32 + 0.5f/(float)shState->config().framebufferScalingFactor, (shadowArea.y+oy)*32 + 0.5f/(float)shState->config().framebufferScalingFactor, 32 - 1.0f/(float)shState->config().framebufferScalingFactor, 32 - 1.0f/(float)shState->config().framebufferScalingFactor);
 	FloatRect pos(x*32, y*32, 32, 32);
 
 	reader.onQuads(&tex, &pos, 1, false);

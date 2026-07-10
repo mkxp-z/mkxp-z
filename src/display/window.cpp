@@ -171,6 +171,7 @@ struct WindowPrivate
 	Bitmap *windowskin;
 
 	Bitmap *contents;
+	Bitmap *realContents;
 
 	sigslot::connection windowskinDispCon;
 	sigslot::connection contentsDispCon;
@@ -187,6 +188,7 @@ struct WindowPrivate
 	Vec2i position;
 	Vec2i size;
 	Vec2i contentsOffset;
+	Vec2i realContentsOffset;
 
 	NormValue opacity;
 	NormValue backOpacity;
@@ -251,9 +253,12 @@ struct WindowPrivate
 
 	sigslot::connection prepareCon;
 
+	bool contentsVisible;
+
 	WindowPrivate(Viewport *viewport = 0)
 	    : windowskin(0),
 	      contents(0),
+	      realContents(0),
 	      bgStretch(true),
 	      cursorRect(&tmp.rect),
 	      active(true),
@@ -298,8 +303,42 @@ struct WindowPrivate
 
 	void contentsDisposal()
 	{
-		contents = 0;
+		if (contents != realContents)
+		{
+			delete contents;
+		}
+		realContents = contents = 0;
 		contentsDispCon.disconnect();
+	}
+
+	void updateChild()
+	{
+		if (!contentsOpacity)
+		{
+			contentsVisible = false;
+			return;
+		}
+		
+		if (contents == realContents || !contents->getChildInfo())
+		{
+			contentsOffset = realContentsOffset;
+			contentsVisible = true;
+			return;
+		}
+		
+		ChildPublic &shared = *contents->getChildInfo();
+		
+		shared.realOffset = realContentsOffset;
+		shared.offset = contentsOffset;
+		shared.x = position.x;
+		shared.y = position.y;
+		shared.width = size.y;
+		shared.height = size.y;
+		
+		contents->childUpdate();
+		
+		contentsOffset = Vec2i(shared.offset.x, shared.offset.y);
+		contentsVisible = shared.isVisible;
 	}
 
 	void markControlVertDirty()
@@ -501,16 +540,16 @@ struct WindowPrivate
 
 		if (contents)
 		{
-			if (contentsOffset.x > 0)
+			if (realContentsOffset.x > 0)
 				i += Quad::setTexPosRect(&vert[i*4], scrollArrowSrc.l, scrollArrows.l);
 
-			if (contentsOffset.y > 0)
+			if (realContentsOffset.y > 0)
 				i += Quad::setTexPosRect(&vert[i*4], scrollArrowSrc.t, scrollArrows.t);
 
-			if ((size.x - 32) < (contents->width() - contentsOffset.x))
+			if ((size.x - 32) < (realContents->width() - realContentsOffset.x))
 				i += Quad::setTexPosRect(&vert[i*4], scrollArrowSrc.r, scrollArrows.r);
 
-			if ((size.y - 32) < (contents->height() - contentsOffset.y))
+			if ((size.y - 32) < (realContents->height() - realContentsOffset.y))
 				i += Quad::setTexPosRect(&vert[i*4], scrollArrowSrc.b, scrollArrows.b);
 		}
 
@@ -532,6 +571,8 @@ struct WindowPrivate
 			return;
 
 		bool updateBaseQuadArray = false;
+
+		updateChild();
 
 		if (baseVertDirty)
 		{
@@ -599,7 +640,7 @@ struct WindowPrivate
 
 	void drawControls()
 	{
-		if (nullOrDisposed(windowskin) && nullOrDisposed(contents))
+		if (nullOrDisposed(windowskin) && nullOrDisposed(realContents))
 			return;
 
 		if (size == Vec2i(0, 0))
@@ -639,12 +680,12 @@ struct WindowPrivate
 			TEX::setSmooth(false);
 		}
 
-		if (!nullOrDisposed(contents))
+		if (!nullOrDisposed(contents) && contentsVisible)
 		{
 			/* Draw contents bitmap */
 			glState.scissorBox.setIntersect(contentsRect);
 
-			shader.setTranslation(efPos + (Vec2i(16) - contentsOffset));
+			shader.setTranslation(efPos + (Vec2i(16) - realContentsOffset));
 
 			contents->bindTex(shader);
 			contentsQuad.draw();
@@ -720,14 +761,14 @@ DEF_ATTR_SIMPLE(Window, Y,          int,     p->position.y)
 DEF_ATTR_SIMPLE(Window, CursorRect, Rect&,  *p->cursorRect)
 
 DEF_ATTR_RD_SIMPLE(Window, Windowskin,      Bitmap*, p->windowskin)
-DEF_ATTR_RD_SIMPLE(Window, Contents,        Bitmap*, p->contents)
+DEF_ATTR_RD_SIMPLE(Window, Contents,        Bitmap*, p->realContents)
 DEF_ATTR_RD_SIMPLE(Window, Stretch,         bool,    p->bgStretch)
 DEF_ATTR_RD_SIMPLE(Window, Active,          bool,    p->active)
 DEF_ATTR_RD_SIMPLE(Window, Pause,           bool,    p->pause)
 DEF_ATTR_RD_SIMPLE(Window, Width,           int,     p->size.x)
 DEF_ATTR_RD_SIMPLE(Window, Height,          int,     p->size.y)
-DEF_ATTR_RD_SIMPLE(Window, OX,              int,     p->contentsOffset.x)
-DEF_ATTR_RD_SIMPLE(Window, OY,              int,     p->contentsOffset.y)
+DEF_ATTR_RD_SIMPLE(Window, OX,              int,     p->realContentsOffset.x)
+DEF_ATTR_RD_SIMPLE(Window, OY,              int,     p->realContentsOffset.y)
 DEF_ATTR_RD_SIMPLE(Window, Opacity,         int,     p->opacity)
 DEF_ATTR_RD_SIMPLE(Window, BackOpacity,     int,     p->backOpacity)
 DEF_ATTR_RD_SIMPLE(Window, ContentsOpacity, int,     p->contentsOpacity)
@@ -755,23 +796,34 @@ void Window::setContents(Bitmap *value)
 {
 	guardDisposed();
 
-	if (p->contents == value)
+	if (p->realContents == value)
 		return;
 
+	if (p->contents != p->realContents)
+		delete p->contents;
+
 	p->contents = value;
+	p->realContents = value;
 	p->controlsVertDirty = true;
 
 	p->contentsDispCon.disconnect();
 
 	if (nullOrDisposed(value))
 	{
-		p->contents = 0;
+		p->realContents = p->contents = 0;
 		return;
 	}
 
 	p->contentsDispCon = value->wasDisposed.connect(&WindowPrivate::contentsDisposal, p);
 
-	value->ensureNonMega();
+	if (value->isMega())
+	{
+		p->contents = value->spawnChild();
+		
+		ChildPublic &shared = *p->contents->getChildInfo();
+		shared.sceneRect = &scene->getGeometry().rect;
+		shared.sceneOrig = &scene->getGeometry().orig;
+	}
 
 	p->contentsQuad.setTexPosRect(value->rect(), value->rect());
 }
@@ -837,10 +889,10 @@ void Window::setOX(int value)
 {
 	guardDisposed();
 
-	if (p->contentsOffset.x == value)
+	if (p->realContentsOffset.x == value)
 		return;
 
-	p->contentsOffset.x = value;
+	p->realContentsOffset.x = value;
 	p->controlsVertDirty = true;
 }
 
@@ -848,10 +900,10 @@ void Window::setOY(int value)
 {
 	guardDisposed();
 
-	if (p->contentsOffset.y == value)
+	if (p->realContentsOffset.y == value)
 		return;
 
-	p->contentsOffset.y = value;
+	p->realContentsOffset.y = value;
 	p->controlsVertDirty = true;
 }
 
