@@ -222,26 +222,6 @@ def memcpy_string(dst, src)
 	end
 end
 
-# safer replacement for memcpy_string
-def safe_memcpy_string(dst, src)
-	return false unless dst.is_a?(String)
-	return false if src.nil?
-	# ensure binary encoding to avoid multibyte surprises
-	dst.force_encoding('ASCII-8BIT') if dst.respond_to?(:force_encoding)
-	# expand destination if too short
-	if dst.bytesize < src.bytesize
-		dst << ("\x00" * (src.bytesize - dst.bytesize))
-	end
-	i = 0
-	src.each_byte do |b|
-		dst.setbyte(i, b)
-		i += 1
-	end
-	true
-end
-
-
-
 def state_pressed(states, sdl_scan)
 	return states[Scancodes::SDL[sdl_scan]]
 end
@@ -325,10 +305,7 @@ module Win32API_Impl
 		class GetCursorPos
 			def call(args)
 				out = [Input.mouse_x, Input.mouse_y].pack('ll')
-				unless safe_memcpy_string(args[0], out)
-					System.puts("[Win32API] GetCursorPos: invalid buffer (#{args[0].class})") if defined?(System) && Win32API::TOLERATE_ERRORS
-					return 0
-				end
+				memcpy_string(args[0], out)
 				return 1
 			end
 		end
@@ -344,10 +321,7 @@ module Win32API_Impl
 					rect[3] = Graphics.height
 				rescue
 				end
-				unless safe_memcpy_string(args[1], rect.pack('l4'))
-					System.puts("[Win32API] GetClientRect: invalid buffer (#{args[1].class})") if defined?(System) && Win32API::TOLERATE_ERRORS
-					return 0
-				end
+				memcpy_string(args[1], rect.pack('l4'))
 				return 1
 			end
 		end
@@ -375,13 +349,7 @@ def kappatalize(s)
 	s[0] = s[0].upcase
 	return s
 end
-# win32_wrap.rb (IMPROVED VERSION)
-# Support for local DLL paths with preserved function names
 
-# ... (keep all the Scancodes and helper functions as they were) ...
-
-# Helper to detect if a DLL name is a local/custom DLL path
-# Helper to detect if a DLL name is a local/custom DLL path
 # Helper to detect if a DLL name is a local/custom DLL path
 def is_local_dll_path?(dll_name)
 	# Explicitly look for .dll extension - if present, it's a custom DLL path
@@ -482,7 +450,4 @@ class Win32API
 		end
 	end
 end
-#game_dir = CFG["gameFolder"].to_s
-# fifoscriptpath = File.join(Dir.pwd, "testfifo.rb")
-#
-# load fifoscriptpath
+
