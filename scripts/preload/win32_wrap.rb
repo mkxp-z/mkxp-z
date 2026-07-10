@@ -222,6 +222,26 @@ def memcpy_string(dst, src)
 	end
 end
 
+# safer replacement for memcpy_string
+def safe_memcpy_string(dst, src)
+	return false unless dst.is_a?(String)
+	return false if src.nil?
+	# ensure binary encoding to avoid multibyte surprises
+	dst.force_encoding('ASCII-8BIT') if dst.respond_to?(:force_encoding)
+	# expand destination if too short
+	if dst.bytesize < src.bytesize
+		dst << ("\x00" * (src.bytesize - dst.bytesize))
+	end
+	i = 0
+	src.each_byte do |b|
+		dst.setbyte(i, b)
+		i += 1
+	end
+	true
+end
+
+
+
 def state_pressed(states, sdl_scan)
 	return states[Scancodes::SDL[sdl_scan]]
 end
@@ -305,11 +325,16 @@ module Win32API_Impl
 		class GetCursorPos
 			def call(args)
 				out = [Input.mouse_x, Input.mouse_y].pack('ll')
-				memcpy_string(args[0], out)
+				unless safe_memcpy_string(args[0], out)
+					System.puts("[Win32API] GetCursorPos: invalid buffer (#{args[0].class})") if defined?(System) && Win32API::TOLERATE_ERRORS
+					return 0
+				end
 				return 1
 			end
 		end
 
+
+		# Example: GetClientRect.call (use same safe_memcpy_string)
 		class GetClientRect
 			def call(args)
 				return 0 if args[0] != 42
@@ -319,10 +344,14 @@ module Win32API_Impl
 					rect[3] = Graphics.height
 				rescue
 				end
-				memcpy_string(args[1], rect.pack('l4'))
+				unless safe_memcpy_string(args[1], rect.pack('l4'))
+					System.puts("[Win32API] GetClientRect: invalid buffer (#{args[1].class})") if defined?(System) && Win32API::TOLERATE_ERRORS
+					return 0
+				end
 				return 1
 			end
 		end
+
 
 		class ScreenToClient
 			def call(args)
@@ -346,10 +375,36 @@ def kappatalize(s)
 	s[0] = s[0].upcase
 	return s
 end
+# win32_wrap.rb (IMPROVED VERSION)
+# Support for local DLL paths with preserved function names
+
+# ... (keep all the Scancodes and helper functions as they were) ...
+
+# Helper to detect if a DLL name is a local/custom DLL path
+# Helper to detect if a DLL name is a local/custom DLL path
+# Helper to detect if a DLL name is a local/custom DLL path
+def is_local_dll_path?(dll_name)
+	# Explicitly look for .dll extension - if present, it's a custom DLL path
+	return true if dll_name.downcase.end_with?('.dll')
+
+	# Check for path separators or absolute paths
+	return true if dll_name.include?('/') || dll_name.include?('\\') ||
+	              dll_name.match?(/^[a-zA-Z]:/)
+
+	# Known system DLLs (simple names without extension)
+	system_dlls = ['kernel32', 'user32', 'advapi32', 'shell32', 'ole32', 'gdi32',
+	               'comctl32', 'comdlg32', 'winmm', 'winsock2', 'msvcrt']
+
+	return false if system_dlls.include?(dll_name.downcase)
+
+	# Default: treat unknown names as local
+	return true
+end
 
 class Win32API
 	NATIVE_ON_WINDOWS = true unless const_defined?("NATIVE_ON_WINDOWS")
-	TOLERATE_ERRORS = true unless const_defined?("TOLERATE_ERRORS")
+	TOLERATE_ERRORS = true
+	# unless const_defined?("TOLERATE_ERRORS")
 	LOG_NATIVE = false unless const_defined?("LOG_NATIVE")
 
 	alias_method :mkxp_native_initialize, :initialize
@@ -357,36 +412,58 @@ class Win32API
 		@dll = dll
 		@func = func
 		@called = false
+		@is_local_dll = is_local_dll_path?(dll)
 
-		dll = kappatalize(dll.chomp(".dll"))
-		func = kappatalize(func)
+		# For local DLL paths, preserve the original names
+		# For system DLLs (kernel32, user32, etc.), apply kappatalize
+		if @is_local_dll
+			dll_for_lookup = dll
+			func_for_lookup = func
+		else
+			dll_for_lookup = kappatalize(dll.chomp(".dll"))
+			func_for_lookup = kappatalize(func)
+		end
 
+		# First try to find a polyfill implementation (for cross-platform support)
 		if !System.is_windows? or !NATIVE_ON_WINDOWS
-			if Win32API_Impl.const_defined?(dll)
-				dll_impl = Win32API_Impl.const_get(dll)
-				if dll_impl.const_defined?(func)
-					@mkxp_wrap_impl = dll_impl.const_get(func).new
+			if Win32API_Impl.const_defined?(dll_for_lookup)
+				dll_impl = Win32API_Impl.const_get(dll_for_lookup)
+				if dll_impl.const_defined?(func_for_lookup)
+					@mkxp_wrap_impl = dll_impl.const_get(func_for_lookup).new
 					return
 				end
 			end
 		end
 
+		# Try native call (for actual DLLs on Windows)
 		@mkxp_native_available = false
+		@last_error = nil
 		begin
-			mkxp_native_initialize(@dll, @func, *args)
+			# For local DLLs on Windows, try native call with original names
+			if @is_local_dll && System.is_windows?
+				mkxp_native_initialize(dll, func, *args)
+				@mkxp_native_available = true
+				return
+			end
+
+			# For system DLLs, use the transformed names
+			mkxp_native_initialize(dll_for_lookup, func_for_lookup, *args)
 			@mkxp_native_available = true
 			return
-		rescue
+		rescue => e
+			@last_error = e
 		end
 
 	end
 
 	alias_method :mkxp_native_call, :call
 	def call(*args)
+		# Use polyfill implementation if available
 		if @mkxp_wrap_impl
 			return @mkxp_wrap_impl.call(args)
 		end
 
+		# Use native Win32API if available
 		if @mkxp_native_available
 			if LOG_NATIVE
 				System.puts("[Win32API] [#{@dll}:#{@func}] #{args.to_s}")
@@ -394,12 +471,18 @@ class Win32API
 			return mkxp_native_call(*args)
 		end
 
+		# Error handling
 		if TOLERATE_ERRORS
 			System.puts("[Win32API] [#{@dll}:#{@func}] #{args.to_s}") if !@called
 			@called = true
 			return 0
 		else
-			raise RuntimeError, "[Win32API] [#{@dll}:#{@func}] #{args.to_s}"
+			error_msg = @last_error ? @last_error.message : "DLL or function not found"
+			raise RuntimeError, "[Win32API] [#{@dll}:#{@func}] #{error_msg}"
 		end
 	end
 end
+#game_dir = CFG["gameFolder"].to_s
+# fifoscriptpath = File.join(Dir.pwd, "testfifo.rb")
+#
+# load fifoscriptpath
