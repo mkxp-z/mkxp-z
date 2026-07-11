@@ -23,4 +23,4 @@ fi
 export LD_LIBRARY_PATH
 export SRCDIR=$PWD
 
-exec "$SELF_DIR/usr/bin/mkxp-z"
+exec "$SELF_DIR/usr/bin/mkxp-z" "$@"
