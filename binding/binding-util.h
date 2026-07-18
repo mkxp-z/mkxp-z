@@ -22,6 +22,8 @@
 #ifndef BINDING_UTIL_H
 #define BINDING_UTIL_H
 
+#include <type_traits>
+
 #include <ruby.h>
 #ifndef MKXPZ_LEGACY_RUBY
 #include <ruby/version.h>
@@ -29,6 +31,7 @@
 #include <version.h>
 #endif
 
+#include "disposable.h"
 #include "exception.h"
 
 #ifdef RUBY_API_VERSION_MAJOR
@@ -217,7 +220,13 @@ static VALUE Name##AllocatePreInit(VALUE klass) {      \
 }
 #endif
 
-template <class C> static void freeInstance(void *inst) {
+template <class C> static typename std::enable_if<std::is_base_of<Disposable, C>::value>::type freeInstance(void *inst) {
+    GFX_LOCK;
+    delete static_cast<C *>(inst);
+    GFX_UNLOCK;
+}
+
+template <class C> static typename std::enable_if<!std::is_base_of<Disposable, C>::value>::type freeInstance(void *inst) {
     delete static_cast<C *>(inst);
 }
 
