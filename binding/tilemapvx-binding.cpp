@@ -41,7 +41,7 @@ DEF_ALLOCFUNC(TilemapVX);
 RB_METHOD(tilemapVXInitialize) {
     TilemapVX *t;
     
-    GFX_LOCK;
+    GFX_GUARD;
     /* Get parameters */
     VALUE viewportObj = Qnil;
     Viewport *viewport = 0;
@@ -79,7 +79,6 @@ RB_METHOD(tilemapVXInitialize) {
      * alive at the same time */
     rb_iv_set(autotilesObj, "tilemap", self);
     
-    GFX_UNLOCK;
     return self;
 }
 
@@ -122,12 +121,11 @@ RB_METHOD(tilemapVXBitmapsSet) {
     
     Bitmap *bitmap = getPrivateDataCheck<Bitmap>(bitmapObj, BitmapType);
     
-    GFX_LOCK;
+    GFX_GUARD;
     a->set(i, bitmap);
     
     VALUE ary = rb_iv_get(self, "array");
     rb_ary_store(ary, i, bitmapObj);
-    GFX_UNLOCK;
     return self;
 }
 

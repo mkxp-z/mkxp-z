@@ -50,7 +50,6 @@
 #include <SDL_image.h>
 #include <SDL_timer.h>
 #include <SDL_video.h>
-#include <SDL_mutex.h>
 #include <SDL_thread.h>
 
 #ifdef MKXPZ_STEAM
@@ -64,6 +63,7 @@
 #include <time.h>
 #include <cmath>
 #include <climits>
+#include <mutex>
 
 
 #define DEF_SCREEN_W (rgssVer == 1 ? 640 : 544)
@@ -116,7 +116,7 @@ struct Movie
     ALuint audioSource;
     ALuint alBuffers[STREAM_BUFS];
     ALshort audioBuffer[MOVIE_AUDIO_BUFFER_SIZE];
-    SDL_mutex *audioMutex;
+    std::mutex audioMutex;
     
     Movie(bool skippable_)
     : decoder(0), audio(0), video(0), skippable(skippable_), videoBitmap(0), audioThread(0)
@@ -205,14 +205,13 @@ struct Movie
         item->offset = 0;
         item->next = NULL;
         
-        SDL_LockMutex(audioMutex);
+        std::lock_guard<std::mutex> guard(audioMutex);
         if (audioQueueTail) {
             audioQueueTail->next = item;
         } else {
             audioQueueHead = item;
         }
         audioQueueTail = item;
-        SDL_UnlockMutex(audioMutex);
     }
     
     void bufferMovieAudio(THEORAPLAY_Decoder *decoder, const Uint32 now) {
@@ -243,43 +242,45 @@ struct Movie
 
                 remainingSamples = MOVIE_AUDIO_BUFFER_SIZE;
                 sampleBuffer = audioBuffer;
-                SDL_LockMutex(audioMutex);
 
-                while(audioQueueHead && (remainingSamples > 0)) {
-                    audioPacketAndOffset = audioQueueHead;
-                    channels = audioPacketAndOffset->audio->channels;
-                    sampleRate = audioPacketAndOffset->audio->freq;
-                    sourceSamples = audioPacketAndOffset->audio->samples + (audioPacketAndOffset->offset * channels);
-                    samplesToProcess = (audioPacketAndOffset->audio->frames - audioPacketAndOffset->offset) * channels;
 
-                    if (samplesToProcess > remainingSamples) samplesToProcess = remainingSamples;
+                {
+                    std::lock_guard<std::mutex> guard(audioMutex);
 
-                    for (ALuint i = 0; i < samplesToProcess; i++) {
-                        const float val = (*(sourceSamples++));
-                        if (val < -1.0f) {
-                            *(sampleBuffer++) = SHRT_MIN;
-                        } else if (val > 1.0f) {
-                            *(sampleBuffer++) = SHRT_MAX;
-                        } else {
-                            *(sampleBuffer++) = (ALshort) (val * SHRT_MAX);
+                    while(audioQueueHead && (remainingSamples > 0)) {
+                        audioPacketAndOffset = audioQueueHead;
+                        channels = audioPacketAndOffset->audio->channels;
+                        sampleRate = audioPacketAndOffset->audio->freq;
+                        sourceSamples = audioPacketAndOffset->audio->samples + (audioPacketAndOffset->offset * channels);
+                        samplesToProcess = (audioPacketAndOffset->audio->frames - audioPacketAndOffset->offset) * channels;
+
+                        if (samplesToProcess > remainingSamples) samplesToProcess = remainingSamples;
+
+                        for (ALuint i = 0; i < samplesToProcess; i++) {
+                            const float val = (*(sourceSamples++));
+                            if (val < -1.0f) {
+                                *(sampleBuffer++) = SHRT_MIN;
+                            } else if (val > 1.0f) {
+                                *(sampleBuffer++) = SHRT_MAX;
+                            } else {
+                                *(sampleBuffer++) = (ALshort) (val * SHRT_MAX);
+                            }
+                        }
+
+                        // Necessary to remember position between repeated iterations
+                        audioPacketAndOffset->offset += (samplesToProcess / channels);
+                        remainingSamples -= samplesToProcess;
+
+                        // The current audio packet has been completed
+                        if ((audioPacketAndOffset->offset) >= audioPacketAndOffset->audio->frames) {
+                            audioQueueHead = audioPacketAndOffset->next;
+                            THEORAPLAY_freeAudio(audioPacketAndOffset->audio);
+                            free((void *) audioPacketAndOffset);
                         }
                     }
 
-                    // Necessary to remember position between repeated iterations
-                    audioPacketAndOffset->offset += (samplesToProcess / channels);
-                    remainingSamples -= samplesToProcess;
-
-                    // The current audio packet has been completed
-                    if ((audioPacketAndOffset->offset) >= audioPacketAndOffset->audio->frames) {
-                        audioQueueHead = audioPacketAndOffset->next;
-                        THEORAPLAY_freeAudio(audioPacketAndOffset->audio);
-                        free((void *) audioPacketAndOffset);
-                    }
+                    if(!audioQueueHead) audioQueueTail = NULL;
                 }
-
-                if(!audioQueueHead) audioQueueTail = NULL;
-
-                SDL_UnlockMutex(audioMutex);
 
                 alBufferData(alBuffers[procBufs], channels == 1 ? AL_FORMAT_MONO16 : AL_FORMAT_STEREO16, audioBuffer,
                     (MOVIE_AUDIO_BUFFER_SIZE - remainingSamples) * sizeof(ALshort), sampleRate);
@@ -308,7 +309,6 @@ struct Movie
         alSourcef(audioSource, AL_GAIN, volume);
 
         audioThreadTermReq.clear();
-        audioMutex = SDL_CreateMutex();
         queueAudioPacket(audio);
         audio = NULL;
         bufferMovieAudio(decoder, 0);
@@ -406,7 +406,6 @@ struct Movie
                 THEORAPLAY_freeAudio(audioQueueHead->audio);
             }
             audioQueueHead = NULL;
-            SDL_DestroyMutex(audioMutex);
             audioThreadTermReq.set();
             if(audioThread) {
                 SDL_WaitThread(audioThread, 0);
@@ -827,9 +826,9 @@ struct GraphicsPrivate {
     
     std::vector<double> avgFPSData;
     double last_avg_update;
-    SDL_mutex *avgFPSLock;
+    std::mutex avgFPSLock;
     
-    SDL_mutex *glResourceLock;
+    std::recursive_mutex glResourceLock;
     bool multithreadedMode;
     
     /* Global list of all live Disposables
@@ -850,8 +849,6 @@ struct GraphicsPrivate {
     integerScaleActive(rtData->config.integerScaling.active),
     integerLastMileScaling(rtData->config.integerScaling.lastMileScaling) {
         avgFPSData = std::vector<double>();
-        avgFPSLock = SDL_CreateMutex();
-        glResourceLock = SDL_CreateMutex();
         
         if (integerScaleActive) {
             integerScaleFactor = Vec2i(0, 0);
@@ -874,8 +871,6 @@ struct GraphicsPrivate {
     ~GraphicsPrivate() {
         TEXFBO::fini(frozenScene);
         TEXFBO::fini(integerScaleBuffer);
-        SDL_DestroyMutex(avgFPSLock);
-        SDL_DestroyMutex(glResourceLock);
     }
     
     void updateScreenResoRatio(RGSSThreadData *rtData) {
@@ -1129,37 +1124,34 @@ struct GraphicsPrivate {
     
     double averageFPS() {
         double ret = 0;
-        SDL_LockMutex(avgFPSLock);
+        std::lock_guard<std::mutex> guard(avgFPSLock);
         for (double times : avgFPSData)
             ret += times;
         
-        ret = 1 / (ret / avgFPSData.size());
-        SDL_UnlockMutex(avgFPSLock);
-        return ret;
+        return 1 / (ret / avgFPSData.size());
     }
     
     void setLock(bool force = false) {
         if (!(force || multithreadedMode)) return;
         
-        SDL_LockMutex(glResourceLock);
+        glResourceLock.lock();
         SDL_GL_MakeCurrent(threadData->window, threadData->glContext);
     }
     
     void releaseLock(bool force = false) {
         if (!(force || multithreadedMode)) return;
         
-        SDL_UnlockMutex(glResourceLock);
+        glResourceLock.unlock();
     }
 
     void updateAvgFPS() {
-        SDL_LockMutex(avgFPSLock);
+        std::lock_guard<std::mutex> guard(avgFPSLock);
         if (avgFPSData.size() > 40)
             avgFPSData.erase(avgFPSData.begin());
         
         double time = shState->runTime();
         avgFPSData.push_back(time - last_avg_update);
         last_avg_update = time;
-        SDL_UnlockMutex(avgFPSLock);
     }
 };
 

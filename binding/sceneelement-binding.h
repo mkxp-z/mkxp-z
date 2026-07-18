@@ -48,7 +48,8 @@ RB_METHOD_GUARD(sceneElementSetZ)
 	int z;
 	rb_get_args(argc, argv, "i", &z RB_ARG_END);
 
-	GFX_GUARD_EXC( se->setZ(z); );
+	GFX_GUARD;
+	se->setZ(z); 
 
 	return rb_fix_new(z);
 }
@@ -76,7 +77,8 @@ RB_METHOD_GUARD(sceneElementSetVisible)
 	bool visible;
 	rb_get_args(argc, argv, "b", &visible RB_ARG_END);
 
-	GFX_GUARD_EXC( se->setVisible(visible); );
+	GFX_GUARD;
+	se->setVisible(visible); 
 
 	return rb_bool_new(visible);
 }

@@ -56,7 +56,10 @@ RB_METHOD_GUARD(viewportElementSetViewport)
 	if (!NIL_P(viewportObj))
 		viewport = getPrivateDataCheck<Viewport>(viewportObj, ViewportType);
 
-	GFX_GUARD_EXC( ve->setViewport(viewport); );
+	{
+		GFX_GUARD;
+		ve->setViewport(viewport);
+	}
 
 	rb_iv_set(self, "viewport", viewportObj);
 
@@ -79,14 +82,13 @@ viewportElementInitialize(int argc, VALUE *argv, VALUE self)
 		viewport = getPrivateDataCheck<Viewport>(viewportObj, ViewportType);
 	}
 
-    GFX_LOCK;
+	GFX_GUARD;
 	/* Construct object */
 	C *ve = new C(viewport);
 
     
 	/* Set property objects */
 	rb_iv_set(self, "viewport", viewportObj);
-    GFX_UNLOCK;
 	return ve;
 }
 
