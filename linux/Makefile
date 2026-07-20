@@ -197,7 +197,9 @@ $(LIBDIR)/libSDL2.a: $(DOWNLOADS)/sdl2/cmakebuild/Makefile
 $(DOWNLOADS)/sdl2/cmakebuild/Makefile: $(DOWNLOADS)/sdl2/CMakeLists.txt $(LIBDIR)/libdbus-1.so.3.38.3
 	cd $(DOWNLOADS)/sdl2; \
 	mkdir cmakebuild; cd cmakebuild; \
-	$(CMAKE) -DBUILD_SHARED_LIBS=no -DSDL_DBUS=yes
+	$(CMAKE) -DBUILD_SHARED_LIBS=no -DSDL_DBUS=yes \
+		-DSDL_WAYLAND=ON -DSDL_WAYLAND_SHARED=OFF \
+		-DSDL_KMSDRM=ON -DSDL_KMSDRM_SHARED=OFF
 
 $(DOWNLOADS)/sdl2/CMakeLists.txt:
 	$(CLONE) $(GITHUB)/mkxp-z/SDL $(DOWNLOADS)/sdl2 -b mkxp-z-2.28.1
