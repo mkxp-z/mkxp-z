@@ -360,17 +360,20 @@ void blitRectangle(const IntRect &src, const Vec2i &dstPos)
 void blitRectangle(const IntRect &src, const IntRect &dst, bool smooth)
 {
 	// Handle high-res dest
-	int scaledDstX = dst.x * blitDstWidthHires / blitDstWidthLores;
-	int scaledDstY = dst.y * blitDstHeightHires / blitDstHeightLores;
-	int scaledDstWidth = dst.w * blitDstWidthHires / blitDstWidthLores;
-	int scaledDstHeight = dst.h * blitDstHeightHires / blitDstHeightLores;
+	// (guard against div-by-zero: a zero-size lores target/source is
+	// degenerate - e.g. an empty sprite/viewport - so just skip scaling
+	// in that case rather than crashing with SIGFPE)
+	int scaledDstX = blitDstWidthLores ? (dst.x * blitDstWidthHires / blitDstWidthLores) : dst.x;
+	int scaledDstY = blitDstHeightLores ? (dst.y * blitDstHeightHires / blitDstHeightLores) : dst.y;
+	int scaledDstWidth = blitDstWidthLores ? (dst.w * blitDstWidthHires / blitDstWidthLores) : dst.w;
+	int scaledDstHeight = blitDstHeightLores ? (dst.h * blitDstHeightHires / blitDstHeightLores) : dst.h;
 	IntRect dstScaled(scaledDstX, scaledDstY, scaledDstWidth, scaledDstHeight);
 
 	// Handle high-res source
-	int scaledSrcX = src.x * blitSrcWidthHires / blitSrcWidthLores;
-	int scaledSrcY = src.y * blitSrcHeightHires / blitSrcHeightLores;
-	int scaledSrcWidth = src.w * blitSrcWidthHires / blitSrcWidthLores;
-	int scaledSrcHeight = src.h * blitSrcHeightHires / blitSrcHeightLores;
+	int scaledSrcX = blitSrcWidthLores ? (src.x * blitSrcWidthHires / blitSrcWidthLores) : src.x;
+	int scaledSrcY = blitSrcHeightLores ? (src.y * blitSrcHeightHires / blitSrcHeightLores) : src.y;
+	int scaledSrcWidth = blitSrcWidthLores ? (src.w * blitSrcWidthHires / blitSrcWidthLores) : src.w;
+	int scaledSrcHeight = blitSrcHeightLores ? (src.h * blitSrcHeightHires / blitSrcHeightLores) : src.h;
 	IntRect srcScaled(scaledSrcX, scaledSrcY, scaledSrcWidth, scaledSrcHeight);
 
 	if (HAVE_NATIVE_BLIT)
