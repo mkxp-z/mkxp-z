@@ -34,8 +34,8 @@ else
     bz2 = compilers['cpp'].find_library('bz2')
     # FIXME: Specifically asking for static doesn't work if iconv isn't
     # installed in the system prefix somewhere
-    iconv = compilers['cpp'].find_library('iconv')
-    global_dependencies += compilers['cpp'].find_library('charset')
+    iconv = compilers['cpp'].find_library('iconv', required: false)
+    global_dependencies += compilers['cpp'].find_library('charset', required: false)
 endif
 
 # If OpenSSL is present, you get HTTPS support
