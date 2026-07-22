@@ -1,6 +1,7 @@
 physfs = dependency('physfs', version: '>=2.1', static: build_static)
 openal = dependency('openal', static: build_static, method: 'pkg-config')
 theora = dependency('theora', static: build_static)
+theoradec = dependency('theoradec', static: build_static)
 vorbisfile = dependency('vorbisfile', static: build_static)
 vorbis = dependency('vorbis', static: build_static)
 ogg = dependency('ogg', static: build_static)
@@ -96,7 +97,7 @@ global_include_dirs += include_directories('.',
     'util', 'util/sigslot', 'util/sigslot/adapter'
 )
 
-global_dependencies += [openal, zlib, bz2, sdl2, sdl_sound, pixman, physfs, theora, vorbisfile, vorbis, ogg, sdl2_ttf, freetype, sdl2_image, png, iconv, uchardet]
+global_dependencies += [openal, zlib, bz2, sdl2, sdl_sound, pixman, physfs, theora, theoradec, vorbisfile, vorbis, ogg, sdl2_ttf, freetype, sdl2_image, png, iconv, uchardet]
 if host_system == 'windows'
     global_dependencies += compilers['cpp'].find_library('wsock32')
 endif
