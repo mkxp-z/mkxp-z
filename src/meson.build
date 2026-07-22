@@ -1,6 +1,7 @@
 physfs = dependency('physfs', version: '>=2.1', static: build_static)
 openal = dependency('openal', static: build_static, method: 'pkg-config')
 theora = dependency('theora', static: build_static)
+theoradec = dependency('theoradec', static: build_static)
 vorbisfile = dependency('vorbisfile', static: build_static)
 vorbis = dependency('vorbis', static: build_static)
 ogg = dependency('ogg', static: build_static)
@@ -34,8 +35,8 @@ else
     bz2 = compilers['cpp'].find_library('bz2')
     # FIXME: Specifically asking for static doesn't work if iconv isn't
     # installed in the system prefix somewhere
-    iconv = compilers['cpp'].find_library('iconv')
-    global_dependencies += compilers['cpp'].find_library('charset')
+    iconv = compilers['cpp'].find_library('iconv', required: false)
+    global_dependencies += compilers['cpp'].find_library('charset', required: false)
 endif
 
 # If OpenSSL is present, you get HTTPS support
@@ -96,7 +97,7 @@ global_include_dirs += include_directories('.',
     'util', 'util/sigslot', 'util/sigslot/adapter'
 )
 
-global_dependencies += [openal, zlib, bz2, sdl2, sdl_sound, pixman, physfs, theora, vorbisfile, vorbis, ogg, sdl2_ttf, freetype, sdl2_image, png, iconv, uchardet]
+global_dependencies += [openal, zlib, bz2, sdl2, sdl_sound, pixman, physfs, theora, theoradec, vorbisfile, vorbis, ogg, sdl2_ttf, freetype, sdl2_image, png, iconv, uchardet]
 if host_system == 'windows'
     global_dependencies += compilers['cpp'].find_library('wsock32')
 endif

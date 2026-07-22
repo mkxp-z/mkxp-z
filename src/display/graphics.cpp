@@ -854,7 +854,13 @@ struct GraphicsPrivate {
         glResourceLock = SDL_CreateMutex();
         
         if (integerScaleActive) {
-            integerScaleFactor = Vec2i(0, 0);
+            /* Compute the real initial scale immediately instead of
+             * deferring to the first checkResize() call - scRes/winSize
+             * are already valid at this point, and leaving the scale at
+             * (0, 0) here allocates integerScaleBuffer at 0x0, which stays
+             * that way (rendering solid black) if a redraw happens before
+             * checkResize() gets a chance to fix it up. */
+            findHighestIntegerScale();
             rebuildIntegerScaleBuffer();
         }
         
