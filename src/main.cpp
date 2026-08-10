@@ -70,9 +70,6 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 #ifdef MKXPZ_BUILD_XCODE
 #include <Availability.h>
 #include "TouchBar.h"
-#if !defined(__MAC_10_15) || __MAC_OS_X_VERSION_MAX_ALLOWED < __MAC_10_15
-#define MKXPZ_INIT_GL_LATER
-#endif
 #endif
 
 #ifndef MKXPZ_INIT_GL_LATER
@@ -126,7 +123,8 @@ int rgssThreadFun(void *userdata) {
   if (!threadData->glContext)
     return 0;
 #else
-  SDL_GL_MakeCurrent(threadData->window, threadData->glContext);
+  if (gl.context_release_behavior_none)
+    SDL_GL_MakeCurrent(threadData->window, threadData->glContext);
 #endif
 
   /* Setup AL context */
@@ -224,6 +222,12 @@ int main(int argc, char *argv[]) {
 #endif
 
     SDL_SetHint(SDL_HINT_IME_SHOW_UI, "1");
+
+    /* When using SDL's X11 video driver,
+     * SDL_GL_MakeCurrent() seems to be faster when using EGL than when using GLX,
+     * so make SDL use EGL instead of GLX when using X11
+     * (you can still make SDL use GLX instead when using X11 by setting the SDL_VIDEO_X11_FORCE_EGL environment variable to 0) */
+    SDL_SetHint(SDL_HINT_VIDEO_X11_FORCE_EGL, "1");
 
     /* initialize SDL first */
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_TIMER) < 0) {
@@ -457,6 +461,12 @@ int main(int argc, char *argv[]) {
 #endif
 
     /* Start RGSS thread */
+#ifndef MKXPZ_INIT_GL_LATER
+    if (gl.context_release_behavior_none && SDL_GL_MakeCurrent(win, nullptr) < 0) {
+      showInitError(std::string("Could not unbind OpenGL context: ") + SDL_GetError());
+      return 0;
+    }
+#endif
     SDL_Thread *rgssThread = SDL_CreateThread(rgssThreadFun, "rgss", &rtData);
 
     /* Start event processing */
@@ -479,9 +489,17 @@ int main(int argc, char *argv[]) {
 
     /* If RGSS thread ack'd request, wait for it to shutdown,
      * otherwise abandon hope and just end the process as is. */
-    if (rtData.rqTermAck)
+    if (rtData.rqTermAck) {
       SDL_WaitThread(rgssThread, 0);
-    else
+      if (gl.thread != nullptr) {
+        {
+          std::lock_guard<std::mutex> guard(gl.mutex);
+          gl.commandId = -1;
+          gl.cond.notify_one();
+        }
+        SDL_WaitThread(gl.thread, 0);
+      }
+    } else
       SDL_ShowSimpleMessageBox(
           SDL_MESSAGEBOX_ERROR, conf.game.title.c_str(),
           std::string("The RGSS script seems to be stuck. "+conf.game.title+" will now force quit.").c_str(),
@@ -530,15 +548,24 @@ static SDL_GLContext initGL(SDL_Window *win, Config &conf,
   if (conf.debugMode)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
 
-  glCtx = SDL_GL_CreateContext(win);
+  /* If supported by the OpenGL driver, use GL_CONTEXT_RELEASE_BEHAVIOR to allow calling OpenGL from multiple threads without a proxy thread */
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_RELEASE_BEHAVIOR, SDL_GL_CONTEXT_RELEASE_BEHAVIOR_NONE);
 
-  if (!glCtx) {
+  if (
+    (SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3), SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2), (glCtx = SDL_GL_CreateContext(win))) == nullptr
+      && (SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3), SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1), (glCtx = SDL_GL_CreateContext(win))) == nullptr
+      && (SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3), SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0), (glCtx = SDL_GL_CreateContext(win))) == nullptr
+#ifndef GLES2_HEADER // Only desktop OpenGL has a version 2.1; OpenGL ES has no version 2.1
+      && (SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2), SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1), (glCtx = SDL_GL_CreateContext(win))) == nullptr
+#endif
+      && (SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2), SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0), (glCtx = SDL_GL_CreateContext(win))) == nullptr
+  ) {
     GLINIT_SHOWERROR(std::string("Could not create OpenGL context: ") + SDL_GetError());
     return 0;
   }
 
   try {
-    initGLFunctions();
+    initGLFunctions(conf, win, glCtx);
   } catch (const Exception &exc) {
     GLINIT_SHOWERROR(exc.msg);
     SDL_GL_DeleteContext(glCtx);
@@ -551,12 +578,12 @@ static SDL_GLContext initGL(SDL_Window *win, Config &conf,
 
   gl.ClearColor(0, 0, 0, 1);
   gl.Clear(GL_COLOR_BUFFER_BIT);
-  SDL_GL_SwapWindow(win);
+  gl.SwapWindow(win);
 
   printGLInfo();
 
   bool vsync = conf.vsync || conf.syncToRefreshrate;
-  SDL_GL_SetSwapInterval(vsync ? 1 : 0);
+  gl.SetSwapInterval(vsync ? 1 : 0);
 
   // GLDebugLogger dLogger;
   return glCtx;

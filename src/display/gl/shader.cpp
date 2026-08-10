@@ -126,9 +126,11 @@ Shader::Shader() : initialized(false)
 
 Shader::~Shader()
 {
+	GFX_LOCK;
 	gl.DeleteProgram(program);
 	gl.DeleteShader(vertShader);
 	gl.DeleteShader(fragShader);
+	GFX_UNLOCK;
 }
 
 void Shader::bind()

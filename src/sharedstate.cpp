@@ -124,7 +124,11 @@ struct SharedStatePrivate
         
 		/* Shaders have been compiled in ShaderSet's constructor */
 		if (gl.ReleaseShaderCompiler)
+		{
+			GFX_LOCK;
 			gl.ReleaseShaderCompiler();
+			GFX_UNLOCK;
+		}
 
 		std::string archPath = config.execName + gameArchExt();
 
@@ -152,6 +156,8 @@ struct SharedStatePrivate
 		globalTexW = 128;
 		globalTexH = 64;
 
+		GFX_LOCK;
+
 		globalTex = TEX::gen();
 		TEX::bind(globalTex);
 		TEX::setRepeat(false);
@@ -164,6 +170,8 @@ struct SharedStatePrivate
 		TEXFBO::allocEmpty(gpTexFBO, globalTexW, globalTexH);
 		TEXFBO::linkFBO(gpTexFBO);
 
+		GFX_UNLOCK;
+
 		/* RGSS3 games will call setup_midi, so there's
 		 * no need to do it on startup */
 		if (rgssVer <= 2)
@@ -172,9 +180,11 @@ struct SharedStatePrivate
 
 	~SharedStatePrivate()
 	{
+		GFX_LOCK;
 		TEX::del(globalTex);
 		TEXFBO::fini(gpTexFBO);
 		TEXFBO::fini(atlasTex);
+		GFX_UNLOCK;
 	}
 };
 
@@ -214,9 +224,11 @@ void SharedState::finiInstance()
 {
 	delete SharedState::instance->p->defaultFont;
 
-	delete SharedState::instance;
-
+	GFX_LOCK;
 	delete _globalIBO;
+	GFX_UNLOCK;
+
+	delete SharedState::instance;
 }
 
 void SharedState::setScreen(Scene &screen)

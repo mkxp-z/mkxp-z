@@ -300,6 +300,19 @@
     // "integerScalingLastMile": true,
 
 
+    // Select a strategy to use to allow multithreaded access to OpenGL. One of
+    // these will usually result in better performance depending on your
+    // graphics driver.
+    // 0: Attempt to automatically choose the best option
+    // 1: Bind the OpenGL context every time the graphics state is locked, and
+    //    unbind the OpenGL context every time the graphics state is unlocked
+    // 2: Bind the OpenGL context to a proxy thread and proxy all OpenGL calls
+    //    through the proxy thread
+    // (default: 0)
+    //
+    // "multithreadedGl": 0,
+
+
     // Set the base path of the game to '/path/to/game'
     // (default: executable directory)
     //

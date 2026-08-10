@@ -302,7 +302,7 @@ static void mriBindingInit() {
 }
 
 static void showMsg(const std::string &msg) {
-    shState->eThread().showMessageBox(msg.c_str());
+    GFX_GUARD_EXC(shState->eThread().showMessageBox(msg.c_str()););
 }
 
 static void printP(int argc, VALUE *argv, const char *convMethod,
