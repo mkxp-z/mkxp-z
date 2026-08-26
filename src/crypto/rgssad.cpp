@@ -131,6 +131,9 @@ advanceMagicN(uint32_t &magic, uint32_t n) {
     uint32_t old = magic;
     int table_index = 0;
 
+    /* The LCG table only goes up to the LCG's period of 2^30, so perform a bitwise AND with 2^30 - 1 */
+    n &= (uint32_t)0x3fffffff;
+
     while (n != 0) {
         if (n & 1) {
             magic = magic * LCG_TABLE[table_index][0] + LCG_TABLE[table_index][1];
