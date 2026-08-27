@@ -1,0 +1,123 @@
+# syntax-transform/3.1/0034-command-trailing-comma.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby versions 1.9.0, 1.9.1 and 1.9.2, commands, i.e. calls without
+# parentheses such as `puts 'hi'`, are allowed to have one trailing comma at the
+# end of the argument list. This is not allowed in earlier or later versions of
+# Ruby. So this code snippet prints `1`, `2` and `[3, 4]` in those three
+# versions of Ruby but throws a syntax error in all other versions of Ruby.
+#
+#   def f(x)
+#     p x
+#   end
+#   def g
+#     return 2,
+#   end
+#   def h
+#     return 3, 4,
+#   end
+#   f 1,;
+#   p g
+#   p h
+#
+# Note, however, that removing the semicolon from the above code snippet will
+# cause a syntax error even in Ruby 1.9.0, 1.9.1 and 1.9.2 due to newlines
+# between successive arguments being interpreted as whitespace; that is, if you
+# remove the semicolon, it gets interpreted as `f 1, p g`.
+#
+# It is also not allowed to have more than one trailing comma in those three
+# versions of Ruby. Only zero or one trailing commas are permitted. Also, there
+# must be at least one argument in the command for trailing commas to be
+# permitted.
+
+--- a/parse.y
++++ b/parse.y
+@@ -1251,6 +1251,7 @@ static int looking_at_eol_p(struct parser_params *p);
+ %type <node> p_kwargs p_kwarg p_kw
+ %type <node> mkxp_legacy_expr mkxp_legacy_call_args2 mkxp_open_args
+ %type <node> mkxp_legacy_assoc_list
++%type <node> mkxp_call_args_with_trailing_comma
+ %type <id>   keyword_variable user_variable sym operation operation2 operation3
+ %type <id>   cname fname op f_rest_arg f_block_arg opt_f_block_arg f_norm_arg f_bad_arg
+ %type <id>   f_kwrest f_label f_arg_asgn call_op call_op2 reswords relop dot_or_colon
+@@ -1477,7 +1478,38 @@ mkxp_legacy_call_args2
+                     /*% ripper[brace]: args_add_block!(args_new!, $1) %*/
+                 ;
+ 
+-mkxp_open_args  : call_args
++mkxp_call_args_with_trailing_comma
++                : call_args
++                | args ','
++                    {
++                        if (!mkxp_parser_is_syntax_transform_active(p, 1, 9, 2) || mkxp_parser_is_syntax_transform_active(p, 1, 8, -1)) {
++                           yyerror1(&@2, "syntax error, unexpected ','");
++                        }
++                        $$ = $1;
++                    }
++                | assocs ','
++                    {
++                        if (!mkxp_parser_is_syntax_transform_active(p, 1, 9, 2) || mkxp_parser_is_syntax_transform_active(p, 1, 8, -1)) {
++                           yyerror1(&@2, "syntax error, unexpected ','");
++                        }
++                    /*%%%*/
++                        $$ = $1 ? NEW_LIST(new_hash(p, $1, &@1), &@1) : 0;
++                    /*% %*/
++                    /*% ripper: args_add!(args_new!, bare_assoc_hash!($1)) %*/
++                    }
++                | args ',' assocs ','
++                    {
++                        if (!mkxp_parser_is_syntax_transform_active(p, 1, 9, 2) || mkxp_parser_is_syntax_transform_active(p, 1, 8, -1)) {
++                           yyerror1(&@4, "syntax error, unexpected ','");
++                        }
++                    /*%%%*/
++                        $$ = $3 ? arg_append(p, $1, new_hash(p, $3, &@3), &@$) : $1;
++                    /*% %*/
++                    /*% ripper: args_add!($1, bare_assoc_hash!($3)) %*/
++                    }
++                ;
++
++mkxp_open_args  : mkxp_call_args_with_trailing_comma
+                 | tMKXP_LEGACY_LPAREN_ARG {SET_LEX_STATE(EXPR_ENDARG);} ')'
+                     {
+                         rb_warn0("don't put space before argument parentheses");
+@@ -2125,21 +2157,21 @@ command		: fcall command_args       %prec tLOWEST
+ 		    /*% %*/
+ 		    /*% ripper: yield!($2) %*/
+ 		    }
+-		| k_return call_args
++		| k_return mkxp_call_args_with_trailing_comma
+ 		    {
+ 		    /*%%%*/
+ 			$$ = NEW_RETURN(ret_args(p, $2), &@$);
+ 		    /*% %*/
+ 		    /*% ripper: return!($2) %*/
+ 		    }
+-		| keyword_break call_args
++		| keyword_break mkxp_call_args_with_trailing_comma
+ 		    {
+ 		    /*%%%*/
+ 			$$ = NEW_BREAK(ret_args(p, $2), &@$);
+ 		    /*% %*/
+ 		    /*% ripper: break!($2) %*/
+ 		    }
+-		| keyword_next call_args
++		| keyword_next mkxp_call_args_with_trailing_comma
+ 		    {
+ 		    /*%%%*/
+ 			$$ = NEW_NEXT(ret_args(p, $2), &@$);

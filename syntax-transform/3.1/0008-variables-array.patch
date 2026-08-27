@@ -1,0 +1,213 @@
+# syntax-transform/3.1/0008-variables-array.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby 1.8, all methods that return an array of the names of variables or
+# methods defined in a scope such as `Kernel#global_variables` and
+# `Kernel#local_variables` return an array of strings instead of an array of
+# symbols like in later Ruby versions.
+
+--- a/class.c
++++ b/class.c
+@@ -1655,6 +1655,17 @@ class_instance_method_list(int argc, const VALUE *argv, VALUE mod, int obj, int
+     st_foreach(me_arg.list, func, ary);
+     st_free_table(me_arg.list);
+ 
++    /* If syntax transform is active and targeting Ruby <= 1.8, convert the output of all methods that list the names of instance methods in a class from an array of symbols to an array of strings */
++    if (mkxp_ec_is_syntax_transform_active(1, 8, -1)) {
++        long length = RARRAY_LEN(ary);
++        long i;
++        for (i = 0; i < length; ++i) {
++            VALUE value = rb_ary_entry(ary, i);
++            value = rb_sym2str(value);
++            rb_ary_store(ary, i, value);
++        }
++    }
++
+     return ary;
+ }
+ 
+@@ -1892,6 +1903,17 @@ rb_obj_singleton_methods(int argc, const VALUE *argv, VALUE obj)
+     st_foreach(me_arg.list, ins_methods_i, ary);
+     st_free_table(me_arg.list);
+ 
++    /* If syntax transform is active and targeting Ruby <= 1.8, convert the output of `Object#singleton_methods` from an array of symbols to an array of strings */
++    if (mkxp_ec_is_syntax_transform_active(1, 8, -1)) {
++        long length = RARRAY_LEN(ary);
++        long i;
++        for (i = 0; i < length; ++i) {
++            VALUE value = rb_ary_entry(ary, i);
++            value = rb_sym2str(value);
++            rb_ary_store(ary, i, value);
++        }
++    }
++
+     return ary;
+ }
+ 
+--- a/eval.c
++++ b/eval.c
+@@ -409,7 +409,22 @@ rb_mod_s_constants(int argc, VALUE *argv, VALUE mod)
+     if (cbase) {
+ 	data = rb_mod_const_of(cbase, data);
+     }
+-    return rb_const_list(data);
++    {
++        VALUE ary = rb_const_list(data);
++
++        /* If syntax transform is active and targeting Ruby <= 1.8, convert the output of `Module::constants` from an array of symbols to an array of strings */
++        if (mkxp_ec_is_syntax_transform_active(1, 8, -1)) {
++            long length = RARRAY_LEN(ary);
++            long i;
++            for (i = 0; i < length; ++i) {
++                VALUE value = rb_ary_entry(ary, i);
++                value = rb_sym2str(value);
++                rb_ary_store(ary, i, value);
++            }
++        }
++
++        return ary;
++    }
+ }
+ 
+ /*!
+@@ -1868,7 +1883,20 @@ f_current_dirname(VALUE _)
+ static VALUE
+ f_global_variables(VALUE _)
+ {
+-    return rb_f_global_variables();
++    VALUE ary = rb_f_global_variables();
++
++    /* If syntax transform is active and targeting Ruby <= 1.8, convert the output of `Kernel#global_variables` from an array of symbols to an array of strings */
++    if (mkxp_ec_is_syntax_transform_active(1, 8, -1)) {
++        long length = RARRAY_LEN(ary);
++        long i;
++        for (i = 0; i < length; ++i) {
++            VALUE value = rb_ary_entry(ary, i);
++            value = rb_sym2str(value);
++            rb_ary_store(ary, i, value);
++        }
++    }
++
++    return ary;
+ }
+ 
+ /*
+--- a/variable.c
++++ b/variable.c
+@@ -1889,6 +1889,18 @@ rb_obj_instance_variables(VALUE obj)
+ 
+     ary = rb_ary_new();
+     rb_ivar_foreach(obj, ivar_i, ary);
++
++    /* If syntax transform is active and targeting Ruby <= 1.8, convert the output of `Object#instance_variables` from an array of symbols to an array of strings */
++    if (mkxp_ec_is_syntax_transform_active(1, 8, -1)) {
++        long length = RARRAY_LEN(ary);
++        long i;
++        for (i = 0; i < length; ++i) {
++            VALUE value = rb_ary_entry(ary, i);
++            value = rb_sym2str(value);
++            rb_ary_store(ary, i, value);
++        }
++    }
++
+     return ary;
+ }
+ 
+@@ -2981,15 +2993,29 @@ VALUE
+ rb_mod_constants(int argc, const VALUE *argv, VALUE mod)
+ {
+     bool inherit = true;
++    VALUE ary;
+ 
+     if (rb_check_arity(argc, 0, 1)) inherit = RTEST(argv[0]);
+ 
+     if (inherit) {
+-	return rb_const_list(rb_mod_const_of(mod, 0));
++        ary = rb_const_list(rb_mod_const_of(mod, 0));
+     }
+     else {
+-	return rb_local_constants(mod);
++        ary = rb_local_constants(mod);
++    }
++
++    /* If syntax transform is active and targeting Ruby <= 1.8, convert the output of `Module#constants` from an array of symbols to an array of strings */
++    if (mkxp_ec_is_syntax_transform_active(1, 8, -1)) {
++        long length = RARRAY_LEN(ary);
++        long i;
++        for (i = 0; i < length; ++i) {
++            VALUE value = rb_ary_entry(ary, i);
++            value = rb_sym2str(value);
++            rb_ary_store(ary, i, value);
++        }
+     }
++
++    return ary;
+ }
+ 
+ static int
+@@ -3696,7 +3722,22 @@ rb_mod_class_variables(int argc, const VALUE *argv, VALUE mod)
+     else {
+ 	tbl = mod_cvar_at(mod, 0);
+     }
+-    return cvar_list(tbl);
++    {
++        VALUE ary = cvar_list(tbl);
++
++        /* If syntax transform is active and targeting Ruby <= 1.8, convert the output of `Object#class_variables` from an array of symbols to an array of strings */
++        if (mkxp_ec_is_syntax_transform_active(1, 8, -1)) {
++            long length = RARRAY_LEN(ary);
++            long i;
++            for (i = 0; i < length; ++i) {
++                VALUE value = rb_ary_entry(ary, i);
++                value = rb_sym2str(value);
++                rb_ary_store(ary, i, value);
++            }
++        }
++
++        return ary;
++    }
+ }
+ 
+ /*
+--- a/vm_eval.c
++++ b/vm_eval.c
+@@ -2521,7 +2521,22 @@ rb_f_local_variables(VALUE _)
+ 	    break;
+ 	}
+     }
+-    return local_var_list_finish(&vars);
++    {
++        VALUE ary = local_var_list_finish(&vars);
++
++        /* If syntax transform is active and targeting Ruby <= 1.8, convert the output of `Kernel#local_variables` from an array of symbols to an array of strings */
++        if (mkxp_ec_is_syntax_transform_active(1, 8, -1)) {
++            long length = RARRAY_LEN(ary);
++            long i;
++            for (i = 0; i < length; ++i) {
++                VALUE value = rb_ary_entry(ary, i);
++                value = rb_sym2str(value);
++                rb_ary_store(ary, i, value);
++            }
++        }
++
++        return ary;
++    }
+ }
+ 
+ /*

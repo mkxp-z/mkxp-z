@@ -21,3 +21,5 @@ option('steam_appid', type: 'string', value: '', description: 'Steam AppID. Set 
 option('steamshim_debug', type: 'boolean', value: false, description: 'Whether to show Steamshim debug messages in the console')
 
 option('gfx_backend', type: 'combo', value: 'gl', choices: ['gl', 'gles'], description: 'Graphics rendering API to use.')
+
+option('syntax_transform_patches', type: 'boolean', value: true, description: 'Enable support for mkxp syntax transform patches')

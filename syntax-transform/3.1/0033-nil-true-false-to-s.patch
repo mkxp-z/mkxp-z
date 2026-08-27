@@ -1,0 +1,61 @@
+# syntax-transform/3.1/0033-nil-true-false-to-s.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby versions up to and including Ruby 2.6, calling `.to_s` on `nil`,
+# `true` or `false` yields a non-frozen string. In later versions of Ruby, the
+# returned string is frozen. So this code snippet raises an error in Ruby
+# versions newer than Ruby 2.6 due to it trying to modify frozen strings, but
+# doesn't raise an error in Ruby 2.6 or older.
+#
+#   nil_s = nil.to_s
+#   nil_s.chomp!
+#   true_s = true.to_s
+#   true_s.tr!('A-Za-z', 'N-ZA-Mn-za-m')
+#   false_s = false.to_s
+#   false_s[0] = 'A'
+
+--- a/object.c
++++ b/object.c
+@@ -1258,7 +1258,7 @@ rb_obj_frozen_p(VALUE obj)
+ MJIT_FUNC_EXPORTED VALUE
+ rb_nil_to_s(VALUE obj)
+ {
+-    return rb_cNilClass_to_s;
++    return mkxp_ec_is_syntax_transform_active(2, 6, -1) ? rb_str_dup(rb_cNilClass_to_s) : rb_cNilClass_to_s;
+ }
+ 
+ /*
+@@ -1341,7 +1341,7 @@ nil_match(VALUE obj1, VALUE obj2)
+ MJIT_FUNC_EXPORTED VALUE
+ rb_true_to_s(VALUE obj)
+ {
+-    return rb_cTrueClass_to_s;
++    return mkxp_ec_is_syntax_transform_active(2, 6, -1) ? rb_str_dup(rb_cTrueClass_to_s) : rb_cTrueClass_to_s;
+ }
+ 
+ 
+@@ -1418,7 +1418,7 @@ true_xor(VALUE obj, VALUE obj2)
+ MJIT_FUNC_EXPORTED VALUE
+ rb_false_to_s(VALUE obj)
+ {
+-    return rb_cFalseClass_to_s;
++    return mkxp_ec_is_syntax_transform_active(2, 6, -1) ? rb_str_dup(rb_cFalseClass_to_s) : rb_cFalseClass_to_s;
+ }
+ 
+ /*

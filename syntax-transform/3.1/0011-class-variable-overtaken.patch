@@ -1,0 +1,150 @@
+# syntax-transform/3.1/0011-class-variable-overtaken.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby 1.8, if a class variable is defined in a derived class and then a
+# class variable with the same name is defined in its base class, the value of
+# the class variable as visible in the derived class is the original value that
+# was set in the derived class. In Ruby versions later than 1.8 up to 2.7, the
+# value is instead the new value that was set in the base class. In Ruby
+# versions later than 2.7, attempting to read or write the class variable in
+# the derived class raises a `RuntimeError`. Thus, after running this code
+# snippet
+#
+#   class A
+#   end
+#   class B < A
+#     @@a = 'B'
+#   end
+#   class A
+#     @@a = 'A'
+#   end
+#   class B
+#     p @@a
+#   end
+#
+#  the value `"B"` will be printed in Ruby 1.8, the value `"A"` will be printed
+#  in Ruby 1.9 through 2.7 and an error will occur on the `p @@a` line in Ruby
+#  versions later than 2.7.
+#
+#  This code snippet, however, will print `"B"` in all Ruby versions without
+#  any errors occurring.
+#
+#  class A
+#    @@a = 'A'
+#  end
+#  class B < A
+#    @@a = 'B'
+#    p @@a
+#  end
+#
+#  This code snippet will print `"b"` in Ruby 1.8, `"a"` in Ruby 1.9 through
+#  Ruby 2.7 and throw an error in later versions on the line `@@a = 'b'`.
+#
+#  class A
+#  end
+#  class B < A
+#    @@a = 'B'
+#  end
+#  class A
+#    @@a = 'A'
+#  end
+#  class B
+#    @@a = 'b'
+#  end
+#  class A
+#    @@a = 'a'
+#  end
+#  class B
+#    p @@a
+#  end
+
+--- a/variable.c
++++ b/variable.c
+@@ -3458,12 +3458,24 @@ cvar_overtaken(VALUE front, VALUE target, ID id)
+ 	st_data_t did = (st_data_t)id;
+ 
+         if (original_module(front) != original_module(target)) {
+-            rb_raise(rb_eRuntimeError,
+-                     "class variable % "PRIsVALUE" of %"PRIsVALUE" is overtaken by %"PRIsVALUE"",
+-		       ID2SYM(id), rb_class_name(original_module(front)),
+-		       rb_class_name(original_module(target)));
++            if (mkxp_ec_is_syntax_transform_active(1, 8, -1)) {
++                rb_warning("class variable % "PRIsVALUE" of %"PRIsVALUE" is overridden by %"PRIsVALUE"",
++                           ID2SYM(id), rb_class_name(original_module(target)),
++                           rb_class_name(original_module(front)));
++            }
++            else if (mkxp_ec_is_syntax_transform_active(2, 7, -1)) {
++                rb_warn("class variable % "PRIsVALUE" of %"PRIsVALUE" is overtaken by %"PRIsVALUE"",
++                        ID2SYM(id), rb_class_name(original_module(front)),
++                        rb_class_name(original_module(target)));
++            }
++            else {
++                rb_raise(rb_eRuntimeError,
++                         "class variable % "PRIsVALUE" of %"PRIsVALUE" is overtaken by %"PRIsVALUE"",
++                         ID2SYM(id), rb_class_name(original_module(front)),
++                         rb_class_name(original_module(target)));
++            }
+ 	}
+-	if (BUILTIN_TYPE(front) == T_CLASS) {
++	if (!mkxp_ec_is_syntax_transform_active(1, 8, -1) && BUILTIN_TYPE(front) == T_CLASS) {
+ 	    st_delete(RCLASS_IV_TBL(front), &did, 0);
+ 	}
+     }
+@@ -3472,21 +3484,28 @@ cvar_overtaken(VALUE front, VALUE target, ID id)
+ static VALUE
+ find_cvar(VALUE klass, VALUE * front, VALUE * target, ID id)
+ {
+-    VALUE v = Qundef;
++    VALUE v = Qundef, _v;
++    bool syntax_transform = mkxp_ec_is_syntax_transform_active(1, 8, -1);
+     CVAR_ACCESSOR_SHOULD_BE_MAIN_RACTOR();
+-    if (cvar_lookup_at(klass, id, (&v))) {
++    if (cvar_lookup_at(klass, id, (&_v))) {
+         if (!*front) {
+             *front = klass;
+         }
+         *target = klass;
++        if (!syntax_transform || v == Qundef) {
++            v = _v;
++        }
+     }
+ 
+     for (klass = cvar_front_klass(klass); klass; klass = RCLASS_SUPER(klass)) {
+-	if (cvar_lookup_at(klass, id, (&v))) {
++	if (cvar_lookup_at(klass, id, (&_v))) {
+             if (!*front) {
+                 *front = klass;
+             }
+             *target = klass;
++            if (!syntax_transform || v == Qundef) {
++                v = _v;
++            }
+         }
+     }
+ 
+@@ -3529,6 +3548,9 @@ rb_cvar_set(VALUE klass, ID id, VALUE val)
+     CVAR_LOOKUP(0, {if (!front) front = klass; target = klass;});
+     if (target) {
+ 	cvar_overtaken(front, target, id);
++        if (mkxp_ec_is_syntax_transform_active(1, 8, -1)) {
++            target = front;
++        }
+     }
+     else {
+ 	target = tmp;

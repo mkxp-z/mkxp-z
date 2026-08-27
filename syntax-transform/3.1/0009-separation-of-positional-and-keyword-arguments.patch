@@ -1,0 +1,219 @@
+# syntax-transform/3.1/0009-separation-of-positional-and-keyword-arguments.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby 2, there are four coercion rules for converting between positional
+# arguments and keyword arguments that don't exist anymore in Ruby 3.
+#
+# If a method or block that takes keyword arguments is called without keyword
+# arguments, with greater than the minimum required number of positional
+# arguments and the last positional argument is a hash that contains no
+# non-symbol keys, the last positional argument is converted into keyword
+# arguments. For example, this code snippet prints `1` and `{:b => 2}` in Ruby 2
+# but throws an `ArgumentError` in later versions.
+#
+#   def f(a, **kwargs)
+#     p a
+#     p kwargs
+#   end
+#   f(1, {:b => 2})
+#
+# If a method or block that takes keyword arguments is called with keyword
+# arguments and fewer than the minimum required number of positional arguments,
+# the keyword arguments are collected into a hash and passed as an additional
+# positional argument instead of actually being passed as keyword arguments. For
+# example, this code snippet prints `{1=>2}` and `{}` in Ruby 2 but throws an
+# `ArgumentError` in later versions.
+#
+#   def f(a, **kwargs)
+#     p a
+#     p kwargs
+#   end
+#   f(1 => 2)
+#
+# If a method or block is called with an empty keyword argument splat, an empty
+# hash is appended to the list of positional arguments. In Ruby 2.7 only, there
+# is an additional requirement that the method or block is called with exactly
+# one less than the minimum required number of positional arguments. This code
+# snippet prints `1` and `{}` in Ruby 2 and throws an `ArgumentError` in later
+# versions of Ruby.
+#
+#   def f(a, b)
+#     p a
+#     p b
+#   end
+#   a = {}
+#   f(1, **a)
+#
+# If a method or block that takes keyword arguments and does not have a
+# keyword argument splat (e.g. `**kwargs`) is called with keyword arguments,
+# with greater than or equal to the minimum required number of positional
+# arguments and at least one of the keyword arguments has a non-symbol key, the
+# keyword arguments with non-symbol keys are collected into a hash, the hash is
+# passed as an additional positional argument and only the keyword arguments
+# with symbol keys are actually passed as keyword arguments. For example, this
+# code snippet prints `[{3=>4}]` and `2` in Ruby 2 but throws an `ArgumentError`
+# in later Ruby versions.
+#
+#   def f(*args, a: 1)
+#     p args
+#     p a
+#   end
+#   f(:a => 2, 3 => 4)
+
+--- a/vm_args.c
++++ b/vm_args.c
+@@ -540,10 +540,15 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
+ 
+         if (kw_flag & VM_CALL_KW_SPLAT) {
+             if (ignore_keyword_hash_p(rest_last, iseq, &kw_flag, &converted_keyword_hash)) {
+-                arg_rest_dup(args);
+-                rb_ary_pop(args->rest);
+-                given_argc--;
+-                kw_flag &= ~(VM_CALL_KW_SPLAT | VM_CALL_KW_SPLAT_MUT);
++                if (mkxp_ec_is_syntax_transform_active(2, 6, -1) || (mkxp_ec_is_syntax_transform_active(2, 7, -1) && given_argc == min_argc)) { /* If syntax transform is active and targeting Ruby <= 2.7, pass an empty hash as the last positional argument, along with the additional condition if targeting exactly Ruby 2.7 */
++                    rb_warn("Passing the keyword argument as the last hash parameter is deprecated");
++                }
++                else {
++                    arg_rest_dup(args);
++                    rb_ary_pop(args->rest);
++                    given_argc--;
++                    kw_flag &= ~(VM_CALL_KW_SPLAT | VM_CALL_KW_SPLAT_MUT);
++                }
+ 	    }
+             else {
+                 if (rest_last != converted_keyword_hash) {
+@@ -568,9 +573,14 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
+         if (kw_flag & VM_CALL_KW_SPLAT) {
+             VALUE last_arg = args->argv[args->argc-1];
+             if (ignore_keyword_hash_p(last_arg, iseq, &kw_flag, &converted_keyword_hash)) {
+-                args->argc--;
+-                given_argc--;
+-                kw_flag &= ~(VM_CALL_KW_SPLAT | VM_CALL_KW_SPLAT_MUT);
++                if (mkxp_ec_is_syntax_transform_active(2, 6, -1) || (mkxp_ec_is_syntax_transform_active(2, 7, -1) && given_argc == min_argc)) { /* If syntax transform is active and targeting Ruby <= 2.7, pass an empty hash as the last positional argument, along with the additional condition if targeting exactly Ruby 2.7 */
++                    rb_warn("Passing the keyword argument as the last hash parameter is deprecated");
++                }
++                else {
++                    args->argc--;
++                    given_argc--;
++                    kw_flag &= ~(VM_CALL_KW_SPLAT | VM_CALL_KW_SPLAT_MUT);
++                }
+ 	    }
+             else {
+                 if (last_arg != converted_keyword_hash) {
+@@ -614,6 +624,100 @@ setup_parameters_complex(rb_execution_context_t * const ec, const rb_iseq_t * co
+ 	break;
+     }
+ 
++    /* If syntax transform is active and targeting Ruby <= 2.7 and a method or block that takes keyword arguments is called */
++    if (mkxp_iseq_is_syntax_transform_active(iseq, 2, 7, -1) && (iseq->body->param.flags.has_kw || iseq->body->param.flags.has_kwrest)) {
++        if (args->kw_argv != NULL) {
++            const VALUE *kw = args->kw_arg->keywords;
++            int kw_len = args->kw_arg->keyword_len;
++            int i;
++            keyword_hash = rb_hash_new_with_size(kw_len);
++            for (i = 0; i < kw_len; ++i) {
++                rb_hash_aset(keyword_hash, kw[i], args->kw_argv[i]);
++            }
++            args->kw_argv = NULL;
++        }
++        /* If the method or block is not called with keyword arguments, is called with more than the minimum required number of positional arguments and the last positional argument is a hash with no non-symbol keys, pass the contents of that hash as the keyword arguments and remove it from the list of positional arguments */
++        if (kw_flag == 0 && given_argc > min_argc && given_argc > 0) {
++            VALUE last_arg = RB_TYPE_P(args->rest, T_ARRAY) && RARRAY_LENINT(args->rest) > 0 ? rb_ary_entry(args->rest, -1) : args->argv[args->argc - 1];
++            if (RB_TYPE_P(last_arg, T_HASH)) {
++                int kw_len = rb_long2int(RHASH_SIZE(last_arg));
++                struct fill_values_arg arg;
++                arg.keys = ALLOCA_N(VALUE, kw_len * 2);
++                arg.vals = arg.keys + kw_len;
++                arg.argc = 0;
++                rb_hash_foreach(last_arg, fill_keys_values, (VALUE)&arg);
++                {
++                    int i;
++                    for (i = 0; i < kw_len; ++i) {
++                        if (!RB_TYPE_P(arg.keys[i], T_SYMBOL)) {
++                            break;
++                        }
++                    }
++                    if (i == kw_len) {
++                        rb_warn("Using the last argument as keyword parameters is deprecated; maybe ** should be added to the call");
++                        keyword_hash = last_arg;
++                        args_reduce(args, 1);
++                        --given_argc;
++                    }
++                }
++            }
++        }
++        /* If the method or block is called with keyword arguments and is called with fewer than the minimum required number of positional arguments, collect the keyword arguments into a hash, append the hash to the list of positional arguments and don't pass any keyword arguments */
++        else if (kw_flag != 0 && given_argc < min_argc) {
++            rb_warn("Passing the keyword argument as the last hash parameter is deprecated");
++            CHECK_VM_STACK_OVERFLOW(ec->cfp, 1);
++            args_extend(args, 1);
++            ++given_argc;
++            if (RB_TYPE_P(args->rest, T_ARRAY) && RARRAY_LENINT(args->rest) > 0) {
++                rb_ary_store(args->rest, -1, keyword_hash);
++            }
++            else {
++                args->argv[args->argc - 1] = keyword_hash;
++            }
++            keyword_hash = Qnil;
++        }
++        /* If the method or block does not accept keyword rest arguments, is called with keyword arguments, is called with at least the minimum required number of positional arguments and at least one of the passed keyword arguments has a non-symbol key, collect the keyword arguments with non-symbol keys into a hash and append the hash to the list of positional arguments */
++        else if (!iseq->body->param.flags.has_kwrest && kw_flag != 0 && given_argc >= min_argc) {
++            int kw_len = rb_long2int(RHASH_SIZE(keyword_hash));
++            struct fill_values_arg arg;
++            arg.keys = ALLOCA_N(VALUE, kw_len * 2);
++            arg.vals = arg.keys + kw_len;
++            arg.argc = 0;
++            rb_hash_foreach(keyword_hash, fill_keys_values, (VALUE)&arg);
++            {
++                VALUE hash = Qundef;
++                int i;
++                for (i = 0; i < kw_len; ++i) {
++                    if (!RB_TYPE_P(arg.keys[i], T_SYMBOL)) {
++                        rb_hash_delete(keyword_hash, arg.keys[i]);
++                        if (hash == Qundef) {
++                            hash = rb_hash_new_with_size(kw_len);
++                            CHECK_VM_STACK_OVERFLOW(ec->cfp, 1);
++                            args_extend(args, 1);
++                            ++given_argc;
++                            if (RB_TYPE_P(args->rest, T_ARRAY) && RARRAY_LENINT(args->rest) > 0) {
++                                rb_ary_store(args->rest, -1, hash);
++                            }
++                            else {
++                                args->argv[args->argc - 1] = hash;
++                            }
++                        }
++                        rb_hash_aset(hash, arg.keys[i], arg.vals[i]);
++                    }
++                }
++                if (hash != Qundef) {
++                    if (rb_long2int(RHASH_SIZE(keyword_hash)) == 0) {
++                        rb_warn("Passing the keyword argument as the last hash parameter is deprecated");
++                        keyword_hash = Qnil;
++                    }
++                    else {
++                        rb_warn("Splitting the last argument into positional and keyword parameters is deprecated");
++                    }
++                }
++            }
++        }
++    }
++
+     /* argc check */
+     if (given_argc < min_argc) {
+         if (arg_setup_type == arg_setup_block) {

@@ -27,6 +27,9 @@ global_args += '-DMKXPZ_BUILD_MESON'
 global_args += '-DMKXPZ_VERSION="@0@"'.format(meson.project_version())
 global_args += '-DMKXPZ_GIT_HASH="@0@"'.format(git_hash)
 global_args += '-DHAVE_NANOSLEEP'
+if get_option('syntax_transform_patches')
+    global_args += '-DMKXPZ_HAVE_SYNTAX_TRANSFORM_PATCHES'
+endif
 # ====================
 # Ext libs
 # ====================

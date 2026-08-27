@@ -1,0 +1,77 @@
+# syntax-transform/3.1/0017-array-hash-to-s.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby 1.8, calling `.to_s` on an array returns the concatenation of the
+# `.to_s` of its elements, and calling `.to_s` on a hash returns the
+# concatenation of the `.to_s` of the first key, then the first value, then the
+# second key, then the second value, and so on. In later versions, `.to_s` is an
+# alias of `.inspect` for arrays and hashes. That means this code snippet prints
+# `"1"` and `"23"` in Ruby 1.8 but `[1]` and `{2 => 3}` in later versions.
+#
+#   p [1].to_s
+#   p ({2 => 3}).to_s
+
+--- a/array.c
++++ b/array.c
+@@ -2887,6 +2887,12 @@ rb_ary_inspect(VALUE ary)
+     return rb_exec_recursive(inspect_ary, ary, 0);
+ }
+ 
++static VALUE
++mkxp_ary_to_s(VALUE ary)
++{
++    return mkxp_ec_is_syntax_transform_active(1, 8, -1) ? rb_ary_join(ary, rb_str_new_cstr("")) : rb_ary_inspect(ary);
++}
++
+ VALUE
+ rb_ary_to_s(VALUE ary)
+ {
+@@ -8270,7 +8276,7 @@ Init_Array(void)
+     rb_define_method(rb_cArray, "initialize_copy", rb_ary_replace, 1);
+ 
+     rb_define_method(rb_cArray, "inspect", rb_ary_inspect, 0);
+-    rb_define_alias(rb_cArray,  "to_s", "inspect");
++    rb_define_method(rb_cArray, "to_s", mkxp_ary_to_s, 0);
+     rb_define_method(rb_cArray, "to_a", rb_ary_to_a, 0);
+     rb_define_method(rb_cArray, "to_h", rb_ary_to_h, 0);
+     rb_define_method(rb_cArray, "to_ary", rb_ary_to_ary_m, 0);
+--- a/hash.c
++++ b/hash.c
+@@ -3490,6 +3490,12 @@ rb_hash_inspect(VALUE hash)
+     return rb_exec_recursive(inspect_hash, hash, 0);
+ }
+ 
++static VALUE
++mkxp_hash_to_s(VALUE hash)
++{
++    return mkxp_ec_is_syntax_transform_active(1, 8, -1) ? rb_ary_join(rb_hash_to_a(hash), rb_str_new_cstr("")) : rb_hash_inspect(hash);
++}
++
+ /*
+  *  call-seq:
+  *    hash.to_hash -> self
+@@ -7196,7 +7202,7 @@ Init_Hash(void)
+     rb_define_method(rb_cHash, "to_h", rb_hash_to_h, 0);
+     rb_define_method(rb_cHash, "to_a", rb_hash_to_a, 0);
+     rb_define_method(rb_cHash, "inspect", rb_hash_inspect, 0);
+-    rb_define_alias(rb_cHash, "to_s", "inspect");
++    rb_define_method(rb_cHash, "to_s", mkxp_hash_to_s, 0);
+     rb_define_method(rb_cHash, "to_proc", rb_hash_to_proc, 0);
+ 
+     rb_define_method(rb_cHash, "==", rb_hash_equal, 1);

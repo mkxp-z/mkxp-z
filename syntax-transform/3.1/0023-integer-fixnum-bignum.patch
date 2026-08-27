@@ -1,0 +1,50 @@
+# syntax-transform/3.1/0023-integer-fixnum-bignum.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby versions up to and including Ruby 2.3, there are two different integer
+# classes: `Fixnum` for word-sized integers and `Bignum` for larger integers.
+# Starting in Ruby 2.4, there is only one integer class called `Integer`, and
+# `Fixnum` and `Bignum` are defined as toplevel constants equal to `Integer`
+# until Ruby 3.2 when the `Fixnum` and `Bignum` constants were removed.
+#
+# This code snippet prints `"Fixnum"` in Ruby versions up to and including Ruby
+# 2.3 but `"Integer"` in later versions.
+#
+#   p 0.class.to_s
+#
+# This code snippet prints `"constant"` twice in Ruby versions up to and
+# including Ruby 3.1 but `nil` twice in later versions.
+#
+#   p defined? Fixnum
+#   p defined? Bignum
+
+--- a/variable.c
++++ b/variable.c
+@@ -99,6 +99,11 @@ classname(VALUE klass, int *permanent)
+     st_table *ivtbl;
+     st_data_t n;
+ 
++    /* If syntax transform is active and targeting Ruby <= 2.3, make the class name of the Integer class be "Fixnum" instead of "Integer" */
++    if (mkxp_ec_is_syntax_transform_active(2, 3, -1) && klass == rb_cInteger) {
++        return rb_str_new_cstr("Fixnum");
++    }
++
+     *permanent = 0;
+     if (!RCLASS_EXT(klass)) return Qnil;
+     if (!(ivtbl = RCLASS_IV_TBL(klass))) return Qnil;

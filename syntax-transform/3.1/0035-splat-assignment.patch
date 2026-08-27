@@ -1,0 +1,91 @@
+# syntax-transform/3.1/0035-splat-assignment.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby 1.8, the result of assigning a splatted array to a variable is `nil`
+# if the array is empty, the one element of the array if the array contains
+# exactly one element, or a copy of the array if the array contains more than
+# one element. In later versions of Ruby, the result of splatting an array is
+# always a copy of the array regardless of how many elements the array contains.
+# Thus, this code snippet prints `nil`, `1` and `[1, 2]` in Ruby 1.8 but `[]`,
+# `[1]` and `[1, 2]` in later versions.
+#
+#   a = *[]
+#   p a
+#   a = *[1]
+#   p a
+#   a = *[1, 2]
+#   p a
+#
+# This also applies to other objects: objects with a `.to_a` method are
+# converted to an array by calling `.to_a`, and objects with no `.to_a` method
+# are converted to an array containing the object as its only element. So this
+# code snippet prints `nil`, `0`, `nil`, `[1, 1]` and `[[1, 1], [2, 2]]` in Ruby
+# 1.8 but `[]`, `[0]`, `[]`, `[[1, 1]]` and `[[1, 1], [2, 2]]` in later
+# versions.
+#
+#   a = *a
+#   p a
+#   a = *0
+#   p a
+#   a = *{}
+#   p a
+#   a = *{1 => 1}
+#   p a
+#   a = *{1 => 1, 2 => 2}
+#   p a
+#
+# Fixes <https://github.com/Ancurio/mkxp/issues/177>.
+
+--- a/compile.c
++++ b/compile.c
+@@ -9702,6 +9702,9 @@ iseq_compile_each0(rb_iseq_t *iseq, LINK_ANCHOR *const ret, const NODE *const no
+       case NODE_SPLAT:{
+ 	CHECK(COMPILE(ret, "splat", node->nd_head));
+ 	ADD_INSN1(ret, node, splatarray, Qtrue);
++        if (mkxp_iseq_is_syntax_transform_active(iseq, 1, 8, -1)) {
++            ADD_INSN(ret, node, mkxp_syntax_transform_convert_splatarray_output);
++        }
+ 
+ 	if (popped) {
+ 	    ADD_INSN(ret, node, pop);
+--- a/insns.def
++++ b/insns.def
+@@ -1585,3 +1585,22 @@ mkxp_syntax_transform_raise_invalid_yield
+ {
+     rb_exc_raise(rb_exc_new_cstr(rb_eLocalJumpError, "no block given"));
+ }
++
++DEFINE_INSN
++mkxp_syntax_transform_convert_splatarray_output
++()
++(VALUE ary)
++(VALUE val)
++{
++    switch (RARRAY_LEN(ary)) {
++        case 0:
++            val = Qnil;
++            break;
++        case 1:
++            val = rb_ary_entry(ary, 0);
++            break;
++        default:
++            val = ary;
++            break;
++    }
++}

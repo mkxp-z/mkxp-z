@@ -58,7 +58,12 @@ CONFIGURE := $(CONFIGURE_ENV) ./configure $(CONFIGURE_ARGS)
 AUTOGEN   := $(CONFIGURE_ENV) ./autogen.sh $(CONFIGURE_ARGS)
 CMAKE     := $(CONFIGURE_ENV) cmake .. $(CMAKE_ARGS)
 
+SYNTAX_TRANSFORM_DIR := ../../syntax-transform/3.1
+RUBY_SRC := $(DOWNLOADS)/ruby
+
 default:
+
+include $(SYNTAX_TRANSFORM_DIR)/Makefile
 
 # Theora
 libtheora: init_dirs libvorbis libogg $(LIBDIR)/libtheora.a
@@ -302,26 +307,26 @@ $(DOWNLOADS)/openssl/Configure:
 # Standard ruby
 ruby: init_dirs openssl $(LIBDIR)/libruby.3.1.dylib
 
-$(LIBDIR)/libruby.3.1.dylib: $(DOWNLOADS)/ruby/Makefile
-	cd $(DOWNLOADS)/ruby; \
+$(LIBDIR)/libruby.3.1.dylib: $(RUBY_SRC)/Makefile
+	cd $(RUBY_SRC); \
 	$(CONFIGURE_ENV) make -j$(NPROC); $(CONFIGURE_ENV) make install
 	install_name_tool -id @rpath/libruby.3.1.dylib $(LIBDIR)/libruby.3.1.dylib
 
 # -std=gnu99 is needed with GCC 15 and higher (which default to gnu23), for Ruby versions that aren't valid C23.
 # Ruby versions that are valid C23 are 3.2.9+, 3.3.9+, 3.4.5+, and 3.5.0+.
-$(DOWNLOADS)/ruby/Makefile: $(DOWNLOADS)/ruby/configure
-	cd $(DOWNLOADS)/ruby; \
+$(RUBY_SRC)/Makefile: $(RUBY_SRC)/configure
+	cd $(RUBY_SRC); \
 	export $(CONFIGURE_ENV); \
 	export CFLAGS="-std=gnu99 -flto=full -DRUBY_FUNCTION_NAME_STRING=__func__ $$CFLAGS"; \
 	export LDFLAGS="-flto=full $$LDFLAGS"; \
 	./configure $(CONFIGURE_ARGS) $(RUBY_CONFIGURE_ARGS) $(RUBY_FLAGS)
 
-$(DOWNLOADS)/ruby/configure: $(DOWNLOADS)/ruby/configure.ac
-	cd $(DOWNLOADS)/ruby; autoreconf -i
+$(RUBY_SRC)/configure: $(RUBY_SRC)/configure.ac $(RUBY_SRC)/syntax-transform
+	cd $(RUBY_SRC); autoreconf -i
 
-$(DOWNLOADS)/ruby/configure.ac:
-	$(CLONE) $(GITHUB)/mkxp-z/ruby $(DOWNLOADS)/ruby --single-branch -b mkxp-z-3.1.3 --depth 1;
-	sed -i '' '/: $${PRELOADENV=DYLD_INSERT_LIBRARIES}/g' $(DOWNLOADS)/ruby/configure.ac
+$(RUBY_SRC)/configure.ac:
+	$(CLONE) $(GITHUB)/mkxp-z/ruby $(RUBY_SRC) --single-branch -b mkxp-z-3.1.3 --depth 1;
+	sed -i '' '/: $${PRELOADENV=DYLD_INSERT_LIBRARIES}/g' $(RUBY_SRC)/configure.ac
 
 # ====
 init_dirs:

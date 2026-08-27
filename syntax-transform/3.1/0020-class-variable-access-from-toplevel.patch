@@ -1,0 +1,45 @@
+# syntax-transform/3.1/0020-class-variable-access-from-toplevel.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby versions up to and including Ruby 2.7, attempting to access a class
+# variable defined outside of a class results in the warning "class variable
+# access from toplevel" but otherwise works. In later Ruby versions, this was
+# changed to a `RuntimeError` with the same message. This code snippet works
+# only in versions up to and including Ruby 2.7; in later versions it throws the
+# error.
+#
+#   @@a = 1
+#   p @@a
+
+--- a/vm_insnhelper.c
++++ b/vm_insnhelper.c
+@@ -1054,7 +1054,12 @@ vm_get_cvar_base(const rb_cref_t *cref, const rb_control_frame_t *cfp, int top_l
+ 	cref = CREF_NEXT(cref);
+     }
+     if (top_level_raise && !CREF_NEXT(cref)) {
+-        rb_raise(rb_eRuntimeError, "class variable access from toplevel");
++        if (mkxp_iseq_is_syntax_transform_active(cfp->iseq, 2, 7, -1)) {
++            rb_warn("class variable access from toplevel");
++        }
++        else {
++            rb_raise(rb_eRuntimeError, "class variable access from toplevel");
++        }
+     }
+ 
+     klass = vm_get_iclass(cfp, CREF_CLASS(cref));

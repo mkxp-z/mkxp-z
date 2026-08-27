@@ -1,0 +1,71 @@
+# syntax-transform/3.1/0036-brace-after-array-literal-arg.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby versions greater than or equal to 1.9.0 and less than 2.5.0, an
+# expression consisting of a function name, then a space, then an array literal,
+# then a space, then a curly-brace block, is valid, but is not valid in any
+# other version of Ruby. Below are examples of such expressions:
+#
+#   p [] {}
+#   p *[] {}
+#   p [1, 2, 3] {}
+#   p [1, [2, 3]] {}
+#   p [1, [2, 3]] {||}
+#   p [1, [2, 3]] {|| true}
+#
+# If these expressions are rewritten to have the array literal parenthesized,
+# they become valid in other versions of Ruby as well (and do the same things as
+# the original expressions):
+#
+#   p ([]) {}
+#   p ([1, 2, 3]) {}
+#   p ([1, [2, 3]]) {}
+#   p ([1, [2, 3]]) {||}
+#   p ([1, [2, 3]]) {|| true}
+#
+# They can also be made valid by using the `do`/`end` block syntax instead of
+# the curly-brace block syntax:
+#
+#   p [] do end
+#   p *[] do end
+#   p [1, 2, 3] do end
+#   p [1, [2, 3]] do end
+#   p [1, [2, 3]] do || end
+#   p [1, [2, 3]] do || true end
+
+--- a/parse.y
++++ b/parse.y
+@@ -9996,7 +9996,7 @@ parser_yylex(struct parser_params *p)
+       case ']':
+ 	COND_POP();
+ 	CMDARG_POP();
+-	SET_LEX_STATE(EXPR_END);
++	SET_LEX_STATE(mkxp_parser_is_syntax_transform_active(p, 2, 4, -1) && !mkxp_parser_is_syntax_transform_active(p, 1, 8, -1) ? EXPR_ENDARG : EXPR_END);
+ 	p->lex.paren_nest--;
+ 	return c;
+ 
+@@ -10005,7 +10005,7 @@ parser_yylex(struct parser_params *p)
+ 	if (!p->lex.brace_nest--) return tSTRING_DEND;
+ 	COND_POP();
+ 	CMDARG_POP();
+-	SET_LEX_STATE(EXPR_END);
++	SET_LEX_STATE(mkxp_parser_is_syntax_transform_active(p, 2, 4, -1) && !mkxp_parser_is_syntax_transform_active(p, 1, 8, -1) ? EXPR_ENDARG : EXPR_END);
+ 	p->lex.paren_nest--;
+ 	return c;
+ 

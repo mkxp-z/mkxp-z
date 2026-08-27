@@ -1,0 +1,40 @@
+# syntax-transform/3.1/0025-exception-equal.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby 1.8, two `Exception`s are equal if and only if they are the same
+# object. In later versions of Ruby, two `Exception`s are equal if and only if
+# they are the same type of `Exception`, their messages are equal and their
+# backtraces are equal. This code snippet prints `false` in Ruby 1.8 but `true`
+# in later versions of Ruby.
+#
+#   p Exception.new == Exception.new
+
+--- a/error.c
++++ b/error.c
+@@ -1528,6 +1528,10 @@ exc_equal(VALUE exc, VALUE obj)
+ 
+     if (exc == obj) return Qtrue;
+ 
++    if (mkxp_ec_is_syntax_transform_active(1, 8, -1)) {
++        return Qfalse;
++    }
++
+     if (rb_obj_class(exc) != rb_obj_class(obj)) {
+ 	int state;
+ 

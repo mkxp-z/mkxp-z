@@ -1,0 +1,119 @@
+# syntax-transform/3.1/0018-to-proc.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby 2, the results of calling `.lambda?`, `.arity` or `.parameters` on a
+# proc created with `Hash#to_proc` and `Symbol#to_proc` returns `false`, `-1`
+# and `[[:rest]]`, respectively, which are not consistent with the actual
+# requirements for the number of arguments that must be passed to the proc: a
+# proc created with `Hash#to_proc` must be called with exactly one positional
+# argument, and a proc created with `Symbol#to_proc` must be called with at
+# least one positional argument. The results were changed in Ruby 3 to be
+# consistent with this behavior, although the actual requirements for the number
+# of parameters that can be passed to one of these procs have not changed.
+#
+# Note that calling a method using the `&` operator on an argument implicitly
+# calls `.to_proc` on the argument, e.g. `f(&:symbol)` is equivalent to
+# `f(&:symbol.to_proc)`, and `f(&{:a => :b})` is equivalent to
+# `f(&{:a => :b}.to_proc)`.
+#
+# In Ruby 2, this code snippet prints `false`, `-1` and `[[:rest]]`. In later
+# versions, it prints `true`, `1` and `[[:req]]`. In all versions, the proc must
+# be called with exactly one positional argument.
+#
+#   a = {}.to_proc
+#   p a.lambda?
+#   p a.arity
+#   p a.parameters
+#
+# In Ruby 2, this code snippet prints `false`, `-1` and `[[:rest]]`. In later
+# versions, it prints `true`, `-2` and `[[:req], [:rest]]`. In all versions, the
+# proc must be called with at least one positional argument.
+#
+#   a = :p.to_proc
+#   p a.lambda?
+#   p a.arity
+#   p a.parameters
+
+--- a/hash.c
++++ b/hash.c
+@@ -4733,7 +4733,7 @@ hash_proc_call(RB_BLOCK_CALL_FUNC_ARGLIST(key, hash))
+ static VALUE
+ rb_hash_to_proc(VALUE hash)
+ {
+-    return rb_func_lambda_new(hash_proc_call, hash, 1, 1);
++    return mkxp_ec_is_syntax_transform_active(2, 7, -1) ? rb_func_proc_new(hash_proc_call, hash) : rb_func_lambda_new(hash_proc_call, hash, 1, 1);
+ }
+ 
+ static VALUE
+--- a/proc.c
++++ b/proc.c
+@@ -691,7 +691,7 @@ bind_location(VALUE bindval)
+ }
+ 
+ static VALUE
+-cfunc_proc_new(VALUE klass, VALUE ifunc)
++cfunc_proc_new(VALUE klass, VALUE ifunc, bool is_lambda)
+ {
+     rb_proc_t *proc;
+     cfunc_proc_t *sproc;
+@@ -709,7 +709,7 @@ cfunc_proc_new(VALUE klass, VALUE ifunc)
+ 
+     /* self? */
+     RB_OBJ_WRITE(procval, &proc->block.as.captured.code.ifunc, ifunc);
+-    proc->is_lambda = TRUE;
++    proc->is_lambda = mkxp_ec_is_syntax_transform_active(2, 7, -1) ? is_lambda : TRUE;
+     return procval;
+ }
+ 
+@@ -721,7 +721,7 @@ sym_proc_new(VALUE klass, VALUE sym)
+     GetProcPtr(procval, proc);
+ 
+     vm_block_type_set(&proc->block, block_type_symbol);
+-    proc->is_lambda = TRUE;
++    proc->is_lambda = !mkxp_ec_is_syntax_transform_active(2, 7, -1);
+     RB_OBJ_WRITE(procval, &proc->block.as.symbol, sym);
+     return procval;
+ }
+@@ -760,14 +760,14 @@ MJIT_FUNC_EXPORTED VALUE
+ rb_func_proc_new(rb_block_call_func_t func, VALUE val)
+ {
+     struct vm_ifunc *ifunc = rb_vm_ifunc_proc_new(func, (void *)val);
+-    return cfunc_proc_new(rb_cProc, (VALUE)ifunc);
++    return cfunc_proc_new(rb_cProc, (VALUE)ifunc, FALSE);
+ }
+ 
+ MJIT_FUNC_EXPORTED VALUE
+ rb_func_lambda_new(rb_block_call_func_t func, VALUE val, int min_argc, int max_argc)
+ {
+     struct vm_ifunc *ifunc = rb_vm_ifunc_new(func, (void *)val, min_argc, max_argc);
+-    return cfunc_proc_new(rb_cProc, (VALUE)ifunc);
++    return cfunc_proc_new(rb_cProc, (VALUE)ifunc, TRUE);
+ }
+ 
+ static const char proc_without_block[] = "tried to create Proc object without a block";
+@@ -1109,6 +1109,9 @@ rb_vm_block_min_max_arity(const struct rb_block *block, int *max)
+ 	    return ifunc->argc.min;
+ 	}
+       case block_type_symbol:
++        if (mkxp_ec_is_syntax_transform_active(2, 7, -1)) {
++            break;
++        }
+         *max = UNLIMITED_ARGUMENTS;
+         return 1;
+     }

@@ -1,0 +1,37 @@
+# syntax-transform/3.1/0029-incomplete-format-specifier.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby versions up to and including Ruby 2.4, trailing `%` characters are
+# allowed at the ends of format strings. In later versions of Ruby, this throws
+# an `ArgumentError` instead. So this code snippet prints `1%2%%` in Ruby 2.4
+# but throws an `ArgumentError` in later versions.
+#
+#   printf('1%%2%%%')
+
+--- a/sprintf.c
++++ b/sprintf.c
+@@ -269,7 +269,7 @@ rb_str_format(int argc, const VALUE *argv, VALUE fmt)
+ 
+ 	for (t = p; t < end && *t != '%'; t++) ;
+ 	if (t + 1 == end) {
+-	    rb_raise(rb_eArgError, "incomplete format specifier; use %%%% (double %%) instead");
++	    if (mkxp_ec_is_syntax_transform_active(2, 4, -1)) ++t; else rb_raise(rb_eArgError, "incomplete format specifier; use %%%% (double %%) instead");
+ 	}
+ 	PUSH(p, t - p);
+ 	if (coderange != ENC_CODERANGE_BROKEN && scanned < blen) {

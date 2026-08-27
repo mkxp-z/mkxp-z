@@ -1,0 +1,70 @@
+# syntax-transform/3.1/0015-hash-select.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby 1.8, `Hash#select` returns an array of two-element arrays. In later
+# Ruby versions, `Hash#select` returns a hash. So this code snippet prints
+# `[[:key, "value"]]` in Ruby 1.8 but `{:key=>"value"}` or `{key: "value"}` in
+# Ruby versions later than 1.8.
+#
+#   p ({:key => 'value'}).select {|k, v| true}
+
+--- a/hash.c
++++ b/hash.c
+@@ -2757,8 +2757,18 @@ keep_if_i(VALUE key, VALUE value, VALUE hash)
+  *    e.each {|key, value| value < 2 } # => {:foo=>0, :bar=>1}
+  */
+ 
++static int
++mkxp_hash_select_legacy_convert(VALUE key, VALUE val, VALUE arg)
++{
++    VALUE pair = rb_ary_new_capa(2);
++    rb_ary_push(pair, key);
++    rb_ary_push(pair, val);
++    rb_ary_push(arg, pair);
++    return ST_CONTINUE;
++}
++
+ static VALUE
+-rb_hash_select(VALUE hash)
++mkxp_rb_hash_select(VALUE hash)
+ {
+     VALUE result;
+ 
+@@ -2789,6 +2799,21 @@ rb_hash_select(VALUE hash)
+  *    e.each { |key, value| value < 2 } # => {:foo=>0, :bar=>1}
+  */
+ 
++static VALUE
++rb_hash_select(VALUE hash)
++{
++    VALUE result = mkxp_rb_hash_select(hash);
++
++    /* If syntax transform is active and targeting Ruby <= 1.8, convert the output of `Hash#select` from a hash to an array of two-element arrays */
++    if (mkxp_ec_is_syntax_transform_active(1, 8, -1)) {
++        VALUE ary = rb_ary_new_capa(RHASH_SIZE(result));
++        rb_hash_foreach(result, mkxp_hash_select_legacy_convert, ary);
++        return ary;
++    }
++
++    return result;
++}
++
+ static VALUE
+ rb_hash_select_bang(VALUE hash)
+ {

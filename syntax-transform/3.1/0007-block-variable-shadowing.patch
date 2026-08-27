@@ -1,0 +1,123 @@
+# syntax-transform/3.1/0007-block-variable-shadowing.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby 1.8, if a block parameter has the same name as a local variable
+# defined outside of the block, the block parameter binds to the existing local
+# variable instead of a new local variable being created for the block
+# parameter. For example, after executing the following code snippet
+#
+#   a = 1
+#   b = 11
+#   3.times do |a| end
+#   3.times do |b| b = 12 end
+#   p a
+#   p b
+#
+# the values `2` and `12` will be printed in Ruby 1.8 but `1` and `11` will be
+# printed in Ruby versions newer than 1.8.
+
+--- a/compile.c
++++ b/compile.c
+@@ -147,6 +147,8 @@ mkxp_syntax_transform_is_method_available(struct rb_method_definition_struct *me
+     return mkxp_syntax_transform_is_method_available0(GET_EC(), method);
+ }
+ 
++static int get_dyna_var_idx(const rb_iseq_t *iseq, ID id, int *level, int *ls);
++
+ #undef RUBY_UNTYPED_DATA_WARNING
+ #define RUBY_UNTYPED_DATA_WARNING 0
+ 
+@@ -873,6 +875,17 @@ rb_iseq_compile_node(rb_iseq_t *iseq, const NODE *node)
+ 		ADD_TRACE(ret, RUBY_EVENT_B_CALL);
+                 NODE dummy_line_node = generate_dummy_line_node(FIX2INT(iseq->body->location.first_lineno), -1);
+ 		ADD_INSN (ret, &dummy_line_node, nop);
++                if (mkxp_iseq_is_syntax_transform_active(iseq, 1, 8, -1)) {
++                    /* If syntax transform is active and targeting Ruby <= 1.8, for every block parameter with the same name as a local variable outside the block, generate code to set that local variable's value to the block parameter's value when the block is called to simulate the Ruby 1.8 shadowing behavior of block parameters */
++                    unsigned int i;
++                    for (i = 0; i < iseq->body->param.lead_num; i++) {
++                        int lv, ls, idx = get_dyna_var_idx(iseq, iseq->body->local_table[i], &lv, &ls);
++                        if (idx >= 0 && lv > 0) {
++                            ADD_GETLOCAL(ret, &dummy_line_node, iseq->body->local_table_size - i, 0); /* Add an instruction to read the value of the block parameter */
++                            ADD_SETLOCAL(ret, &dummy_line_node, ls - idx, lv); /* Add an instruction to write the read value to the local variable on the outside of the block with the same name as the block parameter */
++                        }
++                    }
++                }
+ 		ADD_LABEL(ret, start);
+ 		CHECK(COMPILE(ret, "block body", node->nd_body));
+ 		ADD_LABEL(ret, end);
+@@ -1647,11 +1660,11 @@ get_lvar_level(const rb_iseq_t *iseq)
+ }
+ 
+ static int
+-get_dyna_var_idx_at_raw(const rb_iseq_t *iseq, ID id)
++mkxp_get_dyna_var_idx_at_raw(const rb_iseq_t *iseq, ID id, unsigned int offset)
+ {
+     unsigned int i;
+ 
+-    for (i = 0; i < iseq->body->local_table_size; i++) {
++    for (i = offset; i < iseq->body->local_table_size; i++) {
+ 	if (iseq->body->local_table[i] == id) {
+ 	    return (int)i;
+ 	}
+@@ -1659,6 +1672,12 @@ get_dyna_var_idx_at_raw(const rb_iseq_t *iseq, ID id)
+     return -1;
+ }
+ 
++static int
++get_dyna_var_idx_at_raw(const rb_iseq_t *iseq, ID id)
++{
++    return mkxp_get_dyna_var_idx_at_raw(iseq, id, 0);
++}
++
+ static int
+ get_local_var_idx(const rb_iseq_t *iseq, ID id)
+ {
+@@ -1678,13 +1697,25 @@ get_dyna_var_idx(const rb_iseq_t *iseq, ID id, int *level, int *ls)
+     int lv = 0, idx = -1;
+     const rb_iseq_t *const topmost_iseq = iseq;
+ 
+-    while (iseq) {
+-	idx = get_dyna_var_idx_at_raw(iseq, id);
+-	if (idx >= 0) {
+-	    break;
+-	}
+-	iseq = iseq->body->parent_iseq;
+-	lv++;
++    bool syntax_transform = mkxp_iseq_is_syntax_transform_active(iseq, 1, 8, -1);
++
++    for (;;) {
++        while (iseq) {
++            /* If syntax transform is active and targeting Ruby <= 1.8, give block parameters a lower priority than other local variables to simulate the Ruby 1.8 shadowing behavior of block parameters */
++            idx = mkxp_get_dyna_var_idx_at_raw(iseq, id, syntax_transform && iseq->body->type == ISEQ_TYPE_BLOCK ? iseq->body->param.lead_num : 0);
++            if (idx >= 0) {
++                break;
++            }
++            iseq = iseq->body->parent_iseq;
++            lv++;
++        }
++
++        if (!syntax_transform || idx >= 0) {
++            break;
++        }
++        lv = 0;
++        iseq = topmost_iseq;
++        syntax_transform = FALSE;
+     }
+ 
+     if (idx < 0) {

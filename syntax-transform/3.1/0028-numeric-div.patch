@@ -1,0 +1,39 @@
+# syntax-transform/3.1/0028-numeric-div.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby versions up to and including Ruby 1.8.4, `Numeric#div` truncates its
+# return value (i.e. returns the floor of the result if the result is positive
+# or the ceiling of the result otherwise). In later Ruby versions, `Numeric#div`
+# returns the floor of the result instead. That means this code snippet prints
+# `0` in Ruby versions up to and including 1.8.4 but `-1` in later Ruby
+# versions.
+#
+#   p (-1.0).div(2)
+
+--- a/numeric.c
++++ b/numeric.c
+@@ -653,7 +653,7 @@ static VALUE
+ num_div(VALUE x, VALUE y)
+ {
+     if (rb_equal(INT2FIX(0), y)) rb_num_zerodiv();
+-    return rb_funcall(num_funcall1(x, '/', y), rb_intern("floor"), 0);
++    return mkxp_ec_is_syntax_transform_active(1, 8, 4) ? rb_Integer(num_funcall1(x, '/', y)) : rb_funcall(num_funcall1(x, '/', y), rb_intern("floor"), 0);
+ }
+ 
+ /*

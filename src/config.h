@@ -32,6 +32,10 @@ struct Config {
     // Used for sending the JSON data to Ruby as System::CONFIG
     json5pp::value raw;
     
+    int syntaxTransform;
+    int syntaxTransformCustomVersionMajor;
+    int syntaxTransformCustomVersionMinor;
+    int syntaxTransformCustomVersionTeeny;
     int rgssVersion;
     
     bool debugMode;

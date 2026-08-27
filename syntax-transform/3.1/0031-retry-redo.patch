@@ -1,0 +1,53 @@
+# syntax-transform/3.1/0031-retry-redo.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby 1.8, the `retry` keyword is allowed inside of blocks; it does the same
+# thing as the `redo` keyword. In later versions of Ruby, using the `retry`
+# keyword in a block results in a syntax error. So this code snippet works in
+# Ruby 1.8 but throws a syntax error in later versions.
+#
+#   x = false
+#   loop do
+#     break if x
+#     x = true
+#     retry
+#   end
+#
+# Note that using `retry` instead of `redo` inside of a `for`, `while` or
+# `until` loop is not allowed in any version of Ruby. So this code snippet
+# throws a syntax error in all versions of Ruby.
+#
+#   x = false
+#   until x
+#     x = true
+#     retry
+#   end
+
+--- a/compile.c
++++ b/compile.c
+@@ -7598,6 +7598,9 @@ compile_retry(rb_iseq_t *iseq, LINK_ANCHOR *const ret, const NODE *const node, i
+ 	    ADD_INSN(ret, line_node, pop);
+ 	}
+     }
++    else if (mkxp_iseq_is_syntax_transform_active(iseq, 1, 8, -1) && iseq->body->type != ISEQ_TYPE_EVAL && ISEQ_COMPILE_DATA(iseq)->start_label && !ISEQ_COMPILE_DATA(iseq)->redo_label && can_add_ensure_iseq(iseq)) {
++        return compile_redo(iseq, ret, node, popped);
++    }
+     else {
+ 	if (mkxp_iseq_is_syntax_transform_active(iseq, 1, 8, -1)) {
+ 	    ADD_INSN(ret, line_node, mkxp_syntax_transform_raise_invalid_retry);

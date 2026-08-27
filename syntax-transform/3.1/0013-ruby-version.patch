@@ -1,0 +1,90 @@
+# syntax-transform/3.1/0013-ruby-version.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# This patch changes the values of the toplevel constants `RUBY_VERSION` and
+# `RUBY_ENGINE_VERSION` to be consistent with the syntax transform target Ruby
+# version in execution contexts where syntax transform is active. The values
+# of the constants remain unchanged in execution contexts where syntax transform
+# is not active.
+
+--- a/eval.c
++++ b/eval.c
+@@ -428,6 +428,18 @@ rb_mod_s_constants(int argc, VALUE *argv, VALUE mod)
+             }
+         }
+ 
++        /* Make sure the constants `RUBY_VERSION` and `RUBY_ENGINE_VERSION` are listed in the output of `Module::constants` */
++        {
++            VALUE symbol = RB_ID2SYM(rb_intern("RUBY_VERSION"));
++            if (!rb_ary_includes(ary, symbol)) {
++                rb_ary_push(ary, symbol);
++            }
++            symbol = RB_ID2SYM(rb_intern("RUBY_ENGINE_VERSION"));
++            if (!rb_ary_includes(ary, symbol)) {
++                rb_ary_push(ary, symbol);
++            }
++        }
++
+         /* If syntax transform is active and targeting Ruby <= 1.8, convert the output of `Module::constants` from an array of symbols to an array of strings */
+         if (mkxp_ec_is_syntax_transform_active(1, 8, -1)) {
+             long length = RARRAY_LEN(ary);
+--- a/variable.c
++++ b/variable.c
+@@ -2684,6 +2684,21 @@ rb_const_get_0(VALUE klass, ID id, int exclude, int recurse, int visibility)
+             return Qfalse;
+         }
+     }
++    /* Make sure the constants `RUBY_VERSION` and `RUBY_ENGINE_VERSION` are defined according to the syntax transform target */
++    if (id == rb_intern("RUBY_VERSION") || id == rb_intern("RUBY_ENGINE_VERSION")) {
++        extern unsigned int mkxp_syntax_transform_target_ruby_version_major, mkxp_syntax_transform_target_ruby_version_minor, mkxp_syntax_transform_target_ruby_version_teeny;
++        if (mkxp_ec_is_syntax_transform_active(-1, -1, -1) && mkxp_syntax_transform_target_ruby_version_major != (unsigned int)-1 && mkxp_syntax_transform_target_ruby_version_minor != (unsigned int)-1 && mkxp_syntax_transform_target_ruby_version_teeny != (unsigned int)-1) {
++            VALUE ary = rb_ary_new_capa(3);
++            rb_ary_push(ary, RB_INT2FIX(mkxp_syntax_transform_target_ruby_version_major));
++            rb_ary_push(ary, RB_INT2FIX(mkxp_syntax_transform_target_ruby_version_minor));
++            rb_ary_push(ary, RB_INT2FIX(mkxp_syntax_transform_target_ruby_version_teeny));
++            return rb_ary_join(ary, rb_str_new_cstr("."));
++        }
++        else {
++            extern char ruby_version[];
++            return rb_str_new_cstr(ruby_version);
++        }
++    }
+     return rb_const_missing(klass, ID2SYM(id));
+ }
+ 
+--- a/version.c
++++ b/version.c
+@@ -57,7 +57,7 @@ Init_version(void)
+     /*
+      * The running version of ruby
+      */
+-    rb_define_global_const("RUBY_VERSION", (version = MKSTR(version)));
++    /*rb_define_global_const("RUBY_VERSION", (version = MKSTR(version)));*/
+     /*
+      * The date this ruby was released
+      */
+@@ -87,7 +87,7 @@ Init_version(void)
+     /*
+      * The version of the engine or interpreter this ruby uses.
+      */
+-    rb_define_global_const("RUBY_ENGINE_VERSION", (1 ? version : MKSTR(version)));
++    /*rb_define_global_const("RUBY_ENGINE_VERSION", (1 ? version : MKSTR(version)));*/
+ 
+     rb_provide("ruby2_keywords.rb");
+ }

@@ -1,0 +1,177 @@
+# syntax-transform/3.1/0010-regexp-encoding.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby versions later than 1.8, the default encoding for a regular expression
+# if not specified using the `e`, `n`, `s` or `u` regular expression parameters
+# is 7-bit ASCII if the regular expression can be encoded in 7-bit ASCII, or the
+# current script encoding otherwise, whereas in Ruby 1.8, the default encoding
+# for a regular expression if not specified is based on the first character of
+# the `$KCODE` global variable if it's equal to "e", "n", "s" or "u" after
+# converting to lowercase; otherwise the default encoding can be set at
+# configure time using the `--with-default-kcode` configure flag; if that flag
+# is not set, the default is `--with-default-kcode=none`. RPG Maker XP and VX
+# configure Ruby with `--with-default-kcode=none`.
+#
+# Thus, this code should print `7` and `[3, 3, 1]` in Ruby 1.8. In later
+# versions, it prints `7` and `[1, 1, 1, 1, 1, 1, 1]`.
+#
+#   $KCODE = 'U'
+#   a = [0xe5, 0xa4, 0xa9, 0xe5, 0xe5, 0x9c, 0xb0].pack('c*')
+#   p a.length
+#   p a.scan(/./m).map {|c| c.length}
+#
+# This code snippet works in Ruby 1.8 but raises an error in later versions due
+# to the string and the regular expression having incompatible encodings: the
+# string is encoded in 8-bit ASCII and the regular expression is encoded in
+# UTF-8.
+#
+#   p [0xff].pack('c*').scan(/./u)
+#
+# This code snippet works in Ruby 1.8 but raises an error in later Ruby versions
+# due to the regular expression containing characters that are not available in
+# 7-bit ASCII.
+#
+#   p 'A'.scan(/\xff/u)
+
+--- a/enc/utf_8.c
++++ b/enc/utf_8.c
+@@ -228,6 +228,9 @@ mbc_enc_len(const UChar* p, const UChar* e, OnigEncoding enc ARG_UNUSED)
+ {
+   int firstbyte = *p++;
+   state_t s;
++  if (mkxp_ec_is_syntax_transform_active(1, 8, -1)) { /* The length of a UTF-8 multi-byte character is based only on the first byte of the character in Ruby 1.8 */
++    return (firstbyte & 0x80) == 0 ? ONIGENC_CONSTRUCT_MBCLEN_CHARFOUND(1) : (firstbyte & 0xe0) == 0xc0 ? ONIGENC_CONSTRUCT_MBCLEN_CHARFOUND(2) : (firstbyte & 0xf0) == 0xe0 ? ONIGENC_CONSTRUCT_MBCLEN_CHARFOUND(3) : (firstbyte & 0xf8) == 0xf0 ? ONIGENC_CONSTRUCT_MBCLEN_CHARFOUND(4) : (firstbyte & 0xfc) == 0xf8 ? ONIGENC_CONSTRUCT_MBCLEN_CHARFOUND(5) : (firstbyte & 0xfe) == 0xfc ? ONIGENC_CONSTRUCT_MBCLEN_CHARFOUND(6) : ONIGENC_CONSTRUCT_MBCLEN_INVALID();
++  }
+   s = trans[0][firstbyte];
+   if (s < 0) return s == ACCEPT ? ONIGENC_CONSTRUCT_MBCLEN_CHARFOUND(1) :
+                                   ONIGENC_CONSTRUCT_MBCLEN_INVALID();
+--- a/parse.y
++++ b/parse.y
+@@ -13259,6 +13259,14 @@ parser_reg_compile(struct parser_params* p, VALUE str, int options)
+ VALUE
+ rb_parser_reg_compile(struct parser_params* p, VALUE str, int options)
+ {
++    if (mkxp_parser_is_syntax_transform_active(p, 1, 8, -1)) {
++        /* Always assume regular expressions are binary encoded if syntax transform is active and targeting Ruby <= 1.8 */
++        rb_encoding *ascii8bit = rb_ascii8bit_encoding();
++        if (rb_enc_get(str) != ascii8bit) {
++            str = rb_str_dup(str);
++            rb_enc_associate(str, ascii8bit);
++        }
++    }
+     return rb_reg_compile(str, options & RE_OPTION_MASK, p->ruby_sourcefile, p->ruby_sourceline);
+ }
+ 
+--- a/re.c
++++ b/re.c
+@@ -1503,6 +1503,38 @@ rb_reg_prepare_enc(VALUE re, VALUE str, int warn)
+     rb_encoding *enc = 0;
+     int cr = str_coderange(str);
+ 
++    /* If syntax transform is active and targeting Ruby <= 1.8 and the encoding of a regular expression is not specified, use the legacy rules for determining the default type of a regular expression */
++    if (mkxp_ec_is_syntax_transform_active(1, 8, -1)) {
++        VALUE kcode;
++        rb_reg_check(re);
++        if (RBOOL(FL_TEST(re, REG_ENCODING_NONE))) {
++            return rb_ascii8bit_encoding();
++        }
++        if (rb_reg_fixed_encoding_p(re)) {
++            return RREGEXP_PTR(re)->enc;
++        }
++        if (!rb_gvar_defined(rb_intern("$KCODE"))) {
++            return rb_ascii8bit_encoding();
++        }
++        kcode = rb_gvar_get(rb_intern("$KCODE"));
++        if (!RB_TYPE_P(kcode, T_STRING)) {
++            return rb_ascii8bit_encoding();
++        }
++        switch (*rb_string_value_cstr(&kcode)) {
++            case 'E':
++            case 'e':
++                return rb_enc_from_index(ENCINDEX_EUC_JP);
++            case 'S':
++            case 's':
++                return rb_enc_from_index(ENCINDEX_Windows_31J);
++            case 'U':
++            case 'u':
++                return rb_utf8_encoding();
++            default:
++                return rb_ascii8bit_encoding();
++        }
++    }
++
+     if (cr == ENC_CODERANGE_BROKEN) {
+         rb_raise(rb_eArgError,
+             "invalid byte sequence in %s",
+@@ -4089,6 +4121,27 @@ re_warn(const char *s)
+  *  :include: doc/regexp.rdoc
+  */
+ 
++static VALUE
++mkxp_legacy_kcode(VALUE re)
++{
++    if (RBOOL(FL_TEST(re, REG_ENCODING_NONE))) {
++        return rb_str_new_cstr("none");
++    }
++    if (!rb_reg_fixed_encoding_p(re)) {
++        return Qnil;
++    }
++    switch (rb_enc_to_index(RREGEXP_PTR(re)->enc)) {
++        case ENCINDEX_EUC_JP:
++            return rb_str_new_cstr("euc");
++        case ENCINDEX_Windows_31J:
++            return rb_str_new_cstr("sjis");
++        case rb_utf8_encindex():
++            return rb_str_new_cstr("utf8");
++        default:
++            return Qnil;
++    }
++}
++
+ void
+ Init_Regexp(void)
+ {
+@@ -4182,4 +4235,7 @@ Init_Regexp(void)
+     rb_define_method(rb_cMatch, "hash", match_hash, 0);
+     rb_define_method(rb_cMatch, "eql?", match_equal, 1);
+     rb_define_method(rb_cMatch, "==", match_equal, 1);
++
++    rb_define_method(rb_cRegexp, "kcode", mkxp_legacy_kcode, 0);
++    mkxp_set_syntax_transform_target_for_method(rb_cRegexp, "kcode", 1, 8, -1);
+ }
+--- a/variable.c
++++ b/variable.c
+@@ -748,6 +748,17 @@ rb_gvar_set(ID id, VALUE val)
+     struct rb_global_entry *entry;
+     entry = rb_global_entry(id);
+ 
++    /* If syntax transform is active and targeting Ruby <= 1.8, make sure that setting either the $KCODE or $-K global variable also sets the other one */
++    if (mkxp_ec_is_syntax_transform_active(1, 8, -1)) {
++        struct rb_global_entry *entry2;
++        if (id == rb_intern("$KCODE")) {
++            rb_gvar_set_entry(rb_global_entry(rb_intern("$-K")), val);
++        }
++        else if (id == rb_intern("$-K")) {
++            rb_gvar_set_entry(rb_global_entry(rb_intern("$KCODE")), val);
++        }
++    }
++
+     return rb_gvar_set_entry(entry, val);
+ }
+ 

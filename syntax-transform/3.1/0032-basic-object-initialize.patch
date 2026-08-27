@@ -1,0 +1,51 @@
+# syntax-transform/3.1/0032-basic-object-initialize.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby 1.9.2 specifically (not in earlier or later versions),
+# `BasicObject#initialize` takes an unlimited number of arguments instead of
+# zero arguments. So this code throws an error in Ruby versions other than 1.9.2
+# but not in Ruby 1.9.2.
+#
+#   class A
+#     def initialize(x)
+#       super
+#     end
+#   end
+#   A.new(1)
+
+--- a/object.c
++++ b/object.c
+@@ -1083,7 +1083,7 @@ rb_class_search_ancestor(VALUE cl, VALUE c)
+  *
+  * Returns a new BasicObject.
+  */
+-#define rb_obj_initialize rb_obj_dummy0
++static VALUE rb_obj_dummy(void); static VALUE mkxp_syntax_transform_rb_obj_initialize(int argc, VALUE *argv, VALUE self) { if ((!mkxp_ec_is_syntax_transform_active(1, 9, 2) || mkxp_ec_is_syntax_transform_active(1, 9, 1)) && argc != 0) rb_error_arity(argc, 0, 0); return rb_obj_dummy(); }
+ 
+ /*
+  * Not documented
+@@ -4383,7 +4383,7 @@ InitVM_Object(void)
+     rb_cRefinement = rb_define_class("Refinement", rb_cModule);
+ #endif
+ 
+-    rb_define_private_method(rb_cBasicObject, "initialize", rb_obj_initialize, 0);
++    rb_define_private_method(rb_cBasicObject, "initialize", mkxp_syntax_transform_rb_obj_initialize, -1);
+     rb_define_alloc_func(rb_cBasicObject, rb_class_allocate_instance);
+     rb_define_method(rb_cBasicObject, "==", rb_obj_equal, 1);
+     rb_define_method(rb_cBasicObject, "equal?", rb_obj_equal, 1);

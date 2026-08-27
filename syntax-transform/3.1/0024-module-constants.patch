@@ -1,0 +1,48 @@
+# syntax-transform/3.1/0024-module-constants.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby versions up to and including Ruby 1.9.2, if the class method
+# `Module::constants` is called without arguments, it returns all constants
+# that are visible in the current scope. In Ruby versions later than 1.9.2, it
+# only does this if the class is equal to `Module`; if the class is not equal to
+# `Module`, it instead calls the instance method `Module#constants` on the
+# class, which returns the constants defined in the class. As a result, after
+# running this code snippet, the values `true`, `true` and `true` will be
+# printed in Ruby 1.9.2 and `true`, `true` and `false` will be printed in later
+# Ruby versions.
+#
+#   class A
+#     B = nil
+#     p constants.map(&:to_sym).include? :B  # this calls `Module#constants` on the class `A`
+#     p Module.constants.map(&:to_sym).include? :B  # this calls `Module::constants` on the class `Module`
+#     p self.class.constants.map(&:to_sym).include? :B  # this calls `Module::constants` on the class `Class`
+#   end
+
+--- a/eval.c
++++ b/eval.c
+@@ -390,6 +390,9 @@ rb_mod_s_constants(int argc, VALUE *argv, VALUE mod)
+     VALUE cbase = 0;
+     void *data = 0;
+ 
++    if (mkxp_ec_is_syntax_transform_active(1, 9, 2)) {
++        mod = rb_cModule;
++    }
+     if (argc > 0 || mod != rb_cModule) {
+ 	return rb_mod_constants(argc, argv, mod);
+     }

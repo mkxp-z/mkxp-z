@@ -1,0 +1,44 @@
+# syntax-transform/3.1/0006-else-without-rescue.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby versions less than or equal to 2.5, the "else without rescue is
+# useless" syntax error is a warning instead of a syntax error. The following
+# code gives a warning in Ruby versions up to and including 2.5 (although the
+# function does work correctly), throws the "else without rescue is useless"
+# syntax error in Ruby 2.6 through Ruby 3.3 and throws a different syntax error
+# in Ruby versions later than 3.3.
+#
+#   def f(x)
+#     return 'truthy' if x else 'falsy'
+#   end
+#   p f(1)
+#   p f(0)
+#   p f(nil)
+
+--- a/parse.y
++++ b/parse.y
+@@ -1572,7 +1572,7 @@ begin_block	: '{' top_compstmt '}'
+ 
+ bodystmt	: compstmt
+ 		  opt_rescue
+-		  k_else {if (!$2) {yyerror1(&@3, "else without rescue is useless");}}
++		  k_else {if (!$2) {if (mkxp_parser_is_syntax_transform_active(p, 2, 5, -1)) rb_warn0("else without rescue is useless"); else yyerror1(&@3, "else without rescue is useless");}}
+ 		  compstmt
+ 		  opt_ensure
+ 		    {

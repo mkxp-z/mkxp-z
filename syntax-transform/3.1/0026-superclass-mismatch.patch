@@ -1,0 +1,75 @@
+# syntax-transform/3.1/0026-superclass-mismatch.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby versions up to and including Ruby 1.8.1, it is allowed to define a
+# class twice with two different superclasses. If this happens, the second
+# definition defines a new class with the new superclass that inherits no
+# methods or variables from the existing class. In later versions of Ruby,
+# attempting to do this results in an error, but mkxp-z's version of Ruby
+# patches the error out. The patch, however, makes it so that the second
+# definition of the class does not create a new class or change the superclass
+# of the existing class. So this prints `false`, `"CB"`, `"B"` in Ruby 1.8.1
+# but `true`, `"CB"` and `"A"` in mkxp-z's patched Ruby 3.1.
+#
+#   class A
+#     def f
+#       p 'A'
+#     end
+#   end
+#   class B
+#     def f
+#       p 'B'
+#     end
+#   end
+#   class C < A
+#     def g
+#       p 'CA'
+#       f
+#     end
+#   end
+#   c = C
+#   class C < B
+#     def g
+#       p 'CB'
+#       f
+#     end
+#   end
+#   p c == C
+#   C.new.g
+#
+# As a compromise, this new patch changes the behavior further so that when
+# syntax transform is targeting Ruby 2.4 or earlier, the code snippet above
+# behaves like in Ruby 1.8.1, and it otherwise behaves like mkxp-z's patched
+# version of Ruby 3.1. The rationale for this is that Ruby 2.5 is the first
+# Ruby version where the superclass check is added to vm_insnhelper.c and so
+# the first version where patching Ruby in the way that mkxp-z's Ruby 3.1 is
+# patched is likely to create this divergence from the Ruby 1.8.1 behavior.
+
+--- a/vm_insnhelper.c
++++ b/vm_insnhelper.c
+@@ -4588,6 +4588,9 @@ vm_define_class(ID id, rb_num_t flags, VALUE cbase, VALUE super)
+     if ((klass = vm_const_get_under(id, flags, cbase)) != 0) {
+         if (!vm_check_if_class(id, flags, super, klass))
+             unmatched_redefinition("class", cbase, id, klass);
++        if (mkxp_ec_is_syntax_transform_active(2, 4, -1) && VM_DEFINECLASS_HAS_SUPERCLASS_P(flags) && super != rb_class_real(RCLASS_SUPER(klass))) {
++            return vm_declare_class(id, flags, cbase, super);
++        }
+         return klass;
+     }
+     else {

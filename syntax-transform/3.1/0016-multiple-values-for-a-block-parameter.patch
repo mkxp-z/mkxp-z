@@ -1,0 +1,81 @@
+# syntax-transform/3.1/0016-multiple-values-for-a-block-parameter.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby 1.8, if a block has an arity of one and does not have a comma at the
+# end of the parameter list in its definition, the arguments are coerced into a
+# single argument before being passed to the block:
+#
+# * If the block is called with one argument, the block simply receives that
+#   argument normally.
+# * If the block is called with more than one argument, the warning "multiple
+#   values for a block parameter" appears, the arguments are collected into an
+#   array and the array is passed to the block.
+# * If the block is called with zero arguments, the warning "multiple values for
+#   a block parameter" appears and `nil` is passed to the block.
+#
+# However, if there is a comma at the end of the parameter list, the arguments
+# are not coerced into a single argument. In newer Ruby versions, the arguments
+# are not coerced into a single argument even if there is no comma at the end of
+# the parameter list. For example, this code snippet prints `[1, 2]` and `1` in
+# Ruby 1.8 but `1` and `1` in Ruby versions newer than 1.8.
+#
+#   def f
+#     yield 1, 2
+#   end
+#   f do |a|
+#     p a
+#   end
+#   f do |a,|
+#     p a
+#   end
+#
+# Also, this code snippet will work in Ruby 1.8 but not later versions because
+# in Ruby 1.8, the lambda only receives one argument (the array `[1, 2]`)
+# whereas in later Ruby versions the lambda receives two arguments.
+#
+#   lambda {|a| p a}.call(1, 2)
+#
+# This code snippet also works in Ruby 1.8 but not later versions.
+#
+#   lambda {|a| p a}.call
+
+--- a/vm_insnhelper.c
++++ b/vm_insnhelper.c
+@@ -4024,6 +4024,21 @@ vm_callee_setup_block_arg(rb_execution_context_t *ec, struct rb_calling_info *ca
+         CALLER_SETUP_ARG(cfp, calling, ci);
+         CALLER_REMOVE_EMPTY_KW_SPLAT(cfp, calling, ci);
+ 
++        /* If syntax transform is active and targeting Ruby <= 1.8, if a block that takes one parameter declared without a comma at the end of the parameter list is called with more than one parameter, collect the passed parameters into an array and pass this array as the parameter instead; if it's called with zero parameters, pass nil as the argument instead */
++        if (mkxp_iseq_is_syntax_transform_active(iseq, 1, 8, -1) && calling->argc != 1 && calling->kw_splat == 0 && iseq->body->param.lead_num == 1 && iseq->body->param.flags.ambiguous_param0) {
++            rb_warn("multiple values for a block parameter (%d for 1)", calling->argc);
++            if (calling->argc > 1) {
++                VALUE ary = rb_ary_new_from_values(calling->argc, cfp->sp - calling->argc);
++                (cfp->sp -= calling->argc - 1)[-1] = ary;
++            }
++            else {
++                VM_ASSERT(calling->argc == 0);
++                CHECK_VM_STACK_OVERFLOW(cfp, 1);
++                *cfp->sp++ = Qnil;
++            }
++            calling->argc = 1;
++        }
++
+ 	if (arg_setup_type == arg_setup_block &&
+ 	    calling->argc == 1 &&
+ 	    iseq->body->param.flags.has_lead &&

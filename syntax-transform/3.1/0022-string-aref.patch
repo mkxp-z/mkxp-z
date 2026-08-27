@@ -1,0 +1,43 @@
+# syntax-transform/3.1/0022-string-aref.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby 1.8, when `String#[]` or `String#slice` are called with one numeric
+# argument, the return value is the character code of the byte at the given
+# index of the string rather than a string containing only the character at the
+# given index. This code snippet prints `97` in Ruby 1.8 but `"a"` in later
+# versions.
+#
+#   p 'a'[0]
+
+--- a/string.c
++++ b/string.c
+@@ -5050,9 +5050,13 @@ rb_str_aref(VALUE str, VALUE indx)
+  *  String#slice is an alias for String#[].
+  */
+ 
++static VALUE rb_str_getbyte(VALUE str, VALUE index);
+ static VALUE
+ rb_str_aref_m(int argc, VALUE *argv, VALUE str)
+ {
++    if (mkxp_ec_is_syntax_transform_active(1, 8, -1) && argc == 1 && (RB_TYPE_P(*argv, T_FIXNUM) || RB_TYPE_P(*argv, T_FLOAT) || RB_TYPE_P(*argv, T_BIGNUM))) {
++        return rb_str_getbyte(str, *argv);
++    }
+     if (argc == 2) {
+ 	if (RB_TYPE_P(argv[0], T_REGEXP)) {
+ 	    return rb_str_subpat(str, argv[0], argv[1]);

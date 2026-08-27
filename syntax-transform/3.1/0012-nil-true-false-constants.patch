@@ -1,0 +1,85 @@
+# syntax-transform/3.1/0012-nil-true-false-constants.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby versions up to and including 2.7, there are global constants named
+# `NIL`, `TRUE` and `FALSE` defined by default as `nil`, `true` and `false`,
+# respectively. Hence, this code snippet prints `true` three times in Ruby
+# versions up to and including 2.7 and `false` three times in later Ruby
+# versions.
+#
+#   p Module.constants.map(&:to_sym).include? :NIL
+#   p Module.constants.map(&:to_sym).include? :TRUE
+#   p Module.constants.map(&:to_sym).include? :FALSE
+
+--- a/eval.c
++++ b/eval.c
+@@ -412,6 +412,22 @@ rb_mod_s_constants(int argc, VALUE *argv, VALUE mod)
+     {
+         VALUE ary = rb_const_list(data);
+ 
++        /* If syntax transform is active and targeting Ruby <= 2.7, make sure the constants `NIL`, `TRUE` and `FALSE` are listed in the output of `Module::constants` */
++        if (mkxp_ec_is_syntax_transform_active(2, 7, -1)) {
++            VALUE symbol = RB_ID2SYM(rb_intern("NIL"));
++            if (!rb_ary_includes(ary, symbol)) {
++                rb_ary_push(ary, symbol);
++            }
++            symbol = RB_ID2SYM(rb_intern("TRUE"));
++            if (!rb_ary_includes(ary, symbol)) {
++                rb_ary_push(ary, symbol);
++            }
++            symbol = RB_ID2SYM(rb_intern("FALSE"));
++            if (!rb_ary_includes(ary, symbol)) {
++                rb_ary_push(ary, symbol);
++            }
++        }
++
+         /* If syntax transform is active and targeting Ruby <= 1.8, convert the output of `Module::constants` from an array of symbols to an array of strings */
+         if (mkxp_ec_is_syntax_transform_active(1, 8, -1)) {
+             long length = RARRAY_LEN(ary);
+--- a/variable.c
++++ b/variable.c
+@@ -2674,6 +2674,16 @@ rb_const_get_0(VALUE klass, ID id, int exclude, int recurse, int visibility)
+         }
+         return c;
+     }
++    /* If syntax transform is active and targeting Ruby <= 2.7, make sure the constants `NIL`, `TRUE` and `FALSE` are defined as `nil`, `true` and `false` by default */
++    if (mkxp_ec_is_syntax_transform_active(2, 7, -1)) {
++        if (id == rb_intern("NIL")) {
++            return Qnil;
++        } else if (id == rb_intern("TRUE")) {
++            return Qtrue;
++        } else if (id == rb_intern("FALSE")) {
++            return Qfalse;
++        }
++    }
+     return rb_const_missing(klass, ID2SYM(id));
+ }
+ 
+@@ -3036,6 +3046,11 @@ rb_const_defined_0(VALUE klass, ID id, int exclude, int recurse, int visibility)
+     int mod_retry = 0;
+     rb_const_entry_t *ce;
+ 
++    /* If syntax transform is active and targeting Ruby <= 2.7, make sure the constants `NIL`, `TRUE` and `FALSE` are always considered to be defined */
++    if (mkxp_ec_is_syntax_transform_active(2, 7, -1) && (id == rb_intern("NIL") || id == rb_intern("TRUE") || id == rb_intern("FALSE"))) {
++        return (int)Qtrue;
++    }
++
+     tmp = klass;
+   retry:
+     while (tmp) {

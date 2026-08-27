@@ -1,0 +1,186 @@
+# syntax-transform/3.1/0030-invalid-keyword.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby 1.8, invalid uses of `break`, `next`, `redo`, `retry`, `return` and
+# `yield` raise `LocalJumpError`s when the keyword is reached at execution time.
+# In later versions of Ruby, these cause syntax errors at compile time instead.
+# So this code snippet throws a syntax error in Ruby versions later than 1.8 but
+# doesn't in Ruby 1.8.
+#
+#   def f1
+#     break
+#   end
+#   def f2
+#     next
+#   end
+#   def f3
+#     redo
+#   end
+#   def f4
+#     retry
+#   end
+#   if false
+#     class A
+#       return
+#     end
+#   end
+#   if false
+#     yield
+#   end
+
+--- a/compile.c
++++ b/compile.c
+@@ -7424,6 +7424,10 @@ compile_break(rb_iseq_t *iseq, LINK_ANCHOR *const ret, const NODE *const node, i
+             }
+             return COMPILE_OK;
+ 	}
++	if (mkxp_iseq_is_syntax_transform_active(iseq, 1, 8, -1)) {
++	    ADD_INSN(ret, line_node, mkxp_syntax_transform_raise_invalid_break);
++	    return COMPILE_OK;
++	}
+ 	COMPILE_ERROR(ERROR_ARGS "Invalid break");
+ 	return COMPILE_NG;
+     }
+@@ -7497,6 +7501,10 @@ compile_next(rb_iseq_t *iseq, LINK_ANCHOR *const ret, const NODE *const node, in
+ 	    }
+ 	}
+ 	else {
++	    if (mkxp_iseq_is_syntax_transform_active(iseq, 1, 8, -1)) {
++	        ADD_INSN(ret, line_node, mkxp_syntax_transform_raise_invalid_next);
++	        return COMPILE_OK;
++	    }
+ 	    COMPILE_ERROR(ERROR_ARGS "Invalid next");
+ 	    return COMPILE_NG;
+ 	}
+@@ -7566,6 +7574,10 @@ compile_redo(rb_iseq_t *iseq, LINK_ANCHOR *const ret, const NODE *const node, in
+ 	    }
+ 	}
+ 	else {
++	    if (mkxp_iseq_is_syntax_transform_active(iseq, 1, 8, -1)) {
++	        ADD_INSN(ret, line_node, mkxp_syntax_transform_raise_invalid_redo);
++	        return COMPILE_OK;
++	    }
+ 	    COMPILE_ERROR(ERROR_ARGS "Invalid redo");
+ 	    return COMPILE_NG;
+ 	}
+@@ -7587,6 +7599,10 @@ compile_retry(rb_iseq_t *iseq, LINK_ANCHOR *const ret, const NODE *const node, i
+ 	}
+     }
+     else {
++	if (mkxp_iseq_is_syntax_transform_active(iseq, 1, 8, -1)) {
++	    ADD_INSN(ret, line_node, mkxp_syntax_transform_raise_invalid_retry);
++	    return COMPILE_OK;
++	}
+ 	COMPILE_ERROR(ERROR_ARGS "Invalid retry");
+ 	return COMPILE_NG;
+     }
+@@ -7766,6 +7782,11 @@ compile_return(rb_iseq_t *iseq, LINK_ANCHOR *const ret, const NODE *const node,
+ 		type = ISEQ_TYPE_METHOD;
+ 	    }
+ 	    break;
++	  case ISEQ_TYPE_CLASS:
++	    if (mkxp_iseq_is_syntax_transform_active(iseq, 1, 8, -1)) {
++	        ADD_INSN(ret, line_node, mkxp_syntax_transform_raise_invalid_return);
++	        return COMPILE_OK;
++	    }
+ 	  default:
+ 	    break;
+ 	}
+@@ -8873,6 +8894,10 @@ compile_yield(rb_iseq_t *iseq, LINK_ANCHOR *const ret, const NODE *const node, i
+       case ISEQ_TYPE_TOP:
+       case ISEQ_TYPE_MAIN:
+       case ISEQ_TYPE_CLASS:
++	if (mkxp_iseq_is_syntax_transform_active(iseq, 1, 8, -1)) {
++	    ADD_INSN(ret, node, mkxp_syntax_transform_raise_invalid_yield);
++	    return COMPILE_OK;
++	}
+ 	COMPILE_ERROR(ERROR_ARGS "Invalid yield");
+ 	return COMPILE_NG;
+       default: /* valid */;
+--- a/insns.def
++++ b/insns.def
+@@ -1531,3 +1531,57 @@ answer
+ {
+     ret = INT2FIX(42);
+ }
++
++DEFINE_INSN
++mkxp_syntax_transform_raise_invalid_break
++()
++()
++()
++{
++    rb_exc_raise(rb_exc_new_cstr(rb_eLocalJumpError, "unexpected break"));
++}
++
++DEFINE_INSN
++mkxp_syntax_transform_raise_invalid_next
++()
++()
++()
++{
++    rb_exc_raise(rb_exc_new_cstr(rb_eLocalJumpError, "unexpected next"));
++}
++
++DEFINE_INSN
++mkxp_syntax_transform_raise_invalid_redo
++()
++()
++()
++{
++    rb_exc_raise(rb_exc_new_cstr(rb_eLocalJumpError, "unexpected redo"));
++}
++
++DEFINE_INSN
++mkxp_syntax_transform_raise_invalid_retry
++()
++()
++()
++{
++    rb_exc_raise(rb_exc_new_cstr(rb_eLocalJumpError, "retry outside of rescue clause"));
++}
++
++DEFINE_INSN
++mkxp_syntax_transform_raise_invalid_return
++()
++()
++()
++{
++    rb_exc_raise(rb_exc_new_cstr(rb_eLocalJumpError, "unexpected return"));
++}
++
++DEFINE_INSN
++mkxp_syntax_transform_raise_invalid_yield
++()
++()
++()
++{
++    rb_exc_raise(rb_exc_new_cstr(rb_eLocalJumpError, "no block given"));
++}
+--- a/parse.y
++++ b/parse.y
+@@ -3668,7 +3668,7 @@ k_end		: keyword_end
+ 
+ k_return	: keyword_return
+ 		    {
+-			if (p->ctxt.in_class && !p->ctxt.in_def && !dyna_in_block(p))
++			if (!mkxp_parser_is_syntax_transform_active(p, 1, 8, -1) && p->ctxt.in_class && !p->ctxt.in_def && !dyna_in_block(p))
+ 			    yyerror1(&@1, "Invalid return in class/module body");
+ 		    }
+ 		;

@@ -36,6 +36,7 @@
 #include <string>
 #include <unistd.h>
 #include <regex>
+#include <climits>
 
 #include "binding.h"
 #include "sharedstate.h"
@@ -184,6 +185,43 @@ static void printRgssVersion(int ver) {
   Debug() << buf;
 }
 
+static void initSyntaxTransform(Config &conf) {
+#ifdef MKXPZ_HAVE_SYNTAX_TRANSFORM_PATCHES
+  extern unsigned int mkxp_syntax_transform_target_ruby_version_major, mkxp_syntax_transform_target_ruby_version_minor, mkxp_syntax_transform_target_ruby_version_teeny;
+#endif // MKXPZ_HAVE_SYNTAX_TRANSFORM_PATCHES
+
+  char buf[128];
+
+  switch (conf.syntaxTransform) {
+    default:
+      conf.syntaxTransformCustomVersionMajor = INT_MAX;
+      conf.syntaxTransformCustomVersionMinor = INT_MAX;
+      conf.syntaxTransformCustomVersionTeeny = INT_MAX;
+      snprintf(buf, sizeof(buf), "Disabled");
+      break;
+    case 1:
+      conf.syntaxTransformCustomVersionMajor = std::max(0, conf.syntaxTransformCustomVersionMajor);
+      conf.syntaxTransformCustomVersionMinor = std::max(0, conf.syntaxTransformCustomVersionMinor);
+      conf.syntaxTransformCustomVersionTeeny = std::max(0, conf.syntaxTransformCustomVersionTeeny);
+      snprintf(buf, sizeof(buf), "Ruby %u.%u.%u", conf.syntaxTransformCustomVersionMajor, conf.syntaxTransformCustomVersionMinor, conf.syntaxTransformCustomVersionTeeny);
+      break;
+    case 2:
+      conf.syntaxTransformCustomVersionMajor = 1;
+      conf.syntaxTransformCustomVersionMinor = conf.rgssVersion >= 3 ? 9 : 8;
+      conf.syntaxTransformCustomVersionTeeny = conf.rgssVersion >= 3 ? 2 : 1;
+      snprintf(buf, sizeof(buf), "Compatibility mode (Ruby %u.%u.%u)", conf.syntaxTransformCustomVersionMajor, conf.syntaxTransformCustomVersionMinor, conf.syntaxTransformCustomVersionTeeny);
+      break;
+  }
+
+#ifdef MKXPZ_HAVE_SYNTAX_TRANSFORM_PATCHES
+  mkxp_syntax_transform_target_ruby_version_major = conf.syntaxTransformCustomVersionMajor == INT_MAX ? -1 : conf.syntaxTransformCustomVersionMajor;
+  mkxp_syntax_transform_target_ruby_version_minor = conf.syntaxTransformCustomVersionMinor == INT_MAX ? -1 : conf.syntaxTransformCustomVersionMinor;
+  mkxp_syntax_transform_target_ruby_version_teeny = conf.syntaxTransformCustomVersionTeeny == INT_MAX ? -1 : conf.syntaxTransformCustomVersionTeeny;
+#endif // MKXPZ_HAVE_SYNTAX_TRANSFORM_PATCHES
+
+  Debug() << "Syntax transform:" << buf;
+}
+
 static void rgssThreadError(RGSSThreadData *rtData, const std::string &msg) {
   rtData->rgssErrorMsg = msg;
   rtData->ethread->requestTerminate();
@@ -283,6 +321,8 @@ int main(int argc, char *argv[]) {
 
     assert(conf.rgssVersion >= 1 && conf.rgssVersion <= 3);
     printRgssVersion(conf.rgssVersion);
+
+    initSyntaxTransform(conf);
 
     int imgFlags = IMG_INIT_PNG | IMG_INIT_JPG;
     if (IMG_Init(imgFlags) != imgFlags) {

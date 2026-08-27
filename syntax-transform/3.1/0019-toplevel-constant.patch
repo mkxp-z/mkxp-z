@@ -1,0 +1,74 @@
+# syntax-transform/3.1/0019-toplevel-constant.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby versions up to and including Ruby 2.4, toplevel constants are also
+# defined in every class. In later Ruby versions, toplevel constants are also
+# defined in the class `Object` but not in any other classes. So this prints
+# `"constant"` in Ruby versions up to and including 2.4 but `nil` in later
+# versions.
+#
+#   A = 1
+#   p defined? Module::A
+#
+# Likewise, this prints `1` in Ruby versions up to and including 2.4 but raises
+# a `NameError` in later versions. However, in Ruby versions up to and including
+# 2.4, it also shows the warning "toplevel constant A referenced by Module::A".
+#
+#   A = 1
+#   p Module::A
+#
+# This code snippet prints `"constant"` and `1` in every Ruby version without
+# showing any warnings.
+#
+#   A = 1
+#   p defined? Object::A
+#   p Object::A
+#
+# This code snippet prints `nil` and then throws a `NameError` in every Ruby
+# version because `Kernel` is a module, not a class.
+#
+#   A = 1
+#   p defined? Kernel::A
+#   p Kernel::A
+
+--- a/variable.c
++++ b/variable.c
+@@ -2745,7 +2745,11 @@ rb_const_search_from(VALUE klass, ID id, int exclude, int recurse, int visibilit
+ 		continue;
+ 	    }
+             if (exclude && tmp == rb_cObject) {
+-		goto not_found;
++                /* If syntax transform is active and targeting Ruby <= 2.4, make sure toplevel constants are accessible as constants of classes as well */
++                if (!mkxp_ec_is_syntax_transform_active(2, 4, -1)) {
++                    goto not_found;
++                }
++                rb_warn("toplevel constant %"PRIsVALUE" referenced by %"PRIsVALUE"::%"PRIsVALUE"", QUOTE_ID(id), rb_class_name(klass), QUOTE_ID(id));
+ 	    }
+ 	    return value;
+ 	}
+@@ -3077,7 +3081,8 @@ rb_const_defined_0(VALUE klass, ID id, int exclude, int recurse, int visibility)
+ 		!rb_autoloading_value(tmp, id, NULL, NULL))
+ 		return (int)Qfalse;
+ 
+-	    if (exclude && tmp == rb_cObject && klass != rb_cObject) {
++            /* If syntax transform is active and targeting Ruby <= 2.4, make sure toplevel constants are also considered to be defined in classes */
++            if (!mkxp_ec_is_syntax_transform_active(2, 4, -1) && exclude && tmp == rb_cObject && klass != rb_cObject) {
+ 		return (int)Qfalse;
+ 	    }
+ 

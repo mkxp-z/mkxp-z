@@ -1,0 +1,45 @@
+# syntax-transform/3.1/0027-kernel-proc.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby 1.8, `Kernel#proc` creates a lambda, not a proc. In later versions
+# of Ruby, `Kernel#proc` creates a proc. So this code snippet throws a
+# `LocalJumpError` in versions of Ruby later than 1.8 but doesn't in Ruby 1.8.
+#
+#   def f
+#     proc do
+#       return
+#     end
+#   end
+#   f.call
+
+--- a/proc.c
++++ b/proc.c
+@@ -857,10 +857,11 @@ rb_block_proc(void)
+  * Equivalent to Proc.new.
+  */
+ 
++static VALUE f_lambda(VALUE);
+ static VALUE
+ f_proc(VALUE _)
+ {
+-    return proc_new(rb_cProc, FALSE, TRUE);
++    return mkxp_ec_is_syntax_transform_active(1, 8, -1) ? f_lambda(_) : proc_new(rb_cProc, FALSE, TRUE);
+ }
+ 
+ VALUE

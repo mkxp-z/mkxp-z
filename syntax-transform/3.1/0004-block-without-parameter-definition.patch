@@ -1,0 +1,70 @@
+# syntax-transform/3.1/0004-block-without-parameter-definition.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby 1.8, blocks defined without parameter definitions take an unlimited
+# number of arguments instead of zero arguments. For example, this code snippet
+# prints `-1` and `0` in Ruby 1.8 but `0` and `0` in later Ruby versions.
+#
+#   p lambda {}.arity
+#   p lambda {||}.arity
+#
+# As a result, this code snippet raises an `ArgumentError` if run in Ruby
+# versions later than 1.8 but does not raise an error in Ruby 1.8.
+#
+#   lambda {}.call(1)
+
+--- a/compile.c
++++ b/compile.c
+@@ -1923,12 +1923,18 @@ iseq_set_arguments_keywords(rb_iseq_t *iseq, LINK_ANCHOR *const optargs,
+     return arg_size;
+ }
+ 
++NODE mkxp_block_without_parameter_definition_dummy_node;
++
+ static int
+ iseq_set_arguments(rb_iseq_t *iseq, LINK_ANCHOR *const optargs, const NODE *const node_args)
+ {
+     debugs("iseq_set_arguments: %s\n", node_args ? "" : "0");
+ 
+-    if (node_args) {
++    if (node_args == &mkxp_block_without_parameter_definition_dummy_node) {
++        /* This code block will be reached only if mkxp syntax transform is active, targeting Ruby <= 1.8 and a block was defined without a parameter definition (e.g. `lambda {}` rather than `lambda {||}`) and makes it so that such blocks take an unlimited number of arguments instead of zero arguments as in later Ruby versions */
++        iseq->body->param.flags.has_rest = TRUE;
++    }
++    else if (node_args) {
+ 	struct rb_iseq_constant_body *const body = iseq->body;
+ 	struct rb_args_info *args = node_args->nd_ainfo;
+ 	ID rest_id = 0;
+--- a/parse.y
++++ b/parse.y
+@@ -3906,6 +3906,14 @@ block_param	: f_arg ',' f_block_optarg ',' f_rest_arg opt_block_args_tail
+ 		;
+ 
+ opt_block_param	: none
++                    {
++                    /*%%%*/
++                        if (mkxp_parser_is_syntax_transform_active(p, 1, 8, -1)) {
++                            extern NODE mkxp_block_without_parameter_definition_dummy_node;
++                            $$ = &mkxp_block_without_parameter_definition_dummy_node;
++                        }
++                    /*% %*/
++                    }
+ 		| block_param_def
+ 		    {
+ 			p->command_start = TRUE;

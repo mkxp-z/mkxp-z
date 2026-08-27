@@ -1,0 +1,109 @@
+# syntax-transform/3.1/0003-then-do-colon.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby 1.8, the `then` keyword can be written as `:`. For example, this code
+# snippet in modern Ruby
+#
+#   case 1
+#   when 1 then
+#     p 1
+#   end
+#
+# can be written as this in Ruby 1.8, which is illegal in Ruby versions newer
+# than Ruby 1.8. However, the modern Ruby code snippet above is also valid in
+# Ruby 1.8.
+#
+#   case 1
+#   when 1:
+#     p 1
+#   end
+#
+# The `do` keyword can also be written as `:` in Ruby 1.8, but only for `for`,
+# `while` and `until` loops. It cannot be written as `:` for blocks, or for
+# `loop` loops since `loop` is actually a method that takes a block argument.
+# Thus, this code snippet is valid in Ruby 1.8 but invalid in newer Ruby
+# versions.
+#
+#   a = false
+#   until a:
+#     a = true
+#   end
+
+--- a/parse.y
++++ b/parse.y
+@@ -1316,6 +1316,7 @@ static int looking_at_eol_p(struct parser_params *p);
+ %token tMKXP_LEGACY_LPAREN_ARG	"( arg"
+ %token tMKXP_LEGACY_STAR	"*"
+ %token tMKXP_LEGACY_LBRACE	"{"
++%token tMKXP_LEGACY_COLON	":"
+ 
+ /*
+  *	precedence table
+@@ -1330,7 +1331,7 @@ static int looking_at_eol_p(struct parser_params *p);
+ %nonassoc keyword_defined
+ %right '=' tOP_ASGN
+ %left modifier_rescue
+-%right '?' ':'
++%right '?' ':' tMKXP_LEGACY_COLON
+ %nonassoc tDOT2 tDOT3 tBDOT2 tBDOT3
+ %left  tOROP
+ %left  tANDOP
+@@ -1514,6 +1515,10 @@ mkxp_legacy_assoc_list
+                     }
+                 ;
+ 
++mkxp_colon      : ':'
++                | tMKXP_LEGACY_COLON
++                ;
++
+ top_compstmt	: top_stmts opt_terms
+ 		    {
+ 			$$ = void_stmts(p, $1);
+@@ -2752,7 +2757,7 @@ arg		: lhs '=' lex_ctxt arg_rhs
+ 			p->ctxt.in_defined = 0;
+ 			$$ = new_defined(p, $4, &@$);
+ 		    }
+-		| arg '?' arg opt_nl ':' arg
++		| arg '?' arg opt_nl mkxp_colon arg
+ 		    {
+ 		    /*%%%*/
+ 			value_expr($1);
+@@ -3669,11 +3674,13 @@ k_return	: keyword_return
+ 		;
+ 
+ then		: term
++		| tMKXP_LEGACY_COLON
+ 		| keyword_then
+ 		| term keyword_then
+ 		;
+ 
+ do		: term
++		| tMKXP_LEGACY_COLON
+ 		| keyword_do_cond
+ 		;
+ 
+@@ -9972,7 +9979,7 @@ parser_yylex(struct parser_params *p)
+ 	    pushback(p, c);
+ 	    c = warn_balanced(':', ":", "symbol literal");
+ 	    SET_LEX_STATE(EXPR_BEG);
+-	    return c;
++	    return mkxp_parser_is_syntax_transform_active(p, 1, 8, -1) && c == ':' ? tMKXP_LEGACY_COLON : c;
+ 	}
+ 	switch (c) {
+ 	  case '\'':

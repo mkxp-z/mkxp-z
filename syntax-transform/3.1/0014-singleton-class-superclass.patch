@@ -1,0 +1,62 @@
+# syntax-transform/3.1/0014-singleton-class-superclass.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby 1.8, the superclass of a singleton class is a subclass of `Class`
+# rather than the superclass of a singleton class being the class of the
+# singleton class's object. For example, this code snippet prints `nil`,
+# `false`, `true` and `false` in Ruby 1.8 but `true`, `true`, `nil` and `false`
+# in Ruby versions later than 1.8.
+#
+#   class A; end
+#   class << A.new
+#     p self < A
+#     p self.superclass == A
+#     p self < Class
+#     p self.superclass == Class
+#   end
+
+--- a/object.c
++++ b/object.c
+@@ -800,6 +800,13 @@ rb_obj_is_kind_of(VALUE obj, VALUE c)
+ static VALUE
+ class_search_ancestor(VALUE cl, VALUE c)
+ {
++    /* If syntax transform is active and targeting Ruby <= 1.8, change the superclass of singleton classes to be consistent with the Ruby 1.8 behavior when whether or not some class is a superclass of a singleton class is queried with the `<=` operator or similar ancestry-checking operators */
++    if (mkxp_ec_is_syntax_transform_active(1, 8, -1) && FL_TEST(cl, FL_SINGLETON)) {
++        if (cl == c || RCLASS_M_TBL(cl) == RCLASS_M_TBL(c))
++            return cl;
++        cl = RBASIC_CLASS(cl);
++    }
++
+     while (cl) {
+ 	if (cl == c || RCLASS_M_TBL(cl) == RCLASS_M_TBL(c))
+ 	    return cl;
+@@ -2053,6 +2060,12 @@ rb_class_superclass(VALUE klass)
+ 	if (klass == rb_cBasicObject) return Qnil;
+ 	rb_raise(rb_eTypeError, "uninitialized class");
+     }
++
++    /* If syntax transform is active and targeting Ruby <= 1.8, change the superclass of singleton classes to be consistent with the Ruby 1.8 behavior when calling the `superclass` method of the singleton class */
++    if (mkxp_ec_is_syntax_transform_active(1, 8, -1) && FL_TEST(klass, FL_SINGLETON)) {
++        super = RBASIC_CLASS(klass);
++    }
++
+     while (RB_TYPE_P(super, T_ICLASS)) {
+ 	super = RCLASS_SUPER(super);
+     }
