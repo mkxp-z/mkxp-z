@@ -21,6 +21,7 @@
 
 #include "rgssad.h"
 #include "boost-hash.h"
+#include "serial-util.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -190,6 +191,7 @@ RGSS_ioRead(PHYSFS_Io *self, void *buffer, PHYSFS_uint64 len)
 	{
 		uint32_t dword;
 		io->read(io, &dword, preAlign);
+		dword = byteSwap32IfBigEndian(dword);
 
 		/* Need to align the bytes with the
 		 * magic before xoring */
@@ -198,6 +200,7 @@ RGSS_ioRead(PHYSFS_Io *self, void *buffer, PHYSFS_uint64 len)
 
 		/* Shift them back to normal */
 		dword >>= 8 * (offs % 4);
+		dword = byteSwap32IfBigEndian(dword);
 		memcpy(bBufferP, &dword, preAlign);
 
 		bBufferP += preAlign;
@@ -218,7 +221,7 @@ RGSS_ioRead(PHYSFS_Io *self, void *buffer, PHYSFS_uint64 len)
 
 		/* Then xor them */
 		for (uint64_t i = 0; i < (align / 4); ++i)
-			dwBufferP[i] ^= advanceMagic(entry->currentMagic);
+			dwBufferP[i] ^= byteSwap32IfBigEndian(advanceMagic(entry->currentMagic));
 
 		bBufferP += align;
 	}
@@ -229,7 +232,7 @@ RGSS_ioRead(PHYSFS_Io *self, void *buffer, PHYSFS_uint64 len)
 		io->read(io, &dword, postAlign);
 
 		/* Bytes are already aligned with magic */
-		dword ^= entry->currentMagic;
+		dword ^= byteSwap32IfBigEndian(entry->currentMagic);
 		memcpy(bBufferP, &dword, postAlign);
 	}
 

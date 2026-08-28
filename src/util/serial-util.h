@@ -28,6 +28,68 @@
 
 #include <SDL_endian.h>
 
+static inline uint16_t
+byteSwap16(uint16_t value)
+{
+#ifdef _MSC_VER
+	static_assert(sizeof(unsigned short) == sizeof(uint16_t), "unsigned short should be 16 bits");
+	return _byteswap_ushort(value);
+#else
+	return __builtin_bswap16(value);
+#endif
+}
+
+static inline uint16_t
+byteSwap16IfBigEndian(uint16_t value)
+{
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+	return byteSwap16(value);
+#else
+	return value;
+#endif
+}
+
+static inline uint32_t
+byteSwap32(uint32_t value)
+{
+#ifdef _MSC_VER
+	static_assert(sizeof(unsigned long) == sizeof(uint32_t), "unsigned long should be 32 bits");
+	return _byteswap_ulong(value);
+#else
+	return __builtin_bswap32(value);
+#endif
+}
+
+static inline uint32_t
+byteSwap32IfBigEndian(uint32_t value)
+{
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+	return byteSwap32(value);
+#else
+	return value;
+#endif
+}
+
+static inline uint64_t
+byteSwap64(uint64_t value)
+{
+#ifdef _MSC_VER
+	return _byteswap_uint64(value);
+#else
+	return __builtin_bswap64(value);
+#endif
+}
+
+static inline uint64_t
+byteSwap64IfBigEndian(uint64_t value)
+{
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+	return byteSwap64(value);
+#else
+	return value;
+#endif
+}
+
 static inline int32_t
 readInt32(const char **dataP)
 {
@@ -36,14 +98,7 @@ readInt32(const char **dataP)
 	memcpy(&result, *dataP, 4);
 	*dataP += 4;
 
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-#  ifdef _MSC_VER
-	static_assert(sizeof(unsigned long) == sizeof(int32_t), "unsigned long should be 32 bits");
-	result = (int32_t)_byteswap_ulong((unsigned long)result);
-#  else
-	result = (int32_t)__builtin_bswap32((uint32_t)result);
-#  endif
-#endif
+	result = byteSwap32IfBigEndian(result);
 
 	return result;
 }
@@ -57,11 +112,7 @@ readDouble(const char **dataP)
 	memcpy(&result, *dataP, 8);
 	*dataP += 8;
 
-#  ifdef _MSC_VER
-	result = (uint64_t)_byteswap_uint64((unsigned __int64)result);
-#  else
-	result = __builtin_bswap64(result);
-#  endif
+	result = byteSwap64(result);
 
 	return *(double *)&result;
 #else
@@ -77,14 +128,7 @@ readDouble(const char **dataP)
 static inline void
 writeInt32(char **dataP, int32_t value)
 {
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-#  ifdef _MSC_VER
-	static_assert(sizeof(unsigned long) == sizeof(int32_t), "unsigned long should be 32 bits");
-	value = (int32_t)_byteswap_ulong((unsigned long)value);
-#  else
-	value = (int32_t)__builtin_bswap32((uint32_t)value);
-#  endif
-#endif
+	value = byteSwap32IfBigEndian(value);
 
 	memcpy(*dataP, &value, 4);
 	*dataP += 4;
@@ -96,11 +140,7 @@ writeDouble(char **dataP, double value)
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
 	uint64_t valueUint = *(uint64_t *)&value;
 
-#  ifdef _MSC_VER
-	valueUint = (uint64_t)_byteswap_uint64((unsigned __int64)valueUint);
-#  else
-	valueUint = __builtin_bswap64(valueUint);
-#  endif
+	valueUint = byteSwap64(valueUint);
 
 	memcpy(*dataP, &valueUint, 8);
 #else

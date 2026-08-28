@@ -115,7 +115,12 @@ void Table::serialize(char *buffer) const
 	writeInt32(&buffer, zs);
 	writeInt32(&buffer, size);
 
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+	for (int i = 0; i < size; ++i)
+		((uint16_t *)buffer)[i] = byteSwap16(dataPtr(data)[i]);
+#else
 	memcpy(buffer, dataPtr(data), sizeof(int16_t)*size);
+#endif
 }
 
 
@@ -137,7 +142,12 @@ Table *Table::deserialize(const char *data, int len)
 		throw Exception(Exception::RGSSError, "Marshal: Table: bad file format");
 
 	Table *t = new Table(x, y, z);
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+	for (int i = 0; i < size; ++i)
+		dataPtr(t->data)[i] = byteSwap16(((uint16_t *)data)[i]);
+#else
 	memcpy(dataPtr(t->data), data, sizeof(int16_t)*size);
+#endif
 
 	return t;
 }
