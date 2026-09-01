@@ -1,0 +1,14 @@
+# This preprocessor code that checks if Vulkan Memory Allocator's version is greater than or equal to 3.4.0 doesn't compile.
+# We are using Vulkan Memory Allocator version 3.4.0, so this patch removes the preprocessor code and replaces it with a constant true expression.
+
+--- a/src/libANGLE/renderer/vulkan/vk_mem_alloc_wrapper.cpp
++++ b/src/libANGLE/renderer/vulkan/vk_mem_alloc_wrapper.cpp
+@@ -56,7 +56,7 @@ VkResult InitAllocator(VkPhysicalDevice physicalDevice,
+         // cannot directly be used in the preprocessor |#if| check because it contains casts to
+         // |uint32_t|.  VK_MAKE_API_VERSION shifts the major number by 22 and the minor number by
+         // 12.
+-#if defined(VMA_VERSION) && VMA_VERSION >= (3 << 22 | 4 << 12)
++#if 1
+         funcs.vkGetPhysicalDeviceProperties2KHR = vkGetPhysicalDeviceProperties2;
+ #endif
+     }

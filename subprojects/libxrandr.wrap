@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://xorg.freedesktop.org/releases/individual/lib/libXrandr-1.5.4.tar.gz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/ubuntu/pool/main/libx/libxrandr/libxrandr_1.5.4.orig.tar.gz
+source_filename = libXrandr-1.5.4.tar.gz
+source_hash = c72c94dc3373512ceb67f578952c5d10915b38cc9ebb0fd176a49857b8048e22
+directory = libXrandr-1.5.4
+patch_directory = libxrandr
+diff_files =
+    end-of-diff-files.patch

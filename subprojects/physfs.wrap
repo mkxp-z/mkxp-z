@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://archive.ubuntu.com/ubuntu/pool/universe/libp/libphysfs/libphysfs_3.2.0.orig.tar.gz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/ubuntu/pool/universe/libp/libphysfs/libphysfs_3.2.0.orig.tar.gz
+source_filename = physfs-3.2.0.tar.gz
+source_hash = c0e718a1f5ba464570a383c12771879aeddb5dabcc3385acc5f14a4c26b93301
+directory = icculus-physfs-eb3383b
+method = cmake
+diff_files =
+    end-of-diff-files.patch

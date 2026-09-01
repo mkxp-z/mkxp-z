@@ -41,7 +41,6 @@
 #include "shader.h"
 #include "sharedstate.h"
 #include "texpool.h"
-#include "theoraplay/theoraplay.h"
 #include "util.h"
 #include "input.h"
 #include "sprite.h"
@@ -57,8 +56,11 @@
 #include "steamshim_child.h"
 #endif
 
+#include <theoraplay.h>
+
 #include <algorithm>
 #include <errno.h>
+#include <functional>
 #include <sys/time.h>
 #include <unistd.h>
 #include <time.h>
@@ -136,7 +138,11 @@ struct Movie
         io->read = readMovie;
         io->close = closeMovie;
         io->userdata = &srcOps;
-        decoder = THEORAPLAY_startDecode(io, DEF_MAX_VIDEO_FRAMES, THEORAPLAY_VIDFMT_RGBA);
+#ifdef MKXPZ_THEORAPLAY_NO_THREAD
+        decoder = THEORAPLAY_startDecode(io, DEF_MAX_VIDEO_FRAMES, THEORAPLAY_VIDFMT_RGBA, nullptr, false);
+#else
+        decoder = THEORAPLAY_startDecode(io, DEF_MAX_VIDEO_FRAMES, THEORAPLAY_VIDFMT_RGBA, nullptr, true);
+#endif // MKXPZ_THEORAPLAY_NO_THREAD
         if (!decoder) {
             SDL_RWclose(&srcOps);
             return false;
@@ -144,7 +150,11 @@ struct Movie
         
         // Wait until the decoder has parsed out some basic truths from the file.
         while (!THEORAPLAY_isInitialized(decoder)) {
+#ifdef MKXPZ_THEORAPLAY_NO_THREAD
+            THEORAPLAY_pumpDecode(decoder, DEF_MAX_VIDEO_FRAMES);
+#else
             SDL_Delay(VIDEO_DELAY);
+#endif // MKXPZ_THEORAPLAY_NO_THREAD
         }
         
         // Once we're initialized, we can tell if this file has audio and/or video.
@@ -157,7 +167,11 @@ struct Movie
                 if ((THEORAPLAY_availableVideo(decoder) >= DEF_MAX_VIDEO_FRAMES)) {
                     break;  // we'll never progress, there's no audio yet but we've prebuffered as much as we plan to.
                 }
+#ifdef MKXPZ_THEORAPLAY_NO_THREAD
+                THEORAPLAY_pumpDecode(decoder, DEF_MAX_VIDEO_FRAMES);
+#else
                 SDL_Delay(VIDEO_DELAY);
+#endif // MKXPZ_THEORAPLAY_NO_THREAD
             }
         }
         
@@ -169,14 +183,22 @@ struct Movie
         
         // Wait until we have video
         while ((video = THEORAPLAY_getVideo(decoder)) == NULL) {
+#ifdef MKXPZ_THEORAPLAY_NO_THREAD
+            THEORAPLAY_pumpDecode(decoder, DEF_MAX_VIDEO_FRAMES);
+#else
             SDL_Delay(VIDEO_DELAY);
+#endif // MKXPZ_THEORAPLAY_NO_THREAD
         }
         
         // Wait until we have audio, if applicable
         audio = NULL;
         if (hasAudio) {
             while ((audio = THEORAPLAY_getAudio(decoder)) == NULL && THEORAPLAY_availableVideo(decoder) < DEF_MAX_VIDEO_FRAMES) {
+#ifdef MKXPZ_THEORAPLAY_NO_THREAD
+                THEORAPLAY_pumpDecode(decoder, DEF_MAX_VIDEO_FRAMES);
+#else
                 SDL_Delay(VIDEO_DELAY);
+#endif // MKXPZ_THEORAPLAY_NO_THREAD
             }
         }
         // Create this Bitmap without a hires replacement, because we don't
@@ -331,7 +353,11 @@ struct Movie
                 shState->input().update();
                 if  (shState->input().isTriggered(Input::C) || shState->input().isTriggered(Input::B)) break;
             }
-            
+
+#ifdef MKXPZ_THEORAPLAY_NO_THREAD
+            THEORAPLAY_pumpDecode(decoder, DEF_MAX_VIDEO_FRAMES);
+#endif // MKXPZ_THEORAPLAY_NO_THREAD
+
             const Uint32 now = SDL_GetTicks() - baseTicks;
             
             if (!video) {
@@ -775,6 +801,8 @@ private:
     }
 };
 
+std::function<void ()> mkxp_angle_direct3d_resize_callback = nullptr;
+
 struct GraphicsPrivate {
     /* Screen resolution, ie. the resolution at which
      * RGSS renders at (settable with Graphics.resize_screen).
@@ -1001,13 +1029,41 @@ struct GraphicsPrivate {
         scriptBinding->terminate();
     }
     
-    void swapGLBuffer() {
+private:
+    template <typename... Args> void swapGLBufferImpl(const Vec2i &screenSize, TEXFBO &source, int scaleIsSpecial, Args... args) {
         fpsLimiter.delay();
-        SDL_GL_SwapWindow(threadData->window);
-        
+
+        GLMeta::blitBeginScreen(screenSize, scaleIsSpecial);
+        GLMeta::blitSource(source, scaleIsSpecial);
+
+        for (size_t repaintCount = 1; repaintCount-- > 0;) {
+            mkxp_angle_direct3d_resize_callback = [&]() {
+                // We need to repaint the screen twice after the game window's size changes if we're using one of ANGLE's Direct3D backends (probably because of double buffering).
+                repaintCount = 2;
+            };
+            FBO::clear();
+            metaBlitBufferFlippedScaled(args...);
+            SDL_GL_SwapWindow(threadData->window);
+            mkxp_angle_direct3d_resize_callback = nullptr;
+        }
+
+        GLMeta::blitEnd();
+
         ++frameCount;
-        
         threadData->ethread->notifyFrame();
+    }
+
+public:
+    void swapGLBuffer(const Vec2i &screenSize, TEXFBO &source, int scaleIsSpecial) {
+        swapGLBufferImpl(screenSize, source, scaleIsSpecial, scaleIsSpecial);
+    }
+
+    void swapGLBuffer(const Vec2i &screenSize, TEXFBO &source, const Vec2i &sourceSize, int scaleIsSpecial) {
+        swapGLBufferImpl(screenSize, source, scaleIsSpecial, sourceSize, scaleIsSpecial);
+    }
+
+    void swapGLBuffer(const Vec2i &screenSize, TEXFBO &source, const Vec2i &sourceSize, int scaleIsSpecial, bool forceNearestNeighbor) {
+        swapGLBufferImpl(screenSize, source, scaleIsSpecial, sourceSize, scaleIsSpecial, forceNearestNeighbor);
     }
     
     void compositeToBuffer(TEXFBO &buffer) {
@@ -1050,14 +1106,7 @@ struct GraphicsPrivate {
         {
             int scaleIsSpecial = GLMeta::blitScaleIsSpecial(integerScaleBuffer, false, IntRect(0, 0, scSize.x, scSize.y), screen.getPP().frontBuffer(), IntRect(0, 0, scRes.x, scRes.y));
 
-            GLMeta::blitBeginScreen(winSize, scaleIsSpecial);
-            GLMeta::blitSource(screen.getPP().frontBuffer(), scaleIsSpecial);
-            
-            FBO::clear();
-            metaBlitBufferFlippedScaled(scRes, scaleIsSpecial, true);
-            GLMeta::blitEnd();
-            
-            swapGLBuffer();
+            swapGLBuffer(winSize, screen.getPP().frontBuffer(), scRes, scaleIsSpecial, true);
             updateAvgFPS();
             return;
         }
@@ -1091,24 +1140,7 @@ struct GraphicsPrivate {
 
         int scaleIsSpecial = GLMeta::blitScaleIsSpecial(integerScaleBuffer, false, IntRect(0, 0, scSize.x, scSize.y), integerScaleActive ? integerScaleBuffer : screen.getPP().frontBuffer(), IntRect(0, 0, sourceSize.x, sourceSize.y));
 
-        GLMeta::blitBeginScreen(winSize, scaleIsSpecial);
-        //GLMeta::blitSource(screen.getPP().frontBuffer(), scaleIsSpecial);
-
-        if (integerScaleActive)
-        {
-            GLMeta::blitSource(integerScaleBuffer, scaleIsSpecial);
-        }
-        else
-        {
-            GLMeta::blitSource(screen.getPP().frontBuffer(), scaleIsSpecial);
-        }
-        
-        FBO::clear();
-        metaBlitBufferFlippedScaled(sourceSize, scaleIsSpecial);
-        
-        GLMeta::blitEnd();
-        
-        swapGLBuffer();
+        swapGLBuffer(winSize, integerScaleActive ? integerScaleBuffer : screen.getPP().frontBuffer(), sourceSize, scaleIsSpecial);
         
         updateAvgFPS();
     }
@@ -1336,12 +1368,7 @@ void Graphics::transition(int duration, const char *filename, int vague) {
         
         int scaleIsSpecial = GLMeta::blitScaleIsSpecial(p->integerScaleBuffer, false, IntRect(0, 0, p->scSize.x, p->scSize.y), transBuffer, IntRect(0, 0, p->scRes.x, p->scRes.y));
 
-        GLMeta::blitBeginScreen(Vec2i(p->winSize), scaleIsSpecial);
-        GLMeta::blitSource(transBuffer, scaleIsSpecial);
-        p->metaBlitBufferFlippedScaled(scaleIsSpecial);
-        GLMeta::blitEnd();
-        
-        p->swapGLBuffer();
+        p->swapGLBuffer(p->winSize, transBuffer, scaleIsSpecial);
         /* Call this manually, as redrawScreen() is not called during this loop. */
         p->updateAvgFPS();
     }
@@ -1397,15 +1424,7 @@ void Graphics::fadeout(int duration) {
         if (p->frozen) {
             int scaleIsSpecial = GLMeta::blitScaleIsSpecial(p->integerScaleBuffer, false, IntRect(0, 0, p->scSize.x, p->scSize.y), p->frozenScene, IntRect(0, 0, p->scRes.x, p->scRes.y));
 
-            GLMeta::blitBeginScreen(p->scSize, scaleIsSpecial);
-            GLMeta::blitSource(p->frozenScene, scaleIsSpecial);
-            
-            FBO::clear();
-            p->metaBlitBufferFlippedScaled(scaleIsSpecial);
-            
-            GLMeta::blitEnd();
-            
-            p->swapGLBuffer();
+            p->swapGLBuffer(p->scSize, p->frozenScene, scaleIsSpecial);
         } else {
             update();
         }
@@ -1424,15 +1443,7 @@ void Graphics::fadein(int duration) {
         if (p->frozen) {
             int scaleIsSpecial = GLMeta::blitScaleIsSpecial(p->integerScaleBuffer, false, IntRect(0, 0, p->scSize.x, p->scSize.y), p->frozenScene, IntRect(0, 0, p->scRes.x, p->scRes.y));
 
-            GLMeta::blitBeginScreen(p->scSize, scaleIsSpecial);
-            GLMeta::blitSource(p->frozenScene, scaleIsSpecial);
-            
-            FBO::clear();
-            p->metaBlitBufferFlippedScaled(scaleIsSpecial);
-            
-            GLMeta::blitEnd();
-            
-            p->swapGLBuffer();
+            p->swapGLBuffer(p->scSize, p->frozenScene, scaleIsSpecial);
         } else {
             update();
         }

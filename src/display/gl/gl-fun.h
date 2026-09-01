@@ -22,12 +22,7 @@
 #ifndef GLFUN_H
 #define GLFUN_H
 
-#ifdef GLES2_HEADER
-#include <SDL_opengles2.h>
-#define APIENTRYP GL_APIENTRYP
-#else
 #include <SDL_opengl.h>
-#endif
 
 /* Etc */
 typedef GLenum (APIENTRYP _PFNGLGETERRORPROC) (void);
@@ -115,15 +110,6 @@ typedef void (APIENTRYP _PFNGLBINDVERTEXARRAYPROC) (GLuint array);
 
 /* GLES only */
 typedef void (APIENTRYP _PFNGLRELEASESHADERCOMPILERPROC) (void);
-
-#ifdef GLES2_HEADER
-#define GL_NUM_EXTENSIONS 0x821D
-#define GL_READ_FRAMEBUFFER 0x8CA8
-#define GL_DRAW_FRAMEBUFFER 0x8CA9
-#define GL_UNPACK_ROW_LENGTH 0x0CF2
-#define GL_UNPACK_SKIP_PIXELS 0x0CF4
-#define GL_UNPACK_SKIP_ROWS 0x0CF3
-#endif
 
 #define GL_20_FUN \
 	/* Etc */ \

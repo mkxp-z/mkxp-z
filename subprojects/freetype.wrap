@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://gitlab.freedesktop.org/freetype/freetype/-/archive/VER-2-14-3/freetype-VER-2-14-3.tar.gz
+source_fallback_url = https://github.com/freetype/freetype/archive/refs/tags/VER-2-14-3.tar.gz
+source_filename = freetype-VER-2-14-3.tar.gz
+source_hash = dc49de6b01a266eef4876a4dd34d9842c475d3e28ff2eff63bd2fb760ab56261
+directory = freetype-VER-2-14-3
+diff_files =
+    freetype-version.patch,
+    end-of-diff-files.patch

@@ -6,7 +6,6 @@
 //
 
 #import <AppKit/AppKit.h>
-#import <Metal/Metal.h>
 
 #import <sys/sysctl.h>
 #import "system.h"
@@ -58,21 +57,4 @@ void openSettingsWindow() {
         return;
     }
     [smenu raise];
-}
-
-bool isMetalSupported() {
-    if (@available(macOS 10.13.0, *)) {
-        return MTLCreateSystemDefaultDevice() != nil;
-    }
-    return false;
-}
-
-std::string getPlistValue(const char *key) {
-    @autoreleasepool {
-        NSString *hash = [[NSBundle mainBundle] objectForInfoDictionaryKey:@(key)];
-        if (hash != nil) {
-            return std::string(hash.UTF8String);
-        }
-        return "";
-    }
 }

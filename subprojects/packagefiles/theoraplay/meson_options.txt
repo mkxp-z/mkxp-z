@@ -1,0 +1,1 @@
+option('thread', type: 'feature', value: 'auto')

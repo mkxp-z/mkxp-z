@@ -1,0 +1,38 @@
+# Adds options that control whether or not SIMD instructions are enabled.
+
+--- a/meson.build
++++ b/meson.build
+@@ -297,15 +297,15 @@ foreach b : [
+ endforeach
+ 
+ cdata = configuration_data()
+-cdata.set('HAVE_SSE', cpp.check_header('xmmintrin.h'))
+-cdata.set('HAVE_SSE2', cpp.check_header('emmintrin.h'))
+-cdata.set('HAVE_SSE3', cpp.check_header('pmmintrin.h'))
+-cdata.set('HAVE_SSE4_1', cpp.check_header('smmintrin.h'))
++cdata.set('HAVE_SSE', cpp.check_header('xmmintrin.h', required: get_option('sse')))
++cdata.set('HAVE_SSE2', cpp.check_header('emmintrin.h', required: get_option('sse2')))
++cdata.set('HAVE_SSE3', cpp.check_header('pmmintrin.h', required: get_option('sse3')))
++cdata.set('HAVE_SSE4_1', cpp.check_header('smmintrin.h', required: get_option('sse41')))
+ cdata.set(
+   'HAVE_SSE_INTRINSICS',
+-  cpp.has_header_symbol('xmmintrin.h', '_mm_pause'),
++  cpp.has_header_symbol('xmmintrin.h', '_mm_pause', required: get_option('sse')),
+ )
+-cdata.set('HAVE_NEON', cpp.check_header('arm_neon.h'))
++cdata.set('HAVE_NEON', cpp.check_header('arm_neon.h', required: get_option('neon')))
+ 
+ if cdata.get('HAVE_SSE')
+   openal_args += cpp.get_supported_arguments('-msse', '-mfpmath=sse')
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -82,3 +82,9 @@ option(
+     type: 'feature',
+     description: 'Windows Multimedia backend backend',
+ )
++
++option('neon', type: 'feature', value: 'auto')
++option('sse', type: 'feature', value: 'auto')
++option('sse2', type: 'feature', value: 'auto')
++option('sse3', type: 'feature', value: 'auto')
++option('sse41', type: 'feature', value: 'auto')

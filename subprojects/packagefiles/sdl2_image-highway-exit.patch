@@ -1,0 +1,13 @@
+# Fixes a compilation error when building SDL_image for RISC-V targets.
+
+--- a/external/libjxl/third_party/highway/hwy/targets.cc
++++ b/external/libjxl/third_party/highway/hwy/targets.cc
+@@ -21,7 +21,7 @@
+ #include <atomic>
+ #include <cstddef>
+ #include <limits>
+-
++#include <cstdlib>
+ #if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
+     defined(THREAD_SANITIZER)
+ #include "sanitizer/common_interface_defs.h"  // __sanitizer_print_stack_trace

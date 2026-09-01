@@ -73,9 +73,7 @@ bool systemImpl::isRosetta() {
 }
 
 systemImpl::WineHostType systemImpl::getRealHostType() {
-#if MKXPZ_PLATFORM != MKXPZ_PLATFORM_WINDOWS
-    return WineHostType::Linux;
-#else
+#if MKXPZ_PLATFORM == MKXPZ_PLATFORM_WINDOWS
     void *ntdll = SDL_LoadObject("ntdll.dll");
     void (*wine_get_host_version)(const char **, const char **) =
     (void (*)(const char **, const char **))SDL_LoadFunction(ntdll, "wine_get_host_version");
@@ -88,8 +86,15 @@ systemImpl::WineHostType systemImpl::getRealHostType() {
 
     if (!strcmp(kernel, "Darwin"))
         return WineHostType::Mac;
-    
+    if (!strcmp(kernel, "Linux"))
+        return WineHostType::Linux;
+    return WineHostType::Bsd;
+#elif MKXPZ_PLATFORM == MKXPZ_PLATFORM_MACOS
+    return WineHostType::Mac;
+#elif MKXPZ_PLATFORM == MKXPZ_PLATFORM_LINUX
     return WineHostType::Linux;
+#else
+    return WineHostType::Bsd;
 #endif
 }
 

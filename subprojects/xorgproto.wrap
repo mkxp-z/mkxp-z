@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://xorg.freedesktop.org/releases/individual/proto/xorgproto-2024.1.tar.gz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/ubuntu/pool/main/x/xorgproto/xorgproto_2024.1.orig.tar.gz
+source_filename = xorgproto-2024.1.tar.gz
+source_hash = 4f6b9b4faf91e5df8265b71843a91fc73dc895be6210c84117a996545df296ce
+directory = xorgproto-2024.1
+patch_directory = xorgproto
+diff_files =
+    end-of-diff-files.patch

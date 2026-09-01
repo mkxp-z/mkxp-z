@@ -1,0 +1,7 @@
+--- /dev/null
++++ b/mkxp-end-of-diff-files-dummy
+@@ -0,0 +1,4 @@
++subprojects/packagefiles/end-of-diff-files.patch is a patch file that does nothing.
++The `diff_files` field in Meson wrap files doesn't allow for trailing commas,
++so we put this patch file at the end of the patch list instead so that all of the real patches in the list have a comma at the end.
++This helps reduce Git merge conflicts.

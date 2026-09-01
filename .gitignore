@@ -12,6 +12,7 @@ xxd+
 
 /build
 /builddir
+/ccache
 
 # VS Code
 /.vscode

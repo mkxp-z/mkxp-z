@@ -1,0 +1,16 @@
+# In macOS builds, if steamshim is launched via a macOS app bundle, the current working directory will be `/`.
+# So we need to chdir to the directory where steamshim is actually located in that case.
+
+--- a/steamshim_parent.cpp
++++ b/steamshim_parent.cpp
+@@ -209,6 +209,10 @@ static int closeProcess(ProcessType *pid)
+ 
+ int main(int argc, char **argv)
+ {
++#ifdef __APPLE__
++    void chdirToExecutablePath();
++    chdirToExecutablePath();
++#endif
+     signal(SIGPIPE, SIG_IGN);
+     GArgc = argc;
+     GArgv = argv;

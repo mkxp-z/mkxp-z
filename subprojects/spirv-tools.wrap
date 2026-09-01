@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://github.com/KhronosGroup/SPIRV-Tools/archive/refs/tags/vulkan-sdk-1.4.350.0.tar.gz
+source_filename = SPIRV-Tools-vulkan-sdk-1.4.350.0.tar.gz
+source_hash = 446b288fe76d3f31bbf9a405d62b97020ac0f135edb0ed5dbdf1136c488138f5
+directory = SPIRV-Tools-vulkan-sdk-1.4.350.0
+method = cmake
+patch_directory = spirv-tools
+diff_files =
+    end-of-diff-files.patch

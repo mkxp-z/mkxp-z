@@ -1,0 +1,14 @@
+# Prevents libjxl from running its configure tests with `-static` in the linker flags.
+# This linker flag causes configure errors when cross building for an s390x Ubuntu 16.04 sysroot using Clang.
+
+--- a/external/libjxl/CMakeLists.txt
++++ b/external/libjxl/CMakeLists.txt
+@@ -159,7 +159,7 @@ if(JPEGXL_STATIC)
+   # Clang developers say that in case to use "static" we have to build stdlib
+   # ourselves; for real use case we don't care about stdlib, as it is "granted",
+   # so just linking all other libraries is fine.
+-  if (NOT APPLE)
++  if (FALSE)
+     set(CMAKE_EXE_LINKER_FLAGS
+         "${CMAKE_EXE_LINKER_FLAGS} -static -static-libgcc -static-libstdc++")
+   endif()

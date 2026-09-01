@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://archive.ubuntu.com/ubuntu/pool/universe/g/gcem/gcem_1.18.0.orig.tar.gz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/ubuntu/pool/universe/g/gcem/gcem_1.18.0.orig.tar.gz
+source_filename = gcem-1.18.0.tar.gz
+source_hash = 0ad5125246f5e926749a491886d33662c165d5a7708910f81133c4c2144ee64e
+directory = gcem-1.18.0
+patch_directory = gcem
+diff_files =
+    end-of-diff-files.patch

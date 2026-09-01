@@ -1,0 +1,50 @@
+From 5042c155907b6bbc44450aed750cc1a7046b681a Mon Sep 17 00:00:00 2001
+From: Struma <strumajen@icloud.com>
+Date: Thu, 6 Jul 2023 22:18:00 -0400
+Subject: [PATCH] disable NEON, fix loading ANGLE on macOS
+
+---
+ include/SDL_cpuinfo.h        | 2 +-
+ src/audio/SDL_audiotypecvt.c | 2 +-
+ src/video/SDL_egl.c          | 2 ++
+ 3 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/include/SDL_cpuinfo.h b/include/SDL_cpuinfo.h
+index ed5e97915e..582e49d838 100644
+--- a/include/SDL_cpuinfo.h
++++ b/include/SDL_cpuinfo.h
+@@ -76,7 +76,7 @@ _m_prefetch(void *__P)
+ #if defined(HAVE_ALTIVEC_H) && defined(__ALTIVEC__) && !defined(__APPLE_ALTIVEC__) && defined(SDL_ENABLE_ALTIVEC_H)
+ #include <altivec.h>
+ #endif
+-#if !defined(SDL_DISABLE_ARM_NEON_H)
++#if 0 //!defined(SDL_DISABLE_ARM_NEON_H)
+ #  if defined(__ARM_NEON)
+ #    include <arm_neon.h>
+ #  elif defined(__WINDOWS__) || defined(__WINRT__) || defined(__GDK__)
+diff --git a/src/audio/SDL_audiotypecvt.c b/src/audio/SDL_audiotypecvt.c
+index 7ffa4dd19e..881c546578 100644
+--- a/src/audio/SDL_audiotypecvt.c
++++ b/src/audio/SDL_audiotypecvt.c
+@@ -24,7 +24,7 @@
+ #include "SDL_audio_c.h"
+ #include "SDL_cpuinfo.h"
+ 
+-#ifdef __ARM_NEON
++#if 0 //def __ARM_NEON
+ #define HAVE_NEON_INTRINSICS 1
+ #endif
+ 
+diff --git a/src/video/SDL_egl.c b/src/video/SDL_egl.c
+index 8e5f165b56..03142537ce 100644
+--- a/src/video/SDL_egl.c
++++ b/src/video/SDL_egl.c
+@@ -1027,6 +1027,8 @@ SDL_GLContext SDL_EGL_CreateContext(_THIS, EGLSurface egl_surface)
+ 
+     attribs[attr++] = EGL_NONE;
+ 
++    SDL_EGL_ChooseConfig(_this);
++
+     /* Bind the API */
+     if (profile_es) {
+         _this->egl_data->apitype = EGL_OPENGL_ES_API;

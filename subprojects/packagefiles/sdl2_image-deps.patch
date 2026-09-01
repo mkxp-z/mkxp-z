@@ -1,0 +1,31 @@
+# Prevents SDL_image from trying to look for SDL externally since we already handled that ourselves.
+
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -160,7 +160,7 @@ else()
+     set(sdl2_target_name SDL2::SDL2-static)
+ endif()
+ 
+-sdl_find_sdl2(${sdl2_target_name} ${SDL_REQUIRED_VERSION})
++
+ 
+ # Set PROJECT_VERSION of subprojects to "" if it's project call does not set VERSION
+ cmake_policy(SET CMP0048 NEW)
+@@ -209,7 +209,7 @@ target_compile_definitions(SDL2_image PRIVATE
+     SDL_BUILD_MINOR_VERSION=${MINOR_VERSION}
+     SDL_BUILD_MICRO_VERSION=${MICRO_VERSION}
+ )
+-target_link_libraries(SDL2_image PRIVATE ${sdl2_target_name})
++
+ if(WIN32 AND SDL2IMAGE_BUILD_SHARED_LIBS)
+     target_sources(SDL2_image PRIVATE
+         version.rc
+@@ -757,7 +757,7 @@ if(SDL2IMAGE_SAMPLES)
+         if(TARGET SDL2::SDL2main)
+             target_link_libraries(${prog} PRIVATE SDL2::SDL2main)
+         endif()
+-        target_link_libraries(${prog} PRIVATE ${sdl2_target_name})
++
+ 
+         if(SDL2IMAGE_SAMPLES_INSTALL)
+             install(TARGETS ${prog}

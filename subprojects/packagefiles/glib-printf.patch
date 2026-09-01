@@ -1,0 +1,31 @@
+# Makes GLib assume that printf() functions have C99 support to fix cross building to FreeBSD.
+
+--- a/meson.build
++++ b/meson.build
+@@ -1272,7 +1272,7 @@ main(void)
+       have_good_vsnprintf = true
+     endif
+   else
+-      have_good_vsnprintf = meson.get_external_property('have_c99_vsnprintf', false)
++      have_good_vsnprintf = meson.get_external_property('have_c99_vsnprintf', true)
+       glib_conf.set('HAVE_C99_VSNPRINTF', have_good_vsnprintf)
+   endif
+ 
+@@ -1319,7 +1319,7 @@ main(void)
+       have_good_snprintf = true
+     endif
+   else
+-      have_good_snprintf = meson.get_external_property('have_c99_snprintf', false)
++      have_good_snprintf = meson.get_external_property('have_c99_snprintf', true)
+       glib_conf.set('HAVE_C99_SNPRINTF', have_good_snprintf)
+   endif
+ 
+@@ -1346,7 +1346,7 @@ main (void)
+       have_good_printf = true
+     endif
+   else
+-      have_good_printf = meson.get_external_property('have_unix98_printf', false)
++      have_good_printf = meson.get_external_property('have_unix98_printf', true)
+       glib_conf.set('HAVE_UNIX98_PRINTF', have_good_printf)
+   endif
+ endif

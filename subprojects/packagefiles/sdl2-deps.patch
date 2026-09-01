@@ -1,0 +1,72 @@
+# Fixes configure errors when SDL's dependencies are internal dependencies.
+
+--- a/meson.build
++++ b/meson.build
+@@ -388,26 +388,27 @@ endif
+ core_deps = [
+     cc.find_library('m', required : false),
+     cc.find_library('dl', required : false),
++]
++extra_deps = [
+     dbus_dep,
+     ibus_dep,
+     libudev_dep,
+ ]
+-
+ if not opt_system_iconv.disabled()
+-    iconv_dep = cc.find_library('iconv', required : opt_system_iconv)
++    iconv_dep = dependency('iconv', required : opt_system_iconv)
+ else
+     iconv_dep = fake_dep
+ endif
+ 
+-if cc.links('#include <iconv.h>\nint main() { iconv_open("", ""); }', name : 'iconv_open test', dependencies : iconv_dep)
++if iconv_dep.type_name() == 'internal' or cc.links('#include <iconv.h>\nint main() { iconv_open("", ""); }', name : 'iconv_open test', dependencies : iconv_dep)
+     cdata.set10('HAVE_ICONV', true)
+     cdata.set10('HAVE_SYSTEM_ICONV', true)
+     if iconv_dep.found()
+-        core_deps += iconv_dep
++        extra_deps += iconv_dep
+     endif
+ endif
+ 
+-extra_deps = []
++
+ 
+ if meson.get_external_property('threads_dep_is_broken', false)
+     if opt_threads.disabled()
+@@ -579,14 +580,14 @@ endif
+ 
+ cdata.set('SDL_HAVE_LIBDECOR_GET_MIN_MAX',
+     wayland_libdecor_dep.found() and
+-    cc.has_header_symbol(
++    (wayland_libdecor_dep.type_name() == 'internal' or (cc.has_header_symbol(
+         'libdecor.h', 'libdecor_frame_get_max_content_size',
+         prefix : sane_std, dependencies : core_deps + wayland_libdecor_dep
+     ) and
+     cc.has_header_symbol(
+         'libdecor.h', 'libdecor_frame_get_min_content_size',
+         prefix : sane_std, dependencies : core_deps + wayland_libdecor_dep
+-    )
++    )))
+ )
+ 
+ check_functions = [
+@@ -1016,7 +1017,7 @@ if extra_deps.contains(vulkan_dep)
+     sys_video += 'vulkan'
+ endif
+ 
+-if extra_deps.contains(x11_dep)
++if x11_dep.found() and extra_deps.contains(x11_dep)
+     sys_video_driver += 'x11'
+     if extra_deps.contains(glx_dep)
+         sys_gl_wsi += 'glx'
+@@ -1044,7 +1045,7 @@ if extra_deps.contains(x11_dep)
+         sys_video_driver += 'x11_xcursor'
+     endif
+ 
+-    if cc.has_header_symbol('X11/XKBlib.h', 'XkbKeycodeToKeysym', dependencies : x11_dep)
++    if x11_dep.type_name() == 'internal' or cc.has_header_symbol('X11/XKBlib.h', 'XkbKeycodeToKeysym', dependencies : x11_dep)
+         sys_video_driver += 'x11_has_xkbkeycodetokeysym'
+     endif
+ endif

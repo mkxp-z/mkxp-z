@@ -1,0 +1,97 @@
+# Prevents libinotify's build system from rerunning autoconf, to remove the need to have autoconf/automake installed just to build libinotify.
+
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -597,49 +597,49 @@ all: config.h
+ .SUFFIXES: .c .cc .lo .o .obj
+ am--refresh: Makefile
+ 	@:
+-$(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
+-	@for dep in $?; do \
+-	  case '$(am__configure_deps)' in \
+-	    *$$dep*) \
+-	      echo ' cd $(srcdir) && $(AUTOMAKE) --foreign'; \
+-	      $(am__cd) $(srcdir) && $(AUTOMAKE) --foreign \
+-		&& exit 0; \
+-	      exit 1;; \
+-	  esac; \
+-	done; \
+-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign Makefile'; \
+-	$(am__cd) $(top_srcdir) && \
+-	  $(AUTOMAKE) --foreign Makefile
+-Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
+-	@case '$?' in \
+-	  *config.status*) \
+-	    echo ' $(SHELL) ./config.status'; \
+-	    $(SHELL) ./config.status;; \
+-	  *) \
+-	    echo ' cd $(top_builddir) && $(SHELL) ./config.status $@ $(am__maybe_remake_depfiles)'; \
+-	    cd $(top_builddir) && $(SHELL) ./config.status $@ $(am__maybe_remake_depfiles);; \
+-	esac;
+-
+-$(top_builddir)/config.status: $(top_srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
+-	$(SHELL) ./config.status --recheck
+-
+-$(top_srcdir)/configure:  $(am__configure_deps)
+-	$(am__cd) $(srcdir) && $(AUTOCONF)
+-$(ACLOCAL_M4):  $(am__aclocal_m4_deps)
+-	$(am__cd) $(srcdir) && $(ACLOCAL) $(ACLOCAL_AMFLAGS)
+-$(am__aclocal_m4_deps):
+-
+-config.h: stamp-h1
+-	@test -f $@ || rm -f stamp-h1
+-	@test -f $@ || $(MAKE) $(AM_MAKEFLAGS) stamp-h1
+-
+-stamp-h1: $(srcdir)/config.h.in $(top_builddir)/config.status
+-	$(AM_V_at)rm -f stamp-h1
+-	$(AM_V_GEN)cd $(top_builddir) && $(SHELL) ./config.status config.h
+-$(srcdir)/config.h.in:  $(am__configure_deps) 
+-	$(AM_V_GEN)($(am__cd) $(top_srcdir) && $(AUTOHEADER))
+-	$(AM_V_at)rm -f stamp-h1
+-	$(AM_V_at)touch $@
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
+ 
+ distclean-hdr:
+ 	-rm -f config.h stamp-h1

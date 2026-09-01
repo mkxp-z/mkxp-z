@@ -1,0 +1,10 @@
+[wrap-file]
+source_url = https://download.gnome.org/sources/glib/2.84/glib-2.84.1.tar.xz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/ubuntu/pool/main/g/glib2.0/glib2.0_2.84.1.orig.tar.xz
+source_filename = glib-2.84.1.tar.xz
+source_hash = 2b4bc2ec49611a5fc35f86aca855f2ed0196e69e53092bab6bb73396bf30789a
+directory = glib-2.84.1
+diff_files =
+    glib-header-only.patch,
+    glib-printf.patch,
+    end-of-diff-files.patch

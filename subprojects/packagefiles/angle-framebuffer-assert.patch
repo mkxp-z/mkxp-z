@@ -1,0 +1,24 @@
+# The two assertions below invoke unspecified behavior by attempting to check the equality of two constant strings by comparing their pointers.
+# The assertions fail at time of writing when building for Windows with MSYS2's MINGW64 environment with LTO enabled, but not with LTO disabled.
+# This patch changes the assertions to check the contents of the strings rather than the pointers.
+
+--- a/src/libANGLE/Framebuffer.cpp
++++ b/src/libANGLE/Framebuffer.cpp
+@@ -874,7 +874,7 @@ egl::Error Framebuffer::setSurfaces(const Context *context,
+     SetComponentTypeMask(getDrawbufferWriteType(0), 0, &mState.mDrawBufferTypeMask);
+ 
+     ASSERT(mCachedStatus.value().status == GL_FRAMEBUFFER_UNDEFINED_OES);
+-    ASSERT(mCachedStatus.value().reason == err::kFramebufferIncompleteSurfaceless);
++    ASSERT(std::strcmp(mCachedStatus.value().reason, err::kFramebufferIncompleteSurfaceless) == 0);
+     if (surface)
+     {
+         mCachedStatus = FramebufferStatus::Complete();
+@@ -942,7 +942,7 @@ egl::Error Framebuffer::unsetSurfaces(const Context *context)
+         ASSERT(!mState.mDepthAttachment.isAttached());
+         ASSERT(!mState.mStencilAttachment.isAttached());
+         ASSERT(mCachedStatus.value().status == GL_FRAMEBUFFER_UNDEFINED_OES);
+-        ASSERT(mCachedStatus.value().reason == err::kFramebufferIncompleteSurfaceless);
++        ASSERT(std::strcmp(mCachedStatus.value().reason, err::kFramebufferIncompleteSurfaceless) == 0);
+     }
+ 
+     mState.mDefaultFramebufferReadAttachment.detach(context, mState.mFramebufferSerial);

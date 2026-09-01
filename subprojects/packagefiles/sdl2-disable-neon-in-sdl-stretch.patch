@@ -1,0 +1,25 @@
+From d3ac4c3742a405e719071fc4f5a7ba8a125c76a1 Mon Sep 17 00:00:00 2001
+From: Splendide Imaginarius
+ <119545140+Splendide-Imaginarius@users.noreply.github.com>
+Date: Mon, 9 Oct 2023 08:10:21 +0000
+Subject: [PATCH] Disable NEON in SDL_stretch.c
+
+Maybe we can re-enable NEON once this PR is included in mkxp-z's fork?
+https://github.com/libsdl-org/SDL/pull/7579
+---
+ src/video/SDL_stretch.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/video/SDL_stretch.c b/src/video/SDL_stretch.c
+index ec2bed5cc..0dae4fe94 100644
+--- a/src/video/SDL_stretch.c
++++ b/src/video/SDL_stretch.c
+@@ -337,7 +337,7 @@ static int scale_mat(const Uint32 *src, int src_w, int src_h, int src_pitch,
+ #define HAVE_SSE2_INTRINSICS 1
+ #endif
+ 
+-#if defined(__ARM_NEON)
++#if 0 //defined(__ARM_NEON)
+ #define HAVE_NEON_INTRINSICS 1
+ #define CAST_uint8x8_t       (uint8x8_t)
+ #define CAST_uint32x2_t      (uint32x2_t)

@@ -1,0 +1,16 @@
+# Fixes a compilation error in src/libANGLE/ResourceMap.h when building with GCC 11.
+# This static assertion is guarded by `if constexpr (kAdditionalFlatResourcesSize > 0)`.
+# However, GCC 11 evaluates the static assertion even when the constexpr condition is false,
+# leading to an assertion error if the constexpr condition is false.
+
+--- a/src/libANGLE/ResourceMap.h
++++ b/src/libANGLE/ResourceMap.h
+@@ -460,7 +460,7 @@ void ResourceMap<ResourceType, IDType>::assignAboveCurrentFlatSize(GLuint handle
+     {
+         // This should only possible when lock is needed. Otherwise we could just grow
+         // mFlatResources.
+-        static_assert(kNeedsLock);
++        static_assert(kNeedsLock || kAdditionalFlatResourcesSize == 0);
+         if (handle < kLocklessFlatResourcesLimit)
+         {
+             ResourceType **additionalResources =

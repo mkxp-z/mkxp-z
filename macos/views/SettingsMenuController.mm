@@ -32,6 +32,8 @@
 
 #import "assert.h"
 
+#include "settingsmenu.nib.xxd"
+
 static const int inputMapRowToCode[] {
     Input::Down, Input::Left, Input::Right, Input::Up,
     Input::A, Input:: B, Input::C, Input::X, Input::Y, Input::Z,
@@ -41,6 +43,8 @@ static const int inputMapRowToCode[] {
 typedef NSMutableArray<NSNumber*> BindingIndexArray;
 
 @implementation SettingsMenu {
+    NSArray *_topLevelObjects;
+
     __weak IBOutlet NSWindow *_window;
     __weak IBOutlet NSTableView *_table;
     __weak IBOutlet NSBox *bindingBox;
@@ -71,7 +75,7 @@ typedef NSMutableArray<NSNumber*> BindingIndexArray;
 }
 
 +(SettingsMenu*)openWindow {
-    SettingsMenu *s = [[SettingsMenu alloc] initWithNibName:@"settingsmenu" bundle:NSBundle.mainBundle];
+    SettingsMenu *s = [[SettingsMenu alloc] initWithNibName:nil bundle:nil];
     // Show the window as a sheet, window events will be sucked up by SDL though
     //[NSApplication.sharedApplication.mainWindow beginSheet:s.view.window completionHandler:^(NSModalResponse _){}];
     
@@ -86,6 +90,15 @@ typedef NSMutableArray<NSNumber*> BindingIndexArray;
     [win makeKeyAndOrderFront:self];
     [s checkController];
     return s;
+}
+
+-(void)loadView {
+    NSData *data = [NSData dataWithBytesNoCopy:(void *)mkxp_macos_settingsmenu_nib length:mkxp_macos_settingsmenu_nib_len freeWhenDone:false];
+    NSArray *topLevelObjects;
+    if (![[[NSNib alloc] initWithNibData:data bundle:nil] instantiateWithOwner:self topLevelObjects:&topLevelObjects]) {
+        [[NSException exceptionWithName:NSInternalInconsistencyException reason:@"could not load settingsmenu.nib" userInfo:nil] raise];
+    }
+    _topLevelObjects = topLevelObjects; // View controllers need to have a strong reference to all of their top-level objects
 }
 
 -(SettingsMenu*)raise {

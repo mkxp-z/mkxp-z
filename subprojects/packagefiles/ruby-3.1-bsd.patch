@@ -1,0 +1,108 @@
+# Fixes compilation errors when building for FreeBSD.
+
+--- a/missing/crypt.c
++++ b/missing/crypt.c
+@@ -35,7 +35,16 @@ static char sccsid[] = "@(#)crypt.c	8.1 (Berkeley) 6/4/93";
+ #endif /* LIBC_SCCS and not lint */
+ 
+ #include "ruby/missing.h"
++#define crypt_data mkxp_crypt_data
++#define crypt mkxp_crypt
++#define crypt_r mkxp_crypt_r
+ #include "crypt.h"
++#undef crypt_data
++#undef crypt
++#undef crypt_r
++#define crypt_data mkxp_dummy_crypt_data
++#define crypt mkxp_dummy_crypt
++#define crypt_r mkxp_dummy_crypt_r
+ #ifdef HAVE_UNISTD_H
+ #include <unistd.h>
+ #endif
+@@ -45,6 +54,12 @@ static char sccsid[] = "@(#)crypt.c	8.1 (Berkeley) 6/4/93";
+ #endif
+ #include <stdio.h>
+ #include <string.h>
++#undef crypt_data
++#undef crypt
++#undef crypt_r
++#define crypt_data mkxp_crypt_data
++#define crypt mkxp_crypt
++#define crypt_r mkxp_crypt_r
+ #ifndef _PASSWORD_EFMT1
+ #define _PASSWORD_EFMT1 '_'
+ #endif
+--- a/string.c
++++ b/string.c
+@@ -11,6 +11,10 @@
+ 
+ **********************************************************************/
+ 
++#define crypt_data mkxp_dummy_crypt_data
++#define crypt mkxp_dummy_crypt
++#define crypt_r mkxp_dummy_crypt_r
++
+ #include "ruby/internal/config.h"
+ 
+ #include <ctype.h>
+@@ -46,6 +50,13 @@
+ #include "ruby_assert.h"
+ #include "vm_sync.h"
+ 
++#undef crypt_data
++#undef crypt
++#undef crypt_r
++#define crypt_data mkxp_crypt_data
++#define crypt mkxp_crypt
++#define crypt_r mkxp_crypt_r
++
+ #if defined HAVE_CRYPT_R
+ # if defined HAVE_CRYPT_H
+ #  include <crypt.h>
+--- a/thread_pthread.c
++++ b/thread_pthread.c
+@@ -748,13 +748,13 @@ size_t pthread_get_stacksize_np(pthread_t);
+  */
+ static int
+ get_stack(void **addr, size_t *size)
+-{
++{STACK_GROW_DIR_DETECTION;
+ #define CHECK_ERR(expr)				\
+     {int err = (expr); if (err) return err;}
+ #ifdef HAVE_PTHREAD_GETATTR_NP /* Linux */
+     pthread_attr_t attr;
+     size_t guard = 0;
+-    STACK_GROW_DIR_DETECTION;
++
+     CHECK_ERR(pthread_getattr_np(pthread_self(), &attr));
+ # ifdef HAVE_PTHREAD_ATTR_GETSTACK
+     CHECK_ERR(pthread_attr_getstack(&attr, addr, size));
+@@ -811,7 +811,7 @@ get_stack(void **addr, size_t *size)
+     STACK_DIR_UPPER((void)0, (void)(*addr = (char *)*addr + *size));
+ #elif defined __HAIKU__
+     thread_info info;
+-    STACK_GROW_DIR_DETECTION;
++
+     CHECK_ERR(get_thread_info(find_thread(NULL), &info));
+     *addr = info.stack_base;
+     *size = (uintptr_t)info.stack_end - (uintptr_t)info.stack_base;
+--- a/util.c
++++ b/util.c
+@@ -227,7 +227,7 @@ typedef int (cmpfunc_t)(const void*, const void*, void*);
+ # define HAVE_BSD_QSORT_R 1
+ #endif
+ 
+-#if defined HAVE_BSD_QSORT_R
++#if !defined HAVE_GNU_QSORT_R && defined HAVE_BSD_QSORT_R
+ struct bsd_qsort_r_args {
+     cmpfunc_t *cmp;
+     void *arg;
+@@ -248,7 +248,7 @@ ruby_qsort(void* base, const size_t nel, const size_t size, cmpfunc_t *cmp, void
+     args.arg = d;
+     qsort_r(base, nel, size, &args, cmp_bsd_qsort);
+ }
+-#elif defined HAVE_QSORT_S
++#elif !defined HAVE_GNU_QSORT_R && defined HAVE_QSORT_S
+ /* C11 qsort_s has the same arguments as GNU's, but uses
+  * runtime-constraints handler. */
+ void

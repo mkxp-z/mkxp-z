@@ -1,0 +1,24 @@
+# Prevents Vorbis from trying to look for Ogg externally since we already handled that ourselves.
+
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -62,7 +62,7 @@ message(STATUS "Configuring ${PROJECT_NAME} ${PROJECT_VERSION}")
+ check_library_exists(m floor "" HAVE_LIBM)
+ 
+ # Find ogg dependency
+-find_package(Ogg REQUIRED)
++
+ 
+ add_subdirectory(lib)
+ 
+--- a/lib/CMakeLists.txt
++++ b/lib/CMakeLists.txt
+@@ -106,7 +106,7 @@ if (NOT BUILD_FRAMEWORK)
+     )
+ 
+     target_link_libraries(vorbis
+-        PUBLIC Ogg::ogg
++
+         PRIVATE $<$<BOOL:${HAVE_LIBM}>:m>
+     )
+     target_link_libraries(vorbisenc PUBLIC vorbis)

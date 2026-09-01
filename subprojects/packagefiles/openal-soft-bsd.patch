@@ -1,0 +1,20 @@
+# Fixes linker errors when building for FreeBSD.
+
+--- a/meson.build
++++ b/meson.build
+@@ -6,6 +6,15 @@ project(
+   meson_version: '>=0.58',
+ )
+ 
++if meson.get_compiler('cpp').has_header('threads.h') and not meson.get_compiler('cpp').links('''
++  #include <threads.h>
++  int main(void) {
++    return tss_create(nullptr, nullptr);
++  }
++''', name: 'threads.h thread-specific storage sanity check', dependencies: dependency('threads'))
++  add_project_arguments('-D__STDC_NO_THREADS__=1', language: 'cpp')
++endif
++
+ cpp_std = 'cpp_std=c++17'
+ 
+ cpp = meson.get_compiler('cpp')

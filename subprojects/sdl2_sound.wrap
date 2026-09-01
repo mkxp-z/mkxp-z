@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://github.com/icculus/SDL_sound/releases/download/v2.0.4/SDL2_sound-2.0.4.tar.gz
+source_filename = SDL2_sound-2.0.4.tar.gz
+source_hash = f73f6720dba2e677c0bf70d0c76ca3c96d865d04025e49a8b161711685961931
+directory = SDL2_sound-2.0.4
+method = cmake
+diff_files =
+    sdl2_sound-deps.patch,
+    end-of-diff-files.patch

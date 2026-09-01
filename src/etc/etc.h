@@ -206,7 +206,7 @@ enum InterpolationMethod
 	Bilinear = 1,
 	Bicubic = 2,
 	Lanczos3 = 3,
-#ifdef MKXPZ_SSL
+#ifdef MKXPZ_HAVE_EXTRA_SHADERS
 	xBRZ = 4,
 #endif
 };

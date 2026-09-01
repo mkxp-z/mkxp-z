@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://gitlab.freedesktop.org/libdecor/libdecor/-/archive/0.2.2/libdecor-0.2.2.tar.gz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/ubuntu/pool/main/libd/libdecor-0/libdecor-0_0.2.2.orig.tar.gz
+source_filename = libdecor-0.2.2.tar.gz
+source_hash = 40a1d8be07d8b1f66e8fb98a1f4a84549ca6bf992407198a5055952be80a8525
+directory = libdecor-0.2.2
+patch_directory = libdecor
+diff_files =
+    end-of-diff-files.patch

@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.3.tar.gz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/ubuntu/pool/main/x/xxhash/xxhash_0.8.3.orig.tar.gz
+source_filename = xxHash-0.8.3.tar.gz
+source_hash = aae608dfe8213dfd05d909a57718ef82f30722c392344583d3f39050c7f29a80
+directory = xxHash-0.8.3
+patch_directory = xxhash
+diff_files =
+    end-of-diff-files.patch

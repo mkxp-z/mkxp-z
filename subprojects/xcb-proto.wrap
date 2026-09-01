@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://xorg.freedesktop.org/releases/individual/xcb/xcb-proto-1.17.0.tar.gz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/ubuntu/pool/universe/x/xcb-proto/xcb-proto_1.17.0.orig.tar.gz
+source_filename = xcb-proto-1.17.0.tar.gz
+source_hash = 392d3c9690f8c8202a68fdb89c16fd55159ab8d65000a6da213f4a1576e97a16
+directory = xcb-proto-1.17.0
+patch_directory = xcb-proto
+diff_files =
+    end-of-diff-files.patch

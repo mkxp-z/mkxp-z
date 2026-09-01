@@ -1,0 +1,8 @@
+[wrap-file]
+source_url = https://github.com/KhronosGroup/SPIRV-Headers/archive/refs/tags/vulkan-sdk-1.4.350.0.tar.gz
+source_filename = SPIRV-Headers-vulkan-sdk-1.4.350.0.tar.gz
+source_hash = 9905d9341f20388adb852c77dd982f2c4d539fd68e6c1f1bcebf034715f2d1d5
+directory = SPIRV-Headers-vulkan-sdk-1.4.350.0
+patch_directory = spirv-headers
+diff_files =
+    end-of-diff-files.patch

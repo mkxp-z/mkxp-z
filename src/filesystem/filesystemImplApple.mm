@@ -8,8 +8,6 @@
 #import <AppKit/AppKit.h>
 #import <SDL_syswm.h>
 
-#import <SDL_filesystem.h>
-
 #import "filesystemImpl.h"
 #import "util/exception.h"
 
@@ -63,52 +61,22 @@ std::string filesystemImpl::normalizePath(const char *path, bool preferred, bool
 
 std::string filesystemImpl::getDefaultGameRoot() {
     @autoreleasepool {
-        NSString *p = [NSString stringWithFormat: @"%@/%s", NSBundle.mainBundle.bundlePath, "Contents/Game"];
-        return std::string(NSTOPATH(p));
-    }
-}
-
-NSString *getPathForAsset_internal(const char *baseName, const char *ext) {
-    NSBundle *assetBundle = [NSBundle bundleWithPath:
-                             [NSString stringWithFormat:
-                              @"%@/%s",
-                              NSBundle.mainBundle.resourcePath,
-                              "Assets.bundle"
-                             ]
-                            ];
-    
-    if (assetBundle == nil)
-        return nil;
-    
-    return [assetBundle pathForResource: @(baseName) ofType: @(ext)];
-}
-
-std::string filesystemImpl::getPathForAsset(const char *baseName, const char *ext) {
-    @autoreleasepool {
-        NSString *assetPath = getPathForAsset_internal(baseName, ext);
-        if (assetPath == nil)
-            throw Exception(Exception::NoFileError, "Failed to find the asset named %s.%s", baseName, ext);
-        
-        return std::string(NSTOPATH(getPathForAsset_internal(baseName, ext)));
-    }
-}
-
-std::string filesystemImpl::contentsOfAssetAsString(const char *baseName, const char *ext) {
-    @autoreleasepool {
-        NSString *path = getPathForAsset_internal(baseName, ext);
-        NSString *fileContents = [NSString stringWithContentsOfFile: path];
-        
-        // This should never fail
-        if (fileContents == nil)
-            throw Exception(Exception::MKXPError, "Failed to read file at %s", path.UTF8String);
-        
-        return std::string(fileContents.UTF8String);
-    }
-}
-
-std::string filesystemImpl::getResourcePath() {
-    @autoreleasepool {
-        return std::string(NSTOPATH(NSBundle.mainBundle.resourcePath));
+        NSString *defaultGameRoot = nil;
+        if ([[NSBundle mainBundle] bundleIdentifier] == nil) {
+            /* The executable isn't inside of a bundle; use the directory containing the executable as the default game root */
+            defaultGameRoot = [[NSBundle mainBundle] bundlePath];
+        } else {
+            NSString *contentsGamePath = [[[[NSBundle mainBundle] bundlePath] stringByAppendingPathComponent:@"Contents"] stringByAppendingPathComponent:@"Game"];
+            BOOL isDir;
+            if ([[NSFileManager defaultManager] fileExistsAtPath:contentsGamePath isDirectory:&isDir] && isDir) {
+                /* The executable is inside of a bundle and Contents/Game exists inside the bundle; use Contents/Game in the bundle as the default game root */
+                defaultGameRoot = contentsGamePath;
+            } else {
+                /* The executable is inside of a bundle and Contents/Game doesn't exist inside the bundle; use the directory that contains the bundle as the default game root */
+                defaultGameRoot = [[[NSBundle mainBundle] bundlePath] stringByDeletingLastPathComponent];
+            }
+        }
+        return std::string(NSTOPATH(defaultGameRoot));
     }
 }
 

@@ -1,0 +1,13 @@
+# Fixes a compilation error in OpenSSL if building for big-endian 64-bit PowerPC architecture Linux.
+
+--- a/generated-config/archs/linux-ppc64le/no-asm/meson.build
++++ b/generated-config/archs/linux-ppc64le/no-asm/meson.build
+@@ -961,7 +961,7 @@ libssl_sources = [
+ ]
+ openssl_defines = [
+   'OPENSSL_USE_NODELETE',
+-  'L_ENDIAN',
++  host_machine.endian() == 'big' ? 'B_ENDIAN' : 'L_ENDIAN',
+   'OPENSSL_BUILDING_OPENSSL',
+   'OPENSSL_PIC',
+ ]

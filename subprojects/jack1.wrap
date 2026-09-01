@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://github.com/jackaudio/jack1/releases/download/0.126.0/jack1-0.126.0.tar.gz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/ubuntu/pool/universe/j/jack-audio-connection-kit/jack-audio-connection-kit_0.126.0.orig.tar.gz
+source_filename = jack1-0.126.0.tar.gz
+source_hash = 7b290e9dc7b9262ac328d41eef80c1053c97013efacbefa30477cb9b2a5445ea
+directory = jack1-0.126.0
+patch_directory = jack1
+diff_files =
+    end-of-diff-files.patch

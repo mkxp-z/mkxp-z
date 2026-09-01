@@ -1,0 +1,4 @@
+# Makes GitHub ignore changes in these 3 files in commit diffs, and makes GitHub Linguist exclude these 3 files from the language breakdown
+/configure linguist-generated
+/tool/config.guess linguist-generated
+/tool/config.sub linguist-generated

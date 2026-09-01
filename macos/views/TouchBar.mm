@@ -18,6 +18,9 @@
 #import "display/graphics.h"
 #import "config.h"
 
+#include "gear.png.xxd"
+#include "gobackward.png.xxd"
+
 MKXPZTouchBar *_sharedTouchBar;
 
 @interface MKXPZTouchBar () {
@@ -87,12 +90,14 @@ MKXPZTouchBar *_sharedTouchBar;
 -(NSTouchBarItem *)touchBar:(NSTouchBar *)touchBar makeItemForIdentifier:(NSTouchBarItemIdentifier)identifier {
     NSCustomTouchBarItem *ret = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
     if ([identifier isEqualToString:@"reset"]) {
-        ret.view = [NSButton buttonWithImage:[NSImage imageNamed:@"gobackward"] target:self action:@selector(simF12)];
+        NSData *data = [NSData dataWithBytesNoCopy:(void *)mkxp_macos_gobackward_png length:mkxp_macos_gobackward_png_len freeWhenDone:false];
+        ret.view = [NSButton buttonWithImage:[[NSImage alloc] initWithData:data] target:self action:@selector(simF12)];
         
         ((NSButton*)ret.view).bezelColor = [NSColor colorWithRed:0xac/255.0 green:0x14/255.0 blue:0x01/255.0 alpha:1.0];
     }
     else if ([identifier isEqualToString:@"rebind"]) {
-        ret.view = [NSButton buttonWithImage:[NSImage imageNamed:@"gear"] target:self action:@selector(openSettingsMenu)];
+        NSData *data = [NSData dataWithBytesNoCopy:(void *)mkxp_macos_gear_png length:mkxp_macos_gear_png_len freeWhenDone:false];
+        ret.view = [NSButton buttonWithImage:[[NSImage alloc] initWithData:data] target:self action:@selector(openSettingsMenu)];
     }
     else if ([identifier isEqualToString:@"icon"]) {
         NSImage *appIcon = [[NSApplication sharedApplication] applicationIconImage];

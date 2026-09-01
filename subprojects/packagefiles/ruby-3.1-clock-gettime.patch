@@ -1,0 +1,62 @@
+From 3e47e7a499acd256be549935fcb559d3c82e556c Mon Sep 17 00:00:00 2001
+From: Nobuyoshi Nakada <nobu@ruby-lang.org>
+Date: Sun, 11 May 2025 14:47:02 +0900
+Subject: [PATCH] Fix redefinition of `clock_gettime` and `clock_getres`
+
+winpthreads-git 12.0.0.r720 provides `clock_gettime` and
+`clock_getres` as inline functions.
+---
+ include/ruby/win32.h | 7 +++++++
+ win32/win32.c        | 4 ++++
+ 2 files changed, 11 insertions(+)
+
+diff --git a/include/ruby/win32.h b/include/ruby/win32.h
+index 27a3467606cd44..80e1418a1acedb 100644
+--- a/include/ruby/win32.h
++++ b/include/ruby/win32.h
+@@ -126,8 +126,15 @@ typedef unsigned int uintptr_t;
+ #define O_SHARE_DELETE 0x20000000 /* for rb_w32_open(), rb_w32_wopen() */
+ 
+ typedef int clockid_t;
++#if defined(__MINGW32__)
++#undef CLOCK_PROCESS_CPUTIME_ID
++#undef CLOCK_THREAD_CPUTIME_ID
++#undef CLOCK_REALTIME_COARSE
++#endif
++#if defined(HAVE_CLOCK_GETTIME) && !defined(CLOCK_REALTIME)
+ #define CLOCK_REALTIME  0
+ #define CLOCK_MONOTONIC 1
++#endif
+ 
+ #undef utime
+ #undef lseek
+diff --git a/win32/win32.c b/win32/win32.c
+index a2daba2fa12f4e..c57ac49991ed71 100644
+--- a/win32/win32.c
++++ b/win32/win32.c
+@@ -4761,6 +4761,7 @@ gettimeofday(struct timeval *tv, struct timezone *tz)
+     return 0;
+ }
+ 
++#if !defined(__MINGW32__) || !defined(HAVE_CLOCK_GETTIME)
+ /* License: Ruby's */
+ int
+ clock_gettime(clockid_t clock_id, struct timespec *sp)
+@@ -4800,7 +4801,9 @@ clock_gettime(clockid_t clock_id, struct timespec *sp)
+         return -1;
+     }
+ }
++#endif
+ 
++#if !defined(__MINGW32__) || !defined(HAVE_CLOCK_GETRES)
+ /* License: Ruby's */
+ int
+ clock_getres(clockid_t clock_id, struct timespec *sp)
+@@ -4828,6 +4831,7 @@ clock_getres(clockid_t clock_id, struct timespec *sp)
+         return -1;
+     }
+ }
++#endif
+ 
+ /* License: Ruby's */
+ static char *

@@ -1,0 +1,33 @@
+# Prevents SDL_ttf from trying to look for SDL and FreeType externally since we already handled that ourselves.
+
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -49,10 +49,10 @@ include(GNUInstallDirs)
+ include(CMakePackageConfigHelpers)
+ 
+ if (NOT (TARGET SDL2 OR TARGET SDL2-static))
+-  find_package(SDL2 REQUIRED)
++
+ endif()
+ if (NOT (TARGET Freetype::Freetype))
+-  find_package(Freetype REQUIRED)
++
+ endif()
+ find_package(PkgConfig QUIET)
+ 
+@@ -66,12 +66,12 @@ set(SDL_TTF_VERSION "${SDL_TTF_MAJOR_VERSION}.${SDL_TTF_MINOR_VERSION}.${SDL_TTF
+ ##### library generation #####
+ add_library(SDL2_ttf SDL_ttf.c SDL_ttf.h)
+ if (BUILD_SHARED_LIBS)
+-  target_link_libraries(SDL2_ttf SDL2::SDL2)
++
+ else ()
+-  target_link_libraries(SDL2_ttf SDL2::SDL2-static)
++
+   set_target_properties(SDL2_ttf PROPERTIES POSITION_INDEPENDENT_CODE ON)
+ endif ()
+-target_link_libraries(SDL2_ttf Freetype::Freetype)
++
+ target_include_directories(SDL2_ttf PUBLIC $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SDL2>)
+ 
+ install(

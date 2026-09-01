@@ -1,0 +1,15 @@
+[binaries]
+c = ['ccache', 'clang', '--target=arm64-apple-macos11.0']
+cpp = ['ccache', 'clang++', '--target=arm64-apple-macos11.0']
+objc = ['ccache', 'clang', '--target=arm64-apple-macos11.0']
+objcpp = ['ccache', 'clang++', '--target=arm64-apple-macos11.0']
+ibtool = 'ibtool'
+ar = 'ar'
+strip = 'strip'
+cmake = 'cmake'
+
+[host_machine]
+system = 'darwin'
+cpu_family = 'aarch64'
+cpu = 'aarch64'
+endian = 'little'

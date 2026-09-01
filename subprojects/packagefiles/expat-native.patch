@@ -1,0 +1,66 @@
+# Builds expat for the build machine instead of for the host machine.
+
+--- a/meson.build
++++ b/meson.build
+@@ -31,7 +31,7 @@ project(
+ dllver = '1.11.3'
+ 
+ config = configuration_data()
+-cc = meson.get_compiler('c')
++cc = meson.get_compiler('c', native: true)
+ 
+ config.set('PACKAGE_NAME', meson.project_name())
+ config.set('PACKAGE_TARNAME', meson.project_name())
+@@ -85,7 +85,7 @@ foreach f : ['getpagesize', 'mmap', 'getrandom']
+   config.set('HAVE_@0@'.format(f.to_upper()), cc.has_function(f))
+ endforeach
+ 
+-if host_machine.endian() == 'little'
++if build_machine.endian() == 'little'
+   config.set('BYTEORDER', 1234)
+ else
+   config.set('BYTEORDER', 4321)
+@@ -131,7 +131,7 @@ if cc.get_argument_syntax() == 'msvc'
+   )
+ endif
+ 
+-if host_machine.system() == 'windows'
++if build_machine.system() == 'windows'
+   add_project_arguments(
+     '-DXMLCALL=WINAPIV',
+     language: 'c',
+@@ -204,7 +204,7 @@ sources = files('lib/xmlparse.c', 'lib/xmlrole.c', 'lib/xmltok.c')
+ 
+ link_args = []
+ 
+-if host_machine.system() == 'windows'
++if build_machine.system() == 'windows'
+   sources += import('windows').compile_resources(
+     verf,
+     args: '-DVER_FILEVERSION=@0@,0'.format(
+@@ -223,9 +223,9 @@ libexpat = library(
+   link_args: link_args,
+   include_directories: incdir,
+   version: dllver,
+-  soversion: host_machine.system() != 'windows' ? '1' : '',
++  soversion: build_machine.system() != 'windows' ? '1' : '',
+   vs_module_defs: dfile,
+-  install: true,
++  native: true,
+   gnu_symbol_visibility: 'hidden',
+ )
+ 
+@@ -234,10 +234,10 @@ expat_dep = declare_dependency(
+   include_directories: incdir,
+   compile_args: expat_static_args,
+ )
+-meson.override_dependency('expat', expat_dep)
++meson.override_dependency('expat', expat_dep, native: true)
++
++
+ 
+-pkg = import('pkgconfig')
+-pkg.generate(libexpat)
+ 
+ if get_option('build_tests')
+   add_languages('cpp')

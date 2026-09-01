@@ -1,0 +1,78 @@
+# Stops libinotify's build system from adding `-Werror` to the compiler flags.
+
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -546,7 +546,7 @@ ACLOCAL_AMFLAGS = -I m4
+ @BUILD_LIBRARY_TRUE@	$(am__append_4) $(am__append_5) \
+ @BUILD_LIBRARY_TRUE@	$(am__append_6) $(am__append_7) \
+ @BUILD_LIBRARY_TRUE@	compat/tree.h
+-@BUILD_LIBRARY_TRUE@libinotify_la_CFLAGS = -I. @DEBUG_CFLAGS@ @PTHREAD_CFLAGS@ -Wall -Werror
++@BUILD_LIBRARY_TRUE@libinotify_la_CFLAGS = -I. @DEBUG_CFLAGS@ @PTHREAD_CFLAGS@ -Wall
+ @BUILD_LIBRARY_TRUE@libinotify_la_LDFLAGS = @PTHREAD_LIBS@
+ inotify_test_SOURCES = inotify-test.c
+ inotify_test_LDADD = libinotify.la
+--- a/configure
++++ b/configure
+@@ -18829,34 +18829,34 @@ esac
+ # -Werror. We throw in some extra Clang-specific options to ensure that
+ # this doesn't happen for GCC, which also accepts -Werror.
+ 
+-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if compiler needs -Werror to reject unknown flags" >&5
+-printf %s "checking if compiler needs -Werror to reject unknown flags... " >&6; }
+-save_CFLAGS="$CFLAGS"
+-ax_pthread_extra_flags="-Werror"
+-CFLAGS="$CFLAGS $ax_pthread_extra_flags -Wunknown-warning-option -Wsizeof-array-argument"
+-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+-/* end confdefs.h.  */
+-int foo(void);
+-int
+-main (void)
+-{
+-foo()
+-  ;
+-  return 0;
+-}
+-_ACEOF
+-if ac_fn_c_try_compile "$LINENO"
+-then :
+-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+-printf "%s\n" "yes" >&6; }
+-else case e in #(
+-  e) ax_pthread_extra_flags=
+-                   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+-printf "%s\n" "no" >&6; } ;;
+-esac
+-fi
+-rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+-CFLAGS="$save_CFLAGS"
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
+ 
+ if test x"$ax_pthread_ok" = xno; then
+ for flag in $ax_pthread_flags; do

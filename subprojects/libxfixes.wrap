@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://xorg.freedesktop.org/releases/individual/lib/libXfixes-6.0.0.tar.gz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/ubuntu/pool/main/libx/libxfixes/libxfixes_6.0.0.orig.tar.gz
+source_filename = libXfixes-6.0.0.tar.gz
+source_hash = 82045da5625350838390c9440598b90d69c882c324ca92f73af9f0e992cb57c7
+directory = libXfixes-6.0.0
+patch_directory = libxfixes
+diff_files =
+    end-of-diff-files.patch

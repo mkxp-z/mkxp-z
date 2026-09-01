@@ -1,0 +1,8 @@
+[wrap-file]
+source_url = https://cairographics.org/releases/pixman-0.46.4.tar.gz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/ubuntu/pool/main/p/pixman/pixman_0.46.4.orig.tar.gz
+source_filename = pixman-0.46.4.tar.gz
+source_hash = d09c44ebc3bd5bee7021c79f922fe8fb2fb57f7320f55e97ff9914d2346a591c
+directory = pixman-0.46.4
+diff_files =
+    end-of-diff-files.patch

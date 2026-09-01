@@ -1,0 +1,12 @@
+[wrap-file]
+source_url = https://github.com/libinotify-kqueue/libinotify-kqueue/releases/download/20240724/libinotify-20240724.tar.gz
+source_filename = libinotify-20240724.tar.gz
+source_hash = 5cc3fb7af407b17b7daa871cc98bb882716c4b5c296fadfb66bfe86c37cc599c
+directory = libinotify-20240724
+patch_directory = libinotify
+diff_files =
+    libinotify-cross.patch,
+    libinotify-reconfig.patch,
+    libinotify-tests.patch,
+    libinotify-werror.patch,
+    end-of-diff-files.patch

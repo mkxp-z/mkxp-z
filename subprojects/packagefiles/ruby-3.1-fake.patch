@@ -1,0 +1,16 @@
+# Fixes errors when running the -fake.rb script during the Ruby build process when building Ruby on a Windows computer.
+
+--- a/template/fake.rb.in
++++ b/template/fake.rb.in
+@@ -39,9 +39,9 @@ class Object
+     <%end%><%=v.inspect%>
+ % }
+ end
+-builddir = File.dirname(File.expand_path(__FILE__))
++builddir = File.dirname(File.expand_path(__FILE__)); if /^CYGWIN|^MINGW|^MSYS/ =~ `uname -s` then r, w = IO.pipe; Process.wait(Process.spawn('cygpath', '-m', builddir, out: w)); w.close; builddir = r.gets.strip; r.close end
+ srcdir = "<%=arg['srcdir']%>"
+-top_srcdir = File.realpath(srcdir, builddir)
++top_srcdir = File.realpath(srcdir)
+ fake = File.join(top_srcdir, "tool/fake.rb")
+ eval(File.binread(fake), nil, fake)
+ ropt = "-r#{__FILE__}"

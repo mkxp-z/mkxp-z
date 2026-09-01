@@ -38,10 +38,6 @@
 #include <array>
 #include <unordered_map>
 
-#ifdef MKXPZ_BUILD_XCODE
-#include "filesystem/filesystem.h"
-#endif
-
 #include <SDL_ttf.h>
 
 #include <ft2build.h>
@@ -50,7 +46,6 @@
 #include FT_TRUETYPE_TABLES_H
 #include FT_TRUETYPE_IDS_H
 
-#ifndef MKXPZ_BUILD_XCODE
 #ifndef MKXPZ_CJK_FONT
 #include "liberation.ttf.xxd"
 #else
@@ -64,20 +59,12 @@
 #define BUNDLED_FONT wqymicrohei
 #endif
 
-#define BUNDLED_FONT_DECL(FONT) \
-	extern unsigned char ___assets_##FONT##_ttf[]; \
-	extern unsigned int ___assets_##FONT##_ttf_len;
-
-BUNDLED_FONT_DECL(liberation)
-
-#define BUNDLED_FONT_D(f) ___assets_## f ##_ttf
-#define BUNDLED_FONT_L(f) ___assets_## f ##_ttf_len
+#define BUNDLED_FONT_D(f) mkxp_assets_## f ##_ttf
+#define BUNDLED_FONT_L(f) mkxp_assets_## f ##_ttf_len
 
 // Go fuck yourself CPP
 #define BNDL_F_D(f) BUNDLED_FONT_D(f)
 #define BNDL_F_L(f) BUNDLED_FONT_L(f)
-
-#endif
 
 /* Dirty hack to get the FT_Face.
  * SDL_ttf will probably never move it from the beginning of the struct. */
@@ -85,11 +72,7 @@ BUNDLED_FONT_DECL(liberation)
 
 static SDL_RWops *openBundledFont()
 {
-#ifndef MKXPZ_BUILD_XCODE
     return SDL_RWFromConstMem(BNDL_F_D(BUNDLED_FONT), BNDL_F_L(BUNDLED_FONT));
-#else
-    return SDL_RWFromFile(mkxp_fs::getPathForAsset("Fonts/liberation", "ttf").c_str(), "rb");
-#endif
 }
 
 
@@ -534,7 +517,7 @@ static int calc_ppem_for_height(Font_Container *font, int height)
 }
 /* /wine */
 
-_TTF_Font *SharedFontState::getFont(std::string family,
+MKXPZ_TTF_FONT *SharedFontState::getFont(std::string family,
                                     int size, float hiresMult, int outline_size)
 {
 	std::transform(family.begin(), family.end(), family.begin(),
@@ -686,7 +669,7 @@ bool SharedFontState::fontPresent(std::string family) const
 	return !set->empty();
 }
 
-_TTF_Font *SharedFontState::openBundled(int size)
+MKXPZ_TTF_FONT *SharedFontState::openBundled(int size)
 {
 	SDL_RWops *ops = openBundledFont();
 
@@ -997,9 +980,9 @@ void Font::initDefaults(const SharedFontState &sfs)
 	FontPrivate::defaultShadow  = (rgssVer == 2 ? true : false);
 }
 
-_TTF_Font *Font::getSdlFont(int outline_size)
+MKXPZ_TTF_FONT *Font::getSdlFont(int outline_size)
 {
-	_TTF_Font **font;
+	MKXPZ_TTF_FONT **font;
 	if (outline_size == 0)
 		font = &p->sdlFont;
 	else

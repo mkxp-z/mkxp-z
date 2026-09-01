@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://github.com/yaml/libyaml/archive/refs/tags/0.2.5.tar.gz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/ubuntu/pool/main/liby/libyaml/libyaml_0.2.5.orig.tar.gz
+source_filename = libyaml-0.2.5.tar.gz
+source_hash = fa240dbf262be053f3898006d502d514936c818e422afdcf33921c63bed9bf2e
+directory = libyaml-0.2.5
+method = cmake
+diff_files =
+    end-of-diff-files.patch

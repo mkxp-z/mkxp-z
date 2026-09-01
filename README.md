@@ -20,7 +20,7 @@ Despite the fact that it was made with Essentials games in mind, there is nothin
 
 It supports Windows, Linux (x86, ARM, and POWER), and both Intel and Apple Silicon versions of macOS.
 
-mkxp-z is licensed under the GNU General Public License v2+. However, if you build mkxp-z with the `enable-https` option turned on (which is the default), you will also need to comply with OpenSSL's Apache v2 license, which in practice means that the resulting binaries are licensed under GPLv3.
+mkxp-z is licensed under the GNU General Public License v2+. However, if you build mkxp-z with the `openssl` option turned on (which is the default), you will also need to comply with OpenSSL's Apache v2 license, which in practice means that the resulting binaries are licensed under GPLv3.
 
 ## Bindings
 Bindings provide the glue code for an interpreted language environment to run game scripts in. mkxp-z focuses on MRI and as such the mruby and null bindings are not included.

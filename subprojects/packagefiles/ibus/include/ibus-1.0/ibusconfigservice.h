@@ -1,0 +1,1 @@
+#include "../../src/ibusconfigservice.h"

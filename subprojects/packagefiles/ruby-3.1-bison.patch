@@ -1,0 +1,24 @@
+# Makes Ruby use the Bison executable specified using the YACC environment variable instead of always using the `bison` command.
+
+--- a/configure.ac
++++ b/configure.ac
+@@ -495,7 +495,7 @@ AS_IF([test "$cross_compiling:$ac_cv_prog_DTRACE" = no: -a -n "$ac_tool_prefix"]
+ 
+ AC_CHECK_PROGS(DOT, dot)
+ AC_CHECK_PROGS(DOXYGEN, doxygen)
+-
++AC_CHECK_PROGS(YACC, bison)
+ for prog in ${ac_tool_prefix:+${ac_tool_prefix}pkg-config} pkg-config; do
+     AC_CHECK_PROG(PKG_CONFIG, $prog, [$prog], [], [],
+         [`"$as_dir/$ac_word$ac_exec_ext" --print-errors --version > /dev/null 2>&1 || echo "$as_dir/$ac_word$ac_exec_ext"`])
+--- a/template/Makefile.in
++++ b/template/Makefile.in
+@@ -27,7 +27,7 @@ CC_WRAPPER = @XCC_WRAPPER@
+ CC = @CC@
+ CPP = @CPP@
+ LD = @LD@
+-YACC = bison
++YACC = @YACC@
+ PURIFY =
+ AUTOCONF = autoconf
+ CONFIGURE = @CONFIGURE@

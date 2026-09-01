@@ -1,0 +1,8 @@
+[wrap-file]
+source_url = https://github.com/fmtlib/fmt/archive/refs/tags/12.1.0.tar.gz
+source_filename = fmt-12.1.0.tar.gz
+source_hash = ea7de4299689e12b6dddd392f9896f08fb0777ac7168897a244a6d6085043fea
+directory = fmt-12.1.0
+method = cmake
+diff_files =
+    end-of-diff-files.patch

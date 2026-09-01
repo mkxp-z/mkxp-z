@@ -1,0 +1,14 @@
+# Creates ext/extinit.a and enc/encinit.a that contain only ext/extinit.o and enc/encinit.o.
+# Attempting to link against the .o files results in linker errors on macOS, but linking against the .a files does not.
+
+--- a/template/Makefile.in
++++ b/template/Makefile.in
+@@ -288,7 +288,7 @@ $(PROGRAM):
+ 		$(ECHO) linking $@
+ 		$(Q) $(PURIFY) $(CC) $(EXE_LDFLAGS) $(XLDFLAGS) $(MAINOBJ) $(EXTOBJS) $(LIBRUBYARG) $(MAINLIBS) $(LIBS) $(EXTLIBS) $(OUTFLAG)$@
+ 		$(Q) $(POSTLINK)
+-
++		rm -f ext/extinit.$(LIBEXT) && $(AR) $(ARFLAGS) ext/extinit.$(LIBEXT) ruby.$(OBJEXT) ext/extinit.$(OBJEXT) && ($(RANLIB) ext/extinit.$(LIBEXT) || true) && rm -f enc/encinit.$(LIBEXT) && $(AR) $(ARFLAGS) enc/encinit.$(LIBEXT) ruby.$(OBJEXT) enc/encinit.$(OBJEXT) && ($(RANLIB) enc/encinit.$(LIBEXT) || true)
+ $(PROGRAM): @XRUBY_LIBPATHENV_WRAPPER@
+ 
+ PRE_LIBRUBY_UPDATE = [ -n "$(LIBRUBY_SO_UPDATE)" ] || $(gnumake:yes=exec) $(RM) $(LIBRUBY_EXTS)

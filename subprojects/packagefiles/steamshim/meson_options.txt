@@ -1,0 +1,1 @@
+option('steamworks_path', type: 'string')

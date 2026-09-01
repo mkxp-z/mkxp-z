@@ -1,0 +1,71 @@
+# Instead of throwing an error at configure time when building OpenSSL for a platform that OpenSSL is not optimized for,
+# this patch makes it use the linux-x86_64 configuration by default like Node.js's build system does.
+
+--- a/generated-config/archs/linux-x86_64/no-asm/meson.build
++++ b/generated-config/archs/linux-x86_64/no-asm/meson.build
+@@ -961,12 +961,12 @@ libssl_sources = [
+ ]
+ openssl_defines = [
+   'OPENSSL_USE_NODELETE',
+-  'L_ENDIAN',
++  host_machine.endian() == 'big' ? 'B_ENDIAN' : 'L_ENDIAN',
+   'OPENSSL_BUILDING_OPENSSL',
+   'OPENSSL_PIC',
+ ]
+ openssl_cflags = [
+-  '-m64',
++
+ ]
+ openssl_libraries = [
+   'dl',
+--- a/meson.build
++++ b/meson.build
+@@ -194,7 +194,7 @@ if asm == 'no-asm'
+     elif is_x86_64
+       arch_subdir = 'BSD-x86_64'
+     else
+-      error(error_message)
++      arch_subdir = 'linux-x86_64'
+     endif
+   elif is_darwin
+     if is_aarch64
+@@ -204,7 +204,7 @@ if asm == 'no-asm'
+     elif is_x86
+       arch_subdir = 'darwin-i386-cc'
+     else
+-      error(error_message)
++      arch_subdir = 'linux-x86_64'
+     endif
+   elif is_linux
+     if is_mips64
+@@ -224,7 +224,7 @@ if asm == 'no-asm'
+     elif is_x86_64
+       arch_subdir = 'linux-x86_64'
+     else
+-      error(error_message)
++      arch_subdir = 'linux-x86_64'
+     endif
+   elif is_sunos
+     if is_x86_64
+@@ -232,7 +232,7 @@ if asm == 'no-asm'
+     elif is_x86
+       arch_subdir = 'solaris-x86-gcc'
+     else
+-      error(error_message)
++      arch_subdir = 'linux-x86_64'
+     endif
+   elif is_windows
+     if is_x86
+@@ -242,10 +242,10 @@ if asm == 'no-asm'
+     elif is_x86_64
+       arch_subdir = 'VC-WIN64A'
+     else
+-      error(error_message)
++      arch_subdir = 'linux-x86_64'
+     endif
+   else
+-    error(error_message)
++    arch_subdir = 'linux-x86_64'
+   endif
+ 
+   message('OpenSSL is configured without ASM support')

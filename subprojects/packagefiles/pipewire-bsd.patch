@@ -1,0 +1,93 @@
+# Fixes compilation errors when using the header files in FreeBSD builds.
+
+--- a/spa/include/spa/param/audio/dsd-utils.h
++++ b/spa/include/spa/param/audio/dsd-utils.h
+@@ -44,7 +44,11 @@ spa_format_audio_dsd_parse(const struct spa_pod *format, struct spa_audio_info_d
+ 			SPA_FORMAT_AUDIO_channels,	SPA_POD_OPT_Int(&info->channels),
+ 			SPA_FORMAT_AUDIO_position,	SPA_POD_OPT_Pod(&position));
+ 	if (info->channels > max_position)
++#ifdef ECHRNG
+ 		return -ECHRNG;
++#else
++		return -EINVAL;
++#endif /* ECHRNG */
+ 	if (position == NULL ||
+ 	    spa_pod_copy_array(position, SPA_TYPE_Id, info->position, max_position) != info->channels) {
+ 		SPA_FLAG_SET(info->flags, SPA_AUDIO_FLAG_UNPOSITIONED);
+--- a/spa/include/spa/param/audio/layout-types.h
++++ b/spa/include/spa/param/audio/layout-types.h
+@@ -87,7 +87,11 @@ spa_audio_layout_info_parse_name(struct spa_audio_layout_info *layout, size_t si
+ 		uint32_t i, n_pos;
+ 		if (spa_atou32(name+3, &n_pos, 10)) {
+ 			if (n_pos > max_position)
++#ifdef ECHRNG
+ 				return -ECHRNG;
++#else
++				return -EINVAL;
++#endif /* ECHRNG */
+ 			for (i = 0; i < 0x1000 && i < n_pos; i++)
+ 				layout->position[i] = SPA_AUDIO_CHANNEL_AUX0 + i;
+ 			for (; i < n_pos; i++)
+@@ -99,7 +103,11 @@ spa_audio_layout_info_parse_name(struct spa_audio_layout_info *layout, size_t si
+ 	SPA_FOR_EACH_ELEMENT_VAR(spa_type_audio_layout_info, i) {
+ 		if (spa_streq(name, i->name)) {
+ 			if (i->layout.n_channels > max_position)
++#ifdef ECHRNG
+ 				return -ECHRNG;
++#else
++				return -EINVAL;
++#endif /* ECHRNG */
+ 			*layout = i->layout;
+ 			return i->layout.n_channels;
+ 		}
+--- a/spa/include/spa/param/audio/raw-json.h
++++ b/spa/include/spa/param/audio/raw-json.h
+@@ -88,14 +88,22 @@ spa_audio_info_raw_ext_update(struct spa_audio_info_raw *info, size_t size,
+ 	} else if (spa_streq(key, SPA_KEY_AUDIO_CHANNELS)) {
+ 		if (spa_atou32(val, &v, 0) && (force || info->channels == 0)) {
+ 			if (v > max_position)
++#ifdef ECHRNG
+ 				return -ECHRNG;
++#else
++				return -EINVAL;
++#endif /* ECHRNG */
+ 			info->channels = v;
+ 		}
+ 	} else if (spa_streq(key, SPA_KEY_AUDIO_LAYOUT)) {
+ 		if (force || info->channels == 0) {
+ 			if (spa_audio_parse_layout(val, info->position, max_position, &v) > 0) {
+ 				if (v > max_position)
++#ifdef ECHRNG
+ 					return -ECHRNG;
++#else
++					return -EINVAL;
++#endif /* ECHRNG */
+ 				info->channels = v;
+ 				SPA_FLAG_CLEAR(info->flags, SPA_AUDIO_FLAG_UNPOSITIONED);
+ 			}
+@@ -105,7 +113,11 @@ spa_audio_info_raw_ext_update(struct spa_audio_info_raw *info, size_t size,
+ 			if (spa_audio_parse_position_n(val, strlen(val), info->position,
+ 						max_position, &v) > 0) {
+ 				if (v > max_position)
++#ifdef ECHRNG
+ 					return -ECHRNG;
++#else
++					return -EINVAL;
++#endif /* ECHRNG */
+ 				info->channels = v;
+ 				SPA_FLAG_CLEAR(info->flags, SPA_AUDIO_FLAG_UNPOSITIONED);
+ 			}
+--- a/spa/include/spa/param/audio/raw-utils.h
++++ b/spa/include/spa/param/audio/raw-utils.h
+@@ -46,7 +46,11 @@ spa_format_audio_raw_ext_parse(const struct spa_pod *format, struct spa_audio_in
+ 			SPA_FORMAT_AUDIO_channels,	SPA_POD_OPT_Int(&info->channels),
+ 			SPA_FORMAT_AUDIO_position,	SPA_POD_OPT_Pod(&position));
+ 	if (info->channels > max_position)
++#ifdef ECHRNG
+ 		return -ECHRNG;
++#else
++		return -EINVAL;
++#endif /* ECHRNG */
+ 	if (position == NULL ||
+ 	    spa_pod_copy_array(position, SPA_TYPE_Id, info->position, max_position) != info->channels) {
+ 		SPA_FLAG_SET(info->flags, SPA_AUDIO_FLAG_UNPOSITIONED);

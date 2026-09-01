@@ -1,0 +1,8 @@
+[wrap-file]
+source_url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v3.4.0.tar.gz
+source_filename = VulkanMemoryAllocator-3.4.0.tar.gz
+source_hash = 822aa850c6ce77346ae96a8a1d351d52e77e85929f35363849a0a4e638e0a2a1
+directory = VulkanMemoryAllocator-3.4.0
+patch_directory = vulkan-memory-allocator
+diff_files =
+    end-of-diff-files.patch

@@ -1,0 +1,20 @@
+# Changes the build system to determine the shared object names using a hardcoded table instead of using the compiler.
+# That way, these shared objects can be linked against even if they don't exist on the build machine.
+
+--- a/meson.build
++++ b/meson.build
+@@ -316,12 +316,12 @@ dlopen_table = [
+ ]
+ 
+ if get_option('prefer_dlopen')
+-    find_dylib_name = find_program('./find-dylib-name.py', required : true)
++    sonametool = subproject('common').get_variable('sonametool')
+ 
+     foreach dep_entry : dlopen_table
+         dep = get_variable(dep_entry['dep_var'])
+         if dep.found()
+-            r = run_command(find_dylib_name, dep_entry['lib'], cc.cmd_array(), check: false)
++            r = run_command(sonametool, dep_entry['lib'], check: true)
+ 
+             if r.returncode() == 0
+                 lib = r.stdout().strip()

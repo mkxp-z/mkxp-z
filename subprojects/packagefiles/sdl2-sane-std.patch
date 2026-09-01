@@ -1,0 +1,20 @@
+# The default `sane_std` used by SDL causes all of SDL's configure tests to fail when building for FreeBSD.
+# This patch makes SDL's configure tests work properly when building for FreeBSD.
+
+--- a/meson.build
++++ b/meson.build
+@@ -483,10 +483,10 @@ endforeach
+ # Lets try to make the superproject std sane for SDL2
+ # https://github.com/mesonbuild/meson/issues/1889
+ sane_std = '''
+-#define _DEFAULT_SOURCE
+-#define _GNU_SOURCE
+-#define _ISOC11_SOURCE
+-#define _ISOC99_SOURCE
++#define _DEFAULT_SOURCE 1
++#define _GNU_SOURCE 1
++#define _ISOC11_SOURCE 1
++#define _ISOC99_SOURCE 1
+ #define _POSIX_C_SOURCE 200809L
+ #define _XOPEN_SOURCE 700
+ #undef __STRICT_ANSI__

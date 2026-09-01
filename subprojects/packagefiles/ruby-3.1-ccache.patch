@@ -1,0 +1,14 @@
+# Disables Ruby's build system's special behavior when building with ccache.
+# Ruby builds without errors with ccache enabled even without this special behavior, and the special behavior causes build errors when building Ruby for Windows with ccache enabled.
+
+--- a/configure.ac
++++ b/configure.ac
+@@ -382,7 +382,7 @@ AC_SUBST(COUTFLAG)
+ AC_SUBST(CSRCFLAG)
+ 
+ : ${MJIT_CC=$CC}
+-AS_IF([test "x$cross_compiling" = xno], [
++AS_IF([false], [
+     AC_PATH_PROG([MJIT_CC], ${MJIT_CC})
+ 
+     # if $CC is in /usr/lib/ccache/$CC, search original $CC (disable ccache)

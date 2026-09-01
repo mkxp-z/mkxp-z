@@ -1,0 +1,13 @@
+# Makes FreeType's build system report FreeType's release version instead of its pkgconfig version so that we can accurately determine the name of FreeType's source directory in src/meson.build.
+
+--- a/meson.build
++++ b/meson.build
+@@ -464,7 +464,7 @@ ft2_lib = library('freetype',
+ freetype_dep = declare_dependency(
+   include_directories: ft2_includes,
+   link_with: ft2_lib,
+-  version: ft2_pkgconfig_version)
++)
+ 
+ meson.override_dependency('freetype2', freetype_dep)
+ 

@@ -1,0 +1,177 @@
+From c2ac5ccbc2571c4e5c2981588d5991530540e545 Mon Sep 17 00:00:00 2001
+From: Zorua <strumajen@icloud.com>
+Date: Tue, 13 Dec 2022 04:25:04 -0500
+Subject: [PATCH] apply mkxp-z patches
+
+---
+ class.c              | 7 ++++++-
+ configure.ac         | 2 +-
+ include/ruby/win32.h | 4 +++-
+ sprintf.c            | 4 ++++
+ thread_win32.c       | 3 ++-
+ vm_eval.c            | 4 +++-
+ vm_insnhelper.c      | 9 ++++++++-
+ win32/win32.c        | 5 +++--
+ 8 files changed, 30 insertions(+), 8 deletions(-)
+
+diff --git a/class.c b/class.c
+index 4179b038fa6..8107daf52b1 100644
+--- a/class.c
++++ b/class.c
+@@ -847,13 +847,18 @@ rb_define_class(const char *name, VALUE super)
+ 		     name, rb_obj_class(klass));
+ 	}
+ 	if (rb_class_real(RCLASS_SUPER(klass)) != super) {
+-	    rb_raise(rb_eTypeError, "superclass mismatch for class %s", name);
++        // edited for mkxp-z
++        // makes some hackier forms of subclassing possible again
++
++        goto override_class;
++	    //rb_raise(rb_eTypeError, "superclass mismatch for class %s", name);
+ 	}
+ 
+         /* Class may have been defined in Ruby and not pin-rooted */
+         rb_vm_add_root_module(klass);
+ 	return klass;
+     }
++override_class:
+     if (!super) {
+ 	rb_raise(rb_eArgError, "no super class for `%s'", name);
+     }
+diff --git a/configure.ac b/configure.ac
+index fcae66f775e..5424a0dbbcd 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1170,7 +1170,7 @@ main()
+ 		AC_CHECK_FUNCS(cygwin_conv_path)
+ 		AC_LIBOBJ([langinfo])
+ 		],
+-[mingw*], [	LIBS="-lshell32 -lws2_32 -liphlpapi -limagehlp -lshlwapi -lbcrypt $LIBS"
++[mingw*], [	LIBS="-lshell32 -lws2_32 -liphlpapi -limagehlp -lshlwapi -lbcrypt -Wl,-Bstatic -lgcc -lpthread -lz -lffi -Wl,-Bdynamic $LIBS"
+ 		ac_cv_header_pwd_h=no
+ 		ac_cv_header_utime_h=no
+ 		ac_cv_header_sys_ioctl_h=no
+diff --git a/include/ruby/win32.h b/include/ruby/win32.h
+index c8ae599f2f8..fcd5ff60928 100644
+--- a/include/ruby/win32.h
++++ b/include/ruby/win32.h
+@@ -157,7 +157,9 @@ typedef int clockid_t;
+ #define getpid()		rb_w32_getpid()
+ #define getppid()		rb_w32_getppid()
+ #define sleep(x)		rb_w32_Sleep((x)*1000)
+-#define Sleep(msec)		(void)rb_w32_Sleep(msec)
++
++// fixes mkxp-z crashing at boot
++#define RB_Sleep(msec)		(void)rb_w32_Sleep(msec)
+ 
+ #undef execv
+ #define execv(path,argv)	rb_w32_uaspawn(P_OVERLAY,path,argv)
+diff --git a/sprintf.c b/sprintf.c
+index f4aa7f6d1d0..ae8306b6915 100644
+--- a/sprintf.c
++++ b/sprintf.c
+@@ -931,11 +931,15 @@ rb_str_format(int argc, const VALUE *argv, VALUE fmt)
+     rb_str_tmp_frozen_release(orig, fmt);
+     /* XXX - We cannot validate the number of arguments if (digit)$ style used.
+      */
++
++	 // Disabled this block to match older versions of ruby
++#if 0
+     if (posarg >= 0 && nextarg < argc) {
+ 	const char *mesg = "too many arguments for format string";
+ 	if (RTEST(ruby_debug)) rb_raise(rb_eArgError, "%s", mesg);
+ 	if (RTEST(ruby_verbose)) rb_warn("%s", mesg);
+     }
++#endif
+     rb_str_resize(result, blen);
+ 
+     return result;
+diff --git a/thread_win32.c b/thread_win32.c
+index 026ccc4c600..140368d74ca 100644
+--- a/thread_win32.c
++++ b/thread_win32.c
+@@ -16,7 +16,8 @@
+ #define TIME_QUANTUM_USEC (10 * 1000)
+ #define RB_CONDATTR_CLOCK_MONOTONIC 1 /* no effect */
+ 
+-#undef Sleep
++// fixes mkxp-z crashing at boot
++//#undef Sleep
+ 
+ #define native_thread_yield() Sleep(0)
+ #define unregister_ubf_list(th)
+diff --git a/vm_eval.c b/vm_eval.c
+index 0abb4644f9d..a46835d8f7d 100644
+--- a/vm_eval.c
++++ b/vm_eval.c
+@@ -828,7 +828,9 @@ rb_method_call_status(rb_execution_context_t *ec, const rb_callable_method_entry
+     rb_method_visibility_t visi = METHOD_ENTRY_VISI(me);
+ 
+     /* receiver specified form for private method */
+-    if (UNLIKELY(visi != METHOD_VISI_PUBLIC)) {
++
++    // public/private methods are disabled in mkxp-z
++    if (0) { //UNLIKELY(visi != METHOD_VISI_PUBLIC)) {
+         if (me->def->original_id == idMethodMissing) {
+             return MISSING_NONE;
+         }
+diff --git a/vm_insnhelper.c b/vm_insnhelper.c
+index e01d39de77a..7f4b07d418e 100644
+--- a/vm_insnhelper.c
++++ b/vm_insnhelper.c
+@@ -3722,9 +3722,13 @@ vm_call_method(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct rb_ca
+     if (vm_cc_cme(cc) != NULL) {
+ 	switch (METHOD_ENTRY_VISI(vm_cc_cme(cc))) {
+ 	  case METHOD_VISI_PUBLIC: /* likely */
++
++// public/private methods are disabled in mkxp-z
++call_anyway:
+             return vm_call_method_each_type(ec, cfp, calling);
+ 
+ 	  case METHOD_VISI_PRIVATE:
++        goto call_anyway;
+ 	    if (!(vm_ci_flag(ci) & VM_CALL_FCALL)) {
+ 		enum method_missing_reason stat = MISSING_PRIVATE;
+ 		if (vm_ci_flag(ci) & VM_CALL_VCALL) stat |= MISSING_VCALL;
+@@ -3736,6 +3740,7 @@ vm_call_method(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct rb_ca
+             return vm_call_method_each_type(ec, cfp, calling);
+ 
+ 	  case METHOD_VISI_PROTECTED:
++        goto call_anyway;
+ 	    if (!(vm_ci_flag(ci) & VM_CALL_OPT_SEND)) {
+ 		if (!rb_obj_is_kind_of(cfp->self, vm_cc_cme(cc)->defined_class)) {
+                     vm_cc_method_missing_reason_set(cc, MISSING_PROTECTED);
+@@ -4476,7 +4481,9 @@ vm_check_if_class(ID id, rb_num_t flags, VALUE super, VALUE klass)
+     else if (VM_DEFINECLASS_HAS_SUPERCLASS_P(flags)) {
+ 	VALUE tmp = rb_class_real(RCLASS_SUPER(klass));
+ 
+-	if (tmp != super) {
++    // edited for mkxp-z
++    // makes some hackier forms of subclassing possible again
++	if (0) { //tmp != super) {
+ 	    rb_raise(rb_eTypeError,
+ 		     "superclass mismatch for class %"PRIsVALUE"",
+ 		     rb_id2str(id));
+diff --git a/win32/win32.c b/win32/win32.c
+index 82b02d12448..9d7f7d81f48 100644
+--- a/win32/win32.c
++++ b/win32/win32.c
+@@ -1375,7 +1375,7 @@ rb_w32_start_process(const char *abspath, char *const *argv, int out_fd)
+         return NULL;
+     }
+ 
+-    if (!CreateChild(&child, wcmd, wprog, NULL, outHandle, outHandle, 0)) {
++    if (!CreateChild(&child, wcmd, wprog, NULL, outHandle, outHandle, CREATE_NO_WINDOW)) {
+         return NULL;
+     }
+ 
+@@ -3187,7 +3187,8 @@ compare(const struct timeval *t1, const struct timeval *t2)
+     return 0;
+ }
+ 
+-#undef Sleep
++// fixes mkxp-z crashing a boot
++//#undef Sleep
+ 
+ int rb_w32_check_interrupt(void *);	/* @internal */
+ 

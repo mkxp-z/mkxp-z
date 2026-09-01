@@ -1,0 +1,10 @@
+[wrap-file]
+# When updating this dependency, the version, pa_api_version and pa_protocol_version also need to be updated at the top of subprojects/packagefiles/pulseaudio/meson.build
+source_url = https://archive.ubuntu.com/ubuntu/pool/main/p/pulseaudio/pulseaudio_17.0+dfsg1.orig.tar.xz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/ubuntu/pool/main/p/pulseaudio/pulseaudio_17.0+dfsg1.orig.tar.xz
+source_filename = pulseaudio-17.0.tar.xz
+source_hash = 24a25d3cf8fcede801f6b3d05ca6d22b0a43ad2f710a4fbf2ec251debc9cff5b
+directory = pulseaudio-17.0
+patch_directory = pulseaudio
+diff_files =
+    end-of-diff-files.patch

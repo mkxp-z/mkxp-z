@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://github.com/libsdl-org/SDL_ttf/archive/refs/tags/release-2.0.18.tar.gz
+source_filename = SDL_ttf-release-2.0.18.tar.gz
+source_hash = 6b61544441b72bdfa1ced89034c6396fe80228eff201eb72c5f78e500bb80bd0
+directory = SDL_ttf-release-2.0.18
+method = cmake
+diff_files =
+    sdl2_ttf-deps.patch,
+    end-of-diff-files.patch

@@ -1,0 +1,13 @@
+# Fixes a compilation error in src/common/span.h when building with GCC 9.
+
+--- a/src/common/span.h
++++ b/src/common/span.h
+@@ -518,7 +518,7 @@ constexpr Span<uint8_t> as_writable_byte_span(T &&arg)
+ }
+ 
+ template <typename ElementType, typename ByteType, size_t Extent, typename InternalPtr>
+-    requires(std::same_as<std::remove_cv_t<ByteType>, uint8_t> &&
++    requires(std::is_same_v<std::remove_cv_t<ByteType>, uint8_t> &&
+              std::is_trivially_copyable_v<ElementType> &&
+              (!std::is_const_v<ByteType> || std::is_const_v<ElementType>) &&
+              (Extent == dynamic_extent || Extent % sizeof(ElementType) == 0))

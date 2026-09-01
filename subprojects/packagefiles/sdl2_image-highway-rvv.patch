@@ -1,0 +1,13 @@
+# Disables Highway's support for RISC-V vector extension because it causes compilation errors in libjxl when building for RISC-V if the compiler enables RISC-V vector extensions by default.
+
+--- a/external/libjxl/third_party/highway/hwy/detect_compiler_arch.h
++++ b/external/libjxl/third_party/highway/hwy/detect_compiler_arch.h
+@@ -177,7 +177,7 @@
+ #endif
+ 
+ #ifdef __riscv
+-#define HWY_ARCH_RVV 1
++#define HWY_ARCH_RVV 0
+ #else
+ #define HWY_ARCH_RVV 0
+ #endif

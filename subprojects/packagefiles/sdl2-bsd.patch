@@ -1,0 +1,29 @@
+# Fixes configure errors when building for FreeBSD.
+
+--- a/include/SDL_config.h.cmake
++++ b/include/SDL_config.h.cmake
+@@ -241,6 +241,8 @@
+ #cmakedefine HAVE_LIBUDEV_H 1
+ #cmakedefine HAVE_LIBSAMPLERATE_H 1
+ #cmakedefine HAVE_LIBDECOR_H  1
++#cmakedefine HAVE_USBHID_H @HAVE_USBHID_H@
++#cmakedefine HAVE_LIBUSBHID_H @HAVE_LIBUSBHID_H@
+ 
+ #cmakedefine HAVE_D3D_H @HAVE_D3D_H@
+ #cmakedefine HAVE_D3D11_H @HAVE_D3D11_H@
+--- a/meson.build
++++ b/meson.build
+@@ -989,6 +989,13 @@ elif platform_is_emscripten
+     sys_power = ['emscripten']
+     sys_video_driver = ['emscripten']
+     sys_dynamic_api = false
++elif platform_is_bsd
++    sys_joystick = []
++    usbhid_dep = cc.find_library('usbhid', required: false)
++    if usbhid_dep.found()
++        sys_joystick += 'usbhid'
++        extra_deps += usbhid_dep
++    endif
+ else
+     error('Unsupported platform @0@, please add.'.format(host_machine.system()))
+ endif

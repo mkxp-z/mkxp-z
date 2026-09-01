@@ -1,0 +1,8 @@
+[wrap-file]
+source_url = https://github.com/icculus/theoraplay/archive/ec1aad1ee43592f216946cdc03b1ee4c4e1e2e59.tar.gz
+source_filename = theoraplay-ec1aad1ee43592f216946cdc03b1ee4c4e1e2e59.tar.gz
+source_hash = f1f29e5cb8b0bc08c95be843832294c38a1efa1dddb31ec214d23982db2fcddb
+directory = theoraplay-ec1aad1ee43592f216946cdc03b1ee4c4e1e2e59
+patch_directory = theoraplay
+diff_files =
+    end-of-diff-files.patch

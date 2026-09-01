@@ -1,0 +1,113 @@
+# Enables support for SDL's KMSDRM video driver.
+
+--- a/meson.build
++++ b/meson.build
+@@ -105,6 +105,7 @@ opt_threads = get_option('use_threads')
+ opt_timers = get_option('use_timers')
+ opt_video = get_option('use_video')
+ 
++opt_video_kmsdrm = get_option('use_video_kmsdrm')
+ opt_video_x11 = get_option('use_video_x11')
+ opt_video_wayland = get_option('use_video_wayland')
+ opt_video_wayland_libdecor = get_option('use_video_wayland_libdecor')
+@@ -114,6 +115,7 @@ opt_video_vulkan = get_option('use_video_vulkan')
+ opt_video_offscreen = get_option('use_video_offscreen')
+ 
+ if opt_video.disabled()
++    opt_video_kmsdrm = opt_video
+     opt_video_x11 = opt_video
+     opt_video_wayland = opt_video
+     opt_video_opengl = opt_video
+@@ -220,6 +222,12 @@ vulkan_dep = dependency('vulkan', required : opt_video_vulkan)
+ 
+ # We don't want to try X11 on non unix systems
+ if platform_is_unixlike
++    libdrm_dep = dependency('libdrm', required : opt_video_kmsdrm)
++    gbm_dep = dependency('gbm', required : opt_video_kmsdrm)
++    if not libdrm_dep.found() or not gbm_dep.found()
++        libdrm_dep = fake_dep
++        gbm_dep = fake_dep
++    endif
+     x11_dep = dependency('x11', required : opt_video_x11)
+     xext_dep = dependency('xext', required : opt_video_x11)
+     xi_dep = dependency('xi', required : opt_video_x11)
+@@ -236,6 +244,8 @@ if platform_is_unixlike
+       xcursor_dep = fake_dep
+     endif
+ else
++    libdrm_dep = fake_dep
++    gbm_dep = fake_dep
+     x11_dep = fake_dep
+     xext_dep = fake_dep
+     xi_dep = fake_dep
+@@ -301,6 +311,8 @@ dlopen_table = [
+     { 'dep_var' : 'libpipewire_dep',      'lib' : 'pipewire-0.3',   'conf_var' : 'SDL_AUDIO_DRIVER_PIPEWIRE_DYNAMIC'          },
+     { 'dep_var' : 'libpulse_simple_dep',  'lib' : 'pulse-simple',   'conf_var' : 'SDL_AUDIO_DRIVER_PULSEAUDIO_DYNAMIC'        },
+     { 'dep_var' : 'libusb_dep',           'lib' : 'usb-1.0',        'conf_var' : 'SDL_LIBUSB_DYNAMIC                 '        },
++    { 'dep_var' : 'libdrm_dep',           'lib' : 'drm',            'conf_var' : 'SDL_VIDEO_DRIVER_KMSDRM_DYNAMIC'            },
++    { 'dep_var' : 'gbm_dep',              'lib' : 'gbm',            'conf_var' : 'SDL_VIDEO_DRIVER_KMSDRM_DYNAMIC_GBM'        },
+     { 'dep_var' : 'wayland_client_dep',   'lib' : 'wayland-client', 'conf_var' : 'SDL_VIDEO_DRIVER_WAYLAND_DYNAMIC'           },
+     { 'dep_var' : 'wayland_cursor_dep',   'lib' : 'wayland-cursor', 'conf_var' : 'SDL_VIDEO_DRIVER_WAYLAND_DYNAMIC_CURSOR'    },
+     { 'dep_var' : 'wayland_egl_dep',      'lib' : 'wayland-egl',    'conf_var' : 'SDL_VIDEO_DRIVER_WAYLAND_DYNAMIC_EGL'       },
+@@ -337,6 +349,12 @@ endif
+ 
+ cdata.set('DYNAPI_NEEDS_DLOPEN', platform_is_unixlike_or_apple)
+ 
++kmsdrm_deps = [
++    libdrm_dep,
++    gbm_dep,
++    egl_dep,
++]
++
+ x11_deps = [
+     x11_dep,
+     xcursor_dep,
+@@ -422,7 +440,7 @@ core_subsystems = {
+     'atomic'        : { 'opt' : opt_atomic,     'deps' : [], 'opt_deps' : [] },
+     'audio'         : { 'opt' : opt_audio,      'deps' : [], 'opt_deps' : [alsa_dep, libpulse_simple_dep, jack_dep, libpipewire_dep] },
+     'cpuinfo'       : { 'opt' : opt_cpuinfo,    'deps' : [], 'opt_deps' : [] },
+-    'events'        : { 'opt' : opt_events,     'deps' : [], 'opt_deps' : x11_deps + wayland_deps },
++    'events'        : { 'opt' : opt_events,     'deps' : [], 'opt_deps' : kmsdrm_deps + x11_deps + wayland_deps },
+     'file'          : { 'opt' : opt_file,       'deps' : [], 'opt_deps' : [] },
+     'filesystem'    : { 'opt' : opt_filesystem, 'deps' : [], 'opt_deps' : [] },
+     'haptic'        : { 'opt' : opt_haptic,     'deps' : [], 'opt_deps' : [] },
+@@ -431,11 +449,11 @@ core_subsystems = {
+     'loadso'        : { 'opt' : opt_loadso,     'deps' : [], 'opt_deps' : [] },
+     'locale'        : { 'opt' : opt_locale,     'deps' : [], 'opt_deps' : [] },
+     'power'         : { 'opt' : opt_power,      'deps' : [], 'opt_deps' : [] },
+-    'render'        : { 'opt' : opt_render,     'deps' : [], 'opt_deps' : [vulkan_dep] + x11_deps + wayland_deps + gl_deps },
++    'render'        : { 'opt' : opt_render,     'deps' : [], 'opt_deps' : [vulkan_dep] + kmsdrm_deps + x11_deps + wayland_deps + gl_deps },
+     'sensor'        : { 'opt' : opt_sensor,     'deps' : [], 'opt_deps' : [] },
+     'threads'       : { 'opt' : opt_threads,    'deps' : [threads_dep], 'opt_deps' : [] },
+     'timers'        : { 'opt' : opt_timers,     'deps' : [], 'opt_deps' : [] },
+-    'video'         : { 'opt' : opt_video,      'deps' : [], 'opt_deps' : [vulkan_dep] + x11_deps + wayland_deps + gl_deps },
++    'video'         : { 'opt' : opt_video,      'deps' : [], 'opt_deps' : [vulkan_dep] + kmsdrm_deps + x11_deps + wayland_deps + gl_deps },
+ }
+ 
+ enabled_subsystems = []
+@@ -1024,6 +1042,10 @@ if extra_deps.contains(vulkan_dep)
+     sys_video += 'vulkan'
+ endif
+ 
++if libdrm_dep.found() and extra_deps.contains(libdrm_dep)
++    sys_video_driver += 'kmsdrm'
++endif
++
+ if x11_dep.found() and extra_deps.contains(x11_dep)
+     sys_video_driver += 'x11'
+     if extra_deps.contains(glx_dep)
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -164,6 +164,12 @@ option(
+     description : 'Enable the Video subsystem'
+ )
+ 
++option(
++    'use_video_kmsdrm',
++    type : 'feature',
++    description : 'Enable the KMSDRM video driver'
++)
++
+ option(
+     'use_video_x11',
+     type : 'feature',

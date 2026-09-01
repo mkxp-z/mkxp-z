@@ -1,0 +1,27 @@
+# Fixes a compilation error in random.c when building for x86 Windows.
+
+--- a/random.c
++++ b/random.c
+@@ -550,7 +550,7 @@ static const HCRYPTPROV INVALID_HCRYPTPROV = (HCRYPTPROV)INVALID_HANDLE_VALUE;
+ static void
+ release_crypt(void *p)
+ {
+-    HCRYPTPROV *ptr = p;
++    size_t *ptr = p;
+     HCRYPTPROV prov = (HCRYPTPROV)ATOMIC_SIZE_EXCHANGE(*ptr, INVALID_HCRYPTPROV);
+     if (prov && prov != INVALID_HCRYPTPROV) {
+ 	CryptReleaseContext(prov, 0);
+@@ -560,10 +560,10 @@ release_crypt(void *p)
+ static int
+ fill_random_bytes_crypt(void *seed, size_t size)
+ {
+-    static HCRYPTPROV perm_prov;
+-    HCRYPTPROV prov = perm_prov, old_prov;
++    static size_t perm_prov;
++    size_t prov = perm_prov, old_prov;
+     if (!prov) {
+-	if (!CryptAcquireContext(&prov, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
++	if (!CryptAcquireContext((HCRYPTPROV *)&prov, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
+ 	    prov = INVALID_HCRYPTPROV;
+ 	}
+ 	old_prov = (HCRYPTPROV)ATOMIC_SIZE_CAS(perm_prov, 0, prov);

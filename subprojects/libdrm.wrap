@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://archive.ubuntu.com/ubuntu/pool/main/libd/libdrm/libdrm_2.4.131.orig.tar.xz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/ubuntu/pool/main/libd/libdrm/libdrm_2.4.131.orig.tar.xz
+source_filename = libdrm-2.4.131.tar.xz
+source_hash = 45ba9983b51c896406a3d654de81d313b953b76e6391e2797073d543c5f617d5
+directory = libdrm-2.4.131
+patch_directory = libdrm
+diff_files =
+    end-of-diff-files.patch

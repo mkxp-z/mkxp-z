@@ -1,0 +1,13 @@
+# Fixes an error when building bundled gems defined in subprojects/packagefiles/ruby-3.1/gems/bundled_gems if the baseruby version is Ruby 3.4 or later.
+
+--- a/ext/extmk.rb
++++ b/ext/extmk.rb
+@@ -3,7 +3,7 @@
+ # frozen_string_literal: false
+ 
+ module Gem; end # only needs Gem::Platform
+-require 'rubygems/platform'
++require 'rubygems'
+ 
+ # :stopdoc:
+ $extension = nil

@@ -1,0 +1,13 @@
+# This patch makes Ruby use the version of libffi from our build system instead of trying to look for libffi using pkg-config.
+
+--- a/ext/fiddle/extconf.rb
++++ b/ext/fiddle/extconf.rb
+@@ -47,7 +47,7 @@ end
+ libffi_version = nil
+ have_libffi = false
+ bundle = enable_config('bundled-libffi')
+-unless bundle
++unless bundle; ffi_header = 'ffi.h'; have_ffi_header = true; File.open('mkxp-libffi-version-test.c', 'w') do |f| f.write("#include <#{ffi_header}>\nFFI_VERSION_STRING") end; libffi_version_command = "#{RbConfig::CONFIG['CPP']} #{RbConfig::CONFIG['CFLAGS']} mkxp-libffi-version-test.c"; $stderr.puts(libffi_version_command); libffi_version = `#{libffi_version_command}`.lines[-1].split('"')[1]; $libs = append_library($libs, 'ffi'); have_libffi = true; end; if false
+   dir_config 'libffi'
+ 
+   if pkg_config("libffi")

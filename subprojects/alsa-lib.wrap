@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://www.alsa-project.org/files/pub/lib/alsa-lib-1.2.15.3.tar.bz2
+source_fallback_url = https://mirrors.ocf.berkeley.edu/ubuntu/pool/main/a/alsa-lib/alsa-lib_1.2.15.3.orig.tar.bz2
+source_filename = alsa-lib-1.2.15.3.tar.bz2
+source_hash = 7b079d614d582cade7ab8db2364e65271d0877a37df8757ac4ac0c8970be861e
+directory = alsa-lib-1.2.15.3
+patch_directory = alsa-lib
+diff_files =
+    end-of-diff-files.patch

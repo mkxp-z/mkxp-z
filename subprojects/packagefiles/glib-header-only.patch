@@ -1,0 +1,244 @@
+# To reduce compilation times and the number of dependencies required to build mkxp-z,
+# this patch makes it so that only GLib's headers are built, and disables building the actual library files.
+# We don't need anything other than GLib's headers.
+
+--- a/gio/inotify/meson.build
++++ b/gio/inotify/meson.build
+@@ -32,7 +32,7 @@ inotify_sources = [
+ libinotify_kqueue_dep = dependency('libinotify', required: file_monitor_backend == 'libinotify-kqueue')
+ 
+ inotify_lib = static_library('inotify',
+-  sources : [inotify_sources],
++  sources : glib_visibility_h,
+   include_directories : [configinc, glibinc],
+   dependencies : [
+     gioenumtypes_dep,
+--- a/gio/meson.build
++++ b/gio/meson.build
+@@ -409,14 +409,14 @@ if host_system != 'windows'
+       launch_desktop_sources += files('../glib/gjournal-private.c')
+     endif
+ 
+-    gio_launch_desktop = executable('gio-launch-desktop', launch_desktop_sources,
+-      include_directories : glibinc,
+-      install : true,
+-      install_dir : multiarch_libexecdir,
+-      install_tag : 'bin',
+-      c_args : gio_c_args,
+-      # intl.lib is not compatible with SAFESEH
+-      link_args : noseh_link_args)
++
++
++
++
++
++
++
++
+   endif
+ 
+   subdir('xdgmime')
+@@ -859,8 +859,8 @@ else
+ endif
+ 
+ libgio = library('gio-2.0',
+-  gioenumtypes_h, gioenumtypes_c, gnetworking_h, gio_sources,
+-  gio_dtrace_hdr, gio_dtrace_obj,
++  gioenumtypes_h,
++
+   version : library_version,
+   soversion : soversion,
+   darwin_versions : darwin_versions,
+@@ -1015,7 +1015,7 @@ gio_tool_sources = [
+   'gio-tool-trash.c',
+   'gio-tool-tree.c',
+ ]
+-
++if false
+ gio_tool = executable('gio', gio_tool_sources,
+   install : true,
+   install_tag : 'bin',
+@@ -1124,7 +1124,7 @@ if multiarch_bindir != get_option('bindir')
+     )
+   endforeach
+ endif
+-
++endif
+ if build_tests
+     subdir('tests')
+ endif
+--- a/gio/xdgmime/meson.build
++++ b/gio/xdgmime/meson.build
+@@ -10,7 +10,7 @@ xdgmime_sources = files(
+ )
+ 
+ xdgmime_lib = static_library('xdgmime',
+-  sources : xdgmime_sources,
++  sources : glib_visibility_h,
+   include_directories : [configinc],
+   pic : true,
+   c_args : [ '-DHAVE_CONFIG_H',
+--- a/glib/libcharset/meson.build
++++ b/glib/libcharset/meson.build
+@@ -1,4 +1,4 @@
+-charset_lib = static_library('charset', 'localcharset.c',
++charset_lib = static_library('charset', glib_visibility_h,
+   include_directories : configinc,
+   pic : true,
+   c_args : [ '-DGLIB_CHARSETALIAS_DIR="@0@"'.format(glib_charsetaliasdir) ],
+--- a/glib/meson.build
++++ b/glib/meson.build
+@@ -403,8 +403,8 @@ endif
+ 
+ glib_c_args = ['-DG_LOG_DOMAIN="GLib"'] + glib_c_args_internal + pcre2_static_args
+ libglib = library('glib-2.0',
+-  glib_dtrace_obj, glib_dtrace_hdr,
+-  sources : [glib_deprecated_sources, glib_sources],
++
++  sources : glib_built_headers,
+   version : library_version,
+   soversion : soversion,
+   darwin_versions : darwin_versions,
+@@ -493,7 +493,7 @@ if host_system == 'windows'
+       include_directories : configinc,
+       dependencies : [libglib_dep])
+   endif
+-else
++elif false
+   gtester = executable('gtester', 'gtester.c',
+     install : true,
+     install_tag : 'bin-devel',
+--- a/gmodule/meson.build
++++ b/gmodule/meson.build
+@@ -89,7 +89,7 @@ if host_system == 'windows' and glib_build_shared
+ endif
+ 
+ libgmodule = library('gmodule-2.0',
+-  sources : gmodule_sources,
++  sources : gmodule_visibility_h,
+   version : library_version,
+   soversion : soversion,
+   darwin_versions : darwin_versions,
+--- a/gobject/meson.build
++++ b/gobject/meson.build
+@@ -139,8 +139,8 @@ glib_enumtypes_c = custom_target('glib_enumtypes_c',
+ glib_types_h = files('glib-types.h')
+ 
+ libgobject = library('gobject-2.0',
+-  gobject_dtrace_obj, gobject_dtrace_hdr, glib_enumtypes_h, glib_enumtypes_c,
+-  sources : gobject_sources,
++  glib_enumtypes_h,
++
+   version : library_version,
+   soversion : soversion,
+   darwin_versions : darwin_versions,
+@@ -168,10 +168,10 @@ libgobject_dep = declare_dependency(link_with : libgobject,
+ )
+ meson.override_dependency('gobject-2.0', libgobject_dep)
+ 
+-gobject_query = executable('gobject-query', 'gobject-query.c',
+-  install : true,
+-  install_tag : 'bin-devel',
+-  dependencies : [libglib_dep, libgobject_dep])
++
++
++
++
+ 
+ install_data('gobject_gdb.py',
+   install_dir : glib_pkgdatadir / 'gdb',
+--- a/meson.build
++++ b/meson.build
+@@ -2233,8 +2233,8 @@ pcre2_options = [
+ ]
+ 
+ # Pick up pcre from the system, or if "--force-fallback-for libpcre2-8" was specified
+-pcre2 = dependency('libpcre2-8', version: pcre2_req, required: false, default_options: pcre2_options)
+-if not pcre2.found()
++pcre2 = dependency('', required: false)
++if false
+   if cc.get_id() == 'msvc' or cc.get_id() == 'clang-cl'
+   # MSVC: Search for the PCRE2 library by the configuration, which corresponds
+   # to the output of CMake builds of PCRE2.  Note that debugoptimized
+@@ -2248,13 +2248,13 @@ if not pcre2.found()
+ endif
+ 
+ # Try again with the fallback
+-if not pcre2.found()
++if false
+   pcre2 = dependency('libpcre2-8', version: pcre2_req, allow_fallback: true, default_options: pcre2_options)
+   assert(pcre2.type_name() == 'internal')
+   # static flags are automatically enabled by the subproject if it's built
+   # with default_library=static
+   use_pcre2_static_flag = false
+-elif host_system == 'windows' and pcre2.type_name() != 'internal'
++elif false
+   pcre2_static = cc.links('''#define PCRE2_STATIC
+                              #define PCRE2_CODE_UNIT_WIDTH 8
+                              #include <pcre2.h>
+@@ -2271,13 +2271,13 @@ else
+ endif
+ 
+ # Import the gvdb sources as a subproject to avoid having the copylib in-tree
+-subproject('gvdb', default_options: {'tests': false})
+-gvdb_dep = dependency('gvdb')
++
++gvdb_dep = dependency('', required: false)
+ 
+ libm = cc.find_library('m', required : false)
+-libffi_dep = dependency('libffi', version : '>= 3.0.0')
++libffi_dep = dependency('', required: false)
+ 
+-libz_dep = dependency('zlib')
++libz_dep = dependency('', required: false)
+ 
+ libatomic_test_code = '''
+   int main (int argc, char ** argv) {
+@@ -2322,15 +2322,15 @@ if libintl.found() and libintl.type_name() != 'internal'
+   endif
+ endif
+ 
+-if libintl.found() and libintl.type_name() != 'internal'
+-  have_bind_textdomain_codeset = cc.has_function('bind_textdomain_codeset', dependencies: libintl_deps, prefix: libintl_prefix)
+-else
+-  # using proxy-libintl fallback
+-  libintl = dependency('intl', allow_fallback: true)
+-  assert(libintl.type_name() == 'internal')
+-  libintl_deps = [libintl]
+-  have_bind_textdomain_codeset = true  # proxy-libintl supports it
+-endif
++have_bind_textdomain_codeset = false
++
++
++
++
++
++
++
++
+ 
+ glib_conf.set('HAVE_BIND_TEXTDOMAIN_CODESET', have_bind_textdomain_codeset)
+ 
+@@ -2681,18 +2681,18 @@ if gobject_introspection.version().version_compare('>=1.83.2')
+   ]
+ endif
+ 
+-pkg = import('pkgconfig')
++pkg = disabler()
+ windows = import('windows')
+ gnome = import('gnome')
+ 
+ subdir('tools')
+ subdir('glib')
+ subdir('gobject')
+-subdir('gthread')
++
+ subdir('gmodule')
+ subdir('gio')
+-subdir('girepository')
+-subdir('fuzzing')
++
++
+ if get_option('tests')
+   subdir('tests')
+ endif

@@ -1,0 +1,32 @@
+# Prevents Ruby from running its configure script a second time when building Ruby,
+# because the second run of the configure script doesn't receive the environment variables that Meson passes when running the configure script for the first time.
+
+--- a/template/Makefile.in
++++ b/template/Makefile.in
+@@ -371,16 +371,16 @@ $(MKFILES): config.status $(srcdir)/version.h
+ uncommon.mk: $(srcdir)/common.mk
+ 		sed 's/{\$$([^(){}]*)[^{}]*}//g' $< > $@
+ 
+-.PHONY: reconfig
+-reconfig-args = $(srcdir)/$(CONFIGURE) $(yes_silence:yes=--silent) $(configure_args)
+-config.status-args = ./config.status $(yes_silence:yes=--silent) --recheck
+-reconfig-exec-0 = test -t 1 && { : $${CONFIGURE_TTY=yes}; export CONFIGURE_TTY; }; exec 3>&1; exit `exec 4>&1; { "$$@" 3>&- 4>&-; echo $$? 1>&4; } | fgrep -v '(cached)' 1>&3 3>&- 4>&-`
+-reconfig-exec-1 = set -x; "$$@"
+-
+-reconfig config.status:	$(srcdir)/$(CONFIGURE) $(srcdir)/enc/Makefile.in \
+-			$(srcdir)/include/ruby/version.h
+-	@PWD= MINIRUBY="$(MINIRUBY)"; export MINIRUBY; \
+-	set $(SHELL) $($@-args); $(reconfig-exec-$(V))
++
++
++
++
++
++
++
++
++
++
+ 
+ $(srcdir)/$(CONFIGURE): $(srcdir)/configure.ac
+ 	$(CHDIR) $(srcdir) && exec $(AUTOCONF) -o $(@F)

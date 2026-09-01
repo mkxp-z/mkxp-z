@@ -1,0 +1,22 @@
+# Makes rbinstall.rb install default gems into the newly built Ruby's default gem directory instead of the baseruby's default gem directory when cross-compiling.
+
+--- a/tool/rbinstall.rb
++++ b/tool/rbinstall.rb
+@@ -962,7 +962,7 @@ def load_gemspec(file, base = nil)
+ end
+ 
+ def install_default_gem(dir, srcdir, bindir)
+-  gem_dir = Gem.default_dir
++  gem_dir = File.join(CONFIG['rubylibdir', true], 'gems', CONFIG['ruby_version', true])
+   install_dir = with_destdir(gem_dir)
+   prepare "default gems from #{dir}", gem_dir
+   RbInstall.no_write do
+@@ -1010,7 +1010,7 @@ def install_default_gem(dir, srcdir, bindir)
+ end
+ 
+ install?(:ext, :comm, :gem, :'bundled-gems') do
+-  gem_dir = Gem.default_dir
++  gem_dir = File.join(CONFIG['rubylibdir', true], 'gems', CONFIG['ruby_version', true])
+   install_dir = with_destdir(gem_dir)
+   prepare "bundled gems", gem_dir
+   RbInstall.no_write do

@@ -1,0 +1,27 @@
+# Fixes a compilation error in WindowSurfaceVkMac.h when building for macOS.
+
+--- a/src/libANGLE/renderer/vulkan/mac/WindowSurfaceVkMac.h
++++ b/src/libANGLE/renderer/vulkan/mac/WindowSurfaceVkMac.h
+@@ -11,9 +11,9 @@
+ #define LIBANGLE_RENDERER_VULKAN_MAC_WINDOWSURFACEVKMAC_H_
+ 
+ #include "libANGLE/renderer/vulkan/SurfaceVk.h"
+-
++#include <QuartzCore/CAMetalLayer.h>
+ #include <Cocoa/Cocoa.h>
+-
++#include <Metal/Metal.h>
+ namespace rx
+ {
+ 
+--- a/src/libANGLE/renderer/vulkan/mac/WindowSurfaceVkMac.mm
++++ b/src/libANGLE/renderer/vulkan/mac/WindowSurfaceVkMac.mm
+@@ -10,7 +10,7 @@
+ #include "libANGLE/renderer/vulkan/mac/WindowSurfaceVkMac.h"
+ 
+ #include <Metal/Metal.h>
+-#include <QuartzCore/CAMetalLayer.h>
++
+ 
+ #include "libANGLE/renderer/vulkan/vk_renderer.h"
+ #include "libANGLE/renderer/vulkan/vk_utils.h"

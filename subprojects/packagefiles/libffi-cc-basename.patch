@@ -1,0 +1,27 @@
+# libffi's build system tries to identify the host machine's C compiler using the name of the compiler executable.
+# However, libffi checks if the host machine's C compiler is MSVC when building for Windows by checking if the compiler executable name starts with "cl" (to match cl.exe),
+# but this creates a false positive when building for Windows using Clang (since the Clang executable's name also starts with "cl"), causing compiler errors when building for Windows using Clang.
+# This patch replaces libffi's build system's C compiler identification with our own custom identification system found in subprojects/packagefiles/libffi/meson.build.
+
+--- a/configure
++++ b/configure
+@@ -8749,7 +8749,7 @@ func_cc_basename ()
+         *) break;;
+       esac
+     done
+-    func_cc_basename_result=`$ECHO "$cc_temp" | $SED "s%.*/%%; s%^$host_alias-%%"`
++    func_cc_basename_result="$MKXP_CC_BASENAME"
+ }
+ 
+ # Check whether --enable-libtool-lock was given.
+@@ -24165,7 +24165,9 @@ func_cc_basename ()
+         *) break;;
+       esac
+     done
+-    func_cc_basename_result=`$ECHO "$cc_temp" | $SED "s%.*/%%; s%^$host_alias-%%"`
++_LT_EOF
++cat <<_LT_EOF >> "$cfgfile"
++    func_cc_basename_result='$MKXP_CC_BASENAME'
+ }
+ 
+ 

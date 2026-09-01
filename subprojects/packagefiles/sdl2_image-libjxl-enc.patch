@@ -1,0 +1,17 @@
+# Disables building libjxl's encoder library because it fails to build on macOS.
+
+--- a/external/libjxl/lib/jxl.cmake
++++ b/external/libjxl/lib/jxl.cmake
+@@ -370,7 +370,7 @@ target_link_libraries(jxl_dec-obj PUBLIC jxl_profiler)
+ endif()
+ 
+ # Object library. This is used to hold the set of objects and properties.
+-add_library(jxl_enc-obj OBJECT ${JPEGXL_INTERNAL_SOURCES_ENC})
++add_library(jxl_enc-obj OBJECT jxl/enc_dummy.cc)
+ target_compile_options(jxl_enc-obj PRIVATE ${JPEGXL_INTERNAL_FLAGS})
+ target_compile_options(jxl_enc-obj PUBLIC ${JPEGXL_COVERAGE_FLAGS})
+ set_property(TARGET jxl_enc-obj PROPERTY POSITION_INDEPENDENT_CODE ON)
+--- /dev/null
++++ b/external/libjxl/lib/jxl/enc_dummy.cc
+@@ -0,0 +1 @@
++ 

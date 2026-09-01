@@ -1,0 +1,52 @@
+# If OpenAL Soft is configured with libdl support, it doesn't actually need the ALSA, JACK, OpenSL, PipeWire, PortAudio or PulseAudio libraries at build time.
+# Only the header files are actually used.
+# So this patch makes it so that OpenAL Soft won't be linked against those libraries if configured with libdl support.
+
+--- a/meson.build
++++ b/meson.build
+@@ -41,7 +41,7 @@ endif
+ alsa_dep = dependency(
+   'alsa',
+   required: get_option('alsa'),
+-)
++).partial_dependency(compile_args: true, includes: true, link_args: host_machine.system() not in ['windows', 'cygwin'] and not dl_dep.found(), links: host_machine.system() not in ['windows', 'cygwin'] and not dl_dep.found(), sources: true)
+ apple_dep = dependency(
+   'appleframeworks',
+   modules: ['AudioToolbox', 'CoreAudio', 'CoreFoundation'],
+@@ -50,7 +50,7 @@ apple_dep = dependency(
+ jack_dep = dependency(
+   'jack',
+   required: get_option('jack'),
+-)
++).partial_dependency(compile_args: true, includes: true, link_args: host_machine.system() not in ['windows', 'cygwin'] and not dl_dep.found(), links: host_machine.system() not in ['windows', 'cygwin'] and not dl_dep.found(), sources: true)
+ mm_dep = cpp.find_library(
+   'winmm',
+   required: get_option('winmm'),
+@@ -62,7 +62,7 @@ oboe_dep = dependency(
+ opensl_dep = dependency(
+   'opensl',
+   required: get_option('opensl'),
+-)
++).partial_dependency(compile_args: true, includes: true, link_args: host_machine.system() not in ['windows', 'cygwin'] and not dl_dep.found(), links: host_machine.system() not in ['windows', 'cygwin'] and not dl_dep.found(), sources: true)
+ oss_dep = dependency(
+   'oss',
+   required: get_option('oss'),
+@@ -70,15 +70,15 @@ oss_dep = dependency(
+ pipewire_dep = dependency(
+   'libpipewire-0.3',
+   required: get_option('pipewire'),
+-)
++).partial_dependency(compile_args: true, includes: true, link_args: host_machine.system() not in ['windows', 'cygwin'] and not dl_dep.found(), links: host_machine.system() not in ['windows', 'cygwin'] and not dl_dep.found(), sources: true)
+ portaudio_dep = dependency(
+   'portaudio',
+   required: get_option('portaudio'),
+-)
++).partial_dependency(compile_args: true, includes: true, link_args: host_machine.system() not in ['windows', 'cygwin'] and not dl_dep.found(), links: host_machine.system() not in ['windows', 'cygwin'] and not dl_dep.found(), sources: true)
+ pulseaudio_dep = dependency(
+   'libpulse',
+   required: get_option('pulseaudio'),
+-)
++).partial_dependency(compile_args: true, includes: true, link_args: host_machine.system() not in ['windows', 'cygwin'] and not dl_dep.found(), links: host_machine.system() not in ['windows', 'cygwin'] and not dl_dep.found(), sources: true)
+ rtkit_dep = dependency(
+   'dbus-1',
+   required: get_option('rtkit'),

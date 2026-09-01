@@ -1,0 +1,498 @@
+# Fixes configure errors and compilation errors when cross-building libinotify.
+
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -547,7 +547,7 @@ ACLOCAL_AMFLAGS = -I m4
+ @BUILD_LIBRARY_TRUE@	$(am__append_6) $(am__append_7) \
+ @BUILD_LIBRARY_TRUE@	compat/tree.h
+ @BUILD_LIBRARY_TRUE@libinotify_la_CFLAGS = -I. @DEBUG_CFLAGS@ @PTHREAD_CFLAGS@ -Wall -Werror
+-@BUILD_LIBRARY_TRUE@libinotify_la_LDFLAGS = @PTHREAD_LIBS@ -export-symbols libinotify.sym
++@BUILD_LIBRARY_TRUE@libinotify_la_LDFLAGS = @PTHREAD_LIBS@
+ inotify_test_SOURCES = inotify-test.c
+ inotify_test_LDADD = libinotify.la
+ kqueue_test_SOURCES = kqueue-test.c
+--- a/configure
++++ b/configure
+@@ -19879,278 +19879,278 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+ printf "%s\n" "$have_note_read" >&6; }
+ 
+ 
+-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for NOTE_EXTEND on moving of a file into the watched subdirectory" >&5
+-printf %s "checking for NOTE_EXTEND on moving of a file into the watched subdirectory... " >&6; }
+-rm -rf iktestdir
+-mkdir iktestdir
+-touch iktestfile
+-if test "$cross_compiling" = yes
+-then :
+-  { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: error: in '$ac_pwd':" >&5
+-printf "%s\n" "$as_me: error: in '$ac_pwd':" >&2;}
+-as_fn_error $? "cannot run test program while cross compiling
+-See 'config.log' for more details" "$LINENO" 5; }
+-else case e in #(
+-  e) cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+-/* end confdefs.h.  */
+ 
+ 
+-        #include <sys/types.h>
+-        #include <sys/event.h>
+-        #include <sys/time.h>
+-        #include <stdio.h>
+-        #include <fcntl.h>
+ 
+-int
+-main (void)
+-{
+ 
+-        int fd, kq;
+-        struct kevent ev;
+-        static const struct timespec tout = { 1, 0 };
+ 
+-        if ((fd = open("iktestdir", O_RDONLY)) == -1) return 1;
+-        if ((kq = kqueue()) == -1) return 1;
+-        EV_SET(&ev, fd, EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_ONESHOT,
+-            NOTE_WRITE | NOTE_EXTEND, 0, 0);
+-        if (kevent(kq, &ev, 1, NULL, 0, &tout) == -1) return 1;
+-        if (rename ("iktestfile", "iktestdir/iktestfile") == -1) return 1;
+-        if (kevent(kq, NULL, 0, &ev, 1, &tout) != 1) return 1;
+-        return (ev.fflags & NOTE_EXTEND) ? 0 : 1;
+ 
+-  ;
+-  return 0;
+-}
+ 
+-_ACEOF
+-if ac_fn_c_try_run "$LINENO"
+-then :
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
+ 
+ 
+ printf "%s\n" "#define HAVE_NOTE_EXTEND_ON_MOVE_TO 1" >>confdefs.h
+ 
+-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+-printf "%s\n" "yes" >&6; }
+ 
+-else case e in #(
+-  e) { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+-printf "%s\n" "no" >&6; }
+- ;;
+-esac
+-fi
+-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+-  conftest.$ac_objext conftest.beam conftest.$ac_ext ;;
+-esac
+-fi
+ 
+ 
+-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for NOTE_EXTEND on moving of a file from the watched subdirectory" >&5
+-printf %s "checking for NOTE_EXTEND on moving of a file from the watched subdirectory... " >&6; }
+-if test "$cross_compiling" = yes
+-then :
+-  { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: error: in '$ac_pwd':" >&5
+-printf "%s\n" "$as_me: error: in '$ac_pwd':" >&2;}
+-as_fn_error $? "cannot run test program while cross compiling
+-See 'config.log' for more details" "$LINENO" 5; }
+-else case e in #(
+-  e) cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+-/* end confdefs.h.  */
+ 
+ 
+-        #include <sys/types.h>
+-        #include <sys/event.h>
+-        #include <sys/time.h>
+-        #include <stdio.h>
+-        #include <fcntl.h>
+ 
+-int
+-main (void)
+-{
+ 
+-        int fd, kq;
+-        struct kevent ev;
+-        static const struct timespec tout = { 1, 0 };
+ 
+-        if ((fd = open("iktestdir", O_RDONLY)) == -1) return 1;
+-        if ((kq = kqueue()) == -1) return 1;
+-        EV_SET(&ev, fd, EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_ONESHOT,
+-            NOTE_WRITE | NOTE_EXTEND, 0, 0);
+-        if (kevent(kq, &ev, 1, NULL, 0, &tout) == -1) return 1;
+-        if (rename ("iktestdir/iktestfile", "iktestfile") == -1) return 1;
+-        if (kevent(kq, NULL, 0, &ev, 1, &tout) != 1) return 1;
+-        return (ev.fflags & NOTE_EXTEND) ? 0 : 1;
+ 
+-  ;
+-  return 0;
+-}
+ 
+-_ACEOF
+-if ac_fn_c_try_run "$LINENO"
+-then :
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
+ 
+ 
+ printf "%s\n" "#define HAVE_NOTE_EXTEND_ON_MOVE_FROM 1" >>confdefs.h
+ 
+-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+-printf "%s\n" "yes" >&6; }
+ 
+-else case e in #(
+-  e) { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+-printf "%s\n" "no" >&6; }
+- ;;
+-esac
+-fi
+-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+-  conftest.$ac_objext conftest.beam conftest.$ac_ext ;;
+-esac
+-fi
+ 
+ 
+ 
+-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for O_PATH in fcntl.h" >&5
+-printf %s "checking for O_PATH in fcntl.h... " >&6; }
+-if test "$cross_compiling" = yes
+-then :
+-  { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: error: in '$ac_pwd':" >&5
+-printf "%s\n" "$as_me: error: in '$ac_pwd':" >&2;}
+-as_fn_error $? "cannot run test program while cross compiling
+-See 'config.log' for more details" "$LINENO" 5; }
+-else case e in #(
+-  e) cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+-/* end confdefs.h.  */
+ 
+ 
+-        #include <fcntl.h>
+-        #include <unistd.h>
+ 
+-int
+-main (void)
+-{
+ 
+-        int fd;
+-        if ((fd = open("iktestdir", O_PATH)) == -1) return 1;
+-        return lseek(fd, 0, SEEK_SET) != -1;
+ 
+-  ;
+-  return 0;
+-}
+ 
+-_ACEOF
+-if ac_fn_c_try_run "$LINENO"
+-then :
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
+ 
+ 
+ printf "%s\n" "#define HAVE_O_PATH 1" >>confdefs.h
+ 
+     have_o_path=yes
+ 
+-else case e in #(
+-  e) have_o_path=no
+- ;;
+-esac
+-fi
+-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+-  conftest.$ac_objext conftest.beam conftest.$ac_ext ;;
+-esac
+-fi
+ 
+-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $have_o_path" >&5
+-printf "%s\n" "$have_o_path" >&6; }
++
++
++
++
++
++
++
++
++
++
++
+ 
+ 
+ if test "$ac_cv_func_openat" = "yes"; then
+-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for O_EMPTY_PATH in fcntl.h" >&5
+-printf %s "checking for O_EMPTY_PATH in fcntl.h... " >&6; }
+-    if test "$cross_compiling" = yes
+-then :
+-  { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: error: in '$ac_pwd':" >&5
+-printf "%s\n" "$as_me: error: in '$ac_pwd':" >&2;}
+-as_fn_error $? "cannot run test program while cross compiling
+-See 'config.log' for more details" "$LINENO" 5; }
+-else case e in #(
+-  e) cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+-/* end confdefs.h.  */
+ 
+-        #include <fcntl.h>
+-int
+-main (void)
+-{
+-return openat(open("iktestdir", O_RDONLY), "", O_RDONLY | O_EMPTY_PATH) < 0;
+-  ;
+-  return 0;
+-}
+ 
+-_ACEOF
+-if ac_fn_c_try_run "$LINENO"
+-then :
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
+ 
+ 
+ printf "%s\n" "#define HAVE_O_EMPTY_PATH 1" >>confdefs.h
+ 
+-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+-printf "%s\n" "yes" >&6; }
+ 
+-else case e in #(
+-  e) { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+-printf "%s\n" "no" >&6; }
+-     ;;
+-esac
+-fi
+-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+-  conftest.$ac_objext conftest.beam conftest.$ac_ext ;;
+-esac
+-fi
++
++
++
++
++
++
++
++
++
++
++
++
+ 
+ fi
+ 
+ 
+ if test "$ac_cv_func_faccessat" = "yes"; then
+-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for AT_EMPTY_PATH in fcntl.h" >&5
+-printf %s "checking for AT_EMPTY_PATH in fcntl.h... " >&6; }
+-    if test "$cross_compiling" = yes
+-then :
+-  { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: error: in '$ac_pwd':" >&5
+-printf "%s\n" "$as_me: error: in '$ac_pwd':" >&2;}
+-as_fn_error $? "cannot run test program while cross compiling
+-See 'config.log' for more details" "$LINENO" 5; }
+-else case e in #(
+-  e) cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+-/* end confdefs.h.  */
+ 
+ 
+-            #include <fcntl.h>
+-            #include <unistd.h>
+ 
+-int
+-main (void)
+-{
+ 
+-           return faccessat(open("iktestdir", O_RDONLY), "", R_OK, AT_EACCESS | AT_EMPTY_PATH) < 0;
+ 
+-  ;
+-  return 0;
+-}
+ 
+-_ACEOF
+-if ac_fn_c_try_run "$LINENO"
+-then :
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
+ 
+ 
+ printf "%s\n" "#define HAVE_AT_EMPTY_PATH 1" >>confdefs.h
+ 
+-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+-printf "%s\n" "yes" >&6; }
+ 
+-else case e in #(
+-  e) { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+-printf "%s\n" "no" >&6; }
+-     ;;
+-esac
+-fi
+-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+-  conftest.$ac_objext conftest.beam conftest.$ac_ext ;;
+-esac
+-fi
++
++
++
++
++
++
++
++
++
++
++
++
+ 
+ fi
+ rm -rf iktestdir

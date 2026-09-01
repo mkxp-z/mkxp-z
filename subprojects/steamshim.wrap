@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://github.com/icculus/steamshim/archive/c49d0dfffc0381ed38e333f82fdac0e12840780a.tar.gz
+source_filename = steamshim-c49d0dfffc0381ed38e333f82fdac0e12840780a.tar.gz
+source_hash = 05a37657caab3207e09b59e2e55836ba8ca63a2568c87033c0df677b9970eaf7
+directory = steamshim-c49d0dfffc0381ed38e333f82fdac0e12840780a
+patch_directory = steamshim
+diff_files =
+    steamshim-apple-chdir.patch,
+    end-of-diff-files.patch

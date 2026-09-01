@@ -1,0 +1,29 @@
+# Allows SDL to link statically against ANGLE.
+
+--- a/meson.build
++++ b/meson.build
+@@ -1171,13 +1171,13 @@ sdl2main_dep = declare_dependency(
+ )
+ 
+ deps = [core_deps, extra_deps]
+-
++angle_dep = dependency('angle', required: get_option('angle'))
+ sdl2 = library('sdl2',
+     all_sources,
+     include_directories : core_inc,
+-    c_args : core_args,
++    c_args : core_args + (angle_dep.found() ? ['-DSDL_VIDEO_STATIC_ANGLE', '-DKHRONOS_STATIC'] : []),
+     link_args : core_ldflags,
+-    dependencies : deps,
++    dependencies : deps + [angle_dep],
+     override_options : ['c_std=none'],
+     install : do_install,
+     gnu_symbol_visibility: 'hidden',
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -238,3 +238,5 @@ option(
+     deprecated: true,
+     description : 'automatically link against sdl2main (deprecated, link to dependency sdl2_main instead)'
+ )
++
++option('angle', type: 'feature', value: 'auto')

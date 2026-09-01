@@ -1,0 +1,11 @@
+[wrap-file]
+# When updating this dependency, the version and apiversion also need to be updated at the top of subprojects/packagefiles/pipewire/meson.build
+source_url = https://gitlab.freedesktop.org/pipewire/pipewire/-/archive/1.6.5/pipewire-1.6.5.tar.gz
+source_fallback_url = https://github.com/PipeWire/pipewire/archive/refs/tags/1.6.5.tar.gz
+source_filename = pipewire-1.6.5.tar.gz
+source_hash = 4c9f7e85a760a4169cd4bc668bafea90fe4838aaf3f08a93f11bb9222809d490
+directory = pipewire-1.6.5
+patch_directory = pipewire
+diff_files =
+    pipewire-bsd.patch,
+    end-of-diff-files.patch

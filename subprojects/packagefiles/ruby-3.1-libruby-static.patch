@@ -1,0 +1,14 @@
+# Makes sure executables generated during Ruby's build process are linked against libruby-static instead of libruby on Windows.
+# On Windows, linking executables against libruby instead of libruby-static results in build errors if Ruby is configured with `--with-static-linked-ext`.
+
+--- a/configure.ac
++++ b/configure.ac
+@@ -3806,7 +3806,7 @@ AS_CASE(["$target_os"],
+ 	], [
+ 	    LIBRUBY_SO=dummy
+ 	    LIBRUBY='lib$(RUBY_SO_NAME).a'
+-	    LIBRUBYARG='-l$(RUBY_SO_NAME)'
++	    LIBRUBYARG='$(MISSING) $(LIBRUBYARG_STATIC)'
+ 	])
+ 	],
+     [hpux*], [

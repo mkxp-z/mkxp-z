@@ -1,0 +1,19 @@
+# Disables libjxl's examples and tools since they cause errors at configure time if enabled.
+
+--- a/external/libjxl/CMakeLists.txt
++++ b/external/libjxl/CMakeLists.txt
+@@ -373,7 +373,7 @@ endif()  # JPEGXL_ENABLE_MANPAGES
+ 
+ # Example usage code.
+ if (${JPEGXL_ENABLE_EXAMPLES})
+-include(examples/examples.cmake)
++
+ endif ()
+ 
+ # Plugins for third-party software
+@@ -382,4 +382,4 @@ add_subdirectory(plugins)
+ endif ()
+ 
+ # Binary tools
+-add_subdirectory(tools)
++

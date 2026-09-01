@@ -1,0 +1,28 @@
+# Adds a callback for when the game window is resized (either by the game scripts via `Graphics.resize_screen` or manually by the user) while using one of ANGLE's Direct3D backends.
+# After the game window is resized while using ANGLE Direct3D, we need to repaint the screen twice to avoid graphical artifacts.
+
+--- a/src/libANGLE/renderer/d3d/SurfaceD3D.cpp
++++ b/src/libANGLE/renderer/d3d/SurfaceD3D.cpp
+@@ -308,7 +308,7 @@ egl::Error SurfaceD3D::swapRect(DisplayD3D *displayD3D,
+ 
+     return egl::NoError();
+ }
+-
++extern "C" std::function<void ()> mkxp_angle_direct3d_resize_callback;
+ egl::Error SurfaceD3D::checkForOutOfDateSwapChain(DisplayD3D *displayD3D)
+ {
+     RECT client;
+@@ -340,11 +340,11 @@ egl::Error SurfaceD3D::checkForOutOfDateSwapChain(DisplayD3D *displayD3D)
+ 
+     if (mSwapIntervalDirty)
+     {
+-        ANGLE_TRY(resetSwapChain(displayD3D, clientWidth, clientHeight));
++        ANGLE_TRY(resetSwapChain(displayD3D, clientWidth, clientHeight)); if (mkxp_angle_direct3d_resize_callback != nullptr) mkxp_angle_direct3d_resize_callback();
+     }
+     else if (sizeDirty)
+     {
+-        ANGLE_TRY(resizeSwapChain(displayD3D, clientWidth, clientHeight));
++        ANGLE_TRY(resizeSwapChain(displayD3D, clientWidth, clientHeight)); if (mkxp_angle_direct3d_resize_callback != nullptr) mkxp_angle_direct3d_resize_callback();
+     }
+ 
+     return egl::NoError();

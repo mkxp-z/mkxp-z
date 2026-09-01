@@ -35,22 +35,17 @@ embedded_shaders = [
 ]
 
 # xBRZ shader is GPLv3.
-if get_option('enable-https') == true
+have_extra_shaders = get_option('extra_shaders').allowed()
+if have_extra_shaders
+    gplv3_features += 'Extra shaders'
+    global_args += '-DMKXPZ_HAVE_EXTRA_SHADERS'
     embedded_shaders += 'xbrz.frag'
 endif
 
-embedded_shaders_f = files(embedded_shaders)
-
-count = 0
-foreach file : embedded_shaders_f
-    global_sources += custom_target(embedded_shaders[count],
-        input: file,
-        output: '@0@.xxd'.format(embedded_shaders[count]),
-        command: [
-            xxd, '-i', '@INPUT@'
-        ],
-        capture: true,
-        depend_files: embedded_shaders_f[count]
-        )
-    count += 1
+foreach shader : embedded_shaders
+    global_dependencies += declare_dependency(sources: custom_target(
+        '@0@.xxd'.format(shader),
+        output: '@0@.xxd'.format(shader),
+        command: [embedtool, files(shader), '@OUTPUT@', 'mkxp_shader_@0@'.format(shader.replace('.', '_'))],
+    ))
 endforeach

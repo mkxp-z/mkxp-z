@@ -6,18 +6,6 @@
 
 #include "debugwriter.h"
 
-#if __LINUX__ || __ANDROID__
-#define FLUID_LIB "libfluidsynth.so.3"
-#elif MKXPZ_BUILD_XCODE
-#define FLUID_LIB "@rpath/libfluidsynth.dylib"
-#elif __APPLE__
-#define FLUID_LIB "libfluidsynth.3.dylib"
-#elif __WIN32__
-#define FLUID_LIB "fluidsynth.dll"
-#else
-#error "platform not recognized"
-#endif
-
 struct FluidFunctions fluid;
 #ifndef SHARED_FLUID
 static void *so;
@@ -34,7 +22,7 @@ void initFluidFunctions()
 	fluid.name = real_name;
 
 #else
-	so = SDL_LoadObject(FLUID_LIB);
+	so = SDL_LoadObject(MKXPZ_FLUIDSYNTH_SONAME);
 
 	if (!so)
 		goto fail;
@@ -57,7 +45,7 @@ FLUID_FUNCS2
 
 #ifndef SHARED_FLUID
 fail:
-	Debug() << "Failed to load " FLUID_LIB ". Midi playback is disabled.";
+	Debug() << "Failed to load " MKXPZ_FLUIDSYNTH_SONAME ". Midi playback is disabled.";
 
 	memset(&fluid, 0, sizeof(fluid));
 	SDL_UnloadObject(so);

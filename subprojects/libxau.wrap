@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://xorg.freedesktop.org/releases/individual/lib/libXau-1.0.11.tar.gz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/ubuntu/pool/main/libx/libxau/libxau_1.0.11.orig.tar.gz
+source_filename = libXau-1.0.11.tar.gz
+source_hash = 3a321aaceb803577a4776a5efe78836eb095a9e44bbc7a465d29463e1a14f189
+directory = libXau-1.0.11
+patch_directory = libxau
+diff_files =
+    end-of-diff-files.patch

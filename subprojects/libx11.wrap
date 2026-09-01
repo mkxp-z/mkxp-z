@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://xorg.freedesktop.org/releases/individual/lib/libX11-1.8.12.tar.gz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/ubuntu/pool/main/libx/libx11/libx11_1.8.12.orig.tar.gz
+source_filename = libX11-1.8.12.tar.gz
+source_hash = 220fbcf54b6e4d8dc40076ff4ab87954358019982490b33c7802190b62d89ce1
+directory = libX11-1.8.12
+patch_directory = libx11
+diff_files =
+    end-of-diff-files.patch

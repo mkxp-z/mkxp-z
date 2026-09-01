@@ -1,0 +1,388 @@
+# Allows Ruby to build for 64-bit ARM Windows.
+# Adapted from the following pull requests:
+#   https://github.com/ruby/ruby/pull/8995 (Ruby commit 784fdecc4c9f6ba9a8fc872518872ed6bdbc6670)
+#   https://github.com/ruby/ruby/pull/12222 (Ruby commit 4745338a3f336d7bedb02895534721661551ebb9)
+#   https://github.com/ruby/ruby/pull/12363 (Ruby commit 187b8fdb6990145210ef6394ca8d866c2f885854)
+
+--- a/configure.ac
++++ b/configure.ac
+@@ -2566,6 +2566,9 @@ AS_CASE([$coroutine_type], [yes|''], [
+         [*86-mingw*], [
+             coroutine_type=win32
+         ],
++        [aarch64-mingw*], [
++            coroutine_type=arm64
++        ],
+         [arm*-linux*], [
+             coroutine_type=arm32
+         ],
+--- a/coroutine/arm64/Context.S
++++ b/coroutine/arm64/Context.S
+@@ -18,26 +18,63 @@
+ .align 2
+ #endif
+ 
++#if defined(__ARM_FEATURE_PAC_DEFAULT) && (__ARM_FEATURE_PAC_DEFAULT & 0x02) != 0
++# error "-mbranch-protection flag specified b-key but Context.S does not support this"
++#endif
++
++#if defined(_WIN32)
++## Add more space for certain TEB values on each stack
++#define TEB_OFFSET 0x20
++#else
++#define TEB_OFFSET 0x00
++#endif
++
++## NOTE(PAC): Use we HINT mnemonics instead of PAC mnemonics to
++## keep compatibility with those assemblers that don't support PAC.
++##
++## See "Providing protection for complex software" for more details about PAC/BTI
++## https://developer.arm.com/architectures/learn-the-architecture/providing-protection-for-complex-software
++
+ .global PREFIXED_SYMBOL(SYMBOL_PREFIX,coroutine_transfer)
+ PREFIXED_SYMBOL(SYMBOL_PREFIX,coroutine_transfer):
+ 
++#if defined(__ARM_FEATURE_PAC_DEFAULT) && (__ARM_FEATURE_PAC_DEFAULT != 0)
++	# paciasp (it also acts as BTI landing pad, so no need to insert BTI also)
++	hint #25
++#elif defined(__ARM_FEATURE_BTI_DEFAULT) && (__ARM_FEATURE_BTI_DEFAULT != 0)
++	# For the case PAC is not enabled but BTI is.
++	# bti c
++	hint #34
++#endif
+ 	# Make space on the stack for caller registers
+-	sub sp, sp, 0xb0
++	sub sp, sp, 0xa0 + TEB_OFFSET
+ 
+ 	# Save caller registers
+-	stp d8, d9, [sp, 0x00]
+-	stp d10, d11, [sp, 0x10]
+-	stp d12, d13, [sp, 0x20]
+-	stp d14, d15, [sp, 0x30]
+-	stp x19, x20, [sp, 0x40]
+-	stp x21, x22, [sp, 0x50]
+-	stp x23, x24, [sp, 0x60]
+-	stp x25, x26, [sp, 0x70]
+-	stp x27, x28, [sp, 0x80]
+-	stp x29, x30, [sp, 0x90]
+-
+-	# Save return address
+-	str x30, [sp, 0xa0]
++	stp d8, d9, [sp, 0x00 + TEB_OFFSET]
++	stp d10, d11, [sp, 0x10 + TEB_OFFSET]
++	stp d12, d13, [sp, 0x20 + TEB_OFFSET]
++	stp d14, d15, [sp, 0x30 + TEB_OFFSET]
++	stp x19, x20, [sp, 0x40 + TEB_OFFSET]
++	stp x21, x22, [sp, 0x50 + TEB_OFFSET]
++	stp x23, x24, [sp, 0x60 + TEB_OFFSET]
++	stp x25, x26, [sp, 0x70 + TEB_OFFSET]
++	stp x27, x28, [sp, 0x80 + TEB_OFFSET]
++	stp x29, x30, [sp, 0x90 + TEB_OFFSET]
++
++#if defined(_WIN32)
++	# Save certain values from Thread Environment Block (TEB)
++	# x18 points to the TEB on Windows
++	# Read TeStackBase and TeStackLimit at ksarm64.h from TEB
++	ldp  x5,  x6,  [x18, #0x08]
++	# Save them
++	stp  x5,  x6,  [sp, #0x00]
++	# Read TeDeallocationStack at ksarm64.h from TEB
++	ldr  x5, [x18, #0x1478]
++	# Read TeFiberData at ksarm64.h from TEB
++	ldr  x6, [x18, #0x20]
++	# Save current fiber data and deallocation stack
++	stp  x5,  x6,  [sp, #0x10]
++#endif
+ 
+ 	# Save stack pointer to x0 (first argument)
+ 	mov x2, sp
+@@ -47,27 +84,78 @@ PREFIXED_SYMBOL(SYMBOL_PREFIX,coroutine_transfer):
+ 	ldr x3, [x1, 0]
+ 	mov sp, x3
+ 
++#if defined(_WIN32)
++	# Restore stack base and limit
++	ldp  x5,  x6,  [sp, #0x00]
++	# Write TeStackBase and TeStackLimit at ksarm64.h to TEB
++	stp  x5,  x6,  [x18, #0x08]
++	# Restore fiber data and deallocation stack
++	ldp  x5,  x6,  [sp, #0x10]
++	# Write TeDeallocationStack at ksarm64.h to TEB
++	str  x5, [x18, #0x1478]
++	# Write TeFiberData at ksarm64.h to TEB
++	str  x6, [x18, #0x20]
++#endif
++
+ 	# Restore caller registers
+-	ldp d8, d9, [sp, 0x00]
+-	ldp d10, d11, [sp, 0x10]
+-	ldp d12, d13, [sp, 0x20]
+-	ldp d14, d15, [sp, 0x30]
+-	ldp x19, x20, [sp, 0x40]
+-	ldp x21, x22, [sp, 0x50]
+-	ldp x23, x24, [sp, 0x60]
+-	ldp x25, x26, [sp, 0x70]
+-	ldp x27, x28, [sp, 0x80]
+-	ldp x29, x30, [sp, 0x90]
+-
+-	# Load return address into x4
+-	ldr x4, [sp, 0xa0]
++	ldp d8, d9, [sp, 0x00 + TEB_OFFSET]
++	ldp d10, d11, [sp, 0x10 + TEB_OFFSET]
++	ldp d12, d13, [sp, 0x20 + TEB_OFFSET]
++	ldp d14, d15, [sp, 0x30 + TEB_OFFSET]
++	ldp x19, x20, [sp, 0x40 + TEB_OFFSET]
++	ldp x21, x22, [sp, 0x50 + TEB_OFFSET]
++	ldp x23, x24, [sp, 0x60 + TEB_OFFSET]
++	ldp x25, x26, [sp, 0x70 + TEB_OFFSET]
++	ldp x27, x28, [sp, 0x80 + TEB_OFFSET]
++	ldp x29, x30, [sp, 0x90 + TEB_OFFSET]
+ 
+ 	# Pop stack frame
+-	add sp, sp, 0xb0
++	add sp, sp, 0xa0 + TEB_OFFSET
+ 
+-	# Jump to return address (in x4)
+-	ret x4
++#if defined(__ARM_FEATURE_PAC_DEFAULT) && (__ARM_FEATURE_PAC_DEFAULT != 0)
++	# autiasp: Authenticate x30 (LR) with SP and key A
++	hint #29
++#endif
++
++	# Jump to return address (in x30)
++	ret
+ 
+ #if defined(__linux__) && defined(__ELF__)
+ .section .note.GNU-stack,"",%progbits
+ #endif
++
++#if (defined(__ARM_FEATURE_BTI_DEFAULT) && __ARM_FEATURE_BTI_DEFAULT != 0) || (defined(__ARM_FEATURE_PAC_DEFAULT) && __ARM_FEATURE_PAC_DEFAULT != 0)
++#if defined(__ELF__)
++/*  See "ELF for the Arm 64-bit Architecture (AArch64)"
++    https://github.com/ARM-software/abi-aa/blob/2023Q3/aaelf64/aaelf64.rst#program-property */
++#  define GNU_PROPERTY_AARCH64_FEATURE_1_BTI (1<<0)
++#  define GNU_PROPERTY_AARCH64_FEATURE_1_PAC (1<<1)
++
++#  if defined(__ARM_FEATURE_BTI_DEFAULT) && __ARM_FEATURE_BTI_DEFAULT != 0
++#    define BTI_FLAG GNU_PROPERTY_AARCH64_FEATURE_1_BTI
++#  else
++#    define BTI_FLAG 0
++#  endif
++#  if defined(__ARM_FEATURE_PAC_DEFAULT) && __ARM_FEATURE_PAC_DEFAULT != 0
++#    define PAC_FLAG GNU_PROPERTY_AARCH64_FEATURE_1_PAC
++#  else
++#    define PAC_FLAG 0
++#  endif
++
++  # The note section format is described by Note Section in Chapter 5
++  # of "System V Application Binary Interface, Edition 4.1".
++  .pushsection .note.gnu.property, "a"
++  .p2align 3
++  .long 0x4        /* Name size ("GNU\0") */
++  .long 0x10       /* Descriptor size */
++  .long 0x5        /* Type: NT_GNU_PROPERTY_TYPE_0 */
++  .asciz "GNU"     /* Name */
++  # Begin descriptor
++  .long 0xc0000000 /* Property type: GNU_PROPERTY_AARCH64_FEATURE_1_AND */
++  .long 0x4        /* Property size */
++  .long (BTI_FLAG|PAC_FLAG)
++  .long 0x0        /* 8-byte alignment padding */
++  # End descriptor
++  .popsection
++#endif
++#endif
+--- a/coroutine/arm64/Context.h
++++ b/coroutine/arm64/Context.h
+@@ -17,12 +17,37 @@
+ 
+ #define COROUTINE __attribute__((noreturn)) void
+ 
+-enum {COROUTINE_REGISTERS = 0xb0 / 8};
++#if defined(_WIN32)
++#define TEB_OFFSET 0x20
++#else
++#define TEB_OFFSET 0x00
++#endif
++
++enum {COROUTINE_REGISTERS = (0xa0 + TEB_OFFSET) / 8};
++
++#if defined(__SANITIZE_ADDRESS__)
++    #define COROUTINE_SANITIZE_ADDRESS
++#elif defined(__has_feature)
++    #if __has_feature(address_sanitizer)
++        #define COROUTINE_SANITIZE_ADDRESS
++    #endif
++#endif
++
++#if defined(COROUTINE_SANITIZE_ADDRESS)
++#include <sanitizer/common_interface_defs.h>
++#include <sanitizer/asan_interface.h>
++#endif
+ 
+ struct coroutine_context
+ {
+     void **stack_pointer;
+     void *argument;
++
++#if defined(COROUTINE_SANITIZE_ADDRESS)
++    void *fake_stack;
++    void *stack_base;
++    size_t stack_size;
++#endif
+ };
+ 
+ typedef COROUTINE(* coroutine_start)(struct coroutine_context *from, struct coroutine_context *self);
+@@ -31,6 +56,20 @@ static inline void coroutine_initialize_main(struct coroutine_context * context)
+     context->stack_pointer = NULL;
+ }
+ 
++static inline void *ptrauth_sign_instruction_addr(void *addr, void *modifier) {
++#if defined(__ARM_FEATURE_PAC_DEFAULT) && __ARM_FEATURE_PAC_DEFAULT != 0
++    // Sign the given instruction address with the given modifier and key A
++    register void *r17 __asm("r17") = addr;
++    register void *r16 __asm("r16") = modifier;
++    // Use HINT mnemonic instead of PACIA1716 for compatibility with older assemblers.
++    __asm ("hint #8;" : "+r"(r17) : "r"(r16));
++    addr = r17;
++#else
++    // No-op if PAC is not enabled
++#endif
++    return addr;
++}
++
+ static inline void coroutine_initialize(
+     struct coroutine_context *context,
+     coroutine_start start,
+@@ -39,14 +78,29 @@ static inline void coroutine_initialize(
+ ) {
+     assert(start && stack && size >= 1024);
+ 
++#if defined(COROUTINE_SANITIZE_ADDRESS)
++    context->fake_stack = NULL;
++    context->stack_base = stack;
++    context->stack_size = size;
++#endif
++
+     // Stack grows down. Force 16-byte alignment.
+     char * top = (char*)stack + size;
+-    context->stack_pointer = (void**)((uintptr_t)top & ~0xF);
++    top = (char *)((uintptr_t)top & ~0xF);
++    context->stack_pointer = (void**)top;
+ 
+     context->stack_pointer -= COROUTINE_REGISTERS;
+     memset(context->stack_pointer, 0, sizeof(void*) * COROUTINE_REGISTERS);
+ 
+-    context->stack_pointer[0xa0 / 8] = (void*)start;
++    void *addr = (void*)(uintptr_t)start;
++    context->stack_pointer[(0x98 + TEB_OFFSET) / 8] = ptrauth_sign_instruction_addr(addr, (void*)top);
++#if defined(_WIN32)
++    // save top address of stack as base in TEB
++    context->stack_pointer[0x00 / 8] = (char*)stack + size;
++    // save botton address of stack as limit and deallocation stack in TEB
++    context->stack_pointer[0x08 / 8] = stack;
++    context->stack_pointer[0x10 / 8] = stack;
++#endif
+ }
+ 
+ struct coroutine_context * coroutine_transfer(struct coroutine_context * current, struct coroutine_context * target);
+--- a/vm_dump.c
++++ b/vm_dump.c
+@@ -701,6 +701,14 @@ dump_thread(void *arg)
+ 		    frame.AddrFrame.Offset = context.Rbp;
+ 		    frame.AddrStack.Mode = AddrModeFlat;
+ 		    frame.AddrStack.Offset = context.Rsp;
++#elif defined(__aarch64__)
++                    mac = IMAGE_FILE_MACHINE_ARM64;
++                    frame.AddrPC.Mode = AddrModeFlat;
++                    frame.AddrPC.Offset = context.Pc;
++                    frame.AddrFrame.Mode = AddrModeFlat;
++                    frame.AddrFrame.Offset = context.Fp;
++                    frame.AddrStack.Mode = AddrModeFlat;
++                    frame.AddrStack.Offset = context.Sp;
+ #else	/* i386 */
+ 		    mac = IMAGE_FILE_MACHINE_I386;
+ 		    frame.AddrPC.Mode = AddrModeFlat;
+--- a/win32/win32.c
++++ b/win32/win32.c
+@@ -2576,9 +2576,70 @@ set_pioinfo_extra(void)
+ # endif
+     /* get __pioinfo addr with _isatty */
+     char *p = (char*)get_proc_address(UCRTBASE, "_isatty", NULL);
+-    char *pend = p;
+     /* _osfile(fh) & FDEV */
+ 
++#ifdef _M_ARM64
++#define IS_INSN(pc, name) ((*(pc) & name##_mask) == name##_id)
++    const int max_num_inst = 500;
++    uint32_t *start = (uint32_t*)p;
++    uint32_t *end_limit = (start + max_num_inst);
++    uint32_t *pc = start;
++
++    if (!p) {
++        fprintf(stderr, "_isatty proc not found in " UCRTBASE "\n");
++        _exit(1);
++    }
++
++    /* end of function */
++    const uint32_t ret_id = 0xd65f0000;
++    const uint32_t ret_mask = 0xfffffc1f;
++    for(; pc < end_limit; pc++) {
++        if (IS_INSN(pc, ret)) {
++            break;
++        }
++    }
++    if (pc == end_limit) {
++        fprintf(stderr, "end of _isatty not found in " UCRTBASE "\n");
++        _exit(1);
++    }
++
++    /* pioinfo instruction mark */
++    const uint32_t adrp_id = 0x90000000;
++    const uint32_t adrp_mask = 0x9f000000;
++    const uint32_t add_id = 0x11000000;
++    const uint32_t add_mask = 0x7fc00000;
++    for(; pc > start; pc--) {
++        if (IS_INSN(pc, adrp) && IS_INSN(pc + 1, add)) {
++            break;
++        }
++    }
++    if(pc == start) {
++        fprintf(stderr, "pioinfo mark not found in " UCRTBASE "\n");
++        _exit(1);
++    }
++
++    /* We now point to instructions that load address of __pioinfo:
++     * adrp	x8, 0x1801d8000
++     * add	x8, x8, #0xdb0
++     * https://devblogs.microsoft.com/oldnewthing/20220809-00/?p=106955
++     * The last adrp/add sequence before ret is what we are looking for.
++     */
++    const uint32_t adrp_insn = *pc;
++    const uint32_t adrp_immhi = (adrp_insn & 0x00ffffe0) >> 5;
++    const uint32_t adrp_immlo = (adrp_insn & 0x60000000) >> (5 + 19 + 5);
++    const int64_t  adrp_sign  = (adrp_insn & 0x00800000) ? ~0x001fffff : 0;
++    /* imm = SignExtend(immhi:immlo:Zeros(12), 64) */
++    const int64_t adrp_imm = (adrp_sign | (adrp_immhi << 2) | adrp_immlo) << 12;
++    /* base = PC64<63:12>:Zeros(12) */
++    const uint64_t adrp_base = (uint64_t)pc & 0xfffffffffffff000;
++
++    const uint32_t add_insn = *(pc + 1);
++    const uint64_t add_imm = (add_insn & 0x3ffc00) >> (5 + 5);
++
++    __pioinfo = (ioinfo**)(adrp_base + adrp_imm + add_imm);
++#else /* _M_ARM64 */
++    char *pend = p;
++
+ # ifdef _WIN64
+     int32_t rel;
+     char *rip;
+@@ -2628,7 +2689,8 @@ set_pioinfo_extra(void)
+ #else
+     __pioinfo = *(ioinfo***)(p);
+ #endif
+-#endif
++#endif /* _M_ARM64 */
++#endif /* RUBY_MSVCRT_VERSION */
+     int fd;
+ 
+     fd = _open("NUL", O_RDONLY);

@@ -1,0 +1,43 @@
+# Disables building of the Ruby executable to work around a linker error when building the Ruby executable in 32-bit ARM Linux builds in CI (https://github.com/llvm/llvm-project/issues/108262).
+
+--- a/configure.ac
++++ b/configure.ac
+@@ -3316,7 +3316,7 @@ for var in bindir includedir libdir rubylibprefix; do
+ done
+ 
+ BTESTRUBY='$(MINIRUBY)'
+-AS_IF([test x"$cross_compiling" = xyes], [
++AS_IF([true], [
+   test x"$MINIRUBY" = x && MINIRUBY="${RUBY-$BASERUBY} -I`$CHDIR .; pwd` "-r'$(arch)-fake'
+   XRUBY_LIBDIR=`${RUBY-$BASERUBY} -rrbconfig -e ['puts RbConfig::CONFIG["libdir"]']`
+   XRUBY_RUBYLIBDIR=`${RUBY-$BASERUBY} -rrbconfig -e ['puts RbConfig::CONFIG["rubylibdir"]']`
+--- a/cygwin/GNUmakefile.in
++++ b/cygwin/GNUmakefile.in
+@@ -63,9 +63,9 @@ $(RUBY_EXP) $(LIBRUBY_SO): $(DLL_BASE_NAME).res.@OBJEXT@
+ $(PROGRAM): $(RUBY_INSTALL_NAME).res.@OBJEXT@
+ $(WPROGRAM): $(RUBYW_INSTALL_NAME).res.@OBJEXT@
+ 	@rm -f $@
+-	$(ECHO) linking $@
+-	$(Q) $(PURIFY) $(CC) -mwindows -e $(SYMBOL_PREFIX)mainCRTStartup $(LDFLAGS) $(XLDFLAGS) \
+-	  $(MAINOBJ) $(EXTOBJS) $(LIBRUBYARG) $(LIBS) -o $@
++	touch $@
++
++
+ $(STUBPROGRAM): $(RUBY_INSTALL_NAME).res.@OBJEXT@
+ 
+ $(RUBY_EXP): $(LIBRUBY_A)
+--- a/template/Makefile.in
++++ b/template/Makefile.in
+@@ -285,9 +285,9 @@ miniruby$(EXEEXT):
+ 
+ $(PROGRAM):
+ 		@$(RM) $@
+-		$(ECHO) linking $@
+-		$(Q) $(PURIFY) $(CC) $(EXE_LDFLAGS) $(XLDFLAGS) $(MAINOBJ) $(EXTOBJS) $(LIBRUBYARG) $(MAINLIBS) $(LIBS) $(EXTLIBS) $(OUTFLAG)$@
+-		$(Q) $(POSTLINK)
++		touch $@
++
++
+ 		rm -f ext/extinit.$(LIBEXT) && $(AR) $(ARFLAGS) ext/extinit.$(LIBEXT) ruby.$(OBJEXT) ext/extinit.$(OBJEXT) && ($(RANLIB) ext/extinit.$(LIBEXT) || true) && rm -f enc/encinit.$(LIBEXT) && $(AR) $(ARFLAGS) enc/encinit.$(LIBEXT) ruby.$(OBJEXT) enc/encinit.$(OBJEXT) && ($(RANLIB) enc/encinit.$(LIBEXT) || true)
+ $(PROGRAM): @XRUBY_LIBPATHENV_WRAPPER@
+ 

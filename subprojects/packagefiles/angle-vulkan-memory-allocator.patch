@@ -1,0 +1,13 @@
+# Fixes an error that occurs on startup when using ANGLE's Vulkan backend when ANGLE is built with Vulkan Memory Allocator version 2.
+
+--- a/src/libANGLE/renderer/vulkan/vk_mem_alloc_wrapper.cpp
++++ b/src/libANGLE/renderer/vulkan/vk_mem_alloc_wrapper.cpp
+@@ -44,6 +44,8 @@ VkResult InitAllocator(VkPhysicalDevice physicalDevice,
+     funcs.vkCreateImage                       = vkCreateImage;
+     funcs.vkDestroyImage                      = vkDestroyImage;
+     funcs.vkCmdCopyBuffer                     = vkCmdCopyBuffer;
++    funcs.vkGetInstanceProcAddr               = vkGetInstanceProcAddr;
++    funcs.vkGetDeviceProcAddr                 = vkGetDeviceProcAddr;
+     {
+         funcs.vkGetBufferMemoryRequirements2KHR       = vkGetBufferMemoryRequirements2;
+         funcs.vkGetImageMemoryRequirements2KHR        = vkGetImageMemoryRequirements2;

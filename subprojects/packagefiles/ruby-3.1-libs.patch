@@ -1,0 +1,31 @@
+# Moves the inclusion of libcrypt and zlib to the end of configure.ac so that Ruby's configure tests don't try to use libcrypt and zlib (since these two libraries may not exist at configure time).
+
+--- a/configure.ac
++++ b/configure.ac
+@@ -1279,7 +1279,7 @@ AS_IF([test -n "${rb_there_is_in_fact_no_gplusplus_but_autoconf_is_cheating_us}"
+     ])
+ ])
+ 
+-AC_CHECK_LIB(crypt, crypt)      # glibc (GNU/Linux, GNU/Hurd, GNU/kFreeBSD)
++
+ AC_CHECK_LIB(dl, dlopen)	# Dynamic linking for SunOS/Solaris and SYSV
+ AC_CHECK_LIB(dld, shl_load)	# Dynamic linking for HP-UX
+ AC_CHECK_LIB(socket, shutdown)  # SunOS/Solaris
+@@ -2873,7 +2873,7 @@ AS_IF([test "$rb_cv_binary_elf" = yes], [
+   AC_CHECK_HEADERS([elf.h elf_abi.h])
+   AS_IF([test $ac_cv_header_elf_h = yes -o $ac_cv_header_elf_abi_h = yes], [
+     AC_LIBOBJ([addr2line])
+-    AC_CHECK_LIB([z], [uncompress])
++
+   ])
+ ])
+ 
+@@ -3897,7 +3897,7 @@ AS_IF([test "${universal_binary-no}" = yes ], [
+ ])
+ 
+ : ${MJIT_LDSHARED=`echo "$LDSHARED" | sed ['s|\$(LD)|'"${LD}"'|g;s|\$(CC)|$(MJIT_CC)|g']`}
+-
++AC_CHECK_LIB(crypt, crypt) AC_CHECK_LIB(z, uncompress)
+ MAINLIBS="$LIBS"
+ LIBS=$ORIG_LIBS
+ AS_IF([test -n "${LIBS}"], [

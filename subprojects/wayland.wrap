@@ -1,0 +1,10 @@
+[wrap-file]
+# When updating this dependency, the version also needs to be updated at the top of subprojects/packagefiles/wayland/meson.build
+source_url = https://gitlab.freedesktop.org/wayland/wayland/-/archive/1.23.1/wayland-1.23.1.tar.gz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/ubuntu/pool/main/w/wayland/wayland_1.23.1.orig.tar.gz
+source_filename = wayland-1.23.1.tar.gz
+source_hash = 158ec49af498f2558c7fbf7e8b070d010d4e270cc6076003a18a6c813f87e244
+directory = wayland-1.23.1
+patch_directory = wayland
+diff_files =
+    end-of-diff-files.patch

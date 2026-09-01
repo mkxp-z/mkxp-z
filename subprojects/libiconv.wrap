@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://ftpmirror.gnu.org/libiconv/libiconv-1.18.tar.gz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/gnu/libiconv/libiconv-1.18.tar.gz
+source_filename = libiconv-1.18.tar.gz
+source_hash = 3b08f5f4f9b4eb82f151a7040bfd6fe6c6fb922efe4b1659c66ea933276965e8
+directory = libiconv-1.18
+patch_directory = libiconv
+diff_files =
+    end-of-diff-files.patch

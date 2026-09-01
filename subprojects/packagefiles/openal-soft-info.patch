@@ -1,0 +1,13 @@
+# Disables building the openal-info executable because it fails to build on macOS.
+
+--- a/utils/meson.build
++++ b/utils/meson.build
+@@ -4,7 +4,7 @@ add_languages(
+ )
+ 
+ utils = {
+-  'openal-info.c': [common_dep, openal_dep],
++
+ }
+ 
+ sndfile_dep = dependency(

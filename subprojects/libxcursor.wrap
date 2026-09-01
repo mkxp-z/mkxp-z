@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://xorg.freedesktop.org/releases/individual/lib/libXcursor-1.2.3.tar.gz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/ubuntu/pool/main/libx/libxcursor/libxcursor_1.2.3.orig.tar.gz
+source_filename = libXcursor-1.2.3.tar.gz
+source_hash = 74e72da27e61cc2cfd2e267c14f500ea47775850048ee0b00362a55c9b60ee9b
+directory = libXcursor-1.2.3
+patch_directory = libxcursor
+diff_files =
+    end-of-diff-files.patch

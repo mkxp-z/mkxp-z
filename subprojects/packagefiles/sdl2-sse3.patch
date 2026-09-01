@@ -1,0 +1,13 @@
+# Stops SDL from unconditionally building with SSE3.
+
+--- a/meson.build
++++ b/meson.build
+@@ -12,7 +12,7 @@ if get_option('default_library') == 'both' and cc.get_argument_syntax() == 'msvc
+ endif
+ 
+ c_args = cc.get_supported_arguments(
+-    '-msse3',
++
+     '-Wno-deprecated-declarations',
+     '-Wdeclaration-after-statement',
+     '-Wshadow',

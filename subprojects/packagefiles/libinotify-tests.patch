@@ -1,0 +1,15 @@
+# Disables building libinotify's tests.
+
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -104,8 +104,8 @@ host_triplet = @host@
+ @BUILD_LIBRARY_TRUE@@HAVE_FSTATAT_FALSE@am__append_5 = compat/fstatat.c
+ @BUILD_LIBRARY_TRUE@@HAVE_COMPAT_STDATOMIC_H_TRUE@@NO_STDATOMIC_TRUE@am__append_6 = compat/stdatomic.h
+ @BUILD_LIBRARY_TRUE@@HAVE_COMPAT_STDATOMIC_H_FALSE@@NO_STDATOMIC_TRUE@am__append_7 = compat/ik_atomic.c compat/ik_atomic.h
+-noinst_PROGRAMS = inotify-test$(EXEEXT) kqueue-test$(EXEEXT)
+-EXTRA_PROGRAMS = check_libinotify$(EXEEXT)
++noinst_PROGRAMS =
++EXTRA_PROGRAMS =
+ @LINUX_TRUE@am__append_8 = -std=c++0x
+ @HAVE_PTHREAD_BARRIER_FALSE@am__append_9 = compat/pthread_barrier.c
+ subdir = .

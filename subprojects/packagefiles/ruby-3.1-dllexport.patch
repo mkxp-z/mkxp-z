@@ -1,0 +1,33 @@
+# This patch removes `__declspec(dllimport)` and `__declspec(dllexport)` from the Ruby headers on Windows.
+# Having it in the headers causes linker errors on Windows when statically linking against Ruby.
+
+--- a/include/ruby/internal/dllexport.h
++++ b/include/ruby/internal/dllexport.h
+@@ -38,11 +38,11 @@
+  */
+ #undef RUBY_EXTERN
+ #if defined(MJIT_HEADER) && defined(_WIN32)
+-# define RUBY_EXTERN extern __declspec(dllimport)
++# define RUBY_EXTERN extern
+ #elif defined(RUBY_EXPORT)
+ # define RUBY_EXTERN extern
+ #elif defined(_WIN32)
+-# define RUBY_EXTERN extern __declspec(dllimport)
++# define RUBY_EXTERN extern
+ #else
+ # define RUBY_EXTERN extern
+ #endif
+--- a/include/ruby/onigmo.h
++++ b/include/ruby/onigmo.h
+@@ -47,9 +47,9 @@ extern "C" {
+ # else
+ #  if defined(_WIN32) && !defined(__GNUC__)
+ #   if defined(EXPORT) || defined(RUBY_EXPORT)
+-#    define ONIG_EXTERN   extern __declspec(dllexport)
++#    define ONIG_EXTERN   extern
+ #   else
+-#    define ONIG_EXTERN   extern __declspec(dllimport)
++#    define ONIG_EXTERN   extern
+ #   endif
+ #  endif
+ # endif

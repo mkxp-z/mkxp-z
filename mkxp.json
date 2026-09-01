@@ -18,11 +18,6 @@
     // "MKXPZ_WINDOWS_CONSOLE"
     //     - Enables/disables the extra console window on Windows. It appears by
     //       default whenever mkxp-z is started in debug mode.
-    // "MKXPZ_MACOS_METAL"
-    //     - Setting this will influence the rendering backend used.
-    //       Probably not a good idea to mess with it unless you have some kind of issue.
-    //       OpenGL is default on x86, and Metal is the default on Apple Silicon.
-    //       This takes priority over the config option if it's set.
     // "MKXPZ_FOLDER_SELECT"
     //     - Allows the manual selection of the game's folder at startup.
     //       Only works on macOS at the moment.
@@ -228,21 +223,15 @@
     // ],
 
 
-    // Prefer the use of Metal over OpenGL on macOS.
-    // This defaults to false under Intel machines,
-    // and true under ARM/Apple Silicon ones (which
-    // merely emulate OpenGL anyway)
+    // Choose the graphics backend to use.
+    // 0: Automatically choose
+    // 1: ANGLE null (disables video output)
+    // 2: OpenGL
+    // 3: Vulkan
+    // 4: Direct3D if using Windows, Metal if using macOS, or Vulkan otherwise
+    // (default: 0)
     //
-    // Try changing this if you have graphics problems.
-    // Metal is far better, but ANGLE may not initialize correctly
-    // on some Intel machines.
-    //
-    // On Apple Silicon it's probably better to not touch it.
-    // Emulated OpenGL is buggy, and it will also break things like
-    // the Steam overlay.
-    // (default: true if Apple Silicon, false if Intel)
-    //
-    // "preferMetalRenderer": true,
+    // "renderer": 0,
 
 
     // Work around buggy graphics drivers which don't

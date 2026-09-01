@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://archive.ubuntu.com/ubuntu/pool/main/m/mesa/mesa_26.0.3.orig.tar.xz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/ubuntu/pool/main/m/mesa/mesa_26.0.3.orig.tar.xz
+source_filename = mesa-26.0.3.tar.xz
+source_hash = ddb7443d328e89aa45b4b6b80f077bf937f099daeca8ba48cabe32aab769e134
+directory = mesa-26.0.3
+patch_directory = mesa
+diff_files =
+    end-of-diff-files.patch

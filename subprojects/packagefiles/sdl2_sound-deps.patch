@@ -1,0 +1,13 @@
+# Prevents SDL_sound from trying to look for SDL externally since we already handled that ourselves.
+
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -28,7 +28,7 @@ if(CMAKE_C_COMPILER_ID STREQUAL "SunPro")
+     add_compile_options(-xldscope=hidden)
+ endif()
+ 
+-find_package(SDL2 REQUIRED)
++
+ if(WIN32)
+     # -lmingw32: gcc adds it automatically.
+     # -mwindows: doesn't make sense.

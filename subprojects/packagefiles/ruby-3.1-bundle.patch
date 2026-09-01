@@ -1,0 +1,15 @@
+# Prevents Ruby's build system from adding `-bundle_loader` to the linker flags in macOS builds.
+# This linker flag is only supposed to be added if Ruby is configured without `--with-static-linked-ext`,
+# but due to a bug in the build system, it gets added even if configured with `--with-static-linked-ext`.
+
+--- a/configure.ac
++++ b/configure.ac
+@@ -3014,7 +3014,7 @@ STATIC=
+                         AS_IF([test x"$enable_shared" = xyes], [
+                             # Resolve symbols from libruby.dylib when --enable-shared
+                             EXTDLDFLAGS='$(LIBRUBYARG_SHARED)'
+-                        ], [test "x$EXTSTATIC" = x], [
++                        ], [false], [
+                             # When building exts as bundles, a mach-o bundle needs to know its loader
+                             # program to bind symbols from the ruby executable
+                             EXTDLDFLAGS="-bundle_loader '\$(BUILTRUBY)'"

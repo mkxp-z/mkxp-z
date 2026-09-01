@@ -1,0 +1,50 @@
+From 07550ddbfc590faf421eee7df27f1034f96bdc38 Mon Sep 17 00:00:00 2001
+From: Struma <strumajen@icloud.com>
+Date: Thu, 6 Jul 2023 22:10:04 -0400
+Subject: [PATCH] remove -mwindows flag
+
+---
+ CMakeLists.txt | 2 +-
+ configure      | 2 +-
+ configure.ac   | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index d6c82c819..29a6b041c 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2027,7 +2027,7 @@ elseif(WINDOWS)
+       list(APPEND SDL_CFLAGS "-Dmain=SDL_main")
+       list(INSERT SDL_LIBS 0 "-lSDL2main")
+     endif(NOT SDL2_DISABLE_SDL2MAIN)
+-    list(INSERT SDL_LIBS 0 "-lmingw32" "-mwindows")
++    list(INSERT SDL_LIBS 0 "-lmingw32")
+   endif()
+ 
+ elseif(APPLE)
+diff --git a/configure b/configure
+index d244aa450..65fe02fba 100755
+--- a/configure
++++ b/configure
+@@ -29125,7 +29125,7 @@ printf "%s\n" "#define SDL_LOADSO_WINDOWS 1" >>confdefs.h
+         VERSION_SOURCES="$srcdir/src/main/windows/*.rc"
+         SDLMAIN_SOURCES="$srcdir/src/main/windows/*.c"
+         SDL_CFLAGS="$SDL_CFLAGS -Dmain=SDL_main"
+-        SDL_LIBS="-lSDL2main $SDL_LIBS -mwindows"
++        SDL_LIBS="-lSDL2main $SDL_LIBS"
+ 
+         # Check to see if this is a mingw or cygwin build
+         have_mingw32=
+diff --git a/configure.ac b/configure.ac
+index 13b013501..cad0d4876 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -4198,7 +4198,7 @@ case "$host" in
+         VERSION_SOURCES="$srcdir/src/main/windows/*.rc"
+         SDLMAIN_SOURCES="$srcdir/src/main/windows/*.c"
+         SDL_CFLAGS="$SDL_CFLAGS -Dmain=SDL_main"
+-        SDL_LIBS="-lSDL2main $SDL_LIBS -mwindows"
++        SDL_LIBS="-lSDL2main $SDL_LIBS"
+ 
+         # Check to see if this is a mingw or cygwin build
+         have_mingw32=

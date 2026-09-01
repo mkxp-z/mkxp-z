@@ -227,7 +227,7 @@ static void _blitBegin(FBO::ID fbo, const Vec2i &size, int scaleIsSpecial)
 		}
 
 			break;
-#ifdef MKXPZ_SSL
+#ifdef MKXPZ_HAVE_EXTRA_SHADERS
 		case xBRZ:
 		{
 			XbrzShader &shader = shState->shaders().xbrz;
@@ -326,7 +326,7 @@ void blitSource(TEXFBO &source, int scaleIsSpecial)
 		}
 
 			break;
-#ifdef MKXPZ_SSL
+#ifdef MKXPZ_HAVE_EXTRA_SHADERS
 		case xBRZ:
 		{
 			XbrzShader &shader = shState->shaders().xbrz;
@@ -381,7 +381,7 @@ void blitRectangle(const IntRect &src, const IntRect &dst, bool smooth)
 	}
 	else
 	{
-#ifdef MKXPZ_SSL
+#ifdef MKXPZ_HAVE_EXTRA_SHADERS
 		if (shState->config().smoothScaling == xBRZ)
 		{
 			XbrzShader &shader = shState->shaders().xbrz;

@@ -1,0 +1,9 @@
+[wrap-file]
+source_url = https://github.com/ibus/ibus/releases/download/1.5.32/ibus-1.5.32.tar.gz
+source_fallback_url = https://mirrors.ocf.berkeley.edu/ubuntu/pool/main/i/ibus/ibus_1.5.32.orig.tar.gz
+source_filename = ibus-1.5.32.tar.gz
+source_hash = b24f41ae38b236b254c09f1a8f53c2354b69b0789e89cea888d0494b09d15d67
+directory = ibus-1.5.32
+patch_directory = ibus
+diff_files =
+    end-of-diff-files.patch

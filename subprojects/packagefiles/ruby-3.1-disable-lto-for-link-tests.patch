@@ -1,0 +1,24 @@
+# Allows LTO to be disabled for Ruby extensions' link tests if the environment variable MKXP_DISABLE_LTO_FOR_LINK_TESTS is set to "yes".
+
+--- a/configure.ac
++++ b/configure.ac
+@@ -373,7 +373,7 @@ AS_IF([test "$GCC" = yes -a "$gcc_major" -lt 3 ], [
+ 
+ RUBY_PROG_GNU_LD
+ RUBY_CPPOUTFILE
+-
++AC_SUBST(MKXP_DISABLE_LTO_FOR_LINK_TESTS)
+ : ${OUTFLAG='-o '}
+ : ${COUTFLAG=${OUTFLAG}}
+ : ${CSRCFLAG=''}
+--- a/lib/mkmf.rb
++++ b/lib/mkmf.rb
+@@ -568,7 +568,7 @@ MSG
+ 
+   def try_link0(src, opt="", *opts, &b) # :nodoc:
+     exe = CONFTEST+$EXEEXT
+-    cmd = link_command("", opt)
++    cmd = link_command(CONFIG['MKXP_DISABLE_LTO_FOR_LINK_TESTS'] == 'yes' ? '-fno-lto' : '', opt)
+     if $universal
+       require 'tmpdir'
+       Dir.mktmpdir("mkmf_", oldtmpdir = ENV["TMPDIR"]) do |tmpdir|

@@ -1,0 +1,14 @@
+# Prevents Ruby from forcibly emulating the round() function in x86_64 Windows builds.
+# The function usually exists.
+
+--- a/configure.ac
++++ b/configure.ac
+@@ -1207,7 +1207,7 @@ main()
+ 		ac_cv_sizeof_off_t=8
+ 		AS_IF([test "$target_cpu" = x64], [
+ 		    ac_cv_func___builtin_setjmp=yes
+-		    ac_cv_func_round=no
++
+ 		    coroutine_type=yes
+ 		])
+ 		ac_cv_func_tgamma=no

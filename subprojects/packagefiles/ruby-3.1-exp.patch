@@ -1,0 +1,14 @@
+# Disables the building of ruby.exp on Windows when Ruby is configured with `--disable-shared`.
+# The file ruby.exp fails to build on the latest MSYS2 version and we don't use it.
+
+--- a/cygwin/GNUmakefile.in
++++ b/cygwin/GNUmakefile.in
+@@ -21,7 +21,7 @@ else
+   endif
+ endif
+ 
+-ifneq ($(ENABLE_SHARED),yes)
++ifneq (yes,yes)
+   RUBY_EXP = $(RUBY_INSTALL_NAME).exp
+   EXTOBJS = $(RUBY_EXP)
+   LIBRUBYARG = $(LIBRUBY_A)
