@@ -31,5 +31,6 @@ diff_files =
     ruby-3.1-windows-arm64.patch,
     ruby-3.1-mkxp-z-patches.patch,
     ruby-3.1-clock-gettime.patch,
+    ruby-3.1-mkxp-z-patches-revert-method-visibility-changes.patch,
     ruby-3.1-mkxp-z-patches-windows-libs.patch,
     end-of-diff-files.patch

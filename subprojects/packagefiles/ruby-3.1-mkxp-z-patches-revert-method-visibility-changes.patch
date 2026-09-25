@@ -1,0 +1,41 @@
+# Reverts the method visibility changes done in ruby-3.1-mkxp-z-patches.patch.
+# The method visibility changes cause problems with games that use `method_missing` (see <https://github.com/mkxp-z/mkxp-z/issues/309#issuecomment-3868156822>).
+# The issues with toplevel method visibility that the method visibility changes were intended to fix (e.g. in Pokémon Essentials, which is what the method visibility changes were originally made for) are instead fixed in a better way by <https://github.com/mkxp-z/mkxp-z/pull/320>.
+
+--- a/vm_eval.c
++++ b/vm_eval.c
+@@ -828,9 +828,7 @@ rb_method_call_status(rb_execution_context_t *ec, const rb_callable_method_entry
+     rb_method_visibility_t visi = METHOD_ENTRY_VISI(me);
+ 
+     /* receiver specified form for private method */
+-
+-    // public/private methods are disabled in mkxp-z
+-    if (0) { //UNLIKELY(visi != METHOD_VISI_PUBLIC)) {
++    if (UNLIKELY(visi != METHOD_VISI_PUBLIC)) {
+         if (me->def->original_id == idMethodMissing) {
+             return MISSING_NONE;
+         }
+--- a/vm_insnhelper.c
++++ b/vm_insnhelper.c
+@@ -3722,13 +3722,9 @@ vm_call_method(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct rb_ca
+     if (vm_cc_cme(cc) != NULL) {
+ 	switch (METHOD_ENTRY_VISI(vm_cc_cme(cc))) {
+ 	  case METHOD_VISI_PUBLIC: /* likely */
+-
+-// public/private methods are disabled in mkxp-z
+-call_anyway:
+             return vm_call_method_each_type(ec, cfp, calling);
+ 
+ 	  case METHOD_VISI_PRIVATE:
+-        goto call_anyway;
+ 	    if (!(vm_ci_flag(ci) & VM_CALL_FCALL)) {
+ 		enum method_missing_reason stat = MISSING_PRIVATE;
+ 		if (vm_ci_flag(ci) & VM_CALL_VCALL) stat |= MISSING_VCALL;
+@@ -3740,7 +3736,6 @@ vm_call_method(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct rb_ca
+             return vm_call_method_each_type(ec, cfp, calling);
+ 
+ 	  case METHOD_VISI_PROTECTED:
+-        goto call_anyway;
+ 	    if (!(vm_ci_flag(ci) & VM_CALL_OPT_SEND)) {
+ 		if (!rb_obj_is_kind_of(cfp->self, vm_cc_cme(cc)->defined_class)) {
+                     vm_cc_method_missing_reason_set(cc, MISSING_PROTECTED);
