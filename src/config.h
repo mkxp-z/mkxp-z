@@ -92,7 +92,10 @@ struct Config {
     std::string iconPath;
     std::string execName;
     std::string titleLanguage;
-    
+
+    double inputRepeatStart;
+    double inputRepeatDelay;
+
     struct {
         std::string soundFont;
         bool chorus;
