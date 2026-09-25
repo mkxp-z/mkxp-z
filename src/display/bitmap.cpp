@@ -773,6 +773,7 @@ Bitmap::Bitmap(int width, int height, bool isHires)
 
 Bitmap::Bitmap(void *pixeldata, int width, int height)
 {
+    p = new BitmapPrivate(this);
     SDL_Surface *surface = SDL_CreateRGBSurface(0, width, height, p->format->BitsPerPixel,
                                                 p->format->Rmask,
                                                 p->format->Gmask,
@@ -787,7 +788,6 @@ Bitmap::Bitmap(void *pixeldata, int width, int height)
     
     if (surface->w > glState.caps.maxTexSize || surface->h > glState.caps.maxTexSize)
     {
-        p = new BitmapPrivate(this);
         p->megaSurface = surface;
         SDL_SetSurfaceBlendMode(p->megaSurface, SDL_BLENDMODE_NONE);
     }
@@ -805,7 +805,6 @@ Bitmap::Bitmap(void *pixeldata, int width, int height)
             throw e;
         }
         
-        p = new BitmapPrivate(this);
         p->gl = tex;
         
         TEX::bind(p->gl.tex);
