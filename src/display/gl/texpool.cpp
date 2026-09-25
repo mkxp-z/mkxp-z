@@ -25,6 +25,7 @@
 #include "glstate.h"
 #include "boost-hash.h"
 #include "debugwriter.h"
+#include "graphics.h"
 
 #include <list>
 #include <utility>
@@ -86,6 +87,8 @@ TexPool::TexPool(uint32_t maxMemSize)
 
 TexPool::~TexPool()
 {
+	GFX_LOCK;
+
 	std::list<TEXFBO>::iterator iter;
 
 	for (iter = p->priorityQueue.begin();
@@ -100,6 +103,8 @@ TexPool::~TexPool()
 	assert(p->objCount == 0);
 
 	delete p;
+
+	GFX_UNLOCK;
 }
 
 TEXFBO TexPool::request(int width, int height)

@@ -101,8 +101,6 @@ if get_option('force32') == true
     global_args += '-m32'
 endif
 
-global_args += '-DMKXPZ_INIT_GL_LATER'
-
 subdir('src')
 subdir('binding')
 subdir('shader')
