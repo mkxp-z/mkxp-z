@@ -263,8 +263,9 @@ module Win32API_Impl
 		end
 
 		class GetKeyState
+			PRESSED_BIT = (1 << 15)
 			def call(vkey)
-				return common_keystate(vkey[0])
+				return common_keystate(vkey[0]) == 1 ? PRESSED_BIT : 0
 			end
 		end
 		class GetAsyncKeyState
