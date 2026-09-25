@@ -31,7 +31,7 @@ DEF_ALLOCFUNC(Window);
 #endif
 
 RB_METHOD(windowInitialize) {
-    GFX_LOCK;
+    GFX_GUARD;
     Window *w = viewportElementInitialize<Window>(argc, argv, self);
     
     setPrivateData(self, w);
@@ -40,7 +40,6 @@ RB_METHOD(windowInitialize) {
     
     wrapProperty(self, &w->getCursorRect(), "cursor_rect", RectType);
     
-    GFX_UNLOCK;
     return self;
 }
 
@@ -49,7 +48,8 @@ RB_METHOD_GUARD(windowUpdate) {
     
     Window *w = getPrivateData<Window>(self);
     
-    GFX_GUARD_EXC(w->update(););
+    GFX_GUARD;
+    w->update();
     
     return Qnil;
 }

@@ -25,6 +25,7 @@
 #include "al-util.h"
 #include "sdl-util.h"
 
+#include <mutex>
 #include <string>
 #include <SDL_rwops.h>
 
@@ -52,7 +53,7 @@ struct ALStream
 
 	std::string threadName;
 
-	SDL_mutex *pauseMut;
+	std::mutex pauseMut;
 	bool preemptPause;
 
 	/* When this flag isn't set and alSrc is

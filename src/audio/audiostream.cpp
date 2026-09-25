@@ -24,9 +24,10 @@
 #include "util.h"
 #include "exception.h"
 
-#include <SDL_mutex.h>
 #include <SDL_thread.h>
 #include <SDL_timer.h>
+
+#define STREAM_GUARD std::lock_guard<AudioStream> _stream_guard(*this)
 
 AudioStream::AudioStream(ALStream::LoopMode loopMode,
                          const std::string &threadId)
@@ -45,8 +46,6 @@ AudioStream::AudioStream(ALStream::LoopMode loopMode,
 
 	fadeIn.thread = 0;
 	fadeIn.threadName = std::string("audio_fadein (") + threadId + ")";
-
-	streamMut = SDL_CreateMutex();
 }
 
 AudioStream::~AudioStream()
@@ -63,14 +62,10 @@ AudioStream::~AudioStream()
 		SDL_WaitThread(fadeIn.thread, 0);
 	}
 
-	lockStream();
+	STREAM_GUARD;
 
 	stream.stop();
 	stream.close();
-
-	unlockStream();
-
-	SDL_DestroyMutex(streamMut);
 }
 
 void AudioStream::play(const std::string &filename,
@@ -80,7 +75,7 @@ void AudioStream::play(const std::string &filename,
 {
 	finiFadeOutInt();
 
-	lockStream();
+	STREAM_GUARD;
 
 	float _volume = clamp<int>(volume, 0, 100) / 100.0f;
 	float _pitch  = clamp<int>(pitch, 50, 150) / 100.0f;
@@ -94,7 +89,6 @@ void AudioStream::play(const std::string &filename,
 	&&  _pitch   == current.pitch
 	&&  (sState == ALStream::Playing || sState == ALStream::Paused))
 	{
-		unlockStream();
 		return;
 	}
 
@@ -106,7 +100,6 @@ void AudioStream::play(const std::string &filename,
 	{
 		setVolume(Base, _volume);
 		current.volume = _volume;
-		unlockStream();
 		return;
 	}
 
@@ -115,17 +108,7 @@ void AudioStream::play(const std::string &filename,
 
 	if (diffFile || sState == ALStream::Closed)
 	{
-		try
-		{
-			/* This will throw on errors while
-			 * opening the data source */
-			stream.open(filename);
-		}
-		catch (const Exception &e)
-		{
-			unlockStream();
-			throw e;
-		}
+		stream.open(filename);
 	} else {
 		switch (sState)
 		{
@@ -152,49 +135,39 @@ void AudioStream::play(const std::string &filename,
 		stream.play(offset);
 	else
 		noResumeStop = false;
-
-	unlockStream();
 }
 
 void AudioStream::stop()
 {
 	finiFadeOutInt();
 
-	lockStream();
+	STREAM_GUARD;
 
 	noResumeStop = true;
 
 	stream.stop();
-
-	unlockStream();
 }
 
 void AudioStream::fadeOut(int duration)
 {
-	lockStream();
+	STREAM_GUARD;
 
 	ALStream::State sState = stream.queryState();
 	noResumeStop = true;
 
 	if (fade.active)
 	{
-		unlockStream();
-
 		return;
 	}
 
 	if (sState == ALStream::Paused)
 	{
 		stream.stop();
-		unlockStream();
-
 		return;
 	}
 
 	if (sState != ALStream::Playing)
 	{
-		unlockStream();
-
 		return;
 	}
 
@@ -213,28 +186,25 @@ void AudioStream::fadeOut(int duration)
 
 	fade.thread = createSDLThread
 		<AudioStream, &AudioStream::fadeOutThread>(this, fade.threadName);
-
-	unlockStream();
 }
 
 void AudioStream::seek(double offset)
 {
-	lockStream();
+	STREAM_GUARD;
 	stream.play(offset);
-	unlockStream();
 }
 
 /* Any access to this classes 'stream' member,
  * whether state query or modification, must be
  * protected by a 'lock'/'unlock' pair */
-void AudioStream::lockStream()
+void AudioStream::lock()
 {
-	SDL_LockMutex(streamMut);
+	streamMut.lock();
 }
 
-void AudioStream::unlockStream()
+void AudioStream::unlock()
 {
-	SDL_UnlockMutex(streamMut);
+	streamMut.unlock();
 }
 
 void AudioStream::setVolume(VolumeType type, float value)
@@ -301,7 +271,7 @@ void AudioStream::fadeOutThread()
 		if (fade.reqTerm)
 			break;
 
-		lockStream();
+		STREAM_GUARD;
 
 		uint32_t curDur = SDL_GetTicks() - fade.startTicks;
 		float resVol = 1.0f - (curDur*fade.msStep);
@@ -316,14 +286,10 @@ void AudioStream::fadeOutThread()
 				stream.stop();
 
 			setVolume(FadeOut, 1.0f);
-			unlockStream();
-
 			break;
 		}
 
 		setVolume(FadeOut, resVol);
-
-		unlockStream();
 
 		SDL_Delay(AUDIO_SLEEP);
 	}
@@ -338,7 +304,7 @@ void AudioStream::fadeInThread()
 		if (fadeIn.rqTerm)
 			break;
 
-		lockStream();
+		STREAM_GUARD;
 
 		/* Fade in duration is always 1 second */
 		uint32_t cur = SDL_GetTicks() - fadeIn.startTicks;
@@ -351,14 +317,10 @@ void AudioStream::fadeInThread()
 		||  fadeIn.rqFini)
 		{
 			setVolume(FadeIn, 1.0f);
-			unlockStream();
-
 			break;
 		}
 
 		setVolume(FadeIn, prog);
-
-		unlockStream();
 
 		SDL_Delay(AUDIO_SLEEP);
 	}
