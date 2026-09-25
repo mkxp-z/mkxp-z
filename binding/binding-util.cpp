@@ -350,3 +350,22 @@ void *drop_gvl_guard(void *(*func)(void *), void *args,
 }
 
 #endif
+
+bool mkxp_use_legacy_delta() noexcept {
+  if (!rb_const_defined(rb_cObject, rb_intern("Essentials"))) {
+    return false;
+  }
+  VALUE value = rb_const_get(rb_cObject, rb_intern("Essentials"));
+  if (!rb_const_defined(value, rb_intern("VERSION"))) {
+    return false;
+  }
+  value = rb_const_get(value, rb_intern("VERSION"));
+  if (!RB_TYPE_P(value, RUBY_T_STRING)) {
+    return false;
+  }
+  const char *version = rb_string_value_ptr(&value);
+  return strcmp(version, "19") == 0
+    || strcmp(version, "19.1") == 0
+    || strcmp(version, "20") == 0
+    || strcmp(version, "20.1") == 0;
+}
