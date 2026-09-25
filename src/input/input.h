@@ -116,10 +116,10 @@ public:
     const char *getAxisName(SDL_GameControllerAxis axis);
     const char *getButtonName(SDL_GameControllerButton button);
 
-private:
 	Input(const RGSSThreadData &rtData);
 	~Input();
 
+private:
 	friend struct SharedStatePrivate;
 
 	InputPrivate *p;
