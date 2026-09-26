@@ -18,7 +18,7 @@
 
 namespace Encoding {
 
-static std::string getCharset(std::string &str) {
+static std::string getCharset(const std::string &str) {
     uchardet_t ud = uchardet_new();
     uchardet_handle_data(ud, str.c_str(), str.length());
     uchardet_data_end(ud);
@@ -31,13 +31,13 @@ static std::string getCharset(std::string &str) {
     return ret;
 }
 
-static std::string convertString(std::string &str, const char *charset) {
+static std::string convertString(const std::string &str, const char *charset, const char *destCharset = "UTF-8") {
     // Conversion doesn't need to happen if it's already UTF-8
-    if (!strcmp(charset, "UTF-8") || !strcmp(charset, "ASCII")) {
+    if (!strcmp(destCharset, "UTF-8") && (!strcmp(charset, "UTF-8") || !strcmp(charset, "ASCII"))) {
         return std::string(str);
     }
     
-    iconv_t cd = iconv_open("UTF-8", charset);
+    iconv_t cd = iconv_open(destCharset, charset);
     
     size_t inLen = str.size();
     size_t outLen = inLen * 4;
@@ -61,7 +61,7 @@ static std::string convertString(std::string &str, const char *charset) {
     return buf;
 }
 
-static std::string convertString(std::string &str) {
+static std::string convertString(const std::string &str) {
     return convertString(str, getCharset(str).c_str());
 }
 }
