@@ -10,59 +10,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  verify-ruby-configure-scripts:
-    name: Verify Ruby ${{ matrix.version }} configure scripts
+  build-source-tarball-with-dependencies:
+    name: Source tarball with dependencies
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - version: 3.1
-    env:
-      packages: autoconf meson python3
-    steps:
-      - name: Set up Nix
-        uses: cachix/install-nix-action@v31
-
-      - name: Install dependencies
-        run: |
-          nix-channel --add https://github.com/NixOS/nixpkgs/archive/refs/tags/26.05.tar.gz nixpkgs
-          nix-channel --update nixpkgs
-          nix-shell --packages $packages --run ''
-
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Verify
-        run: |
-          xargs -0 nix-shell --packages $packages --run << 'EOF'
-            set -eo pipefail
-            meson subprojects download ruby-${{ matrix.version }}
-            cd "subprojects/$(sed 's/^    //' << '  PYTHON' | python)"
-              import configparser
-              config = configparser.ConfigParser()
-              config.read('subprojects/ruby-${{ matrix.version }}.wrap')
-              print(config['wrap-file']['directory'])
-            PYTHON
-            hashes="$(sha256sum -b configure tool/config.guess tool/config.sub)"
-            cat <<< "$hashes"
-            autoreconf -fi
-            sha256sum -c <<< "$hashes"
-          EOF
-
-  build-source-tarball:
-    name: ${{ matrix.job-name }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - job-name: Source tarball with dependencies
-            artifact-name: source-with-dependencies
-            dist-subprojects: all
-          - job-name: Source tarball without dependencies
-            artifact-name: source-without-dependencies
-            dist-subprojects: none
     steps:
       - uses: benjlevesque/short-sha@v4.0
         id: short-sha
@@ -83,31 +33,168 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Prepare tarball
+      - name: Prepare source tarball
         run: |
           meson subprojects download
-          meson setup -Ddist_subprojects=${{ matrix.dist-subprojects }} build
+          meson setup -Ddist_subprojects=all build
           meson dist -C build --no-tests --formats gztar
           mv build/meson-dist/*.tar.gz dist.tar.gz
 
-      - name: Repack tarball deterministically
+      - name: Generate a source date epoch for the source tarball
+        run: |
+          # Use the timestamp of the Git commit that this source tarball is being generated from
+          SOURCE_DATE_EPOCH=$(git show --no-patch --format=%ct)
+          echo SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH | tee -a "$GITHUB_ENV"
+
+      - name: Repack source tarball deterministically
         run: |
           mkdir dist
           tar -C dist -xzf dist.tar.gz
           rm dist.tar.gz
-          tar -C dist --mtime=@$(git show --no-patch --format=%ct) --sort=name --format=posix --mode=a=rX,u+w --owner=0 --group=0 --numeric-owner --pax-option=exthdr.name=%d/PaxHeaders/%f,delete=atime,delete=ctime -cf dist.tar "$(ls dist)"
+          tar -C dist --mtime=@$SOURCE_DATE_EPOCH --sort=name --format=posix --mode=a=rX,u+w --owner=0 --group=0 --numeric-owner --pax-option=exthdr.name=%d/PaxHeaders/%f,delete=atime,delete=ctime -cf dist.tar "$(ls dist)"
           zstd --rm -T0 --ultra -20 dist.tar
-          mv dist.tar.zst mkxp-z.${{ matrix.artifact-name }}.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst
+          mv dist.tar.zst mkxp-z.source-with-dependencies.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          path: mkxp-z.${{ matrix.artifact-name }}.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst
+          path: mkxp-z.source-with-dependencies.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst
           archive: false
+
+  build-source-tarball-without-dependencies:
+    name: Source tarball without dependencies
+    runs-on: ubuntu-latest
+    needs: build-source-tarball-with-dependencies
+    steps:
+      - uses: benjlevesque/short-sha@v4.0
+        id: short-sha
+        with:
+          length: 7
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y bison ccache cmake diffutils git make ruby
+          # The Meson version provided by APT is too old so we install Meson using pip instead
+          sudo apt install -y ninja-build python3-pip
+          pip3 install meson
+          sudo apt install -y gcc g++
+
+          sudo apt install -y gzip tar zstd
+
+      - name: Download source tarball
+        uses: actions/download-artifact@v8
+        with:
+          name: mkxp-z.source-with-dependencies.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst
+          path: .
+
+      - name: Extract source tarball
+        run: |
+          mv mkxp-z.source-with-dependencies.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst mkxp-z.source-with-dependencies.tar.zst
+          find . -mindepth 1 -maxdepth 1 \! -name mkxp-z.source-with-dependencies.tar.zst -exec rm -rf {} \;
+          zstd -dc mkxp-z.source-with-dependencies.tar.zst | tar -xf - --strip-components 1
+          rm mkxp-z.source-with-dependencies.tar.zst
+
+      - name: Initialize Git repository
+        run: |
+          # `meson dist` will throw an error if we're not in a non-empty Git repository, so create a Git repository and make a dummy commit in it
+          git init
+          git config --local user.name 'Your Name'
+          git config --local user.email 'you@example.com'
+          git config --local commit.gpgsign false
+          git add .
+          git commit --no-verify -m 'This is a dummy commit to appease `meson dist`'
+
+      - name: Prepare source tarball
+        run: |
+          meson setup -Ddist_subprojects=none build
+          meson dist -C build --no-tests --formats gztar
+          mv build/meson-dist/*.tar.gz dist.tar.gz
+
+      - name: Generate a source date epoch for the source tarball
+        run: |
+          # Use the last modified time of an arbitrary file from the source tarball with dependencies (meson.build), which should be the same as the source date epoch that we used for the source tarball with dependencies
+          SOURCE_DATE_EPOCH=$(stat -c %Y meson.build)
+          echo SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH | tee -a "$GITHUB_ENV"
+
+      - name: Repack source tarball deterministically
+        run: |
+          mkdir dist
+          tar -C dist -xzf dist.tar.gz
+          rm dist.tar.gz
+          tar -C dist --mtime=@$SOURCE_DATE_EPOCH --sort=name --format=posix --mode=a=rX,u+w --owner=0 --group=0 --numeric-owner --pax-option=exthdr.name=%d/PaxHeaders/%f,delete=atime,delete=ctime -cf dist.tar "$(ls dist)"
+          zstd --rm -T0 --ultra -20 dist.tar
+          mv dist.tar.zst mkxp-z.source-without-dependencies.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          path: mkxp-z.source-without-dependencies.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst
+          archive: false
+
+  verify-ruby-configure-scripts:
+    name: Verify Ruby ${{ matrix.version }} configure scripts
+    runs-on: ubuntu-latest
+    needs: build-source-tarball-with-dependencies
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: 3.1
+    env:
+      packages: autoconf meson python3
+    steps:
+      - uses: benjlevesque/short-sha@v4.0
+        id: short-sha
+        with:
+          length: 7
+
+      - name: Set up Nix
+        uses: cachix/install-nix-action@v31
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y tar zstd
+
+          nix-channel --add https://github.com/NixOS/nixpkgs/archive/refs/tags/26.05.tar.gz nixpkgs
+          nix-channel --update nixpkgs
+          nix-shell --packages $packages --run ''
+
+      - name: Download source tarball
+        uses: actions/download-artifact@v8
+        with:
+          name: mkxp-z.source-with-dependencies.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst
+          path: .
+
+      - name: Extract source tarball
+        run: |
+          mv mkxp-z.source-with-dependencies.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst mkxp-z.source-with-dependencies.tar.zst
+          find . -mindepth 1 -maxdepth 1 \! -name mkxp-z.source-with-dependencies.tar.zst -exec rm -rf {} \;
+          zstd -dc mkxp-z.source-with-dependencies.tar.zst | tar -xf - --strip-components 1
+          rm mkxp-z.source-with-dependencies.tar.zst
+
+      - name: Verify
+        run: |
+          xargs -0 nix-shell --packages $packages --run << 'EOF'
+            set -eo pipefail
+            meson subprojects download ruby-${{ matrix.version }}
+            cd "subprojects/$(sed 's/^    //' << '  PYTHON' | python)"
+              import configparser
+              config = configparser.ConfigParser()
+              config.read('subprojects/ruby-${{ matrix.version }}.wrap')
+              print(config['wrap-file']['directory'])
+            PYTHON
+            hashes="$(sha256sum -b configure tool/config.guess tool/config.sub)"
+            cat <<< "$hashes"
+            autoreconf -fi
+            sha256sum -c <<< "$hashes"
+          EOF
 
   build-windows-msys2:
     name: Windows MSYS2
     runs-on: windows-latest
+    needs: build-source-tarball-with-dependencies
     steps:
       - uses: benjlevesque/short-sha@v4.0
         id: short-sha
@@ -121,9 +208,21 @@ jobs:
           install: >-
             bison mingw-w64-x86_64-ccache mingw-w64-x86_64-cmake diffutils mingw-w64-x86_64-git make mingw-w64-x86_64-meson mingw-w64-x86_64-ruby
             mingw-w64-x86_64-gcc
+            tar zstd
 
-      - name: Checkout repository
-        uses: actions/checkout@v7
+      - name: Download source tarball
+        uses: actions/download-artifact@v8
+        with:
+          name: mkxp-z.source-with-dependencies.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst
+          path: .
+
+      - name: Extract source tarball
+        shell: msys2 {0}
+        run: |
+          mv mkxp-z.source-with-dependencies.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst mkxp-z.source-with-dependencies.tar.zst
+          find . -mindepth 1 -maxdepth 1 \! -name mkxp-z.source-with-dependencies.tar.zst -exec rm -rf {} \;
+          zstd -dc mkxp-z.source-with-dependencies.tar.zst | tar -xf - --strip-components 1
+          rm mkxp-z.source-with-dependencies.tar.zst
 
       - name: Restore from cache
         if: false
@@ -215,6 +314,7 @@ jobs:
   build-windows-cross:
     name: Windows ${{ matrix.arch_mkxpz }}
     runs-on: ubuntu-latest
+    needs: build-source-tarball-with-dependencies
     strategy:
       fail-fast: false
       matrix:
@@ -242,6 +342,7 @@ jobs:
           sudo apt install -y ninja-build python3-pip
           pip3 install meson
           sudo apt install -y gcc g++
+          sudo apt install -y tar zstd
 
           if [ '${{ matrix.clang }}' = 'true' ]
           then
@@ -257,8 +358,18 @@ jobs:
             sudo apt install -y mingw-w64
           fi
 
-      - name: Checkout repository
-        uses: actions/checkout@v7
+      - name: Download source tarball
+        uses: actions/download-artifact@v8
+        with:
+          name: mkxp-z.source-with-dependencies.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst
+          path: .
+
+      - name: Extract source tarball
+        run: |
+          mv mkxp-z.source-with-dependencies.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst mkxp-z.source-with-dependencies.tar.zst
+          find . -mindepth 1 -maxdepth 1 \! -name mkxp-z.source-with-dependencies.tar.zst -exec rm -rf {} \;
+          zstd -dc mkxp-z.source-with-dependencies.tar.zst | tar -xf - --strip-components 1
+          rm mkxp-z.source-with-dependencies.tar.zst
 
       - name: Restore from cache
         if: ${{ matrix.cache }}
@@ -321,6 +432,7 @@ jobs:
   build-linux-gnu:
     name: ${{ matrix.distro }} ${{ matrix.suite }} ${{ matrix.arch_mkxpz }}
     runs-on: ubuntu-26.04
+    needs: build-source-tarball-with-dependencies
     strategy:
       fail-fast: false
       matrix:
@@ -433,9 +545,20 @@ jobs:
             sudo apt install -y clang lld llvm
           fi
           echo "linker=$linker" >> "$GITHUB_ENV"
+          sudo apt install -y tar zstd
 
-      - name: Checkout repository
-        uses: actions/checkout@v7
+      - name: Download source tarball
+        uses: actions/download-artifact@v8
+        with:
+          name: mkxp-z.source-with-dependencies.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst
+          path: .
+
+      - name: Extract source tarball
+        run: |
+          mv mkxp-z.source-with-dependencies.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst mkxp-z.source-with-dependencies.tar.zst
+          find . -mindepth 1 -maxdepth 1 \! -name mkxp-z.source-with-dependencies.tar.zst -exec rm -rf {} \;
+          zstd -dc mkxp-z.source-with-dependencies.tar.zst | tar -xf - --strip-components 1
+          rm mkxp-z.source-with-dependencies.tar.zst
 
       - name: Set up sysroot
         run: |
@@ -589,6 +712,7 @@ jobs:
     name: Debian Trixie x86_64
     runs-on: ubuntu-latest
     container: debian:trixie
+    needs: build-source-tarball-with-dependencies
     defaults:
       run:
         shell: bash
@@ -603,9 +727,20 @@ jobs:
           apt update
           apt install -y bison ccache cmake diffutils git make meson ruby
           apt install -y gcc g++
+          apt install -y tar zstd
 
-      - name: Checkout repository
-        uses: actions/checkout@v7
+      - name: Download source tarball
+        uses: actions/download-artifact@v8
+        with:
+          name: mkxp-z.source-with-dependencies.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst
+          path: .
+
+      - name: Extract source tarball
+        run: |
+          mv mkxp-z.source-with-dependencies.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst mkxp-z.source-with-dependencies.tar.zst
+          find . -mindepth 1 -maxdepth 1 \! -name mkxp-z.source-with-dependencies.tar.zst -exec rm -rf {} \;
+          zstd -dc mkxp-z.source-with-dependencies.tar.zst | tar -xf - --strip-components 1
+          rm mkxp-z.source-with-dependencies.tar.zst
 
       - name: Restore from cache
         if: false
@@ -663,6 +798,7 @@ jobs:
     name: Debian Trixie ${{matrix.arch_mkxpz}}
     runs-on: ubuntu-latest
     container: debian:trixie
+    needs: build-source-tarball-with-dependencies
     defaults:
       run:
         shell: bash
@@ -707,9 +843,20 @@ jobs:
           apt install -y bison ccache cmake diffutils git make meson ruby
           apt install -y gcc g++
           apt install -y gcc-${{matrix.arch_gcc}} g++-${{matrix.arch_gcc}}
+          apt install -y tar zstd
 
-      - name: Checkout repository
-        uses: actions/checkout@v7
+      - name: Download source tarball
+        uses: actions/download-artifact@v8
+        with:
+          name: mkxp-z.source-with-dependencies.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst
+          path: .
+
+      - name: Extract source tarball
+        run: |
+          mv mkxp-z.source-with-dependencies.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst mkxp-z.source-with-dependencies.tar.zst
+          find . -mindepth 1 -maxdepth 1 \! -name mkxp-z.source-with-dependencies.tar.zst -exec rm -rf {} \;
+          zstd -dc mkxp-z.source-with-dependencies.tar.zst | tar -xf - --strip-components 1
+          rm mkxp-z.source-with-dependencies.tar.zst
 
       - name: Restore from cache
         if: ${{ matrix.cache }}
@@ -772,6 +919,7 @@ jobs:
   build-freebsd:
     name: FreeBSD ${{ matrix.arch }}
     runs-on: ubuntu-26.04
+    needs: build-source-tarball-with-dependencies
     strategy:
       fail-fast: false
       matrix:
@@ -832,9 +980,20 @@ jobs:
           sudo apt update
           sudo apt install -y bison ccache cmake diffutils git make meson ruby
           sudo apt install -y clang lld llvm
+          sudo apt install -y tar zstd
 
-      - name: Checkout repository
-        uses: actions/checkout@v7
+      - name: Download source tarball
+        uses: actions/download-artifact@v8
+        with:
+          name: mkxp-z.source-with-dependencies.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst
+          path: .
+
+      - name: Extract source tarball
+        run: |
+          mv mkxp-z.source-with-dependencies.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst mkxp-z.source-with-dependencies.tar.zst
+          find . -mindepth 1 -maxdepth 1 \! -name mkxp-z.source-with-dependencies.tar.zst -exec rm -rf {} \;
+          zstd -dc mkxp-z.source-with-dependencies.tar.zst | tar -xf - --strip-components 1
+          rm mkxp-z.source-with-dependencies.tar.zst
 
       - name: Set up sysroot
         shell: bash
@@ -991,6 +1150,7 @@ jobs:
   build-macos:
     name: macOS ${{ matrix.arch_mkxpz }}
     runs-on: macos-latest
+    needs: build-source-tarball-with-dependencies
     strategy:
       fail-fast: false
       matrix:
@@ -1008,9 +1168,20 @@ jobs:
       - name: Install dependencies
         run: |
           brew install -q bison ccache cmake diffutils git make meson ruby
+          brew install -q zstd
 
-      - name: Checkout repository
-        uses: actions/checkout@v7
+      - name: Download source tarball
+        uses: actions/download-artifact@v8
+        with:
+          name: mkxp-z.source-with-dependencies.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst
+          path: .
+
+      - name: Extract source tarball
+        run: |
+          mv mkxp-z.source-with-dependencies.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}.tar.zst mkxp-z.source-with-dependencies.tar.zst
+          find . -mindepth 1 -maxdepth 1 \! -name mkxp-z.source-with-dependencies.tar.zst -exec rm -rf {} \;
+          zstd -dc mkxp-z.source-with-dependencies.tar.zst | tar -xf - --strip-components 1
+          rm mkxp-z.source-with-dependencies.tar.zst
 
       - name: Restore from cache
         if: ${{ matrix.cache }}
