@@ -99,6 +99,7 @@ ruby = declare_dependency(
                 'rb_cv_broken_crypt': 'no',
                 'rb_cv_gcc_atomic_builtins': 'yes',
                 'rb_cv_gcc_sync_builtins': 'no',
+                'rb_cv_msvcrt': host_machine.system() in ['windows', 'cygwin'] and meson.get_compiler('c').has_define('_UCRT', prefix: '#include <windows.h>') ? 'ucrt' : 'msvcrt',
                 'rb_cv_prog_gnu_ld': subproject('common').get_variable('c_linker_is_gnu') ? 'yes' : 'no',
                 'rb_cv_symbol_prefix': meson.get_compiler('c').symbols_have_underscore_prefix() ? '_' : 'NONE',
             },
