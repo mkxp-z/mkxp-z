@@ -7,6 +7,8 @@ on:
   pull_request:
     branches: ['dev', 'autobuild']
     paths-ignore: ['*.md', '*.json', '*.png']
+  release:
+    types: ['published']
   workflow_dispatch:
 
 jobs:
@@ -1132,3 +1134,111 @@ jobs:
         with:
           name: mkxp-z.macos.universal.app.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: artifact-bundle
+
+  upload-artifacts:
+    name: Upload artifacts
+    runs-on: ubuntu-slim
+    needs:
+      - verify-ruby-configure-scripts
+      - build-source-tarball
+      - build-windows-msys2
+      - build-windows-cross
+      - build-linux-gnu
+      - build-linux-native-container
+      - build-linux-cross-container
+      - build-freebsd
+      - build-macos
+      - build-macos-universal
+    concurrency:
+      group: upload-artifacts
+      cancel-in-progress: false
+    permissions:
+      contents: write # Needed to modify Git tags and GitHub releases
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: ${{ runner.temp }}/artifacts
+          pattern: mkxp-z.**
+
+      - name: Prepare files
+        shell: bash
+        run: |
+          cd ${{ runner.temp }}/artifacts
+          for artifact in *
+          do
+            echo "Preparing $artifact"
+            # If the artifact consists of exactly one file with the same name as the artifact, just upload the one file.
+            # Otherwise, create a zip file containing all of the artifact's files and upload the zip file.
+            if [ -f "$artifact/$artifact" ] && [ $(find "$artifact" -mindepth 1 -maxdepth 1 -exec echo '' \; | wc -l) = 1 ]
+            then
+              echo 'Artifact consists of one file named after the artifact; not zipping it'
+              tmpdir=$(od -N 32 -x /dev/urandom | cut -b 9- | tr -d ' \n') # 64 random lowercase hexadecimal digits
+              mv "$artifact" "$tmpdir"
+              mv "$tmpdir/$artifact" "$artifact"
+              rmdir "$tmpdir"
+            else
+              cd "$artifact"
+              old_dotglob="$(shopt -p dotglob || :)"
+              shopt -s dotglob
+              zip -r9 "../$artifact.zip" *
+              eval "$old_dotglob"
+              cd ..
+              rm -r "$artifact"
+            fi
+          done
+
+      - name: Upload
+        shell: bash
+        run: |
+          ghcurl () {
+            command="curl --no-progress-meter --retry 5 -f -L -H 'Accept: application/vnd.github+json' -H 'Authorization: Bearer ${{ github.token }}' -H 'GitHub-Api-Version: 2026-03-10' ${@@Q}"
+            echo "$command" >&2
+            eval "$command"
+          }
+          release_id=
+          if [ '${{ github.event_name == 'release' }}' = 'true' ]
+          then
+            # Find the release ID for the current release
+            release_id=$(ghcurl ${{ github.api_url }}/repos/${{ github.repository }}/releases/tags/${{ github.ref_name }} | jq -r '.id')
+          elif [ '${{ github.event_name == 'push' && github.ref_name == 'dev' }}' = 'true' ]
+          then
+            # Don't update the v9999.9999.9999-nightly tag if the current v9999.9999.9999-nightly tag is not an ancestor of the current commit in order to prevent the v9999.9999.9999-nightly tag from reverting to an earlier commit
+            if git rev-parse refs/tags/v9999.9999.9999-nightly > /dev/null 2>&1 && ! git merge-base --is-ancestor refs/tags/v9999.9999.9999-nightly HEAD
+            then
+              echo '::warning::Not uploading artifacts because the v9999.9999.9999-nightly tag is not an ancestor of the current commit'
+            else
+              # If there already is a release for the v9999.9999.9999-nightly tag, delete it
+              nightly_release_info="$(ghcurl ${{ github.api_url }}/repos/${{ github.repository }}/releases/tags/v9999.9999.9999-nightly)" || nightly_release_info=
+              if [ -n "$nightly_release_info" ]
+              then
+                ghcurl -X DELETE ${{ github.api_url }}/repos/${{ github.repository }}/releases/$(echo "$nightly_release_info" | jq -r .id)
+              fi
+              # Tag the current commit as v9999.9999.9999-nightly
+              git tag -f v9999.9999.9999-nightly
+              git push -f origin tag v9999.9999.9999-nightly
+              # Create a new release with the v9999.9999.9999-nightly tag
+              release_id=$(ghcurl -X POST ${{ github.api_url }}/repos/${{ github.repository }}/releases -d '{
+                "tag_name": "v9999.9999.9999-nightly",
+                "target_commitish": "${{ github.ref_name }}",
+                "name": "Nightly build",
+                "body": "This is the latest development build, built from commit [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}).",
+                "draft": false,
+                "prerelease": true,
+                "generate_release_notes": false
+              }' | jq -r .id)
+            fi
+          else
+            echo '::warning::Not uploading artifacts because artifact uploading is disabled for the ${{ github.event_name }} trigger on ${{ github.ref_name }}'
+          fi
+          if [ -n "$release_id" ]
+          then
+            cd ${{ runner.temp }}/artifacts
+            for artifact in *
+            do
+              ghcurl -X POST -H 'Content-Type: application/octet-stream' https://uploads.github.com/repos/${{ github.repository }}/releases/$release_id/assets?name="$artifact" --data-binary "@$artifact" > /dev/null
+            done
+          fi
