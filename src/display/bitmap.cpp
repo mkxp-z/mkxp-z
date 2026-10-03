@@ -2464,7 +2464,11 @@ void Bitmap::radialBlur(int angle, int divisions)
     float baseAngle = -((float) angle / 2);
     
     ColorQuadArray qArray;
-    qArray.resize(5);
+    
+    int wNum = _width < _height ? ceil((ceil(_height / 2.0f) - (_width / 2)) / _width) : 1;
+    int hNum = _height < _width ? ceil((ceil(_width / 2.0f) - (_height / 2)) / _height) : 1;
+    
+    qArray.resize(wNum * 2 + hNum * 2 + 1);
     
     std::vector<Vertex> &vert = qArray.vertices;
     
@@ -2476,27 +2480,33 @@ void Bitmap::radialBlur(int angle, int divisions)
     
     i += Quad::setTexPosRect(&vert[i*4], texRect, posRect);
     
-    /* Upper */
-    posRect = FloatRect(0, 0, _width, -_height);
+    for (int j = 0; j < hNum; j++)
+    {
+        /* Upper */
+        posRect = FloatRect(0, (int)ceil(j / 2.0f) * 2 * -_height, _width, (j % 2 ? 1 : -1) * _height);
+        
+        i += Quad::setTexPosRect(&vert[i*4], texRect, posRect);
+        
+        /* Lower */
+        posRect = FloatRect(0, (int)ceil((j + 1) / 2.0f) * 2 * _height, _width, (j % 2 ? 1 : -1) * _height);
+        
+        i += Quad::setTexPosRect(&vert[i*4], texRect, posRect);
+    }
     
-    i += Quad::setTexPosRect(&vert[i*4], texRect, posRect);
+    for (int j = 0; j < wNum; j++)
+    {
+        /* Left */
+        posRect = FloatRect((int)ceil(j / 2.0f) * 2 * -_width, 0, (j % 2 ? 1 : -1) * _width, _height);
+        
+        i += Quad::setTexPosRect(&vert[i*4], texRect, posRect);
+        
+        /* Right */
+        posRect = FloatRect((int)ceil((j + 1) / 2.0f) * 2 * _width, 0, (j % 2 ? 1 : -1) * _width, _height);
+        
+        i += Quad::setTexPosRect(&vert[i*4], texRect, posRect);
+    }
     
-    /* Lower */
-    posRect = FloatRect(0, _height*2, _width, -_height);
-    
-    i += Quad::setTexPosRect(&vert[i*4], texRect, posRect);
-    
-    /* Left */
-    posRect = FloatRect(0, 0, -_width, _height);
-    
-    i += Quad::setTexPosRect(&vert[i*4], texRect, posRect);
-    
-    /* Right */
-    posRect = FloatRect(_width*2, 0, -_width, _height);
-    
-    i += Quad::setTexPosRect(&vert[i*4], texRect, posRect);
-    
-    for (int i = 0; i < 4*5; ++i)
+    for (int i = 0; i < 4*qArray.count(); ++i)
         vert[i].color = Vec4(1, 1, 1, opacity);
     
     qArray.commit();
