@@ -347,6 +347,25 @@ def kappatalize(s)
 	return s
 end
 
+# Helper to detect if a DLL name is a local/custom DLL path
+def is_local_dll_path?(dll_name)
+	# Explicitly look for .dll extension - if present, it's a custom DLL path
+	return true if dll_name.downcase.end_with?('.dll')
+
+	# Check for path separators or absolute paths
+	return true if dll_name.include?('/') || dll_name.include?('\\') ||
+	              dll_name.match?(/^[a-zA-Z]:/)
+
+	# Known system DLLs (simple names without extension)
+	system_dlls = ['kernel32', 'user32', 'advapi32', 'shell32', 'ole32', 'gdi32',
+	               'comctl32', 'comdlg32', 'winmm', 'winsock2', 'msvcrt']
+
+	return false if system_dlls.include?(dll_name.downcase)
+
+	# Default: treat unknown names as local
+	return true
+end
+
 class Win32API
 	NATIVE_ON_WINDOWS = true unless const_defined?("NATIVE_ON_WINDOWS")
 	TOLERATE_ERRORS = true unless const_defined?("TOLERATE_ERRORS")
@@ -357,23 +376,41 @@ class Win32API
 		@dll = dll
 		@func = func
 		@called = false
+		@is_local_dll = is_local_dll_path?(dll)
 
-		dll = kappatalize(dll.chomp(".dll"))
-		func = kappatalize(func)
+		# For local DLL paths, preserve the original names
+		# For system DLLs (kernel32, user32, etc.), apply kappatalize
+		if @is_local_dll
+			dll_for_lookup = dll
+			func_for_lookup = func
+		else
+			dll_for_lookup = kappatalize(dll.chomp(".dll"))
+			func_for_lookup = kappatalize(func)
+		end
 
+		# First try to find a polyfill implementation (for cross-platform support)
 		if !System.is_windows? or !NATIVE_ON_WINDOWS
-			if Win32API_Impl.const_defined?(dll)
-				dll_impl = Win32API_Impl.const_get(dll)
-				if dll_impl.const_defined?(func)
-					@mkxp_wrap_impl = dll_impl.const_get(func).new
+			if Win32API_Impl.const_defined?(dll_for_lookup)
+				dll_impl = Win32API_Impl.const_get(dll_for_lookup)
+				if dll_impl.const_defined?(func_for_lookup)
+					@mkxp_wrap_impl = dll_impl.const_get(func_for_lookup).new
 					return
 				end
 			end
 		end
 
+		# Try native call (for actual DLLs on Windows)
 		@mkxp_native_available = false
 		begin
-			mkxp_native_initialize(@dll, @func, *args)
+			# For local DLLs on Windows, try native call with original names
+			if @is_local_dll && System.is_windows?
+				mkxp_native_initialize(dll, func, *args)
+				@mkxp_native_available = true
+				return
+			end
+
+			# For system DLLs, use the transformed names
+			mkxp_native_initialize(dll_for_lookup, func_for_lookup, *args)
 			@mkxp_native_available = true
 			return
 		rescue
@@ -403,3 +440,4 @@ class Win32API
 		end
 	end
 end
+
