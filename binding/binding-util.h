@@ -362,19 +362,6 @@ static inline void _rb_define_module_function(VALUE module, const char *name,
     rb_define_module_function(module, name, RUBY_METHOD_FUNC(func), -1);
 }
 
-#define GFX_GUARD_EXC(exp)                                               \
-{                                                                        \
-GFX_LOCK;                                                                \
-try {                                                                    \
-exp                                                                      \
-} catch (const Exception &exc) {                                         \
-GFX_UNLOCK;                                                              \
-throw exc;                                                               \
-}                                                                        \
-GFX_UNLOCK;                                                              \
-}
-
-
 template <class C>
 static inline VALUE objectLoad(int argc, VALUE *argv, VALUE self) {
     const char *data;
@@ -657,7 +644,7 @@ if (NIL_P(propObj))                                                        \
 prop = 0;                                                                \
 else                                                                       \
 prop = getPrivateDataCheck<PropKlass>(propObj, PropKlass##Type);         \
-GFX_GUARD_EXC(k->set##PropName(prop);)                                         \
+{GFX_GUARD; k->set##PropName(prop);}                                         \
 rb_iv_set(self, prop_iv, propObj);                                         \
 return propObj;                                                            \
 }                                                                          \
@@ -681,7 +668,7 @@ Klass *k = getPrivateData<Klass>(self);                                    \
 VALUE propObj = *argv;                                                     \
 PropKlass *prop;                                                           \
 prop = getPrivateDataCheck<PropKlass>(propObj, PropKlass##Type);           \
-GFX_GUARD_EXC(k->set##PropName(*prop);)                                        \
+{GFX_GUARD; k->set##PropName(*prop);}                                        \
 return propObj;                                                            \
 }                                                                          \
 RB_METHOD_GUARD_END
@@ -704,7 +691,7 @@ rb_check_argc(argc, 1);                                                    \
 Klass *k = getPrivateData<Klass>(self);                                    \
 type value;                                                                \
 rb_##arg_fun##_arg(*argv, &value);                                         \
-GFX_GUARD_EXC(k->set##PropName(value);)                                        \
+{GFX_GUARD; k->set##PropName(value);}                                        \
 return *argv;                                                              \
 }                                                                          \
 RB_METHOD_GUARD_END

@@ -101,6 +101,20 @@ struct AudioPrivate
         return bgmTracks[index];
     }
 
+	void lock()
+	{
+		for (AudioStream *track : bgmTracks) {
+			track->lock();
+		}
+	}
+
+	void unlock()
+	{
+		for (AudioStream *track : bgmTracks) {
+			track->unlock();
+		}
+	}
+
 	void meWatchFun()
 	{
 		const float fadeOutStep = 1.f / (200  / AUDIO_SLEEP);
@@ -117,7 +131,7 @@ struct AudioPrivate
 			{
 			case MeNotPlaying:
 			{
-				me.lockStream();
+				std::lock_guard<AudioStream> guard(me);
 
 				if (me.stream.queryState() == ALStream::Playing)
 				{
@@ -128,19 +142,16 @@ struct AudioPrivate
 					meWatch.state = BgmFadingOut;
 				}
 
-				me.unlockStream();
-
 				break;
 			}
 
 			case BgmFadingOut :
 			{
-				me.lockStream();
+				std::lock_guard<AudioStream> guard(me);
 
 				if (me.stream.queryState() != ALStream::Playing)
 				{
 					/* ME has ended while fading OUT BGM. -> FadeInBGM */
-					me.unlockStream();
 					meWatch.state = BgmFadingIn;
 
 					break;
@@ -150,54 +161,52 @@ struct AudioPrivate
                 
                 for (int i = 0; i < (int)(bgmTracks.size()); i++) {
                     AudioStream *track = bgmTracks[i];
-                    
-                    track->lockStream();
-                    
-                    float vol = track->getVolume(AudioStream::External);
-                    vol -= fadeOutStep;
-                    
-                    if (vol < 0 || track->stream.queryState() != ALStream::Playing) {
-                        /* Either BGM has fully faded out, or stopped midway. -> MePlaying */
-                        track->setVolume(AudioStream::External, 0);
-                        track->stream.pause();
-                        track->unlockStream();
-                        
+                    bool checkForPlayingTracks;
+
+                    {
+                        std::lock_guard<AudioStream> trackGuard(*track);
+
+                        float vol = track->getVolume(AudioStream::External);
+                        vol -= fadeOutStep;
+
+                        if ((checkForPlayingTracks = vol < 0 || track->stream.queryState() != ALStream::Playing)) {
+                            /* Either BGM has fully faded out, or stopped midway. -> MePlaying */
+                            track->setVolume(AudioStream::External, 0);
+                            track->stream.pause();
+                        } else {
+                            track->setVolume(AudioStream::External, vol);
+                        }
+                    }
+
+                    if (checkForPlayingTracks) {
                         // check to see if there are any tracks still playing,
                         // and if the last one was ended this round, this branch should exit
                         std::vector<AudioStream*> playingTracks;
                         for (auto t : bgmTracks)
                             if (t->stream.queryState() == ALStream::Playing)
                                 playingTracks.push_back(t);
-                        
-                        
+
                         if (playingTracks.size() <= 0 && !shouldBreak) shouldBreak = true;
                         continue;
                     }
-                    
-                    track->setVolume(AudioStream::External, vol);
-                    track->unlockStream();
-                    
                 }
                 if (shouldBreak) {
                     meWatch.state = MePlaying;
-                    me.unlockStream();
                     break;
                 }
                 
-				me.unlockStream();
-
 				break;
 			}
 
 			case MePlaying :
 			{
-				me.lockStream();
+				std::lock_guard<AudioStream> guard(me);
 
 				if (me.stream.queryState() != ALStream::Playing)
                 {
                     /* ME has ended */
                     for (auto track : bgmTracks) {
-                        track->lockStream();
+                        std::lock_guard<AudioStream> trackGuard(*track);
                         track->extPaused = false;
                         
                         ALStream::State sState = track->stream.queryState();
@@ -216,20 +225,15 @@ struct AudioPrivate
                             
                             meWatch.state = MeNotPlaying;
                         }
-                        
-                        track->unlockStream();
                     }
 				}
-
-                me.unlockStream();
 
 				break;
 			}
 
 			case BgmFadingIn :
 			{
-                for (auto track : bgmTracks)
-                    track->lockStream();
+				std::lock_guard<AudioPrivate> tracksGuard(*this);
 
 				if (bgmTracks[0]->stream.queryState() == ALStream::Stopped)
 				{
@@ -237,13 +241,10 @@ struct AudioPrivate
                     for (auto track : bgmTracks)
                         track->setVolume(AudioStream::External, 1.0f);
 					meWatch.state = MeNotPlaying;
-                    for (auto track : bgmTracks)
-                        track->unlockStream();
-
 					break;
 				}
 
-				me.lockStream();
+				std::lock_guard<AudioStream> guard(me);
 
 				if (me.stream.queryState() == ALStream::Playing)
 				{
@@ -251,10 +252,6 @@ struct AudioPrivate
                     for (auto track : bgmTracks)
                         track->extPaused = true;
 					meWatch.state = BgmFadingOut;
-					me.unlockStream();
-                    for (auto track : bgmTracks)
-                        track->unlockStream();
-
 					break;
 				}
 
@@ -270,11 +267,6 @@ struct AudioPrivate
 
                 for (auto track : bgmTracks)
                     track->setVolume(AudioStream::External, vol);
-
-				me.unlockStream();
-                for (auto track : bgmTracks)
-                    track->unlockStream();
-
 				break;
 			}
 			}

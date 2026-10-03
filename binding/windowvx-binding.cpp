@@ -37,15 +37,18 @@ void bitmapInitProps(Bitmap *b, VALUE self);
 
 RB_METHOD(windowVXInitialize) {
   WindowVX *w;
+  int x, y, width, height;
 
-    GFX_LOCK;
   if (rgssVer >= 3) {
-    int x, y, width, height;
     x = y = width = height = 0;
 
     if (argc == 4)
       rb_get_args(argc, argv, "iiii", &x, &y, &width, &height RB_ARG_END);
+  }
 
+  GFX_GUARD;
+
+  if (rgssVer >= 3) {
     w = new WindowVX(x, y, width, height);
   } else {
     w = viewportElementInitialize<WindowVX>(argc, argv, self);
@@ -65,7 +68,6 @@ RB_METHOD(windowVXInitialize) {
   bitmapInitProps(contents, contentsObj);
   rb_iv_set(self, "contents", contentsObj);
 
-    GFX_UNLOCK;
   return self;
 }
 
@@ -74,9 +76,8 @@ RB_METHOD(windowVXUpdate) {
 
   WindowVX *w = getPrivateData<WindowVX>(self);
 
-    GFX_LOCK;
+  GFX_GUARD;
   w->update();
-    GFX_UNLOCK;
 
   return Qnil;
 }
@@ -87,9 +88,8 @@ RB_METHOD(windowVXMove) {
   int x, y, width, height;
   rb_get_args(argc, argv, "iiii", &x, &y, &width, &height RB_ARG_END);
 
-    GFX_LOCK;
+  GFX_GUARD;
   w->move(x, y, width, height);
-    GFX_UNLOCK;
     
   return Qnil;
 }

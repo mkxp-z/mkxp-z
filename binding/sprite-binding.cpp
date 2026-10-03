@@ -35,7 +35,7 @@ DEF_ALLOCFUNC(Sprite);
 #endif
 
 RB_METHOD(spriteInitialize) {
-    GFX_LOCK;
+    GFX_GUARD;
     Sprite *s = viewportElementInitialize<Sprite>(argc, argv, self);
     
     setPrivateData(self, s);
@@ -47,7 +47,6 @@ RB_METHOD(spriteInitialize) {
     wrapProperty(self, &s->getColor(), "color", ColorType);
     wrapProperty(self, &s->getTone(), "tone", ToneType);
     
-    GFX_UNLOCK;
     return self;
 }
 
