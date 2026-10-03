@@ -274,7 +274,37 @@ void build(TEXFBO &tf, Bitmap *bitmaps[BM_COUNT])
 {
 	assert(tf.width == ATLASVX_W && tf.height == ATLASVX_H);
 
-	GLMeta::blitBegin(tf, true);
+	int scaleIsSpecial = SameScale;
+
+	if (shState->config().enableHires)
+	{
+		double bitmapScaleX = 0.0;
+		double bitmapScaleY = 0.0;
+		double atlasScale = shState->config().atlasScalingFactor;
+		for (int i = 0; i < BM_COUNT; i++)
+		{
+			bitmapScaleX = 1.0;
+			bitmapScaleY = 1.0;
+			if (bitmaps[i]->hasHires())
+			{
+				bitmapScaleX = (double)(bitmaps[i]->getHires()->width()) / (double)(bitmaps[i]->width());
+				bitmapScaleY = (double)(bitmaps[i]->getHires()->height()) / (double)(bitmaps[i]->height());
+			}
+
+			if (atlasScale < bitmapScaleX || atlasScale < bitmapScaleY)
+			{
+				scaleIsSpecial = DownScale;
+			}
+
+			if (atlasScale > bitmapScaleX || atlasScale > bitmapScaleY)
+			{
+				scaleIsSpecial = UpScale;
+				break;
+			}
+		}
+	}
+
+	GLMeta::blitBegin(tf, true, scaleIsSpecial);
 
 	glState.clearColor.pushSet(Vec4());
 	FBO::clear();
@@ -316,7 +346,7 @@ void build(TEXFBO &tf, Bitmap *bitmaps[BM_COUNT])
 #define EXEC_BLITS(part) \
 	if (!nullOrDisposed(bm = bitmaps[BM_##part])) \
 	{ \
-		GLMeta::blitSource(bm->getGLTypes()); \
+		GLMeta::blitSource(bm->getGLTypes(), scaleIsSpecial); \
 		for (size_t i = 0; i < blits##part##N; ++i) \
 		{\
 			const IntRect &src = blits##part[i].src; \
