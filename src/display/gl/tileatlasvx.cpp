@@ -207,7 +207,7 @@ createShadowSet()
 	int bpp;
 	Uint32 rm, gm, bm, am;
 
-	SDL_PixelFormatEnumToMasks(SDL_PIXELFORMAT_ABGR8888, &bpp, &rm, &gm, &bm, &am);
+	SDL_PixelFormatEnumToMasks(SDL_PIXELFORMAT_RGBA32, &bpp, &rm, &gm, &bm, &am);
 	SDL_Surface *surf = SDL_CreateRGBSurface(0, 1*32, 16*32, bpp, rm, gm, bm, am);
 
 	std::vector<SDL_Rect> rects;
@@ -292,7 +292,7 @@ void build(TEXFBO &tf, Bitmap *bitmaps[BM_COUNT])
 
 			int bpp;
 			Uint32 rMask, gMask, bMask, aMask;
-			SDL_PixelFormatEnumToMasks(SDL_PIXELFORMAT_ABGR8888,
+			SDL_PixelFormatEnumToMasks(SDL_PIXELFORMAT_RGBA32,
 			                           &bpp, &rMask, &gMask, &bMask, &aMask);
 			SDL_Surface *blitTemp =
 				SDL_CreateRGBSurface(0, destWidth, destHeight, bpp, rMask, gMask, bMask, aMask);

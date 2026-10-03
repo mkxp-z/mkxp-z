@@ -268,7 +268,7 @@ struct BitmapPrivate
     assumingRubyGC(false),
     pixmanUseRegion32(false)
     {
-        format = SDL_AllocFormat(SDL_PIXELFORMAT_ABGR8888);
+        format = SDL_AllocFormat(SDL_PIXELFORMAT_RGBA32);
         
         animation.width = 0;
         animation.height = 0;
@@ -964,7 +964,7 @@ Bitmap::~Bitmap()
 
 void Bitmap::initFromSurface(SDL_Surface *imgSurf, Bitmap *hiresBitmap, bool forceMega)
 {
-    p->ensureFormat(imgSurf, SDL_PIXELFORMAT_ABGR8888);
+    p->ensureFormat(imgSurf, SDL_PIXELFORMAT_RGBA32);
     
     if (imgSurf->w > glState.caps.maxTexSize || imgSurf->h > glState.caps.maxTexSize || forceMega)
     {
@@ -3296,7 +3296,7 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
         throw Exception(Exception::SDLError, "Error creating text: %s",
                         SDL_GetError());
     
-    p->ensureFormat(txtSurf, SDL_PIXELFORMAT_ABGR8888);
+    p->ensureFormat(txtSurf, SDL_PIXELFORMAT_RGBA32);
     
     if (p->font->getShadow())
     {
@@ -3362,7 +3362,7 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
                             SDL_GetError());
         }
         
-        p->ensureFormat(outline, SDL_PIXELFORMAT_ABGR8888);
+        p->ensureFormat(outline, SDL_PIXELFORMAT_RGBA32);
 
         // Enterbrain's runtime crops the top row and left column of the text
         // when blitting it onto the outline. We allow the user to optionally
