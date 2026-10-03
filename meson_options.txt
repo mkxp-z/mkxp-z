@@ -1,9 +1,9 @@
-option('mri_version', type: 'string', value: '3.1', description: 'Version of MRI to link with')
+option('mri_version', type: 'string', value: '3.1', description: 'Version of Ruby (MRI) to link with')
 option('force32', type: 'boolean', value: false, description: 'Force compiler to build a 32-bit executable')
 
 option('cxx11_experimental', type: 'boolean', value: false, description: 'Toggles between using ghc/filesystem or C++11 <experimental/filesystem>')
-option('cjk_fallback_font', type: 'boolean', value: false, description: 'Use WenQuanYi Micro Hei as the fallback font')
-option('use_miniffi', type: 'boolean', value: true, description: 'Enable MiniFFI Ruby module (Win32API)')
+option('cjk_fallback_font', type: 'boolean', value: false, description: 'Use a CJK font (WenQuanYi Micro Hei) as the fallback font')
+option('use_miniffi', type: 'boolean', value: true, description: 'Enable MiniFFI (Win32API) Ruby module')
 option('workdir_current', type: 'boolean', value: false, description: 'Keep current directory on startup')
 
 option('windows_resource_directory', type: 'string', value: 'windows', description: 'Path to Windows EXE resource directory')
