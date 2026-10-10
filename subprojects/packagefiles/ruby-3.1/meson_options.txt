@@ -1,3 +1,5 @@
 option('cflags', type: 'string', value: '')
 option('cppflags', type: 'string', value: '')
 option('ldflags', type: 'string', value: '')
+
+option('openssl', type: 'feature', value: 'auto', description: 'Enable Ruby\'s OpenSSL extension')

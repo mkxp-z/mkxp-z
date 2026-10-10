@@ -45,6 +45,7 @@ option('extra_shaders', type: 'feature', value: 'auto', description: 'Enable sha
 option('jack', type: 'feature', value: 'auto', description: 'Enable support for audio output via JACK Audio Connection Kit')
 option('openssl', type: 'feature', value: 'auto', description: 'Enable support for HTTPS requests using OpenSSL')
 option('oss', type: 'feature', value: 'auto', description: 'Enable support for audio output via Open Sound System')
+option('ruby_openssl', type: 'feature', value: 'auto', description: 'Enable Ruby\'s OpenSSL extension; requires the `openssl` feature')
 option('pipewire', type: 'feature', value: 'auto', description: 'Enable support for audio output via PipeWire')
 option('pulseaudio', type: 'feature', value: 'auto', description: 'Enable support for audio output via PulseAudio')
 

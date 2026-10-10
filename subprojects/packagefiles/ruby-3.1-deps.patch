@@ -1,4 +1,4 @@
-# This patch makes Ruby use the version of libffi from our build system instead of trying to look for libffi using pkg-config.
+# This patch makes Ruby use the versions of libffi and OpenSSL from our build system instead of trying to look for libffi and OpenSSL using pkg-config.
 
 --- a/ext/fiddle/extconf.rb
 +++ b/ext/fiddle/extconf.rb
@@ -11,3 +11,23 @@
    dir_config 'libffi'
  
    if pkg_config("libffi")
+--- a/ext/openssl/extconf.rb
++++ b/ext/openssl/extconf.rb
+@@ -49,7 +49,7 @@ def find_openssl_library
+   end
+ 
+   return false unless have_header("openssl/ssl.h")
+-
++  have_library('atomic'); $libs = append_library($libs, 'crypto'); $libs = append_library($libs, 'ssl'); return true
+   ret = have_library("crypto", "CRYPTO_malloc") &&
+     have_library("ssl", "SSL_new")
+   return ret if ret
+@@ -92,7 +92,7 @@ def find_openssl_library
+ end
+ 
+ Logging::message "=== Checking for required stuff... ===\n"
+-pkg_config_found = !dir_config_given && pkg_config("openssl") && have_header("openssl/ssl.h")
++pkg_config_found = false
+ 
+ if !pkg_config_found && !find_openssl_library
+   Logging::message "=== Checking for required stuff failed. ===\n"
