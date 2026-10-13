@@ -9,6 +9,7 @@
 #import <SDL_syswm.h>
 
 #import "filesystemImpl.h"
+#import "system.h"
 #import "util/exception.h"
 
 #define PATHTONS(str) [NSFileManager.defaultManager stringWithFileSystemRepresentation:str length:strlen(str)]
@@ -62,7 +63,7 @@ std::string filesystemImpl::normalizePath(const char *path, bool preferred, bool
 std::string filesystemImpl::getDefaultGameRoot() {
     @autoreleasepool {
         NSString *defaultGameRoot = nil;
-        if ([[NSBundle mainBundle] bundleIdentifier] == nil) {
+        if (!mkxp_sys::isBundle()) {
             /* The executable isn't inside of a bundle; use the directory containing the executable as the default game root */
             defaultGameRoot = [[NSBundle mainBundle] bundlePath];
         } else {
