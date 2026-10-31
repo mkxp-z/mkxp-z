@@ -72,7 +72,7 @@ extern const char module_rpg3[];
 
 static VALUE topSelf;
 
-static void mriBindingExecute();
+static int mriBindingExecute();
 static void mriBindingTerminate();
 static void mriBindingReset();
 
@@ -1180,7 +1180,7 @@ static void showExc(VALUE exc, const BacktraceData &btData) {
     showMsg(ms);
 }
 
-static void mriBindingExecute() {
+static int mriBindingExecute() {
     Config &conf = shState->rtData().config;
     
 #if RAPI_MAJOR >= 2
@@ -1244,7 +1244,7 @@ static void mriBindingExecute() {
         showMsg("An error occurred while initializing Ruby. (Invalid JIT settings?)");
         ruby_cleanup(state);
         shState->rtData().rqTermAck.set();
-        return;
+        return 1;
     }
     rb_enc_set_default_internal(rb_enc_from_encoding(rb_utf8_encoding()));
     rb_enc_set_default_external(rb_enc_from_encoding(rb_utf8_encoding()));
@@ -1308,9 +1308,10 @@ static void mriBindingExecute() {
     if (!NIL_P(exc) && !rb_obj_is_kind_of(exc, rb_eSystemExit))
         showExc(exc, btData);
     
-    ruby_cleanup(0);
+    int exit_code = ruby_cleanup(0);
     
     shState->rtData().rqTermAck.set();
+    return exit_code;
 }
 
 static void mriBindingTerminate() { throw Exception(Exception::SystemExit, " "); }

@@ -182,7 +182,7 @@ libmkxp = static_library(
     override_options: {'c_std': c_std, 'cpp_std': cpp_std},
 )
 
-executable(
+exe = executable(
     exe_name,
     sources: [
         git_hash_file, # Dummy source file just so that Meson doesn't complain about the executable not having any sources
@@ -298,6 +298,8 @@ if host_system == 'darwin'
         install_tag: meson.project_name() + '-bundle',
     )
 endif
+
+subdir('tests')
 
 if openal.type_name() == 'internal'
     summary('ALSA', have_alsa, bool_yn: true)

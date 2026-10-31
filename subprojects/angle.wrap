@@ -8,6 +8,7 @@ patch_directory = angle
 diff_files =
     angle-bsd.patch,
     angle-d3d11-cache.patch,
+    angle-direct3d-device-type.patch,
     angle-direct3d-resize-callback.patch,
     angle-framebuffer-assert.patch,
     angle-interm-node.patch,

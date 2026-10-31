@@ -94,19 +94,7 @@ bool mkxp_use_angle = true;
 #endif // MKXPZ_HAVE_ANGLE
 
 static void rgssThreadError(RGSSThreadData *rtData, const std::string &msg);
-static void showInitError(const std::string &msg);
-
-static void mkxp_setenv(const char *key, const char *value) {
-#ifdef _WIN32
-  SetEnvironmentVariableA(key, value);
-#else
-  if (value != nullptr) {
-    setenv(key, value, true);
-  } else {
-    unsetenv(key);
-  }
-#endif
-}
+static void showInitError(const Config &conf, const std::string &msg);
 
 static inline const char *glGetStringInt(GLenum name) {
   return (const char *)gl.GetString(name);
@@ -132,7 +120,7 @@ int rgssThreadFun(void *userdata) {
   threadData->glContext =
       initGL(threadData->window, threadData->config, threadData);
   if (!threadData->glContext)
-    return 0;
+    return 1;
 #else
   SDL_GL_MakeCurrent(threadData->window, threadData->glContext);
 #endif
@@ -155,7 +143,7 @@ int rgssThreadFun(void *userdata) {
 
   if (!alcCtx) {
     rgssThreadError(threadData, "Error creating OpenAL context");
-    return 0;
+    return 1;
   }
 
   alcMakeContextCurrent(alcCtx);
@@ -166,11 +154,11 @@ int rgssThreadFun(void *userdata) {
     rgssThreadError(threadData, exc.msg);
     alcDestroyContext(alcCtx);
 
-    return 0;
+    return 1;
   }
 
   /* Start script execution */
-  scriptBinding->execute();
+  int exit_code = scriptBinding->execute();
 
   threadData->rqTermAck.set();
   threadData->ethread->requestTerminate();
@@ -179,7 +167,7 @@ int rgssThreadFun(void *userdata) {
 
   alcDestroyContext(alcCtx);
 
-  return 0;
+  return exit_code;
 }
 
 static void printRgssVersion(int ver) {
@@ -198,9 +186,11 @@ static void rgssThreadError(RGSSThreadData *rtData, const std::string &msg) {
   rtData->rqTermAck.set();
 }
 
-static void showInitError(const std::string &msg) {
+static void showInitError(const Config &conf, const std::string &msg) {
   Debug() << msg;
-  SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "mkxp-z", msg.c_str(), 0);
+  if (!conf.testMode) {
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "mkxp-z", msg.c_str(), 0);
+  }
 }
 
 static void setupWindowIcon(const Config &conf, SDL_Window *win) {
@@ -262,7 +252,7 @@ int main(int argc, char *argv[]) {
     char dataDir[512]{};
 #if defined(__linux__)
     char *tmp{};
-    tmp = getenv("SRCDIR");
+    tmp = SDL_getenv("SRCDIR");
     if (tmp) {
       std::strncpy(dataDir, tmp, sizeof(dataDir));
     }
@@ -281,22 +271,23 @@ int main(int argc, char *argv[]) {
 
 #if defined(__WIN32__)
     // Create a debug console in debug mode
-    if (conf.winConsole) {
+    if (!conf.testMode && conf.winConsole) {
       if (setupWindowsConsole()) {
         reopenWindowsStreams();
       } else {
         char buf[200];
         snprintf(buf, sizeof(buf), "Error allocating console: %lu",
                 GetLastError());
-        showInitError(std::string(buf));
+        showInitError(conf, std::string(buf));
+        return 1;
       }
     }
 #endif
 
     /* initialize SDL first */
     if (SDL_Init(SDL_INIT_GAMECONTROLLER | SDL_INIT_TIMER) < 0) {
-      showInitError(std::string("Error initializing SDL: ") + SDL_GetError());
-      return 0;
+      showInitError(conf, std::string("Error initializing SDL: ") + SDL_GetError());
+      return 1;
     }
 
     SDL_Window *win = nullptr;
@@ -414,7 +405,7 @@ int main(int argc, char *argv[]) {
           || (sdl_videodriver[6] != 'D' && sdl_videodriver[6] != 'd')
           || sdl_videodriver[7] != 0
       ) {
-        mkxp_setenv("WAYLAND_DISPLAY", nullptr);
+        SDL_setenv("WAYLAND_DISPLAY", nullptr, true);
       }
     }
 #endif // MKXPZ_CHECK_FOR_WAYLAND_SUPPORT
@@ -422,18 +413,18 @@ int main(int argc, char *argv[]) {
 #ifdef MKXPZ_HAVE_ANGLE
     bool angle_allow_fallback = false;
     {
-      const char *angle_default_platform = getenv("ANGLE_DEFAULT_PLATFORM");
+      const char *angle_default_platform = SDL_getenv("ANGLE_DEFAULT_PLATFORM");
       switch (conf.renderer) {
         default:
           angle_allow_fallback = true;
           if (angle_default_platform == nullptr || angle_default_platform[0] == 0) {
 #  ifdef MKXPZ_HAVE_ANGLE_METAL
-            mkxp_setenv("ANGLE_DEFAULT_PLATFORM", "metal");
+            SDL_setenv("ANGLE_DEFAULT_PLATFORM", "metal", true);
 #  elif !defined(MKXPZ_HAVE_ANGLE_DIRECT3D9) && !defined(MKXPZ_HAVE_ANGLE_DIRECT3D11)
 #    ifdef MKXPZ_HAVE_ANGLE_VULKAN
 #      ifdef MKXPZ_CHECK_FOR_LAVAPIPE
             /* Check if ANGLE's Vulkan backend would use LLVMpipe. If so, use OpenGL instead. */
-            mkxp_setenv("ANGLE_DEFAULT_PLATFORM", "gl");
+            SDL_setenv("ANGLE_DEFAULT_PLATFORM", "gl", true);
             VkResult result = volkInitialize();
             VkInstance instance;
             uint32_t physicalDeviceCount;
@@ -470,7 +461,7 @@ int main(int argc, char *argv[]) {
               if (result == VK_SUCCESS && !physicalDevices.empty()) {
                 VkPhysicalDeviceProperties physicalDeviceProperties;
                 VkPhysicalDevice preferredPhysicalDevice = physicalDevices[0];
-                const char *anglePreferredDevice = getenv("ANGLE_PREFERRED_DEVICE");
+                const char *anglePreferredDevice = SDL_getenv("ANGLE_PREFERRED_DEVICE");
                 if (anglePreferredDevice == nullptr) {
                   anglePreferredDevice = "";
                 }
@@ -483,48 +474,48 @@ int main(int argc, char *argv[]) {
                 }
                 vkGetPhysicalDeviceProperties(preferredPhysicalDevice, &physicalDeviceProperties);
                 if (std::strncmp(physicalDeviceProperties.deviceName, "llvmpipe ", sizeof "llvmpipe " - 1) != 0) {
-                  mkxp_setenv("ANGLE_DEFAULT_PLATFORM", "vulkan");
+                  SDL_setenv("ANGLE_DEFAULT_PLATFORM", "vulkan", true);
                 }
               }
               vkDestroyInstance(instance, nullptr);
             }
 #      else
-            mkxp_setenv("ANGLE_DEFAULT_PLATFORM", "vulkan");
+            SDL_setenv("ANGLE_DEFAULT_PLATFORM", "vulkan", true);
 #      endif // MKXPZ_CHECK_FOR_LAVAPIPE
 #    else
-            mkxp_setenv("ANGLE_DEFAULT_PLATFORM", "gl");
+            SDL_setenv("ANGLE_DEFAULT_PLATFORM", "gl", true);
 #    endif // MKXPZ_HAVE_ANGLE_VULKAN
 #  endif
           }
           break;
 #ifdef MKXPZ_HAVE_ANGLE_NULL
         case 1:
-          mkxp_setenv("ANGLE_DEFAULT_PLATFORM", "null");
+          SDL_setenv("ANGLE_DEFAULT_PLATFORM", "null", true);
           break;
 #endif // MKXPZ_HAVE_ANGLE_NULL
         case 2:
-          mkxp_setenv("ANGLE_DEFAULT_PLATFORM", "gl");
+          SDL_setenv("ANGLE_DEFAULT_PLATFORM", "gl", true);
           break;
 #ifdef MKXPZ_HAVE_ANGLE_VULKAN
         case 3:
-          mkxp_setenv("ANGLE_DEFAULT_PLATFORM", "vulkan");
+          SDL_setenv("ANGLE_DEFAULT_PLATFORM", "vulkan", true);
           break;
 #endif // MKXPZ_HAVE_ANGLE_VULKAN
 #ifdef MKXPZ_HAVE_ANGLE_METAL
         case 4:
-          mkxp_setenv("ANGLE_DEFAULT_PLATFORM", "metal");
+          SDL_setenv("ANGLE_DEFAULT_PLATFORM", "metal", true);
           break;
 #elif defined(MKXPZ_HAVE_ANGLE_DIRECT3D9) || defined(MKXPZ_HAVE_ANGLE_DIRECT3D11)
         case 4:
-          mkxp_setenv("ANGLE_DEFAULT_PLATFORM", nullptr);
+          SDL_setenv("ANGLE_DEFAULT_PLATFORM", nullptr, true);
           break;
 #elif defined(MKXPZ_HAVE_ANGLE_VULKAN)
         case 4:
-          mkxp_setenv("ANGLE_DEFAULT_PLATFORM", "vulkan");
+          SDL_setenv("ANGLE_DEFAULT_PLATFORM", "vulkan", true);
           break;
 #endif // MKXPZ_HAVE_ANGLE_METAL
       }
-      angle_default_platform = getenv("ANGLE_DEFAULT_PLATFORM");
+      angle_default_platform = SDL_getenv("ANGLE_DEFAULT_PLATFORM");
       if (angle_default_platform != nullptr && std::strcmp(angle_default_platform, "gl") == 0) {
         mkxp_use_angle = false;
       }
@@ -545,21 +536,21 @@ int main(int argc, char *argv[]) {
 #endif // MKXPZ_HAVE_ANGLE
 
     if (win == nullptr && (win = initVideo(conf)) == nullptr) {
-      showInitError(std::string("Error creating window: ") + SDL_GetError());
-      return 0;
+      showInitError(conf, std::string("Error creating window: ") + SDL_GetError());
+      return 1;
     }
 
     if (!EventThread::allocUserEvents()) {
-      showInitError("Error allocating SDL user events");
-      return 0;
+      showInitError(conf, "Error allocating SDL user events");
+      return 1;
     }
 
 #ifdef MKXPZ_STEAM
     if (!STEAMSHIM_init()) {
-      showInitError("Failed to initialize Steamworks. The application cannot "
+      showInitError(conf, "Failed to initialize Steamworks. The application cannot "
                     "continue launching.");
       SDL_Quit();
-      return 0;
+      return 1;
     }
 #endif
 
@@ -568,7 +559,7 @@ int main(int argc, char *argv[]) {
 
     int imgFlags = IMG_INIT_PNG | IMG_INIT_JPG;
     if (IMG_Init(imgFlags) != imgFlags) {
-      showInitError(std::string("Error initializing SDL_image: ") +
+      showInitError(conf, std::string("Error initializing SDL_image: ") +
                     SDL_GetError());
       SDL_Quit();
 
@@ -576,11 +567,11 @@ int main(int argc, char *argv[]) {
       STEAMSHIM_deinit();
 #endif
 
-      return 0;
+      return 1;
     }
 
     if (TTF_Init() < 0) {
-      showInitError(std::string("Error initializing SDL_ttf: ") +
+      showInitError(conf, std::string("Error initializing SDL_ttf: ") +
                     SDL_GetError());
       IMG_Quit();
       SDL_Quit();
@@ -589,11 +580,11 @@ int main(int argc, char *argv[]) {
       STEAMSHIM_deinit();
 #endif
 
-      return 0;
+      return 1;
     }
 
     if (Sound_Init() == 0) {
-      showInitError(std::string("Error initializing SDL_sound: ") +
+      showInitError(conf, std::string("Error initializing SDL_sound: ") +
                     Sound_GetError());
       TTF_Quit();
       IMG_Quit();
@@ -603,7 +594,7 @@ int main(int argc, char *argv[]) {
       STEAMSHIM_deinit();
 #endif
 
-      return 0;
+      return 1;
     }
 #if defined(__WIN32__)
     WSAData wsadata = {0};
@@ -611,7 +602,7 @@ int main(int argc, char *argv[]) {
       char buf[200];
       snprintf(buf, sizeof(buf), "Error initializing winsock: %08X",
                WSAGetLastError());
-      showInitError(
+      showInitError(conf,
           std::string(buf)); // Not an error worth ending the program over
     }
 #endif
@@ -621,14 +612,14 @@ int main(int argc, char *argv[]) {
         std::string downloadsPath = "/Users/" + mkxp_sys::getUserName() + "/Downloads";
         
         if (mkxp_fs::getCurrentDirectory().find(downloadsPath) == 0) {
-            showInitError(conf.game.title +
+            showInitError(conf, conf.game.title +
                           " cannot run from the Downloads directory.\n\n" +
                           "Please move the application to the Applications folder (or anywhere else) " +
                           "and try again.");
 #ifdef MKXPZ_STEAM
             STEAMSHIM_deinit();
 #endif
-            return 0;
+            return 1;
         }
     }
 #endif
@@ -659,7 +650,7 @@ int main(int argc, char *argv[]) {
     ALCdevice *alcDev = alcOpenDevice(0);
 
     if (!alcDev) {
-      showInitError("Could not detect an available audio device.");
+      showInitError(conf, "Could not detect an available audio device.");
       SDL_DestroyWindow(win);
       TTF_Quit();
       IMG_Quit();
@@ -668,7 +659,7 @@ int main(int argc, char *argv[]) {
 #ifdef MKXPZ_STEAM
       STEAMSHIM_deinit();
 #endif
-      return 0;
+      return 1;
     }
 
     SDL_DisplayMode mode;
@@ -727,18 +718,26 @@ int main(int argc, char *argv[]) {
 
     /* If RGSS thread ack'd request, wait for it to shutdown,
      * otherwise abandon hope and just end the process as is. */
+    int exit_code = 1;
     if (rtData.rqTermAck)
-      SDL_WaitThread(rgssThread, 0);
-    else
-      SDL_ShowSimpleMessageBox(
-          SDL_MESSAGEBOX_ERROR, conf.game.title.c_str(),
-          std::string("The RGSS script seems to be stuck. "+conf.game.title+" will now force quit.").c_str(),
-          win);
+      SDL_WaitThread(rgssThread, &exit_code);
+    else {
+      std::string msg = "The RGSS script seems to be stuck. "+conf.game.title+" will now force quit.";
+      Debug() << msg;
+      if (!conf.testMode) {
+        SDL_ShowSimpleMessageBox(
+            SDL_MESSAGEBOX_ERROR, conf.game.title.c_str(),
+            msg.c_str(),
+            win);
+      }
+    }
 
     if (!rtData.rgssErrorMsg.empty()) {
       Debug() << rtData.rgssErrorMsg;
-      SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, conf.game.title.c_str(),
-                               rtData.rgssErrorMsg.c_str(), win);
+      if (!conf.testMode) {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, conf.game.title.c_str(),
+                                 rtData.rgssErrorMsg.c_str(), win);
+      }
     }
 
     if (rtData.glContext)
@@ -765,7 +764,7 @@ int main(int argc, char *argv[]) {
     IMG_Quit();
     SDL_Quit();
 
-    return 0;
+    return exit_code;
 }
 
 static SDL_GLContext initGL(SDL_Window *win, Config &conf,

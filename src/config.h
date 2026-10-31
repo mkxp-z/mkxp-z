@@ -171,6 +171,7 @@ struct Config {
     
     /* Internal */
     std::string customDataPath;
+    bool testMode;
     
     Config();
     

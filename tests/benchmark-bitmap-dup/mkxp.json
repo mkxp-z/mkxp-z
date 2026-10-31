@@ -1,0 +1,5 @@
+{
+    "_testMode": true,
+    "renderer": @renderer@,
+    "subImageFix": @subImageFix@,
+}

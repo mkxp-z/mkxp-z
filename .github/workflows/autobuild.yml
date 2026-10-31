@@ -138,7 +138,7 @@ jobs:
         run: |
           ccache --set-config=cache_dir="$(pwd)/ccache"
           ccache --set-config=compiler_check=content
-          ccache --set-config=max_size=1280MiB
+          ccache --set-config=max_size=768MiB
           ccache --zero-stats
 
       - name: Configure
@@ -272,7 +272,7 @@ jobs:
         run: |
           ccache --set-config=cache_dir="$(pwd)/ccache"
           ccache --set-config=compiler_check=content
-          ccache --set-config=max_size=1280MiB
+          ccache --set-config=max_size=768MiB
           ccache --zero-stats
 
       - name: Configure
@@ -510,7 +510,7 @@ jobs:
         run: |
           ccache --set-config=cache_dir="$(pwd)/ccache"
           ccache --set-config=compiler_check=content
-          ccache --set-config=max_size=1280MiB
+          ccache --set-config=max_size=768MiB
           ccache --zero-stats
 
       - name: Configure
@@ -619,7 +619,7 @@ jobs:
         run: |
           ccache --set-config=cache_dir="$(pwd)/ccache"
           ccache --set-config=compiler_check=content
-          ccache --set-config=max_size=1280MiB
+          ccache --set-config=max_size=768MiB
           ccache --zero-stats
 
       - name: Configure
@@ -723,7 +723,7 @@ jobs:
         run: |
           ccache --set-config=cache_dir="$(pwd)/ccache"
           ccache --set-config=compiler_check=content
-          ccache --set-config=max_size=1280MiB
+          ccache --set-config=max_size=768MiB
           ccache --zero-stats
 
       - name: Configure
@@ -925,7 +925,7 @@ jobs:
         run: |
           ccache --set-config=cache_dir="$(pwd)/ccache"
           ccache --set-config=compiler_check=content
-          ccache --set-config=max_size=1280MiB
+          ccache --set-config=max_size=768MiB
           ccache --zero-stats
 
       - name: Configure
@@ -1024,7 +1024,7 @@ jobs:
         run: |
           ccache --set-config=cache_dir="$(pwd)/ccache"
           ccache --set-config=compiler_check=content
-          ccache --set-config=max_size=1280MiB
+          ccache --set-config=max_size=768MiB
           ccache --zero-stats
 
       - name: Configure

@@ -28,7 +28,7 @@ struct ScriptBinding
 	 * loading the compressed scripts and executing them.
 	 * This function returns as soon as the scripts finish
 	 * execution or an error is encountered */
-	void (*execute) (void);
+	int (*execute) (void);
 
 	/* Instructs the binding
 	 * to immediately terminate script execution. This
