@@ -829,23 +829,34 @@ Bitmap::Bitmap(const Bitmap &other, int frame)
     other.guardDisposed();
     if (frame > -2) other.ensureAnimated();
     
+    Bitmap *hiresBitmap = nullptr;
+
     if (other.hasHires()) {
-        Debug() << "BUG: High-res Bitmap from animation not implemented";
+        // Create a high-res version as well.
+        hiresBitmap = new Bitmap(*other.getHires(), frame);
+        hiresBitmap->setLores(this);
     }
 
     p = new BitmapPrivate(this);
 
     if (other.isMega())
     {
+        Debug() << "BUG: High-res Bitmap from Mega Bitmap not tested";
+
+        p->selfHires = hiresBitmap;
         p->megaSurface = SDL_ConvertSurfaceFormat(other.p->megaSurface, p->format->format, 0);
     }
     // TODO: Clean me up
     else if (!other.isAnimated() || frame >= -1) {
+        p->selfHires = hiresBitmap;
         try {
             p->gl = shState->texPool().request(other.width(), other.height());
         } catch (const Exception &e) {
             delete p;
             throw e;
+        }
+        if (p->selfHires != nullptr) {
+            p->gl.selfHires = &p->selfHires->getGLTypes();
         }
         
         GLMeta::blitBegin(p->gl, false, SameScale);
@@ -861,6 +872,9 @@ Bitmap::Bitmap(const Bitmap &other, int frame)
         GLMeta::blitEnd();
     }
     else {
+        Debug() << "BUG: High-res Bitmap from animation not tested";
+
+        p->selfHires = hiresBitmap;
         p->animation.enabled = true;
         p->animation.fps = other.getAnimationFPS();
         p->animation.width = other.width();
