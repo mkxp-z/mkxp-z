@@ -1189,6 +1189,7 @@ if not ruby.found()
         ruby_external_ldflags += libffi_libs
     endif
     ruby_options = meson_base_options + {
+        'exe_name': exe_name,
         'cflags': run_command(quotetool, ruby_internal_cflags + ruby_external_cflags, check: true).stdout().strip(),
         'cppflags': run_command(quotetool, ruby_internal_cflags + ruby_external_cflags, check: true).stdout().strip(),
         'ldflags': run_command(quotetool, ruby_internal_ldflags + ruby_external_ldflags, check: true).stdout().strip()

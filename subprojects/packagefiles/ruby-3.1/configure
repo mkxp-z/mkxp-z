@@ -752,6 +752,7 @@ debugflags
 optflags
 NULLCMD
 ENABLE_DEBUG_ENV
+MKXP_EXE_NAME
 DLNOBJ
 INSTALL_STATIC_LIBRARY
 MJIT_SUPPORT
@@ -33474,8 +33475,8 @@ then :
 else case e in #(
   e)
 	    LIBRUBY_SO=dummy
-	    LIBRUBY='lib$(RUBY_SO_NAME).a'
-	    LIBRUBYARG='$(MISSING) $(LIBRUBYARG_STATIC)'
+	    LIBRUBY='lib$(RUBY_SO_NAME)-static.a'
+	    LIBRUBYARG='-l$(RUBY_SO_NAME)-implib'; EXTDLDFLAGS="${EXTDLDFLAGS} -l${RUBY_SO_NAME}-implib";
 	 ;;
 esac
 fi

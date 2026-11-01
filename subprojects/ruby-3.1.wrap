@@ -14,7 +14,6 @@ diff_files =
     ruby-3.1-deps.patch,
     ruby-3.1-disable-lto-for-link-tests.patch,
     ruby-3.1-dllexport.patch,
-    ruby-3.1-exp.patch,
     ruby-3.1-extmk.patch,
     ruby-3.1-fake.patch,
     ruby-3.1-init.patch,

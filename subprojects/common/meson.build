@@ -32,6 +32,12 @@ quotetool = [python, files('quotetool.py')[0]]
 #   Returns the full name of the shared library file for the given library on the host machine. For example, given "X11", this outputs "libX11.so.6" when building for BSD or Linux.
 sonametool = [python, files('sonametool.py')[0], host_machine.system()]
 
+# deftool SOURCE_FILE DESTINATION_FILE
+#   This tool should be used to normalize .def files output by the linker via the `--output-def` linker flag in Windows builds before using them. Failure to do so may result in linker errors when trying to use the .def files.
+#   SOURCE_FILE: Path to the .def file output by the linker.
+#   DESTINATION_FILE: Path where the normalized version of SOURCE_FILE should be written to.
+deftool = [python, files('deftool.py')[0]]
+
 host_triplet_cpu = host_machine.cpu()
 host_triplet_vendor = 'unknown'
 if host_machine.system() in ['windows', 'cygwin']
@@ -128,17 +134,24 @@ if get_option('b_lto')
         '-flto=auto',
         '-flto',
     )
-    base_ldflags += meson.get_compiler('c').first_supported_link_argument(
+    base_ldflags += meson.get_compiler('c').first_supported_argument(
         get_option('b_lto_mode') == 'thin' ? '-flto=thin' : [],
         '-flto=auto',
         '-flto',
     )
 endif
 
+# Don't use the linker plugin to perform link-time optimization in Windows builds
+if get_option('b_lto') and host_machine.system() in ['windows', 'cygwin']
+    base_cflags += meson.get_compiler('c').first_supported_argument('-ffat-lto-objects')
+    base_cppflags += meson.get_compiler('cpp').first_supported_argument('-ffat-lto-objects')
+    base_ldflags += meson.get_compiler('c').first_supported_argument('-fno-use-linker-plugin')
+endif
+
 if get_option('b_sanitize') != 'none'
     base_cflags += meson.get_compiler('c').first_supported_argument('-fsanitize=' + get_option('b_sanitize'))
     base_cppflags += meson.get_compiler('cpp').first_supported_argument('-fsanitize=' + get_option('b_sanitize'))
-    base_ldflags += meson.get_compiler('c').first_supported_link_argument('-fsanitize=' + get_option('b_sanitize'))
+    base_ldflags += meson.get_compiler('c').first_supported_argument('-fsanitize=' + get_option('b_sanitize'))
     if 'address' in get_option('b_sanitize').split(',')
         base_cflags += meson.get_compiler('c').first_supported_argument('-fno-omit-frame-pointer')
         base_cppflags += meson.get_compiler('cpp').first_supported_argument('-fno-omit-frame-pointer')
