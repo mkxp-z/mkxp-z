@@ -106,8 +106,16 @@ jobs:
           archive: false
 
   build-windows-msys2:
-    name: Windows MSYS2
+    name: Windows MSYS2 ${{ matrix.msystem }}
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - msystem: mingw64
+            prefix: mingw-w64-x86_64-
+          - msystem: ucrt64
+            prefix: mingw-w64-ucrt-x86_64-
     steps:
       - uses: benjlevesque/short-sha@v4.0
         id: short-sha
@@ -117,10 +125,10 @@ jobs:
       - name: Install dependencies
         uses: msys2/setup-msys2@v2
         with:
-          msystem: mingw64
+          msystem: ${{ matrix.msystem }}
           install: >-
-            bison mingw-w64-x86_64-ccache mingw-w64-x86_64-cmake diffutils mingw-w64-x86_64-git make mingw-w64-x86_64-meson mingw-w64-x86_64-ruby
-            mingw-w64-x86_64-gcc
+            bison ${{ matrix.prefix }}ccache ${{ matrix.prefix }}cmake diffutils ${{ matrix.prefix }}git make ${{ matrix.prefix }}meson ${{ matrix.prefix }}ruby
+            ${{ matrix.prefix }}gcc
 
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -130,8 +138,8 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: ccache
-          key: windows-msys2-x86_64-
-          restore-keys: windows-msys2-x86_64-
+          key: windows-msys2-${{ matrix.msystem }}-x86_64-
+          restore-keys: windows-msys2-${{ matrix.msystem }}-x86_64-
 
       - name: Set up ccache
         shell: msys2 {0}
@@ -160,7 +168,7 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: ccache
-          key: windows-msys2-x86_64-${{ github.sha }}-${{ steps.build.outputs.time }}
+          key: windows-msys2-${{ matrix.msystem }}-x86_64-${{ github.sha }}-${{ steps.build.outputs.time }}
 
       - name: Show ccache statistics
         shell: msys2 {0}
@@ -180,10 +188,12 @@ jobs:
       - name: Check for DLLs missing from the artifact
         shell: msys2 {0}
         run: |
+          shopt -s nullglob
+
           cd build/artifact
           error_flag=
 
-          for file in *.exe
+          for file in *.exe *.dll
           do
             ldd_output="$(ldd "$file")"
             echo "$file"
@@ -193,7 +203,7 @@ jobs:
             do
               dll_name="$(echo "$line" | sed -e 's/=>/|/g' | cut -d '|' -f 1 | sed -e 's/^[ \t]*//g' -e 's/[ \t]*$//g')"
               dll_location="$(echo "$line" | sed -e 's/=>/|/g' | cut -d '|' -f 2 | sed -e 's/^[ \t]*//g' -e 's/[ \t]*$//g')"
-              if [[ "$dll_location" = 'not found'* ]] || [[ "$dll_location" = '/mingw64/bin/'* ]] || [[ "$dll_location" = '/mingw64/lib/'* ]] || [[ "$dll_location" = '/mingw64/usr/bin/'* ]] || [[ "$dll_location" = '/mingw64/usr/lib/'* ]]
+              if [[ "$dll_location" = 'not found'* ]] || [[ "$dll_location" = '/${{ matrix.msystem }}/bin/'* ]] || [[ "$dll_location" = '/${{ matrix.msystem }}/lib/'* ]] || [[ "$dll_location" = '/${{ matrix.msystem }}/usr/bin/'* ]] || [[ "$dll_location" = '/${{ matrix.msystem }}/usr/lib/'* ]]
               then
                 error_flag=1
                 echo "::error::$dll_name is missing from the artifact"
@@ -209,24 +219,36 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: mkxp-z.windows.msys2.x86_64.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          name: mkxp-z.windows.msys2.${{ matrix.msystem }}.x86_64.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: build/artifact
 
   build-windows-cross:
-    name: Windows ${{ matrix.arch_mkxpz }}
+    name: Windows cross ${{ matrix.crt }} ${{ matrix.arch_mkxpz }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - arch_mkxpz: arm64
+          - crt: msvcrt
+            arch_mkxpz: arm64
             clang: true
             cache: true
-          - arch_mkxpz: i686
+          - crt: msvcrt
+            arch_mkxpz: i686
             clang: true
             cache: false
-          - arch_mkxpz: x86_64
+          - crt: msvcrt
+            arch_mkxpz: x86_64
             clang: false
+            cache: true
+          - crt: ucrt
+            arch_mkxpz: arm64
+            cache: true
+          - crt: ucrt
+            arch_mkxpz: i686
+            cache: false
+          - crt: ucrt
+            arch_mkxpz: x86_64
             cache: true
     steps:
       - uses: benjlevesque/short-sha@v4.0
@@ -243,9 +265,9 @@ jobs:
           pip3 install meson
           sudo apt install -y gcc g++
 
-          if [ '${{ matrix.clang }}' = 'true' ]
+          if [ '${{ matrix.crt }}' = 'ucrt' ] || [ '${{ matrix.clang }}' = 'true' ]
           then
-            llvm_mingw_version=20260224-msvcrt-ubuntu-22.04-x86_64
+            llvm_mingw_version=20260224-${{ matrix.crt }}-ubuntu-22.04-x86_64
             sudo apt install -y curl tar xz-utils
             curl --retry 5 -Lo llvm-mingw.tar.xz https://github.com/mstorsjo/llvm-mingw/releases/download/$(echo $llvm_mingw_version | cut -f 1 -d -)/llvm-mingw-$llvm_mingw_version.tar.xz
             tar -xJf llvm-mingw.tar.xz
@@ -265,8 +287,8 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: ccache
-          key: windows-cross-${{ matrix.arch_mkxpz }}-
-          restore-keys: windows-cross-${{ matrix.arch_mkxpz }}-
+          key: windows-cross-${{ matrix.crt }}-${{ matrix.arch_mkxpz }}-
+          restore-keys: windows-cross-${{ matrix.crt }}-${{ matrix.arch_mkxpz }}-
 
       - name: Set up ccache
         run: |
@@ -277,7 +299,7 @@ jobs:
 
       - name: Configure
         run: |
-          if [ '${{ matrix.clang }}' = 'true' ]
+          if [ '${{ matrix.crt }}' = 'ucrt' ] || [ '${{ matrix.clang }}' = 'true' ]
           then
             compiler=clang
           else
@@ -298,7 +320,7 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: ccache
-          key: windows-cross-${{ matrix.arch_mkxpz }}-${{ github.sha }}-${{ steps.build.outputs.time }}
+          key: windows-cross-${{ matrix.crt }}-${{ matrix.arch_mkxpz }}-${{ github.sha }}-${{ steps.build.outputs.time }}
 
       - name: Show ccache statistics
         run: |
@@ -315,7 +337,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: mkxp-z.windows.cross.${{matrix.arch_mkxpz}}.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          name: mkxp-z.windows.cross.${{ matrix.crt }}.${{matrix.arch_mkxpz}}.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: build/artifact
 
   build-linux-gnu:
