@@ -1122,7 +1122,9 @@ if not fluidsynth.found()
         'enable-kai': false,
         'osal': 'embedded',
     })
-    foreach opt, val : cmake_override_options
+    foreach opt, val : cmake_override_options + {
+        'b_ndebug': 'if-release', # Needed to silence FluidSynth's "function is a stub" log messages
+    }
         fluidsynth_options.set_override_option(opt, val)
     endforeach
     fluidsynth = cmake.subproject('fluidsynth', options: fluidsynth_options).dependency('libfluidsynth')

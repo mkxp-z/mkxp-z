@@ -1,8 +1,8 @@
 [wrap-file]
-source_url = https://github.com/FluidSynth/fluidsynth/archive/refs/tags/v2.5.0.tar.gz
-source_filename = fluidsynth-2.5.0.tar.gz
-source_hash = e4ae831ce02f38b5594ab4dacb11c1a4067ca65ea183523655ebdc9c1b2b92a1
-directory = fluidsynth-2.5.0
+source_url = https://github.com/FluidSynth/fluidsynth/archive/refs/tags/v2.5.7.tar.gz
+source_filename = fluidsynth-2.5.7.tar.gz
+source_hash = ce27840221ab00dd59bf27e85ecbba480c6c2a7c9fbec4243658f68f59c07f4a
+directory = fluidsynth-2.5.7
 method = cmake
 diff_files =
     end-of-diff-files.patch
