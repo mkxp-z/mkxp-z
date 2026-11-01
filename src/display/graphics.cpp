@@ -481,8 +481,10 @@ struct PingPong {
     }
     
     ~PingPong() {
+        GFX_LOCK;
         for (int i = 0; i < 2; ++i)
             TEXFBO::fini(rt[i]);
+        GFX_UNLOCK;
     }
     
     TEXFBO &backBuffer() { return rt[srcInd]; }
@@ -804,6 +806,18 @@ private:
 std::function<void ()> mkxp_angle_direct3d_resize_callback = nullptr;
 
 struct GraphicsPrivate {
+    /* Having this field at the beginning ensures the locks are destroyed after all of the other fields of GraphicsPrivate are destroyed */
+    struct GraphicsPrivateLocks {
+        SDL_mutex *avgFPSLock;
+        SDL_mutex *glResourceLock;
+        uint64_t glResourceLockLevel;
+        GraphicsPrivateLocks() : avgFPSLock(SDL_CreateMutex()), glResourceLock(SDL_CreateMutex()), glResourceLockLevel(0) {}
+        ~GraphicsPrivateLocks() {
+            SDL_DestroyMutex(glResourceLock);
+            SDL_DestroyMutex(avgFPSLock);
+        }
+    } locks;
+
     /* Screen resolution, ie. the resolution at which
      * RGSS renders at (settable with Graphics.resize_screen).
      * Can only be changed from within RGSS */
@@ -855,10 +869,6 @@ struct GraphicsPrivate {
     
     std::vector<double> avgFPSData;
     double last_avg_update;
-    SDL_mutex *avgFPSLock;
-    
-    SDL_mutex *glResourceLock;
-    bool multithreadedMode;
     
     /* Global list of all live Disposables
      * (disposed on reset) */
@@ -871,15 +881,13 @@ struct GraphicsPrivate {
     scSize(scRes),
     winSize(rtData->config.defScreenW, rtData->config.defScreenH),
     screen(scRes.x, scRes.y), threadData(rtData),
-    glCtx(SDL_GL_GetCurrentContext()), multithreadedMode(true),
+    glCtx(SDL_GL_GetCurrentContext()),
     frameRate(DEF_FRAMERATE), frameCount(0), brightness(255),
     fpsLimiter(frameRate), useFrameSkip(rtData->config.frameSkip), frozen(false),
     last_update(0), last_avg_update(0), backingScaleFactor(1), integerScaleFactor(0, 0),
     integerScaleActive(rtData->config.integerScaling.active),
     integerLastMileScaling(rtData->config.integerScaling.lastMileScaling) {
         avgFPSData = std::vector<double>();
-        avgFPSLock = SDL_CreateMutex();
-        glResourceLock = SDL_CreateMutex();
         
         if (integerScaleActive) {
             integerScaleFactor = Vec2i(0, 0);
@@ -900,10 +908,14 @@ struct GraphicsPrivate {
     }
     
     ~GraphicsPrivate() {
+        GFX_LOCK;
+        for (IntruListLink<Disposable> *iter = dispList.begin(); iter != dispList.end(); iter = iter->next) {
+            iter->data->dispose();
+        }
+        dispList.clear();
         TEXFBO::fini(frozenScene);
         TEXFBO::fini(integerScaleBuffer);
-        SDL_DestroyMutex(avgFPSLock);
-        SDL_DestroyMutex(glResourceLock);
+        GFX_UNLOCK;
     }
     
     void updateScreenResoRatio(RGSSThreadData *rtData) {
@@ -1043,7 +1055,7 @@ private:
             };
             FBO::clear();
             metaBlitBufferFlippedScaled(args...);
-            SDL_GL_SwapWindow(threadData->window);
+            gl.SwapWindow(threadData->window);
             mkxp_angle_direct3d_resize_callback = nullptr;
         }
 
@@ -1149,49 +1161,46 @@ public:
         if (!threadData->syncPoint.mainSyncLocked())
             return;
         
-        /* Releasing the GL context before sleeping and making it
-         * current again on wakeup seems to avoid the context loss
-         * when the app moves into the background on Android */
-        SDL_GL_MakeCurrent(threadData->window, 0);
         threadData->syncPoint.waitMainSync();
-        SDL_GL_MakeCurrent(threadData->window, glCtx);
         
         fpsLimiter.resetFrameAdjust();
     }
     
     double averageFPS() {
         double ret = 0;
-        SDL_LockMutex(avgFPSLock);
+        SDL_LockMutex(locks.avgFPSLock);
         for (double times : avgFPSData)
             ret += times;
         
         ret = 1 / (ret / avgFPSData.size());
-        SDL_UnlockMutex(avgFPSLock);
+        SDL_UnlockMutex(locks.avgFPSLock);
         return ret;
     }
     
-    void setLock(bool force = false) {
-        if (!(force || multithreadedMode)) return;
-        
-        SDL_LockMutex(glResourceLock);
-        SDL_GL_MakeCurrent(threadData->window, threadData->glContext);
+    void setLock() {
+        SDL_LockMutex(locks.glResourceLock);
+        if (locks.glResourceLockLevel++ == 0 && gl.context_release_behavior_none && gl.multithreaded) {
+            SDL_GL_MakeCurrent(threadData->window, threadData->glContext);
+        }
     }
     
-    void releaseLock(bool force = false) {
-        if (!(force || multithreadedMode)) return;
-        
-        SDL_UnlockMutex(glResourceLock);
+    void releaseLock() {
+        assert(locks.glResourceLockLevel > 0);
+        if (--locks.glResourceLockLevel == 0 && gl.context_release_behavior_none && gl.multithreaded) {
+            SDL_GL_MakeCurrent(threadData->window, nullptr);
+        }
+        SDL_UnlockMutex(locks.glResourceLock);
     }
 
     void updateAvgFPS() {
-        SDL_LockMutex(avgFPSLock);
+        SDL_LockMutex(locks.avgFPSLock);
         if (avgFPSData.size() > 40)
             avgFPSData.erase(avgFPSData.begin());
         
         double time = shState->runTime();
         avgFPSData.push_back(time - last_avg_update);
         last_avg_update = time;
-        SDL_UnlockMutex(avgFPSLock);
+        SDL_UnlockMutex(locks.avgFPSLock);
     }
 };
 
@@ -1713,12 +1722,21 @@ void Graphics::setLastMileScaling(bool value)
 
 bool Graphics::getThreadsafe() const
 {
-    return p->multithreadedMode;
+    return gl.multithreaded;
 }
 
 void Graphics::setThreadsafe(bool value)
 {
-    p->multithreadedMode = value;
+    if (!gl.context_release_behavior_none && value != gl.multithreaded) {
+        if (value) {
+            SDL_GL_MakeCurrent(p->threadData->window, nullptr);
+            gl.MakeCurrent(p->threadData->window, p->threadData->glContext);
+        } else {
+            gl.MakeCurrent(p->threadData->window, nullptr);
+            SDL_GL_MakeCurrent(p->threadData->window, p->threadData->glContext);
+        }
+    }
+    gl.multithreaded = value;
 }
 
 double Graphics::getScale() const {
@@ -1766,7 +1784,7 @@ void Graphics::repaintWait(const AtomicFlag &exitCond, bool checkReset) {
         
         FBO::clear();
         p->metaBlitBufferFlippedScaled(scaleIsSpecial);
-        SDL_GL_SwapWindow(p->threadData->window);
+        gl.SwapWindow(p->threadData->window);
         p->fpsLimiter.delay();
         
         p->threadData->ethread->notifyFrame();
@@ -1775,12 +1793,21 @@ void Graphics::repaintWait(const AtomicFlag &exitCond, bool checkReset) {
     GLMeta::blitEnd();
 }
 
-void Graphics::lock(bool force) {
-    p->setLock(force);
+void Graphics::lock() {
+    p->setLock();
 }
 
-void Graphics::unlock(bool force) {
-    p->releaseLock(force);
+void Graphics::unlock() {
+    p->releaseLock();
+}
+
+bool Graphics::isLocked() noexcept {
+    if (SDL_TryLockMutex(p->locks.glResourceLock) == SDL_MUTEX_TIMEDOUT) {
+        return false;
+    }
+    bool locked = p->locks.glResourceLockLevel != 0;
+    SDL_UnlockMutex(p->locks.glResourceLock);
+    return locked;
 }
 
 void Graphics::addDisposable(Disposable *d) { p->dispList.append(d->link); }

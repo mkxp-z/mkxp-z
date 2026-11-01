@@ -91,8 +91,10 @@ struct Quad
 
 	~Quad()
 	{
+		GFX_LOCK;
 		GLMeta::vaoFini(vao);
 		VBO::del(vbo);
+		GFX_UNLOCK;
 	}
 
 	void updateBuffer()

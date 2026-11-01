@@ -77,6 +77,8 @@ struct Config {
         bool lastMileScaling;
     } integerScaling;
     
+    int multithreadedGl;
+    
     std::string gameFolder;
     bool manualFolderSelect;
     
