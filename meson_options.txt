@@ -47,6 +47,7 @@ option('openssl', type: 'feature', value: 'auto', description: 'Enable support f
 option('oss', type: 'feature', value: 'auto', description: 'Enable support for audio output via Open Sound System')
 option('pipewire', type: 'feature', value: 'auto', description: 'Enable support for audio output via PipeWire')
 option('pulseaudio', type: 'feature', value: 'auto', description: 'Enable support for audio output via PulseAudio')
+option('syntax_transform', type: 'feature', value: 'auto', description: 'Enable support for mkxp syntax transform patches. \'enabled\' means always enable support; \'disabled\' means always disable support; \'auto\' means enable support if building with vendored Ruby and disable support if building with system Ruby.')
 
 option('default_system', type: 'feature', value: 'disabled', description: 'If this is set to \'enabled\', the system versions of dependencies will be used by default; if this is set to \'disabled\', the vendored versions of dependencies will be used by default; if this is set to \'auto\', by default the system versions of dependencies that exist will be used and the vendored versions will be used otherwise; the dependency resolution behavior of individual dependencies can be overridden by explicitly setting the corresponding options to \'enabled\' or \'disabled\'')
 

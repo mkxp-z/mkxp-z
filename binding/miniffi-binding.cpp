@@ -255,7 +255,7 @@ RB_METHOD_GUARD(MiniFFI_call) {
             return MVAL2RB(ret);
             
         case _T_POINTER:
-            return rb_utf8_str_new_cstr((char *)ret);
+            return mkxp_str_new_cstr((char *)ret);
             
         case _T_BOOL:
             return rb_bool_new(ret);
