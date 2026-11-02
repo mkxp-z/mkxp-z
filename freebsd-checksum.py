@@ -54,8 +54,9 @@ def encoding_zbase32_freebsd(checksum: bytes) -> str:
 
     # Remove the padding we added previously
     padding_characters = padding_bits // 5
-    assert all(character == 'y' for character in checksum[-padding_characters:])
-    checksum = checksum[:-padding_characters]
+    if padding_characters > 0:
+        assert all(character == 'y' for character in checksum[-padding_characters:])
+        checksum = checksum[:-padding_characters]
 
     return checksum
 
