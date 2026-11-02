@@ -36,12 +36,11 @@ RB_METHOD(planeInitialize) {
 
   setPrivateData(self, p);
 
-    GFX_LOCK;
+  GFX_GUARD;
   p->initDynAttribs();
 
   wrapProperty(self, &p->getColor(), "color", ColorType);
   wrapProperty(self, &p->getTone(), "tone", ToneType);
-    GFX_UNLOCK;
 
   return self;
 }
