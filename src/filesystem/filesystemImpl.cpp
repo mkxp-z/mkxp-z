@@ -5,6 +5,7 @@
 //  Created by ゾロアーク on 11/21/20.
 //
 
+#include "switch_filesystem_shim.h"
 #include <SDL_filesystem.h>
 
 #include "filesystemImpl.h"
@@ -20,6 +21,7 @@ namespace fs = ghc::filesystem;
 #endif
 
 #include <fstream>
+#include <cstring>
 
 // https://stackoverflow.com/questions/12774207/fastest-way-to-check-if-a-file-exist-using-standard-c-c11-c
 bool filesystemImpl::fileExists(const char *path) {
@@ -70,8 +72,16 @@ std::string filesystemImpl::getCurrentDirectory() {
 
 std::string filesystemImpl::normalizePath(const char *path, bool preferred, bool absolute) {
     fs::path stdPath(path);
-    
-    if (!stdPath.is_absolute() && absolute)
+    bool isAbsolute = stdPath.is_absolute();
+#ifdef __SWITCH__
+    // libnx paths carry a device prefix ("sdmc:/", "romfs:/") that
+    // ghc::filesystem does not recognize as a root.
+    const char *colon = strchr(path, ':');
+    if (colon && colon != path && colon[1] == '/' && !memchr(path, '/', colon - path))
+        isAbsolute = true;
+#endif
+
+    if (!isAbsolute && absolute)
         stdPath = fs::current_path() / stdPath;
 
     stdPath = stdPath.lexically_normal();

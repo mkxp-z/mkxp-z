@@ -74,7 +74,7 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 #include "TouchBar.h"
 #endif
 
-#if !defined(__ANDROID__) && !defined(__APPLE__) && !defined(_WIN32)
+#if !defined(__ANDROID__) && !defined(__APPLE__) && !defined(_WIN32) && !defined(__SWITCH__)
 #  define MKXPZ_CHECK_FOR_WAYLAND_SUPPORT
 #endif
 
@@ -124,6 +124,11 @@ static void printGLInfo() {
 
 static SDL_GLContext initGL(SDL_Window *win, Config &conf,
                             RGSSThreadData *threadData);
+
+#ifdef __SWITCH__
+/* switch/switch_main.cpp */
+extern "C" void switch_enable_logging();
+#endif
 
 int rgssThreadFun(void *userdata) {
   RGSSThreadData *threadData = static_cast<RGSSThreadData *>(userdata);
@@ -233,7 +238,20 @@ static SDL_Window *initVideo(const Config &conf) {
 
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GetHintBoolean(SDL_HINT_OPENGL_ES_DRIVER, SDL_FALSE) ? SDL_GL_CONTEXT_PROFILE_ES : SDL_GL_CONTEXT_PROFILE_CORE | SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
 
-  SDL_Window *window = SDL_CreateWindow(conf.windowTitle.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, conf.defScreenW, conf.defScreenH, winFlags);
+  int createW = conf.defScreenW, createH = conf.defScreenH;
+#ifdef __SWITCH__
+  // The window is always the whole screen on Switch. Created at the game's
+  // resolution, the display would stretch it to fill the screen; created at
+  // the display's size, mkxp-z scales the game itself and keeps its aspect
+  // ratio (fixedAspectRatio).
+  SDL_DisplayMode desktop;
+  if (SDL_GetDesktopDisplayMode(0, &desktop) == 0) {
+    createW = desktop.w;
+    createH = desktop.h;
+  }
+#endif
+
+  SDL_Window *window = SDL_CreateWindow(conf.windowTitle.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, createW, createH, winFlags);
   if (window == nullptr) {
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
   }
@@ -241,6 +259,10 @@ static SDL_Window *initVideo(const Config &conf) {
 }
 
 int main(int argc, char *argv[]) {
+#ifdef __SWITCH__
+    switch_enable_logging();
+#endif
+
     SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
     SDL_SetHint(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, "0");
 
@@ -278,6 +300,16 @@ int main(int argc, char *argv[]) {
     conf.read(argc, argv);
     if (conf.windowTitle.empty())
       conf.windowTitle = conf.game.title;
+
+#ifdef __SWITCH__
+    // No MiniFFI on Switch: Ruby stand-ins from RomFS (switch/romfs-root/
+    // preload) run before the game's own preload scripts.
+    conf.preloadScripts.insert(conf.preloadScripts.begin(), {
+        "romfs:/preload/log_sync.rb",
+        "romfs:/preload/win32api_stub.rb",
+        "romfs:/preload/win32_wrap.rb",
+    });
+#endif
 
 #if defined(__WIN32__)
     // Create a debug console in debug mode
