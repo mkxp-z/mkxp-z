@@ -40,6 +40,9 @@ else
     host_triplet_os = host_machine.system()
 endif
 host_triplet = host_triplet_cpu + '-' + host_triplet_vendor + '-' + host_triplet_os
+if host_machine.system() == 'switch'
+    host_triplet = 'aarch64-none-elf' # devkitA64
+endif
 
 base_cflags = []
 base_cppflags = []

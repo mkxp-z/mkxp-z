@@ -30,11 +30,75 @@ endif
 
 baseruby = run_command(subproject('common').get_variable('quotetool'), (meson.version().version_compare('>=1.10.0') ? find_program('ruby').cmd_array() : find_program('ruby')), check: true).stdout().strip()
 
+is_switch = host_machine.system() == 'switch'
+
 ruby_deps = [
-    dependency('libffi', required: true),
-    dependency('yaml-0.1', required: true),
+    is_switch ? [] : dependency('libffi', required: true),
+    is_switch ? [] : dependency('yaml-0.1', required: true),
     dependency('zlib', required: true),
 ]
+
+# Nintendo Switch (libnx): the POSIX stubs Ruby needs. Configure links them
+# into its tests and Ruby's own programs, so they're compiled now, at setup
+# time (edits to switch-shim.c need a fresh setup).
+switch_configure_options = []
+switch_env = {}
+switch_link_args = []
+if is_switch
+    switch_shim = meson.current_build_dir() / 'libruby-switch-shim.a'
+    run_command(meson.get_compiler('c').cmd_array(), cflags, '-c', files('switch-shim.c'), '-o', switch_shim + '.o', check: true)
+    run_command(subproject('common').get_variable('ar'), 'rcs', switch_shim, switch_shim + '.o', check: true)
+    switch_libs = [switch_shim, '-lnx']
+    switch_configure_options = [
+        'LIBS=' + ' '.join(switch_libs),
+        '--disable-jit-support',
+        '--with-coroutine=arm64',
+        '--disable-close-fds-by-recvmsg-with-peek',
+    ]
+    # Configure's link tests can't tell a working function from a newlib
+    # stub, and some of these are only in switch-shim.c.
+    switch_env = {
+        'ac_cv_func_fork': 'no',
+        'ac_cv_func_mmap': 'no',
+        'ac_cv_func_mprotect': 'no',
+        'ac_cv_func_sigaction': 'no',
+        'ac_cv_func_sigaltstack': 'no',
+        'ac_cv_func_sigprocmask': 'no',
+        'ac_cv_func_kill': 'no',
+        'ac_cv_func_dup': 'yes',
+        'ac_cv_func_dup2': 'yes',
+        'ac_cv_func_getuid': 'yes',
+        'ac_cv_func_geteuid': 'yes',
+        'ac_cv_func_getgid': 'yes',
+        'ac_cv_func_getegid': 'yes',
+        'ac_cv_func_pipe': 'yes',
+        'ac_cv_func_pthread_kill': 'yes',
+        'ac_cv_func_select': 'yes',
+        'ac_cv_func_poll': 'yes',
+        'ac_cv_func_memmem': 'yes',
+        'ac_cv_func_umask': 'yes',
+        'ac_cv_func_execv': 'yes',
+        'ac_cv_func_waitpid': 'yes',
+        'ac_cv_func_getpwnam': 'yes',
+        'ac_cv_func_endpwent': 'yes',
+        'ac_cv_func_popen': 'yes',
+        'ac_cv_func_pclose': 'yes',
+        'ac_cv_func_chown': 'yes',
+        'ac_cv_func_sysconf': 'yes',
+        'ac_cv_func_getppid': 'yes',
+        'ac_cv_func_getrusage': 'yes',
+        'ac_cv_func_execl': 'yes',
+        'ac_cv_func_execle': 'yes',
+        'ac_cv_func_ioctl': 'yes',
+        'ac_cv_header_sys_mman_h': 'no',
+        'ac_cv_func_dlopen': 'no',
+        'ac_cv_lib_dl_dlopen': 'no',
+    }
+    switch_link_args = switch_libs
+    # devkitA64 miscompiles -fPIC soft-TLS accesses (ruby-3.1-switch.patch)
+    cflags += '-DRB_THREAD_LOCAL_SPECIFIER_IS_UNSUPPORTED'
+    cppflags += '-DRB_THREAD_LOCAL_SPECIFIER_IS_UNSUPPORTED'
+endif
 
 ruby = declare_dependency(
     dependencies: [
@@ -58,7 +122,7 @@ ruby = declare_dependency(
                 '--with-soname=ruby',
                 '--disable-shared',
                 '--disable-install-doc',
-                '--with-out-ext=openssl,readline,dbm,gdbm',
+                '--with-out-ext=openssl,readline,dbm,gdbm' + (is_switch ? ',pty,syslog,fiddle,bigdecimal,io/console,-test-/*' : ''),
                 '--with-static-linked-ext',
                 '--disable-rubygems',
                 '--without-gmp',
@@ -76,6 +140,7 @@ ruby = declare_dependency(
                 'CFLAGS=' + run_command(subproject('common').get_variable('quotetool'), cflags, check: true).stdout().strip() + ' ' + get_option('cflags'),
                 'CXXFLAGS=' + run_command(subproject('common').get_variable('quotetool'), cppflags, check: true).stdout().strip() + ' ' + get_option('cppflags'),
                 'LDFLAGS=' + run_command(subproject('common').get_variable('quotetool'), ldflags, check: true).stdout().strip() + ' ' + get_option('ldflags'),
+                switch_configure_options,
             ],
             cross_configure_options: [
                 '--host=@HOST@',
@@ -101,7 +166,7 @@ ruby = declare_dependency(
                 'rb_cv_gcc_sync_builtins': 'no',
                 'rb_cv_prog_gnu_ld': subproject('common').get_variable('c_linker_is_gnu') ? 'yes' : 'no',
                 'rb_cv_symbol_prefix': meson.get_compiler('c').symbols_have_underscore_prefix() ? '_' : 'NONE',
-            },
+            } + switch_env,
             depends: [
                 # Force Meson to fully build all of our vendored dependencies that are required by Ruby before building Ruby itself
                 executable(
@@ -160,7 +225,7 @@ ruby = declare_dependency(
             ]
             : [],
         meson.project_build_root() / 'build' / 'ext' / 'extinit.a',
-        meson.project_build_root() / 'build' / 'ext' / 'bigdecimal' / 'bigdecimal.a',
+        is_switch ? [] : meson.project_build_root() / 'build' / 'ext' / 'bigdecimal' / 'bigdecimal.a',
         meson.project_build_root() / 'build' / 'ext' / 'cgi' / 'escape' / 'escape.a',
         meson.project_build_root() / 'build' / 'ext' / 'continuation' / 'continuation.a',
         meson.project_build_root() / 'build' / 'ext' / 'coverage' / 'coverage.a',
@@ -173,8 +238,8 @@ ruby = declare_dependency(
         meson.project_build_root() / 'build' / 'ext' / 'digest' / 'sha2' / 'sha2.a',
         meson.project_build_root() / 'build' / 'ext' / 'etc' / 'etc.a',
         meson.project_build_root() / 'build' / 'ext' / 'fcntl' / 'fcntl.a',
-        meson.project_build_root() / 'build' / 'ext' / 'fiddle' / 'fiddle.a',
-        meson.project_build_root() / 'build' / 'ext' / 'io' / 'console' / 'console.a',
+        is_switch ? [] : meson.project_build_root() / 'build' / 'ext' / 'fiddle' / 'fiddle.a',
+        is_switch ? [] : meson.project_build_root() / 'build' / 'ext' / 'io' / 'console' / 'console.a',
         meson.project_build_root() / 'build' / 'ext' / 'io' / 'nonblock' / 'nonblock.a',
         meson.project_build_root() / 'build' / 'ext' / 'io' / 'wait' / 'wait.a',
         meson.project_build_root() / 'build' / 'ext' / 'json' / 'generator' / 'generator.a',
@@ -196,14 +261,18 @@ ruby = declare_dependency(
                 meson.project_build_root() / 'build' / 'ext' / 'win32' / 'resolv' / 'resolv.a',
                 meson.project_build_root() / 'build' / 'ext' / 'win32ole' / 'win32ole.a',
             ]
-            : [
+            : [],
+        host_machine.system() not in ['windows', 'cygwin', 'switch']
+            ? [
                 meson.project_build_root() / 'build' / 'ext' / 'pty' / 'pty.a',
                 meson.project_build_root() / 'build' / 'ext' / 'syslog' / 'syslog.a',
-            ],
+            ]
+            : [],
         meson.project_build_root() / 'build' / 'enc' / 'encinit.a',
         meson.project_build_root() / 'build' / 'enc' / 'libenc.a',
         meson.project_build_root() / 'build' / 'enc' / 'libtrans.a',
         meson.project_build_root() / 'build' / 'libruby-static.a',
+        switch_link_args,
     ],
 )
 
