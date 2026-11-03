@@ -769,6 +769,59 @@ jobs:
           name: mkxp-z.linux.debian.trixie.${{matrix.arch_mkxpz}}.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
           path: build/artifact
 
+  build-switch:
+    name: Nintendo Switch
+    runs-on: ubuntu-latest
+    container: devkitpro/devkita64:20251117
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: benjlevesque/short-sha@v4.0
+        id: short-sha
+        with:
+          length: 7
+
+      - name: Install dependencies
+        run: |
+          apt update
+          apt install -y bison git ruby
+          # The Meson version provided by APT is too old so we install Meson using pip instead
+          apt install -y python3-pip
+          pip3 install --break-system-packages meson
+          # For the host-side unit tests (switch/tests)
+          apt install -y g++ libsdl2-dev pkg-config
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Configure
+        run: |
+          meson setup --prefix "$(pwd)/build/artifact" --cross-file switch/switch.ini --buildtype release build
+
+      - name: Build
+        run: |
+          CLICOLOR_FORCE=1 ninja -C build -v
+
+      - name: Test
+        run: |
+          meson test -C build --print-errorlogs
+
+      - name: Check for miscompiled thread-local accesses
+        run: |
+          /opt/devkitpro/devkitA64/bin/aarch64-none-elf-objdump -d build/mkxp-z.cortex-a57 > build/disassembly.txt
+          python3 switch/find_bad_tls.py build/disassembly.txt
+
+      - name: Prepare artifact
+        run: |
+          meson install -C build --no-rebuild --tags mkxp-z
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: mkxp-z.switch.${{github.event_name == 'pull_request' && format('PR{0}', github.event.number) || github.ref_name}}-${{steps.short-sha.outputs.sha}}
+          path: build/artifact
+
   build-freebsd:
     name: FreeBSD ${{ matrix.arch }}
     runs-on: ubuntu-26.04
