@@ -56,6 +56,7 @@ ruby = declare_dependency(
                 '--with-destdir=' + destdir,
                 '--with-baseruby=' + baseruby,
                 '--with-soname=ruby',
+                '--with-rubylibprefix=${prefix}/../dist/lib/${RUBY_BASE_NAME}',
                 '--disable-shared',
                 '--disable-install-doc',
                 '--with-out-ext=openssl,readline,dbm,gdbm',
