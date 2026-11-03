@@ -3333,6 +3333,11 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
     int alignY = rect.y + ((rect.h - alignmentHeight) / 2) - scaledOutlineSize;
     
     alignY = std::max(alignY, rect.y);
+
+    /* alignmentHeight is the nominal height here, so put the baseline where
+     * Windows puts it within that height */
+    if (shState->config().fontHeightReporting == 0)
+        alignY += SharedFontState::nominalAscentOffset(sdlFont);
     
     /* FIXME: RGSS begins squeezing the text before it fills the rect.
      * While this is extremely undesirable, a number of games will understandably
@@ -3485,7 +3490,7 @@ IntRect Bitmap::textSize(const char *str)
             /* RGSS normalizes the reported heights.
              * Note that this may result in the bottoms
              * of some characters being cut off. */
-             h = TTF_FontHeight(sdlFont);
+             h = SharedFontState::nominalHeight(sdlFont);
         }
     }
     

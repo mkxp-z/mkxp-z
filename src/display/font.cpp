@@ -676,6 +676,56 @@ MKXPZ_TTF_FONT *SharedFontState::openBundled(int size)
 	return TTF_OpenFontRW(ops, 1, size);
 }
 
+/* Windows reports the OS/2 winAscent + winDescent, scaled to the font's size
+ * (Wine's get_text_metrics). TTF_FontHeight uses the hhea metrics instead,
+ * which some fonts get wrong: Pokemon Essentials' "Power" fonts have a
+ * positive hhea descender, which makes it about two thirds of the glyph
+ * height and cuts off the bottom of the text. */
+static TT_OS2 *getWinMetrics(FT_Face face)
+{
+	TT_OS2 *pOS2 = 0;
+
+	if (FT_IS_SFNT(face) && FT_IS_SCALABLE(face))
+		pOS2 = (TT_OS2 *)FT_Get_Sfnt_Table(face, FT_SFNT_OS2);
+
+	if (!pOS2 || pOS2->usWinAscent + get_fixed_windescent(pOS2->usWinDescent) == 0)
+		return 0;
+
+	return pOS2;
+}
+
+int SharedFontState::nominalHeight(MKXPZ_TTF_FONT *font)
+{
+	FT_Face face = TTF_FONT_TO_FT_FACE(font);
+	TT_OS2 *pOS2 = getWinMetrics(face);
+
+	if (!pOS2)
+		return TTF_FontHeight(font);
+
+	FT_Fixed yscale = face->size->metrics.y_scale;
+	int ascent = (FT_MulFix(pOS2->usWinAscent, yscale) + 32) >> 6;
+	int descent = (FT_MulFix(get_fixed_windescent(pOS2->usWinDescent), yscale) + 32) >> 6;
+
+	return ascent + descent;
+}
+
+/* Windows puts the baseline winAscent below the top of the text, SDL_ttf puts
+ * it TTF_FontAscent below the top of the surface it renders. The two are the
+ * same for most fonts, apart from rounding (SDL_ttf rounds up, Windows to
+ * nearest), so the text is only ever moved down. */
+int SharedFontState::nominalAscentOffset(MKXPZ_TTF_FONT *font)
+{
+	FT_Face face = TTF_FONT_TO_FT_FACE(font);
+	TT_OS2 *pOS2 = getWinMetrics(face);
+
+	if (!pOS2)
+		return 0;
+
+	int ascent = (FT_MulFix(pOS2->usWinAscent, face->size->metrics.y_scale) + 32) >> 6;
+
+	return std::max(ascent - TTF_FontAscent(font), 0);
+}
+
 void SharedFontState::setDefaultFontFamily(const std::string &family) {
     p->defaultFamily = family;
 }
