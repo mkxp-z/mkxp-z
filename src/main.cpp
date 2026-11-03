@@ -322,8 +322,12 @@ int main(int argc, char *argv[]) {
         "romfs:/preload/log_sync.rb",
         "romfs:/preload/win32api_stub.rb",
         "romfs:/preload/win32_wrap.rb",
+        // Shows "Loading <title>..." while the game's scripts load
+        "romfs:/preload/loading_screen.rb",
         // Game Boy style Start/Select, B-to-run and ZL soft reset
         "romfs:/preload/switch_controls.rb",
+        // Debug tracing only: logs what each slow frame spent its time on
+        "romfs:/preload/perf_trace.rb",
     });
 #endif
 

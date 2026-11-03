@@ -3,7 +3,9 @@
 
 romfs_files = files(
     '../romfs-root/readme.txt',
+    '../romfs-root/preload/loading_screen.rb',
     '../romfs-root/preload/log_sync.rb',
+    '../romfs-root/preload/perf_trace.rb',
     '../romfs-root/preload/switch_controls.rb',
     '../romfs-root/preload/win32api_stub.rb',
 )
