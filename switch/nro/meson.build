@@ -4,6 +4,7 @@
 romfs_files = files(
     '../romfs-root/readme.txt',
     '../romfs-root/preload/log_sync.rb',
+    '../romfs-root/preload/switch_controls.rb',
     '../romfs-root/preload/win32api_stub.rb',
 )
 

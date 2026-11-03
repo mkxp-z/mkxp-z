@@ -126,8 +126,9 @@ static SDL_GLContext initGL(SDL_Window *win, Config &conf,
                             RGSSThreadData *threadData);
 
 #ifdef __SWITCH__
-/* switch/switch_main.cpp */
+/* switch/switch_main.cpp, switch/switch_controls.cpp */
 extern "C" void switch_enable_logging();
+extern "C" void switch_controls_load_active();
 #endif
 
 int rgssThreadFun(void *userdata) {
@@ -261,6 +262,9 @@ static SDL_Window *initVideo(const Config &conf) {
 int main(int argc, char *argv[]) {
 #ifdef __SWITCH__
     switch_enable_logging();
+    // Before the bindings are generated: a custom profile replaces the
+    // controller bindings
+    switch_controls_load_active();
 #endif
 
     SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
@@ -308,6 +312,8 @@ int main(int argc, char *argv[]) {
         "romfs:/preload/log_sync.rb",
         "romfs:/preload/win32api_stub.rb",
         "romfs:/preload/win32_wrap.rb",
+        // Game Boy style Start/Select, B-to-run and ZL soft reset
+        "romfs:/preload/switch_controls.rb",
     });
 #endif
 
