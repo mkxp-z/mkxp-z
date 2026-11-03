@@ -53,6 +53,13 @@ public:
 	bool fontPresent(std::string family) const;
 
 	static MKXPZ_TTF_FONT *openBundled(int size);
+
+	/* Text height as Windows (and so RGSS) reports it for 'font' */
+	static int nominalHeight(MKXPZ_TTF_FONT *font);
+
+	/* How far below the top of that height Windows puts the top of the
+	 * glyphs that SDL_ttf renders for 'font' */
+	static int nominalAscentOffset(MKXPZ_TTF_FONT *font);
     void setDefaultFontFamily(const std::string &family);
 
 private:
