@@ -127,8 +127,10 @@ static SDL_GLContext initGL(SDL_Window *win, Config &conf,
 
 #ifdef __SWITCH__
 /* switch/switch_main.cpp, switch/switch_controls.cpp */
+extern "C" bool switch_pick_game(char *out, size_t outSize);
 extern "C" void switch_enable_logging();
 extern "C" void switch_controls_load_active();
+extern "C" void switch_return_to_picker(const char *argv0);
 #endif
 
 int rgssThreadFun(void *userdata) {
@@ -261,6 +263,10 @@ static SDL_Window *initVideo(const Config &conf) {
 
 int main(int argc, char *argv[]) {
 #ifdef __SWITCH__
+    // Pick the game before SDL takes over the display
+    char switchGameDir[512]{};
+    if (!switch_pick_game(switchGameDir, sizeof(switchGameDir)))
+        return 0;
     switch_enable_logging();
     // Before the bindings are generated: a custom profile replaces the
     // controller bindings
@@ -294,7 +300,11 @@ int main(int argc, char *argv[]) {
     }
 #endif
     if (!dataDir[0]) {
+#ifdef __SWITCH__
+      std::strncpy(dataDir, switchGameDir, sizeof(dataDir) - 1);
+#else
       std::strncpy(dataDir, mkxp_fs::getDefaultGameRoot().c_str(), sizeof(dataDir));
+#endif
     }
     mkxp_fs::setCurrentDirectory(dataDir);
 #endif
@@ -802,6 +812,9 @@ int main(int argc, char *argv[]) {
     TTF_Quit();
     IMG_Quit();
     SDL_Quit();
+#ifdef __SWITCH__
+    switch_return_to_picker(argc > 0 ? argv[0] : NULL);
+#endif
 
     return 0;
 }
