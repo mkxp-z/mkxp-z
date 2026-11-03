@@ -1114,6 +1114,10 @@ static void runRMXPScripts(BacktraceData &btData) {
 
 static void showExc(VALUE exc, const BacktraceData &btData) {
     VALUE bt = rb_funcall2(exc, rb_intern("backtrace"), 0, NULL);
+    /* Some exceptions (e.g. SystemStackError) can arrive without a
+     * backtrace; the parsing below needs at least one "file:line" entry. */
+    if (!RB_TYPE_P(bt, T_ARRAY) || RARRAY_LEN(bt) == 0)
+        bt = rb_ary_new_from_args(1, rb_str_new_cstr("?:0: (no backtrace)"));
     VALUE msg = rb_funcall2(exc, rb_intern("message"), 0, NULL);
     VALUE bt0 = rb_ary_entry(bt, 0);
     VALUE name = rb_class_path(rb_obj_class(exc));
