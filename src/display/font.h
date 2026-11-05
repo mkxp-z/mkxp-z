@@ -29,8 +29,11 @@
 #include <string>
 
 struct SDL_RWops;
+struct SDL_Surface;
+struct SDL_Color;
 struct MKXPZ_TTF_FONT;
 struct Config;
+struct IntRect;
 
 struct SharedFontStatePrivate;
 
@@ -51,6 +54,12 @@ public:
 	                   int size, float hiresMult, int outline_size = 0);
 
 	bool fontPresent(std::string family) const;
+
+	IntRect textSize(MKXPZ_TTF_FONT *font, const char *text);
+	int measureText(MKXPZ_TTF_FONT *font, const char *text, int maxWidth);
+	/* Returns an owned, mutable ABGR8888 surface. */
+	SDL_Surface *renderText(MKXPZ_TTF_FONT *font, const char *text,
+	                       const SDL_Color &color, bool solid);
 
 	static MKXPZ_TTF_FONT *openBundled(int size);
     void setDefaultFontFamily(const std::string &family);
