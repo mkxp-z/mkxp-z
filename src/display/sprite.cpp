@@ -1126,14 +1126,17 @@ void Sprite::draw()
     }
 #endif
     
-    TEX::setSmooth(scalingMethod == Bilinear);
+    const bool bilinear = scalingMethod == Bilinear;
+    if (bilinear)
+        TEX::setSmooth(true);
 
     if (p->wave.active)
         p->wave.qArray.draw();
     else
         p->quad.draw();
     
-    TEX::setSmooth(false);
+    if (bilinear)
+        TEX::setSmooth(false);
 
     glState.blendMode.pop();
 }
