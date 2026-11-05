@@ -84,7 +84,6 @@ struct Config {
     bool enableReset;
     bool enableSettings;
     bool allowSymlinks;
-    bool pathCache;
     
     std::string dataPathOrg;
     std::string dataPathApp;

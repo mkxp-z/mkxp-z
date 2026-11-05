@@ -180,7 +180,6 @@ void Config::read(int argc, char *argv[]) {
         {"SESourceCount", 6},
         {"BGMTrackCount", 1},
         {"customScript", ""},
-        {"pathCache", true},
         {"useScriptNames", true},
         {"preloadScript", json::array({})},
         {"postloadScript", json::array({})},
@@ -245,7 +244,6 @@ try { exp } catch (...) {}
     SET_STRINGOPT(iconPath, iconPath);
     SET_STRINGOPT(execName, execName);
     SET_OPT(allowSymlinks, boolean);
-    SET_OPT(pathCache, boolean);
     SET_OPT_CUSTOMKEY(jit.enabled, JITEnable, boolean);
     SET_OPT_CUSTOMKEY(jit.verboseLevel, JITVerboseLevel, integer);
     SET_OPT_CUSTOMKEY(jit.maxCache, JITMaxCache, integer);
