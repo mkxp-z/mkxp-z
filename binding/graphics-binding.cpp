@@ -29,7 +29,22 @@
 RB_METHOD(graphicsDelta) {
     RB_UNUSED_PARAM;
     GFX_LOCK;
-    VALUE ret = rb_float_new(shState->graphics().getDelta());
+    VALUE ret;
+    for (bool running = true; running;) {
+        switch (shState->config().delta) {
+            case 1:
+                ret = rb_float_new(shState->graphics().getDelta());
+                running = false;
+                break;
+            case 2:
+                ret = RB_ULL2NUM(shState->graphics().getDelta() * 1000000.0);
+                running = false;
+                break;
+            default:
+                shState->config().delta = mkxp_use_legacy_delta() ? 2 : 1;
+                break;
+        }
+    }
     GFX_UNLOCK;
     return ret;
 }
