@@ -58,6 +58,8 @@ struct Config {
     double atlasScalingFactor;
     bool vsync;
     
+    int defInternalScreenW;
+    int defInternalScreenH;
     int defScreenW;
     int defScreenH;
     std::string windowTitle;
