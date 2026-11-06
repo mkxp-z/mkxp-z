@@ -63,7 +63,9 @@ readDouble(const char **dataP)
 	result = __builtin_bswap64(result);
 #  endif
 
-	return *(double *)&result;
+	double resultDouble;
+	memcpy(&resultDouble, &result, 8);
+	return resultDouble;
 #else
 	double result;
 
@@ -94,7 +96,8 @@ static inline void
 writeDouble(char **dataP, double value)
 {
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
-	uint64_t valueUint = *(uint64_t *)&value;
+	uint64_t valueUint;
+	memcpy(&valueUint, &value, 8);
 
 #  ifdef _MSC_VER
 	valueUint = (uint64_t)_byteswap_uint64((unsigned __int64)valueUint);
