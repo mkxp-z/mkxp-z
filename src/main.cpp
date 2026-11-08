@@ -227,6 +227,14 @@ static void setupWindowIcon(const Config &conf, SDL_Window *win) {
   }
 }
 
+#ifdef __SWITCH__
+static void setSwitchGLContextAttributes(bool useGLES) {
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, useGLES ? SDL_GL_CONTEXT_PROFILE_ES : SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, useGLES ? 2 : 4);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, useGLES ? 0 : 3);
+}
+#endif
+
 static SDL_Window *initVideo(const Config &conf) {
   Uint32 winFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_INPUT_FOCUS | SDL_WINDOW_ALLOW_HIGHDPI;
 
@@ -239,7 +247,12 @@ static SDL_Window *initVideo(const Config &conf) {
     return nullptr;
   }
 
-  SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GetHintBoolean(SDL_HINT_OPENGL_ES_DRIVER, SDL_FALSE) ? SDL_GL_CONTEXT_PROFILE_ES : SDL_GL_CONTEXT_PROFILE_CORE | SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+  bool useGLES = SDL_GetHintBoolean(SDL_HINT_OPENGL_ES_DRIVER, SDL_FALSE);
+#ifdef __SWITCH__
+  setSwitchGLContextAttributes(useGLES);
+#else
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, useGLES ? SDL_GL_CONTEXT_PROFILE_ES : SDL_GL_CONTEXT_PROFILE_CORE | SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+#endif
 
   int createW = conf.defScreenW, createH = conf.defScreenH;
 #ifdef __SWITCH__
