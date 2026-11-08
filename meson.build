@@ -49,7 +49,7 @@ if get_option('gfx_backend') == 'gl'
     use_gles_by_default = false
 elif get_option('gfx_backend') == 'gles'
     use_gles_by_default = true
-elif host_system in ['android', 'switch']
+elif host_system == 'android'
     use_gles_by_default = true
 elif host_system == 'darwin'
     # If the host machine is macOS (as opposed to iOS, tvOS, etc.), use OpenGL by default, otherwise use OpenGL ES by default
