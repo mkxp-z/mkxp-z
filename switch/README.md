@@ -57,6 +57,13 @@ python3 switch/find_bad_tls.py dis.txt
 The picker's Settings tile edits controller profiles. The system keyboard is
 used for text entry.
 
+## Graphics
+
+The port uses desktop OpenGL by default: it asks SDL for a 4.3 compatibility
+context, under which the engine's existing GLSL 1.10 shaders run unchanged.
+OpenGL ES 2.0 remains available as an explicit opt-in: configure with
+`-Dgfx_backend=gles` (or set `SDL_OPENGL_ES_DRIVER=1`).
+
 ## Debugging
 
 Every launch writes `sdmc:/mkxpz_log.txt`. See [DEBUGGING.md](DEBUGGING.md)
