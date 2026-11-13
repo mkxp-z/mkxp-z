@@ -6,4 +6,5 @@ source_hash = c0e718a1f5ba464570a383c12771879aeddb5dabcc3385acc5f14a4c26b93301
 directory = icculus-physfs-eb3383b
 method = cmake
 diff_files =
+    physfs-switch.patch,
     end-of-diff-files.patch

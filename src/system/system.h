@@ -14,11 +14,14 @@
 #define MKXPZ_PLATFORM_MACOS 1
 #define MKXPZ_PLATFORM_LINUX 2
 #define MKXPZ_PLATFORM_BSD 3
+#define MKXPZ_PLATFORM_SWITCH 4
 
 #ifdef __WIN32__
 #define MKXPZ_PLATFORM MKXPZ_PLATFORM_WINDOWS
 #elif defined __APPLE__
 #define MKXPZ_PLATFORM MKXPZ_PLATFORM_MACOS
+#elif defined __SWITCH__
+#define MKXPZ_PLATFORM MKXPZ_PLATFORM_SWITCH
 #elif defined __linux__
 #define MKXPZ_PLATFORM MKXPZ_PLATFORM_LINUX
 #elif defined __DragonFly__ || defined __FreeBSD__ || defined __NetBSD__ || defined __OpenBSD__

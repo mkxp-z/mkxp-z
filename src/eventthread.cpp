@@ -85,6 +85,35 @@ initALCFunctions(ALCdevice *alcDev)
 #define HAVE_ALC_DEVICE_PAUSE alc.DevicePause
 
 uint8_t EventThread::keyStates[];
+
+#ifdef __SWITCH__
+extern "C" int switch_swkbd_get_text(char *out, size_t outSize);
+/* switch/switch_controls.h: a custom controller profile presses keys */
+extern "C" void switch_controls_update(const bool *buttons, const int *axes, uint8_t *keyStates);
+extern "C" void switch_note_frame();
+
+// SDL timer callback; param is (scancode << 1) | pressed
+static Uint32 pushSyntheticKey(Uint32, void *param)
+{
+    intptr_t v = (intptr_t)param;
+    SDL_Event e = {};
+    e.type = (v & 1) ? SDL_KEYDOWN : SDL_KEYUP;
+    e.key.state = (v & 1) ? SDL_PRESSED : SDL_RELEASED;
+    e.key.keysym.scancode = (SDL_Scancode)(v >> 1);
+    e.key.keysym.sym = SDL_GetKeyFromScancode(e.key.keysym.scancode);
+    SDL_PushEvent(&e);
+    return 0; // one-shot
+}
+
+// Presses a key a few frames from now and releases it a few frames later.
+// Games read Input.gets after checking the key in the same frame, so the key
+// must come after the text has been consumed.
+static void pressKeyLater(SDL_Scancode sc)
+{
+    SDL_AddTimer(150, pushSyntheticKey, (void *)(((intptr_t)sc << 1) | 1));
+    SDL_AddTimer(300, pushSyntheticKey, (void *)((intptr_t)sc << 1));
+}
+#endif
 EventThread::ControllerState EventThread::controllerState;
 EventThread::MouseState EventThread::mouseState;
 EventThread::TouchState EventThread::touchState;
@@ -423,14 +452,23 @@ void EventThread::process(RGSSThreadData &rtData)
                 
             case SDL_CONTROLLERBUTTONDOWN:
                 controllerState.buttons[event.cbutton.button] = true;
+#ifdef __SWITCH__
+                switch_controls_update(controllerState.buttons, controllerState.axes, keyStates);
+#endif
                 break;
                 
             case SDL_CONTROLLERBUTTONUP:
                 controllerState.buttons[event.cbutton.button] = false;
+#ifdef __SWITCH__
+                switch_controls_update(controllerState.buttons, controllerState.axes, keyStates);
+#endif
                 break;
                 
             case SDL_CONTROLLERAXISMOTION:
                 controllerState.axes[event.caxis.axis] = event.caxis.value;
+#ifdef __SWITCH__
+                switch_controls_update(controllerState.buttons, controllerState.axes, keyStates);
+#endif
                 break;
                 
             case SDL_CONTROLLERDEVICEADDED:
@@ -488,7 +526,12 @@ void EventThread::process(RGSSThreadData &rtData)
                         break;
                         
                     case REQUEST_WINRESIZE :
+#ifndef __SWITCH__
+                        // On Switch the window is the whole display, and SDL
+                        // recreates the EGL surface on resize, which makes
+                        // Mesa fatalThrow (libnx AlreadyInitialized).
                         SDL_SetWindowSize(win, event.window.data1, event.window.data2);
+#endif
                         rtData.rqWindowAdjust.clear();
                         break;
                         
@@ -518,6 +561,24 @@ void EventThread::process(RGSSThreadData &rtData)
                                 const SDL_Rect rect = {0, 0, 1, 1};
                                 SDL_SetTextInputRect(&rect);
                             }
+#ifdef __SWITCH__
+                            // No physical keyboard: show the system keyboard.
+                            // Its text arrives like SDL_TEXTINPUT, then Return
+                            // (OK) or Escape (cancel) is pressed, which is how
+                            // mkxp-z games (e.g. Pokemon Essentials) confirm or
+                            // cancel keyboard entry.
+                            char text[512];
+                            int rc = switch_swkbd_get_text(text, sizeof(text));
+                            if (rc >= 0)
+                            {
+                                lockText(true);
+                                textInputBuffer = text;
+                                lockText(false);
+                                pressKeyLater(rc == 1 ? SDL_SCANCODE_RETURN
+                                                      : SDL_SCANCODE_ESCAPE);
+                                break;
+                            }
+#endif
                             SDL_StartTextInput();
                             lockText(true);
                             textInputBuffer.clear();
@@ -830,6 +891,9 @@ SDL_GameController *EventThread::controller() const
 
 void EventThread::notifyFrame()
 {
+#ifdef __SWITCH__
+    switch_note_frame();
+#endif
 #ifdef __APPLE__
     uint32_t frames = round(shState->graphics().averageFrameRate());
     updateTouchBarFPSDisplay(frames);

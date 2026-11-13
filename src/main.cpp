@@ -74,7 +74,7 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 #include "TouchBar.h"
 #endif
 
-#if !defined(__ANDROID__) && !defined(__APPLE__) && !defined(_WIN32)
+#if !defined(__ANDROID__) && !defined(__APPLE__) && !defined(_WIN32) && !defined(__SWITCH__)
 #  define MKXPZ_CHECK_FOR_WAYLAND_SUPPORT
 #endif
 
@@ -124,6 +124,14 @@ static void printGLInfo() {
 
 static SDL_GLContext initGL(SDL_Window *win, Config &conf,
                             RGSSThreadData *threadData);
+
+#ifdef __SWITCH__
+/* switch/switch_main.cpp, switch/switch_controls.cpp */
+extern "C" bool switch_pick_game(char *out, size_t outSize);
+extern "C" void switch_enable_logging();
+extern "C" void switch_controls_load_active();
+extern "C" void switch_return_to_picker(const char *argv0);
+#endif
 
 int rgssThreadFun(void *userdata) {
   RGSSThreadData *threadData = static_cast<RGSSThreadData *>(userdata);
@@ -219,6 +227,14 @@ static void setupWindowIcon(const Config &conf, SDL_Window *win) {
   }
 }
 
+#ifdef __SWITCH__
+static void setSwitchGLContextAttributes(bool useGLES) {
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, useGLES ? SDL_GL_CONTEXT_PROFILE_ES : SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, useGLES ? 2 : 4);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, useGLES ? 0 : 3);
+}
+#endif
+
 static SDL_Window *initVideo(const Config &conf) {
   Uint32 winFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_INPUT_FOCUS | SDL_WINDOW_ALLOW_HIGHDPI;
 
@@ -231,9 +247,27 @@ static SDL_Window *initVideo(const Config &conf) {
     return nullptr;
   }
 
-  SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GetHintBoolean(SDL_HINT_OPENGL_ES_DRIVER, SDL_FALSE) ? SDL_GL_CONTEXT_PROFILE_ES : SDL_GL_CONTEXT_PROFILE_CORE | SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+  bool useGLES = SDL_GetHintBoolean(SDL_HINT_OPENGL_ES_DRIVER, SDL_FALSE);
+#ifdef __SWITCH__
+  setSwitchGLContextAttributes(useGLES);
+#else
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, useGLES ? SDL_GL_CONTEXT_PROFILE_ES : SDL_GL_CONTEXT_PROFILE_CORE | SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+#endif
 
-  SDL_Window *window = SDL_CreateWindow(conf.windowTitle.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, conf.defScreenW, conf.defScreenH, winFlags);
+  int createW = conf.defScreenW, createH = conf.defScreenH;
+#ifdef __SWITCH__
+  // The window is always the whole screen on Switch. Created at the game's
+  // resolution, the display would stretch it to fill the screen; created at
+  // the display's size, mkxp-z scales the game itself and keeps its aspect
+  // ratio (fixedAspectRatio).
+  SDL_DisplayMode desktop;
+  if (SDL_GetDesktopDisplayMode(0, &desktop) == 0) {
+    createW = desktop.w;
+    createH = desktop.h;
+  }
+#endif
+
+  SDL_Window *window = SDL_CreateWindow(conf.windowTitle.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, createW, createH, winFlags);
   if (window == nullptr) {
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
   }
@@ -241,6 +275,17 @@ static SDL_Window *initVideo(const Config &conf) {
 }
 
 int main(int argc, char *argv[]) {
+#ifdef __SWITCH__
+    // Pick the game before SDL takes over the display
+    char switchGameDir[512]{};
+    if (!switch_pick_game(switchGameDir, sizeof(switchGameDir)))
+        return 0;
+    switch_enable_logging();
+    // Before the bindings are generated: a custom profile replaces the
+    // controller bindings
+    switch_controls_load_active();
+#endif
+
     SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
     SDL_SetHint(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, "0");
 
@@ -268,7 +313,11 @@ int main(int argc, char *argv[]) {
     }
 #endif
     if (!dataDir[0]) {
+#ifdef __SWITCH__
+      std::strncpy(dataDir, switchGameDir, sizeof(dataDir) - 1);
+#else
       std::strncpy(dataDir, mkxp_fs::getDefaultGameRoot().c_str(), sizeof(dataDir));
+#endif
     }
     mkxp_fs::setCurrentDirectory(dataDir);
 #endif
@@ -278,6 +327,26 @@ int main(int argc, char *argv[]) {
     conf.read(argc, argv);
     if (conf.windowTitle.empty())
       conf.windowTitle = conf.game.title;
+
+#ifdef __SWITCH__
+    // No MiniFFI on Switch: Ruby stand-ins from RomFS (switch/romfs-root/
+    // preload) run before the game's own preload scripts.
+    conf.preloadScripts.insert(conf.preloadScripts.begin(), {
+        "romfs:/preload/log_sync.rb",
+        "romfs:/preload/win32api_stub.rb",
+        "romfs:/preload/win32_wrap.rb",
+        // Shows "Loading <title>..." while the game's scripts load
+        "romfs:/preload/loading_screen.rb",
+        // Game Boy style Start/Select, B-to-run and ZL soft reset
+        "romfs:/preload/switch_controls.rb",
+        // Even frame pacing for Marin's fast-forward script (Fire Ash etc.)
+        "romfs:/preload/fast_forward.rb",
+        // Incremental GC for RPG::Cache.clear on map transfers
+        "romfs:/preload/cache_gc.rb",
+        // Debug tracing only: logs what each slow frame spent its time on
+        "romfs:/preload/perf_trace.rb",
+    });
+#endif
 
 #if defined(__WIN32__)
     // Create a debug console in debug mode
@@ -764,6 +833,9 @@ int main(int argc, char *argv[]) {
     TTF_Quit();
     IMG_Quit();
     SDL_Quit();
+#ifdef __SWITCH__
+    switch_return_to_picker(argc > 0 ? argv[0] : NULL);
+#endif
 
     return 0;
 }
