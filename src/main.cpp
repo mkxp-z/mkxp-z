@@ -339,6 +339,10 @@ int main(int argc, char *argv[]) {
         "romfs:/preload/loading_screen.rb",
         // Game Boy style Start/Select, B-to-run and ZL soft reset
         "romfs:/preload/switch_controls.rb",
+        // Even frame pacing for Marin's fast-forward script (Fire Ash etc.)
+        "romfs:/preload/fast_forward.rb",
+        // Incremental GC for RPG::Cache.clear on map transfers
+        "romfs:/preload/cache_gc.rb",
         // Debug tracing only: logs what each slow frame spent its time on
         "romfs:/preload/perf_trace.rb",
     });
