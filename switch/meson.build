@@ -10,3 +10,4 @@ global_sources += files(
 global_include_dirs += include_directories('.')
 
 subdir('tests/controls')
+subdir('tests/touch')

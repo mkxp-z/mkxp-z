@@ -19,6 +19,7 @@
 
 #include "switch_pickerui.h"
 #include "switch_controls.h"
+#include "switch_touch.h"
 
 // switch_swkbd.cpp
 extern "C" int switch_swkbd_get_text(char *out, size_t outSize);
@@ -276,14 +277,28 @@ void drawButtonGlyph(SDL_Surface *c, TTF_Font *f, const char *label, int cx, int
     drawText(c, f, label, BG, cx, cy - TTF_FontHeight(f) / 2, CENTER);
 }
 
-// Draws "(glyph) text" ending at right; returns the left edge
-int drawHint(SDL_Surface *c, const Fonts &fonts, const char *glyph, const char *text, int right) {
+// The footer area "(glyph) text" ending at right covers, from the glyph's
+// left edge; also where it can be tapped
+SDL_Rect hintRect(const Fonts &fonts, const char *text, int right) {
     int w = 0;
     TTF_SizeUTF8(fonts.small, text, &w, NULL);
-    int textX = right - w;
+    int left = right - w - 24 - 14;
+    return {left, FOOTER_Y, right - left, SCREEN_H - FOOTER_Y};
+}
+
+// Draws "(glyph) text" ending at right; returns where the next hint ends
+int drawHint(SDL_Surface *c, const Fonts &fonts, const char *glyph, const char *text, int right) {
+    SDL_Rect r = hintRect(fonts, text, right);
+    int textX = r.x + 24 + 14;
     drawText(c, fonts.small, text, TEXT, textX, FOOTER_Y + 22, LEFT);
     drawButtonGlyph(c, fonts.small, glyph, textX - 24, FOOTER_Y + 22 + TTF_FontHeight(fonts.small) / 2);
-    return textX - 24 - 14 - 36;
+    return r.x - 36;
+}
+
+// Taps get some slack around footer hints
+bool hitHint(const SDL_Rect &r, int x, int y) {
+    const int pad = 12;
+    return x >= r.x - pad && x < r.x + r.w + pad && y >= r.y && y < r.y + r.h;
 }
 
 void drawStatus(SDL_Surface *c, const Fonts &fonts, int battery) {
@@ -414,6 +429,18 @@ struct Ui {
     int battery;
     std::string toast;
     u64 toastUntil;
+
+    // Touch. drawScreen records the list and footer hints it drew; nextFrame
+    // turns a tap on the selected row or a hint into that button press, and
+    // leaves a tapped row or a drag's scroll for ListNav to apply.
+    struct HintArea {
+        SDL_Rect rect;
+        u64 button;
+    };
+    int listCount = 0, listTop = 0, listSel = 0;
+    std::vector<HintArea> hints;
+    PickerTouch::Gesture touch;
+    int touchSel = -1, touchTop = -1;
 };
 
 struct Row {
@@ -428,6 +455,10 @@ struct Hint {
 const int LIST_Y = 170, ROW_H = 46;
 const int LIST_ROWS_VISIBLE = (FOOTER_Y - 30 - LIST_Y) / ROW_H;
 
+PickerTouch::ListLayout listLayout(const Ui &ui) {
+    return {LIST_Y, ROW_H, LIST_ROWS_VISIBLE, ui.listCount};
+}
+
 // Polls input for one frame; false when the app is asked to exit
 bool nextFrame(Ui &ui, u64 &down, u64 &held, u64 &now) {
     if (!appletMainLoop())
@@ -436,6 +467,31 @@ bool nextFrame(Ui &ui, u64 &down, u64 &held, u64 &now) {
     down = padGetButtonsDown(&ui.pad);
     held = padGetButtons(&ui.pad);
     now = armTicksToNs(armGetSystemTick());
+
+    ui.touchSel = ui.touchTop = -1;
+    HidTouchScreenState ts = {};
+    bool touching = hidGetTouchScreenStates(&ts, 1) > 0 && ts.count > 0;
+    PickerTouch::ListLayout list = listLayout(ui);
+    int top = ui.listTop, sel = ui.listSel;
+    bool tapped = ui.touch.update(list.scroll(), touching, touching ? (int)ts.touches[0].x : 0,
+                                  touching ? (int)ts.touches[0].y : 0, FOOTER_Y, top, sel);
+    if (tapped) {
+        int row = PickerTouch::rowAt(list, ui.listTop, ui.touch.y0);
+        if (row >= 0 && row == ui.listSel) {
+            down |= HidNpadButton_A;
+        } else if (row >= 0) {
+            ui.touchSel = row;
+        } else {
+            for (const Ui::HintArea &h : ui.hints)
+                if (hitHint(h.rect, ui.touch.x0, ui.touch.y0)) {
+                    down |= h.button;
+                    break;
+                }
+        }
+    } else if (ui.touch.active && ui.touch.dragged) {
+        ui.touchTop = top;
+        ui.touchSel = sel;
+    }
     u32 pct;
     if (ui.psm && R_SUCCEEDED(psmGetBatteryChargePercentage(&pct)))
         ui.battery = (int)pct;
@@ -447,12 +503,17 @@ void showToast(Ui &ui, const std::string &msg) {
     ui.toastUntil = armTicksToNs(armGetSystemTick()) + 2500000000ULL;
 }
 
-// Up/down with repeat while held, keeping sel within count and visible
+// Up/down with repeat while held, and touch, keeping sel within count and
+// visible
 struct ListNav {
     int sel = 0, top = 0;
     u64 heldSince = 0, lastRepeat = 0;
 
-    void update(u64 down, u64 held, u64 now, int count) {
+    void update(const Ui &ui, u64 down, u64 held, u64 now, int count) {
+        if (ui.touchTop >= 0)
+            top = ui.touchTop;
+        if (ui.touchSel >= 0 && ui.touchSel < count)
+            sel = ui.touchSel;
         int step = 0;
         u64 dirs = HidNpadButton_AnyUp | HidNpadButton_AnyDown;
         if (down & dirs) {
@@ -474,6 +535,17 @@ struct ListNav {
             top = sel - LIST_ROWS_VISIBLE + 1;
     }
 };
+
+// The button a footer hint's glyph stands for, so tapping the hint presses it
+u64 hintButton(const char *glyph) {
+    switch (glyph[0]) {
+    case 'A': return HidNpadButton_A;
+    case 'B': return HidNpadButton_B;
+    case 'X': return HidNpadButton_X;
+    case 'Y': return HidNpadButton_Y;
+    default: return 0;
+    }
+}
 
 void drawScreen(Ui &ui, const std::string &title, const std::string &subtitle,
                 const std::vector<Row> &rows, int sel, int top,
@@ -512,8 +584,16 @@ void drawScreen(Ui &ui, const std::string &title, const std::string &subtitle,
     SDL_Rect line = {30, FOOTER_Y, SCREEN_W - 60, 1};
     SDL_FillRect(c, &line, mapRgb(c, LINE));
     int right = SCREEN_W - 60;
-    for (auto it = hints.rbegin(); it != hints.rend(); ++it)
+    ui.hints.clear();
+    for (auto it = hints.rbegin(); it != hints.rend(); ++it) {
+        if (u64 button = hintButton(it->glyph))
+            ui.hints.push_back({hintRect(ui.fonts, it->text, right), button});
         right = drawHint(c, ui.fonts, it->glyph, it->text, right);
+    }
+
+    ui.listCount = (int)rows.size();
+    ui.listTop = top;
+    ui.listSel = sel;
 }
 
 // A short list of choices; returns the chosen index or -1 for B
@@ -528,7 +608,7 @@ int runMenu(Ui &ui, const std::string &title, const std::vector<std::string> &op
             return -1;
         if (down & HidNpadButton_A)
             return nav.sel;
-        nav.update(down, held, now, (int)rows.size());
+        nav.update(ui, down, held, now, (int)rows.size());
         drawScreen(ui, title, "", rows, nav.sel, nav.top, {{"A", "OK"}, {"B", "Back"}});
         present(ui.fb, ui.c);
     }
@@ -646,7 +726,7 @@ bool runKeyPicker(Ui &ui, Profile &profile, int input) {
             nav.top = nav.sel;
             nav.keepVisible();
         }
-        nav.update(down, held, now, (int)entries.size());
+        nav.update(ui, down, held, now, (int)entries.size());
 
         std::vector<Row> rows;
         for (const Entry &e : entries) {
@@ -689,7 +769,7 @@ bool runEditor(Ui &ui, Profile &profile, bool readOnly) {
                         "", readOnly, false});
         for (int i = 0; i < InputCount; ++i)
             rows.push_back({inputLabel(i), keysLabel(profile.keys[i]), false, false});
-        nav.update(down, held, now, (int)rows.size());
+        nav.update(ui, down, held, now, (int)rows.size());
         drawScreen(ui, "Profile: " + profile.name,
                    readOnly ? "Built in: the engine's own controller layout" : "", rows,
                    nav.sel, nav.top, {{"A", readOnly ? "Select" : "Change"}, {"B", "Back"}});
@@ -789,7 +869,7 @@ void runControls(Ui &ui) {
         for (const Profile &p : store.profiles)
             rows.push_back({p.name, &p == active ? "ACTIVE" : "", false, &p == active});
         rows.push_back({"+ New profile", "", true, false});
-        nav.update(down, held, now, (int)rows.size());
+        nav.update(ui, down, held, now, (int)rows.size());
 
         std::vector<Hint> hints = {{"A", nav.sel == (int)rows.size() - 1 ? "Create" : "Open"}};
         if (nav.sel != (int)rows.size() - 1)
@@ -864,10 +944,14 @@ PickerResult pickerUiRun(const std::vector<PickerGame> &games, int &sel) {
 
         PadState pad;
         padInitializeDefault(&pad);
+        hidInitializeTouchScreen();
         Ui ui{fb, canvas, fonts, pad, psm, battery, "", 0};
         const MemoryWarning warn = pickerMemoryWarning();
         int first = std::max(0, sel - VISIBLE_TILES + 1);
         u64 heldSince = 0, lastRepeat = 0;
+        const PickerTouch::Layout row{ROW_X, TILE_Y, TILE, TILE + TILE_GAP, VISIBLE_TILES,
+                                      (int)tiles.size()};
+        PickerTouch::Gesture touch;
         result = PICKER_QUIT;
 
         while (appletMainLoop()) {
@@ -876,9 +960,34 @@ PickerResult pickerUiRun(const std::vector<PickerGame> &games, int &sel) {
             u64 held = padGetButtons(&pad);
             u64 now = armTicksToNs(armGetSystemTick());
 
-            if (down & (HidNpadButton_Plus | HidNpadButton_B))
+            // Touch: tap a tile to select it and again to start it, drag the
+            // row to scroll, or tap the footer hints
+            HidTouchScreenState ts = {};
+            bool touching = hidGetTouchScreenStates(&ts, 1) > 0 && ts.count > 0;
+            bool tapped = touch.update(row.scroll(), touching, touching ? (int)ts.touches[0].x : 0,
+                                       touching ? (int)ts.touches[0].y : 0, FOOTER_Y, first, sel);
+            bool start = down & HidNpadButton_A;
+            bool quit = down & (HidNpadButton_Plus | HidNpadButton_B);
+            if (tapped) {
+                int tile = PickerTouch::tileAt(row, first, touch.x0, touch.y0);
+                SDL_Rect exitHint = hintRect(fonts, "Exit to hbmenu", SCREEN_W - 60);
+                SDL_Rect startHint = hintRect(fonts, sel == settingsTile ? "Open" : "Start",
+                                              exitHint.x - 36);
+                if (tile >= 0) {
+                    if (tile == sel)
+                        start = true;
+                    else
+                        sel = tile;
+                } else if (hitHint(startHint, touch.x0, touch.y0)) {
+                    start = true;
+                } else if (hitHint(exitHint, touch.x0, touch.y0)) {
+                    quit = true;
+                }
+            }
+
+            if (quit)
                 break; // back to hbmenu
-            if (down & HidNpadButton_A) {
+            if (start) {
                 if (sel != settingsTile) {
                     result = PICKER_PICKED;
                     break;

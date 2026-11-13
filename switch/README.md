@@ -52,7 +52,9 @@ python3 switch/find_bad_tls.py dis.txt
    `Game.ini`. A `mkxp.json` in the game folder is read as usual.
 3. Start the Homebrew Menu by holding R while launching a game, not from the
    Album: the Album gives homebrew too little memory for large games.
-4. Pick a game. Closing it returns to the picker; B in the picker exits.
+4. Pick a game. Closing it returns to the picker; B in the picker exits. In
+   handheld mode you can also tap a game to select it, tap it again to start
+   it, and drag the row to scroll.
 
 The picker's Settings tile edits controller profiles. The system keyboard is
 used for text entry.
