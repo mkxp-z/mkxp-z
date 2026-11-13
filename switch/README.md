@@ -64,6 +64,21 @@ context, under which the engine's existing GLSL 1.10 shaders run unchanged.
 OpenGL ES 2.0 remains available as an explicit opt-in: configure with
 `-Dgfx_backend=gles` (or set `SDL_OPENGL_ES_DRIVER=1`).
 
+## Fast-forward
+
+Games using Marin's "Better Fast-forward" script (Pokémon Fire Ash and many
+other Essentials games) show fast-forward at 60 fps, so frames line up with
+the screen's refreshes. In 40 fps games the script's own 2x and 3x stutter;
+here 3x stays 3x and 2x becomes 1.5x, the closest speed that spaces evenly.
+The game's own toggle button and settings still work. See
+`romfs-root/preload/fast_forward.rb`.
+
+## Map transfers
+
+RPG Maker XP's built-in `RPG::Cache.clear`, which games call on map
+transfers, runs its full garbage collection incrementally (`cache_gc.rb`),
+so the pause is spread over the next few frames.
+
 ## Debugging
 
 Every launch writes `sdmc:/mkxpz_log.txt`. See [DEBUGGING.md](DEBUGGING.md)

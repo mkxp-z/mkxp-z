@@ -43,6 +43,8 @@ const Rgb LINE = {90, 90, 90};
 const Rgb TILE_BG = {70, 70, 70};
 const Rgb ACCENT = {0, 195, 227};
 const Rgb ACCENT_HI = {130, 235, 250};
+const Rgb WARN = {255, 190, 40};
+const Rgb WARN_BG = {72, 54, 18};
 
 struct Fonts {
     TTF_Font *small = NULL, *medium = NULL, *title = NULL, *initials = NULL;
@@ -319,7 +321,7 @@ void drawStatus(SDL_Surface *c, const Fonts &fonts, int battery) {
 // tiles are the games plus the Settings tile, which is last
 void drawFrame(SDL_Surface *c, const Fonts &fonts, const std::vector<PickerGame> &games,
                const std::vector<SDL_Surface *> &thumbs, int sel, int first,
-               double t, int battery) {
+               double t, int battery, const MemoryWarning &warn) {
     bool settings = sel == (int)games.size() - 1;
     SDL_FillRect(c, NULL, mapRgb(c, BG));
 
@@ -343,6 +345,13 @@ void drawFrame(SDL_Surface *c, const Fonts &fonts, const std::vector<PickerGame>
             SDL_BlitSurface(thumbs[i], NULL, c, &r);
         else
             fillRoundRect(c, r, TILE_RADIUS, mapRgb(c, TILE_BG));
+    }
+
+    // Between the tiles and the footer
+    if (warn.shown()) {
+        fillRoundRect(c, {60, 500, SCREEN_W - 120, 100}, TILE_RADIUS, mapRgb(c, WARN_BG));
+        drawText(c, fonts.medium, fitText(fonts.medium, warn.title, SCREEN_W - 168), WARN, 84, 514, LEFT);
+        drawText(c, fonts.small, fitText(fonts.small, warn.hint, SCREEN_W - 168), TEXT, 84, 558, LEFT);
     }
 
     SDL_Rect line = {30, FOOTER_Y, SCREEN_W - 60, 1};
@@ -795,6 +804,23 @@ void runControls(Ui &ui) {
 
 } // namespace
 
+MemoryWarning pickerMemoryWarning() {
+    u64 total = 0;
+    svcGetInfo(&total, InfoType_TotalMemorySize, CUR_PROCESS_HANDLE, 0);
+    // A full-memory launch gets about 3.2 GB and the Album about 400 MB.
+    // Going by memory rather than applet type stays quiet when Atmosphere is
+    // set up to give applets more.
+    if (total == 0 || total >= (1ULL << 30))
+        return {};
+    unsigned mb = (unsigned)(total >> 20);
+    char title[96];
+    if (appletGetAppletType() == AppletType_LibraryApplet)
+        snprintf(title, sizeof(title), "Opened from the Album: only %u MB, big games can crash", mb);
+    else
+        snprintf(title, sizeof(title), "Only %u MB of memory, big games can crash", mb);
+    return {title, "For full memory, hold R while starting any game, then open mkxp-z."};
+}
+
 PickerResult pickerUiRun(const std::vector<PickerGame> &games, int &sel) {
     // The console's own font, so it looks like the system UI
     if (R_FAILED(plInitialize(PlServiceType_User)))
@@ -839,6 +865,7 @@ PickerResult pickerUiRun(const std::vector<PickerGame> &games, int &sel) {
         PadState pad;
         padInitializeDefault(&pad);
         Ui ui{fb, canvas, fonts, pad, psm, battery, "", 0};
+        const MemoryWarning warn = pickerMemoryWarning();
         int first = std::max(0, sel - VISIBLE_TILES + 1);
         u64 heldSince = 0, lastRepeat = 0;
         result = PICKER_QUIT;
@@ -884,7 +911,7 @@ PickerResult pickerUiRun(const std::vector<PickerGame> &games, int &sel) {
             if (psm && R_SUCCEEDED(psmGetBatteryChargePercentage(&pct)))
                 battery = (int)pct;
 
-            drawFrame(canvas, fonts, tiles, thumbs, sel, first, now / 1e9, battery);
+            drawFrame(canvas, fonts, tiles, thumbs, sel, first, now / 1e9, battery, warn);
             present(fb, canvas); // waits for a free buffer (vsync)
         }
 

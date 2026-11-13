@@ -1,13 +1,13 @@
 # perf_trace.rb
 # With sdmc:/switch/mkxp-z/debug.txt present, logs every slow frame (over
-# 150 ms) to mkxpz_log.txt with where its time went: presenting the previous
+# 80 ms) to mkxpz_log.txt with where its time went: presenting the previous
 # frame (Graphics.update), the slowest engine calls (bitmap drawing, loading,
 # transitions, audio, Marshal data), Ruby's garbage collector, and whatever is
 # left, which is the game's own Ruby code.
 
 if File.exist?("sdmc:/switch/mkxp-z/debug.txt")
 	module SwitchPerf
-		SLOW = 0.15
+		SLOW = 0.08
 
 		# Engine calls worth timing. Cheap accessors (x=, opacity=, ...) are
 		# left out: they run thousands of times per frame.
@@ -31,11 +31,12 @@ if File.exist?("sdmc:/switch/mkxp-z/debug.txt")
 			# Ruby file access. Ruby forces a full GC and retries when opening a
 			# file fails for lack of file handles or memory.
 			File => %i[open new exist? file? directory? size read binread],
+			FileTest => %i[exist? file? directory? size?],
 			IO => %i[read binread readlines foreach],
 			Dir => %i[glob entries exist? [] mkdir],
 		}
 		# Calls whose first argument (a path, or Marshal's source) is logged
-		DETAILED = /\A(File|IO|Dir|Marshal)\.|\Aload_data\z/
+		DETAILED = /\A(File|FileTest|IO|Dir|Marshal)\.|\Aload_data\z/
 
 		@times = Hash.new(0.0)
 		@counts = Hash.new(0)
@@ -160,12 +161,14 @@ if File.exist?("sdmc:/switch/mkxp-z/debug.txt")
 				total = t - @last
 				timed = @times.values.sum
 				scene = $scene ? $scene.class.name : "-"
+				ff = defined?(SwitchFastForward) && SwitchFastForward.active?
+				speed = ff ? " speed=#{SwitchFastForward.label}" : ""
 				top = @times.sort_by { |_, v| -v }.first(4).map do |k, v|
 					format("%s=%dms(%d)", k, v * 1000, @counts[k])
 				end
-				line = format("[perf] slow frame %dms scene=%s present=%dms ruby=%dms gc=%d(major %d)" \
+				line = format("[perf] slow frame %dms scene=%s%s present=%dms ruby=%dms gc=%d(major %d)" \
 				              " live=%d | %s",
-				              total * 1000, scene, present * 1000,
+				              total * 1000, scene, speed, present * 1000,
 				              [total - present - timed, 0].max * 1000,
 				              gc[:count] - @gc[:count], gc[:major_gc_count] - @gc[:major_gc_count],
 				              gc[:heap_live_slots], top.join(" "))

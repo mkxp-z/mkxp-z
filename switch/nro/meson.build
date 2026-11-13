@@ -3,6 +3,8 @@
 
 romfs_files = files(
     '../romfs-root/readme.txt',
+    '../romfs-root/preload/cache_gc.rb',
+    '../romfs-root/preload/fast_forward.rb',
     '../romfs-root/preload/loading_screen.rb',
     '../romfs-root/preload/log_sync.rb',
     '../romfs-root/preload/perf_trace.rb',

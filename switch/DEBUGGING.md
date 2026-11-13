@@ -85,7 +85,8 @@ mkxp-z: game folder 'sdmc:/switch/mkxp-z/Games/Fire Ash 3.6 Part 2'
 `applet type` matters. `library applet (Album launch, limited memory)` means
 the Homebrew Menu was opened from the Album, which gives homebrew only about
 440 MB. Large games such as Pokémon Fire Ash need about 500 MB. Open the
-Homebrew Menu by holding R while starting any game instead.
+Homebrew Menu by holding R while starting any game instead. The game picker
+shows a warning when it has less than 1 GB.
 
 ## Debug tracing
 
@@ -98,7 +99,7 @@ such as buffer underruns.
 ### Slow frames (`mkxpz_log.txt`)
 
 `romfs:/preload/perf_trace.rb` logs every frame that takes longer than
-150 ms, with a breakdown of where the time went:
+80 ms, with a breakdown of where the time went:
 
 ```
 [perf] GC.start called from eval:77:clear < 032:Scene_Map:86:transfer_player < 032:Scene_Map:164:block in update
@@ -110,6 +111,7 @@ such as buffer underruns.
 |---|---|
 | `slow frame` | Time since the previous `Graphics.update` call started. |
 | `scene` | Class of `$scene` (`Scene_Map` is the overworld; Essentials runs battles and menus inside it). |
+| `speed` | Fast-forward speed, for games using Marin's fast-forward script. At 3x a frame covers two game ticks. |
 | `present` | Time spent in the previous `Graphics.update`, which draws and shows the frame. |
 | `ruby` | Time not covered by any timed call: the game's own Ruby code plus garbage collection. |
 | `gc=N(major M)` | Garbage collections during the frame. Major ones scan everything and cost hundreds of milliseconds. |
@@ -146,6 +148,8 @@ with the script and line it came from:
 (`binding/module_rpg1.rb.xxd`). Like RPG Maker XP's own, it runs a full GC
 so the cleared images are freed. Pokémon Essentials calls it on every map
 transfer and battle start, which costs about 0.35 s each time on the Switch.
+`romfs:/preload/cache_gc.rb` replaces it with one that starts the collection
+incrementally, so the line names `cache_gc.rb` instead.
 
 Ruby's own GC time counter does not work on the Switch: it uses CPU-time
 clocks that return 0. Compare `ruby=` in frames with and without a major GC

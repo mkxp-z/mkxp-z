@@ -159,7 +159,7 @@ const int LIST_ROWS = 36;
 // Set once the menu was shown, so quitting a game returns to it
 bool menuShown = false;
 
-void drawMenu(const std::vector<GameEntry> &games, int sel, int top) {
+void drawMenu(const std::vector<GameEntry> &games, int sel, int top, const MemoryWarning &warn) {
     consoleClear();
     printf("\x1b[1;2Hmkxp-z - choose a game\n\n");
     for (int row = 0; row < LIST_ROWS && top + row < (int)games.size(); ++row) {
@@ -172,6 +172,8 @@ void drawMenu(const std::vector<GameEntry> &games, int sel, int top) {
             label.resize(74);
         printf("\x1b[%d;2H%s%s%s", 4 + row, cur ? "\x1b[30;47m> " : "  ", label.c_str(), "\x1b[0m");
     }
+    if (warn.shown())
+        printf("\x1b[41;2H\x1b[33m%s\x1b[42;2H%s\x1b[0m", warn.title.c_str(), warn.hint.c_str());
     printf("\x1b[43;2HUp/Down: select   A: play   B/+: exit to hbmenu");
     printf("\x1b[44;2H%s", GAMES_ROOT "/<game folder>/Game.ini");
     consoleUpdate(NULL);
@@ -240,9 +242,10 @@ extern "C" bool switch_pick_game(char *out, size_t outSize) {
     }
 
     int top = std::max(0, sel - LIST_ROWS + 1);
+    const MemoryWarning warn = pickerMemoryWarning();
 
     bool picked = false;
-    drawMenu(games, sel, top);
+    drawMenu(games, sel, top, warn);
     while (appletMainLoop()) {
         padUpdate(&pad);
         u64 down = padGetButtonsDown(&pad);
@@ -264,7 +267,7 @@ extern "C" bool switch_pick_game(char *out, size_t outSize) {
                 top = sel;
             else if (sel >= top + LIST_ROWS)
                 top = sel - LIST_ROWS + 1;
-            drawMenu(games, sel, top);
+            drawMenu(games, sel, top, warn);
         }
         consoleUpdate(NULL); // waits for vsync
     }
