@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 Mateo M. Additional terms apply: see ADDITIONAL-TERMS.md.
 
-# Unit tests for the name screen part of pokemon_input.rb, with the
-# "In-game keyboard" setting on.
+# Unit tests for pokemon_input.rb: the Pokemon Essentials marker, and
+# the name screen with the "In-game keyboard" setting on.
 # Run: ruby tools/test_pokemon_input.rb
 
+require 'tmpdir'
 require_relative 'assertion_count'
 
 SCRIPT = File.expand_path('../scripts/postload/pokemon_input.rb', __dir__)
@@ -20,9 +21,20 @@ end
 
 $PokemonSystem = Object.new
 
+$managed_dir = nil
+$mkxp_log = []
+
 module MKXP
   def self.use_in_game_keyboard?
     true
+  end
+
+  def self.managed_config_dir
+    $managed_dir
+  end
+
+  def self.puts(message)
+    $mkxp_log << message
   end
 end
 
@@ -145,4 +157,27 @@ scene.pbStartScene('Your name?', 1, 7, '', 1)
 assert_eq(scene.pbEntry, :typed, 'a scene with no USEKEYBOARD of its own takes typed text')
 assert_eq(USEKEYBOARDTEXTENTRY, true, 'the top-level setting also goes to typing mode')
 
-test_passed('test_pokemon_input', 17)
+# Ruby 1.8 has no File.write.
+def without_file_write
+  IO.singleton_class.send(:alias_method, :mkxp_test_write, :write)
+  IO.singleton_class.send(:undef_method, :write)
+  yield
+ensure
+  IO.singleton_class.send(:alias_method, :write, :mkxp_test_write)
+end
+
+def check_marker(ruby)
+  Dir.mktmpdir do |dir|
+    $managed_dir = dir
+    $mkxp_log = []
+    load SCRIPT
+    assert_eq($mkxp_log, [], "#{ruby}: the script logs no error")
+    assert_eq(File.exist?("#{dir}/.pokemon_essentials_detected"), true, "#{ruby}: the script writes the marker")
+  end
+ensure
+  $managed_dir = nil
+end
+
+without_file_write { check_marker('Ruby 1.8') }
+
+test_passed('test_pokemon_input', 19)

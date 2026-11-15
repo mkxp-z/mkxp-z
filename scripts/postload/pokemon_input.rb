@@ -23,18 +23,15 @@
 #      touch / gamepad events.
 
 unless $PokemonSystem.nil?
-  # Persist a "this is PE" marker in the host-managed state dir.
-  # The host-side static detector (GameSettings.detectPokemonEssentials)
-  # can't see PE signatures inside rgssad-protected archives, so
-  # without this, GameSettings UI would default the In-game keyboard
-  # toggle OFF on every launch even though the game IS PE. The
-  # marker tips off the next launch's UI so the toggle defaults ON.
+  # The host cannot see Pokemon Essentials code inside an encrypted
+  # archive, so this marker tells the next launch that the game is one.
   begin
     if defined?(MKXP) && MKXP.respond_to?(:managed_config_dir)
       managed = MKXP.managed_config_dir.to_s
       unless managed.empty?
         marker = "#{managed}/.pokemon_essentials_detected"
-        File.write(marker, '') unless File.exist?(marker)
+        # Ruby 1.8 has no File.write.
+        File.new(marker, 'w').close unless File.exist?(marker)
       end
     end
   rescue StandardError => e
