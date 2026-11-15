@@ -611,12 +611,26 @@ unless defined?(MKXPSaveFS)
     # Windows refuses to open a folder with EACCES. POSIX opens it and
     # the first read raises EISDIR, which games do not rescue (Pokémon
     # TGOM probes "Graphics/Characters/" for an empty sprite name).
+    # An empty path names the working directory to the safe write,
+    # which then raises EISDIR. Windows raises ENOENT.
     def open_target(path, mode)
+      raise Errno::ENOENT, path if path == ''
+
       target = refuse_directory(path_for(path))
       return target unless write_mode?(mode)
 
       MKXPWindowsFonts.ensure_dir(self, target)
       change_spelling(target)
+    end
+
+    # Ruby 1.8.1 to 1.8.6 of RGSS1 and RGSS2 give the path to the C
+    # library with no NUL check, so the path ends at the first NUL.
+    # Ruby 1.8.7 and later raise ArgumentError in File and IO.
+    def cut_at_nul(path)
+      return path unless RUBY_VERSION < '1.9' && path.is_a?(String)
+
+      nul = path.index("\0")
+      nul ? path[0, nul] : path
     end
 
     def refuse_directory(target)
@@ -1241,8 +1255,8 @@ end
 # --- File API front: legacy-save recovery + case resolution ---
 # Paths resolve literally. path_for only performs the one-time
 # legacy-save recovery side effect. The case helpers keep destructive
-# operations on the on-disk spelling. IO.read is not hooked. No
-# observed game reads saves through it.
+# operations on the on-disk spelling. IO.read gets no save-path
+# handling. No observed game reads saves through it.
 class << File
   alias _mkxp_orig_open open unless method_defined?(:_mkxp_orig_open)
   alias _mkxp_orig_delete delete unless method_defined?(:_mkxp_orig_delete)
@@ -1258,6 +1272,7 @@ class << File
   alias _mkxp_orig_mtime mtime unless method_defined?(:_mkxp_orig_mtime)
 
   def open(path, *args)
+    path = MKXPSaveFS.cut_at_nul(path)
     args = MKXPTextMode.read_args(args)
     target = MKXPSaveFS.open_target(path, args[0])
     started = false
@@ -1292,6 +1307,7 @@ class << File
   end
 
   def new(path, *args)
+    path = MKXPSaveFS.cut_at_nul(path)
     args = MKXPTextMode.read_args(args)
     _mkxp_orig_new(MKXPSaveFS.open_target(path, args[0]), *args)
   rescue Errno::ENOENT
@@ -1355,18 +1371,21 @@ class << File
   alias _mkxp_orig_read read unless method_defined?(:_mkxp_orig_read)
 
   def read(path, *args)
+    path = MKXPSaveFS.cut_at_nul(path)
     _mkxp_orig_read(MKXPSaveFS.path_for(path), *MKXPTextMode.whole_file_args(args))
   end
 
   alias _mkxp_orig_readlines readlines unless method_defined?(:_mkxp_orig_readlines)
 
   def readlines(path, *args)
+    path = MKXPSaveFS.cut_at_nul(path)
     _mkxp_orig_readlines(MKXPSaveFS.path_for(path), *MKXPTextMode.whole_file_args(args))
   end
 
   alias _mkxp_orig_foreach foreach unless method_defined?(:_mkxp_orig_foreach)
 
   def foreach(path, *args, &block)
+    path = MKXPSaveFS.cut_at_nul(path)
     _mkxp_orig_foreach(MKXPSaveFS.path_for(path), *MKXPTextMode.whole_file_args(args), &block)
   end
 
@@ -1514,12 +1533,14 @@ class << Dir
   # screens list saves through Dir.new(getSaveFolder). Give both
   # the portable recovery trigger. Paths stay literal.
   def new(path, *args)
+    path = MKXPSaveFS.cut_at_nul(path)
     MKXPSaveFS.maybe_recover_portable_dir(path)
     _mkxp_orig_new(path, *args)
   end
   ruby2_keywords :new if respond_to?(:ruby2_keywords, true)
 
   def open(path, *args, &block)
+    path = MKXPSaveFS.cut_at_nul(path)
     MKXPSaveFS.maybe_recover_portable_dir(path)
     _mkxp_orig_open(path, *args, &block)
   end
@@ -1531,6 +1552,7 @@ class << Dir
     # Listings of the UserData root (System.data_directory, faked
     # env var spellings) hide engine-internal entries. Everything
     # else passes through.
+    path = MKXPSaveFS.cut_at_nul(path)
     MKXPSaveFS.maybe_recover_portable_dir(path)
     target = MKXPSaveFS.path_for(path)
     MKXPSaveFS.list_entries(target, _mkxp_orig_entries(target, *args))
@@ -1538,6 +1560,7 @@ class << Dir
   ruby2_keywords :entries if respond_to?(:ruby2_keywords, true)
 
   def foreach(path = '.', *args, &block)
+    path = MKXPSaveFS.cut_at_nul(path)
     MKXPSaveFS.maybe_recover_portable_dir(path)
     target = MKXPSaveFS.path_for(path)
     found = MKXPSaveFS.list_entries(target, _mkxp_orig_entries(target, *args))
@@ -1604,7 +1627,7 @@ class << Dir
   # host-owned - "create it" reports success instead of
   # Errno::EEXIST, and "remove it" must never actually happen.
   def mkdir(path, *args)
-    target = MKXPSaveFS.path_for(path)
+    target = MKXPSaveFS.path_for(MKXPSaveFS.cut_at_nul(path))
     return 0 if MKXPSaveFS.save_root_target?(target)
 
     # Case-resolve so FileUtils.mkdir_p of "audio/bgs" extends the
@@ -1615,7 +1638,7 @@ class << Dir
   alias _mkxp_orig_rmdir rmdir unless method_defined?(:_mkxp_orig_rmdir)
 
   def rmdir(path)
-    target = MKXPSaveFS.path_for(path)
+    target = MKXPSaveFS.path_for(MKXPSaveFS.cut_at_nul(path))
     return 0 if MKXPSaveFS.save_root_target?(target)
 
     _mkxp_orig_rmdir(MKXPSaveFS.change_spelling(target))
@@ -1638,8 +1661,37 @@ module Kernel
   module_function :load_data, :save_data
 end
 
-# --- Dir.chdir nil/empty-safety ---
-# Pokemon Essentials and some plugin scripts pass nil or "" to
+# IO.read and Kernel#open do not call the File wrappers above.
+# Kernel#open makes the File object in C (rb_io_s_open).
+if RUBY_VERSION < '1.9'
+  class << IO
+    alias _mkxp_orig_io_read read unless method_defined?(:_mkxp_orig_io_read)
+    alias _mkxp_orig_io_readlines readlines unless method_defined?(:_mkxp_orig_io_readlines)
+    alias _mkxp_orig_io_foreach foreach unless method_defined?(:_mkxp_orig_io_foreach)
+
+    def read(path, *args)
+      _mkxp_orig_io_read(MKXPSaveFS.cut_at_nul(path), *args)
+    end
+
+    def readlines(path, *args)
+      _mkxp_orig_io_readlines(MKXPSaveFS.cut_at_nul(path), *args)
+    end
+
+    def foreach(path, *args, &block)
+      _mkxp_orig_io_foreach(MKXPSaveFS.cut_at_nul(path), *args, &block)
+    end
+  end
+
+  module Kernel
+    alias _mkxp_orig_kernel_open open unless private_method_defined?(:_mkxp_orig_kernel_open)
+
+    def open(path, *args, &block)
+      _mkxp_orig_kernel_open(MKXPSaveFS.cut_at_nul(path), *args, &block)
+    end
+    module_function :open
+  end
+end
+
 # A Dir object lists the folder through its own reader, past the
 # class methods above.
 class Dir
@@ -1679,6 +1731,8 @@ class Dir
   end
 end
 
+# --- Dir.chdir nil/empty-safety ---
+# Pokemon Essentials and some plugin scripts pass nil or "" to
 # Dir.chdir. nil crashes Ruby pre-2.0 outright. "" raises
 # Errno::ENOENT on every Ruby version. Both are no-ops in spirit
 # (the script wants "stay where you are") so we route them through
@@ -1689,7 +1743,7 @@ class << Dir
   def chdir(dir = nil, &block)
     return _mkxp_orig_chdir(&block) if dir.nil? || dir.empty?
 
-    _mkxp_orig_chdir(dir, &block)
+    _mkxp_orig_chdir(MKXPSaveFS.cut_at_nul(dir), &block)
   end
 end
 if defined?(System) && System.respond_to?(:puts)

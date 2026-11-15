@@ -568,4 +568,102 @@ Dir.chdir(GAME) do
   Dir.rmdir('Characters')
 end
 
-test_passed('test_save_fs', 315)
+def as_ruby_version(version)
+  real = RUBY_VERSION
+  prev_verbose = $VERBOSE
+  $VERBOSE = nil
+  Object.send(:remove_const, :RUBY_VERSION)
+  Object.const_set(:RUBY_VERSION, version)
+  yield
+ensure
+  Object.send(:remove_const, :RUBY_VERSION)
+  Object.const_set(:RUBY_VERSION, real)
+  $VERBOSE = prev_verbose
+end
+
+def open_error
+  yield
+  nil
+rescue StandardError => e
+  e.class
+end
+
+# Ruby 1.8.1 to 1.8.6 of RGSS1 and RGSS2 give the path to the C library,
+# so the path ends at the first NUL. GS Vitro's safeExists? rescues only
+# Errno.
+Dir.chdir(GAME) do
+  File.open('Battler.png', 'wb') { |f| f.write('x') }
+  Dir.mkdir('Characters')
+  File.open('Characters/hero.png', 'wb') { |f| f.write('h') }
+  nul_calls = {
+    'File.open' => -> { File.open("Battler.png\0junk", 'rb', &:read) },
+    'File.new' => -> { File.new("Battler.png\0junk", 'rb').tap(&:close) && 'x' },
+    'File.read' => -> { File.read("Battler.png\0junk") },
+    'File.readlines' => -> { File.readlines("Battler.png\0junk").join },
+    'File.foreach' => -> { File.foreach("Battler.png\0junk").to_a.join },
+    'IO.read' => -> { IO.read("Battler.png\0junk") },
+    'IO.readlines' => -> { IO.readlines("Battler.png\0junk").join },
+    'IO.foreach' => -> { IO.foreach("Battler.png\0junk").to_a.join },
+    'Kernel#open' => -> { open("Battler.png\0junk", 'rb', &:read) },
+    'Dir.chdir' => -> { Dir.chdir("Characters\0junk") { File.basename(Dir.pwd) } },
+    'Dir.entries' => -> { Dir.entries("Characters\0junk").sort },
+    'Dir.foreach' => -> { Dir.foreach("Characters\0junk").to_a.sort },
+    'Dir.new' => -> { Dir.new("Characters\0junk").tap(&:close).path },
+    'Dir.open' => -> { Dir.open("Characters\0junk") { |d| d.path } },
+    'Dir.mkdir' => -> { Dir.mkdir("Made\0junk") && File.directory?('Made') },
+    'Dir.rmdir' => -> { Dir.rmdir("Made\0junk") && File.exist?('Made') }
+  }
+  cut_results = {
+    'File.open' => 'x', 'File.new' => 'x', 'File.read' => 'x', 'File.readlines' => 'x',
+    'File.foreach' => 'x', 'IO.read' => 'x', 'IO.readlines' => 'x', 'IO.foreach' => 'x',
+    'Kernel#open' => 'x', 'Dir.chdir' => 'Characters', 'Dir.entries' => %w[. .. hero.png],
+    'Dir.foreach' => %w[. .. hero.png], 'Dir.new' => 'Characters', 'Dir.open' => 'Characters',
+    'Dir.mkdir' => true, 'Dir.rmdir' => false
+  }
+  checked_calls = {
+    'File.exist?' => -> { File.exist?("Battler.png\0junk") },
+    'File.directory?' => -> { File.directory?("Characters\0junk") },
+    'File.file?' => -> { File.file?("Battler.png\0junk") },
+    'File.size' => -> { File.size("Battler.png\0junk") },
+    'File.mtime' => -> { File.mtime("Battler.png\0junk") },
+    'File.delete' => -> { File.delete("Battler.png\0junk") },
+    'File.rename' => -> { File.rename("Battler.png\0junk", 'Other.png') }
+  }
+  assert_eq(IO.respond_to?(:_mkxp_orig_io_read), false, 'Ruby 1.9 and later keep the original IO.read')
+  assert_eq(Kernel.private_method_defined?(:_mkxp_orig_kernel_open), false, 'Ruby 1.9 and later keep the original Kernel#open')
+  as_ruby_version('1.8.1') do
+    load_windows_fs!(false)
+    nul_calls.each do |name, call|
+      assert_eq(call.call, cut_results[name], "#{name} on Ruby 1.8 uses the path before the NUL")
+    end
+    checked_calls.each do |name, call|
+      assert_eq(open_error(&call), ArgumentError, "#{name} on Ruby 1.8 refuses a NUL, like Ruby 1.8.1")
+    end
+    File.open("Saved.txt\0junk", 'wb') { |f| f.write('y') }
+    assert_eq(File._mkxp_orig_read('Saved.txt'), 'y', "File.open 'wb' on Ruby 1.8 writes the path before the NUL")
+    open("Opened.txt\0junk", 'wb') { |f| f.write('z') }
+    assert_eq(File._mkxp_orig_read('Opened.txt'), 'z', "Kernel#open 'wb' on Ruby 1.8 writes the path before the NUL")
+    assert_eq(open_error { File.open("\0junk", 'wb') { nil } }, Errno::ENOENT,
+              "File.open 'wb' on Ruby 1.8 with a NUL first raises ENOENT")
+    assert_eq(open_error { File.open("Missing.png\0junk", 'rb') { nil } }, Errno::ENOENT,
+              'File.open on Ruby 1.8 with a NUL and no file raises ENOENT')
+    assert_eq(open_error { File.new("Missing.png\0junk", 'rb') }, Errno::ENOENT,
+              'File.new on Ruby 1.8 with a NUL and no file raises ENOENT')
+    assert_eq(open_error { File.open("Characters/\0junk", 'rb') { nil } }, Errno::EACCES,
+              'File.open on Ruby 1.8 with a NUL after a folder raises EACCES')
+  end
+  %w[1.9.3 3.1.3].each do |version|
+    as_ruby_version(version) do
+      nul_calls.merge(checked_calls).each do |name, call|
+        assert_eq(open_error(&call), ArgumentError, "#{name} on Ruby #{version} refuses a NUL, like RGSS3")
+      end
+      assert_eq(open_error { File.open('', 'wb') { nil } }, Errno::ENOENT,
+                "File.open 'wb' on Ruby #{version} with an empty path raises ENOENT")
+    end
+  end
+  assert_false(File.exist?('Made'), 'a refused Dir.mkdir makes no folder')
+  File.delete('Characters/hero.png', 'Saved.txt', 'Opened.txt', 'Battler.png')
+  Dir.rmdir('Characters')
+end
+
+test_passed('test_save_fs', 395)
