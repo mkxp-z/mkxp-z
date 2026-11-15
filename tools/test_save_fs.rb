@@ -666,4 +666,28 @@ Dir.chdir(GAME) do
   Dir.rmdir('Characters')
 end
 
-test_passed('test_save_fs', 395)
+# On Windows, Ruby 1.8.1, 1.9.2 and 3.1.0 raise TypeError for a nil
+# path and EINVAL for an empty one, and stay in the folder. Only
+# Dir.chdir with no path goes to HOME, which on a device is the app
+# folder, not the game folder.
+Dir.chdir(GAME) do
+  { '1.8.1' => ['', "\0junk"], '3.1.3' => [''] }.each do |version, empty_paths|
+    as_ruby_version(version) do
+      load_windows_fs!(false)
+      assert_eq(open_error { Dir.chdir(nil) }, TypeError, "Dir.chdir(nil) on Ruby #{version} raises TypeError")
+      assert_eq(open_error { Dir.chdir(nil) { nil } }, TypeError,
+                "Dir.chdir(nil) with a block on Ruby #{version} raises TypeError")
+      empty_paths.each do |path|
+        assert_eq(open_error { Dir.chdir(path) }, Errno::EINVAL, "Dir.chdir(#{path.inspect}) on Ruby #{version} raises EINVAL")
+        assert_eq(open_error { Dir.chdir(path) { nil } }, Errno::EINVAL,
+                  "Dir.chdir(#{path.inspect}) with a block on Ruby #{version} raises EINVAL")
+      end
+      assert_eq(Dir.pwd, GAME, "a refused Dir.chdir on Ruby #{version} stays in the game folder")
+      assert_eq(Dir.chdir { Dir.pwd }, File.realpath(ENV['HOME']), "Dir.chdir with no path on Ruby #{version} goes to HOME")
+      assert_eq(open_error { Dir.chdir('', '.') }, ArgumentError, "Dir.chdir with two paths on Ruby #{version} raises ArgumentError")
+    end
+  end
+  load_windows_fs!(false)
+end
+
+test_passed('test_save_fs', 411)

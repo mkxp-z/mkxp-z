@@ -1731,19 +1731,18 @@ class Dir
   end
 end
 
-# --- Dir.chdir nil/empty-safety ---
-# Pokemon Essentials and some plugin scripts pass nil or "" to
-# Dir.chdir. nil crashes Ruby pre-2.0 outright. "" raises
-# Errno::ENOENT on every Ruby version. Both are no-ops in spirit
-# (the script wants "stay where you are") so we route them through
-# the no-arg form, which is safe and well-defined (returns to home
-# dir or no-op when called with a block on no-arg).
+# --- Dir.chdir ---
+# RGSS raises for Dir.chdir(nil) and Dir.chdir(""). Only the call with
+# no argument goes to HOME, which on a device is the app folder.
+# Windows refuses an empty path with EINVAL, POSIX with ENOENT.
 class << Dir
   alias _mkxp_orig_chdir chdir unless method_defined?(:_mkxp_orig_chdir)
-  def chdir(dir = nil, &block)
-    return _mkxp_orig_chdir(&block) if dir.nil? || dir.empty?
-
-    _mkxp_orig_chdir(MKXPSaveFS.cut_at_nul(dir), &block)
+  def chdir(*args, &block)
+    if args.length == 1
+      args[0] = MKXPSaveFS.cut_at_nul(args[0])
+      raise Errno::EINVAL, args[0] if args[0] == ''
+    end
+    _mkxp_orig_chdir(*args, &block)
   end
 end
 if defined?(System) && System.respond_to?(:puts)

@@ -104,7 +104,7 @@ def assert_eq(actual, expected, label)
   asserted
   return if actual == expected
 
-  warn "FAIL: #{label}\n  expected: #{expected.inspect}\n  actual:   #{actual.inspect}"
+  $stderr.puts "FAIL: #{label}\n  expected: #{expected.inspect}\n  actual:   #{actual.inspect}"
   exit 1
 end
 
