@@ -101,6 +101,7 @@ module EngineTest
     emit("SUITE #{name}")
     emit("PLAN #{planned}")
     info('ruby', RUBY_VERSION)
+    info('interpreter', System.ruby_version)
     info('game', ENV.fetch('MKXP_TEST_GAME', nil))
     info('max_size', Bitmap.max_size)
     info('real_max_size', Bitmap.real_max_size)

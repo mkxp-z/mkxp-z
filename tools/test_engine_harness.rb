@@ -57,6 +57,10 @@ module System
   def self.reset
     LINES.clear
   end
+
+  def self.ruby_version
+    '1.8'
+  end
 end
 
 # Stands in for the engine's Bitmap class. The harness reads the two
@@ -184,6 +188,11 @@ System.reset
 EngineTest.suite('demo', 1)
 assert(System::LINES.include?('[TEST] INFO game=legacy-methods'), 'suite prints the game folder')
 ENV.delete('MKXP_TEST_GAME')
+
+# --- A suite prints the interpreter, which RUBY_VERSION does not name ---
+System.reset
+EngineTest.suite('demo', 1)
+assert(System::LINES.include?('[TEST] INFO interpreter=1.8'), 'suite prints the interpreter')
 
 # --- Running fewer checks than planned is a failure ---
 System.reset
