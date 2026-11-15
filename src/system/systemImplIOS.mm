@@ -3,6 +3,7 @@
 
 #include <TargetConditionals.h>
 #if TARGET_OS_IPHONE
+#import <AVFoundation/AVFoundation.h>
 #import <UIKit/UIKit.h>
 #else
 #import <AppKit/AppKit.h>
@@ -80,31 +81,51 @@ systemImpl::WineHostType systemImpl::getRealHostType() {
 #if TARGET_OS_IPHONE
 // UIKit updates applicationState and posts its notifications only when
 // the main run loop runs. UIKit can get a move to the background seconds
-// after the system moved the app, so a check before the audio open can
-// miss the move that makes the open fail.
+// after the system moved the app.
 static void handleQueuedEvents() {
     while (CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, true) == kCFRunLoopRunHandledSource) {
     }
 }
 
-void systemImpl::waitUntilForeground() {
-    handleQueuedEvents();
-    while (UIApplication.sharedApplication.applicationState == UIApplicationStateBackground)
-        CFRunLoopRunInMode(kCFRunLoopDefaultMode, 1.0, true);
+// Returns false while iOS refuses sound: in the background or during an
+// interruption.
+static bool activateSoundSession() {
+    return UIApplication.sharedApplication.applicationState == UIApplicationStateActive &&
+           [AVAudioSession.sharedInstance setActive:YES error:nil];
 }
 
-unsigned systemImpl::backgroundMoveCount() {
-    static unsigned moves;
-    static id observer = [NSNotificationCenter.defaultCenter
-        addObserverForName:UIApplicationDidEnterBackgroundNotification
-                    object:nil
-                     queue:nil
-                usingBlock:^(NSNotification *) {
-                  moves++;
-                }];
-    (void)observer;
+static unsigned soundEvents;
+
+unsigned systemImpl::soundEventCount() {
+    static bool watching;
+    if (!watching) {
+        watching = true;
+        // iOS can send the start of an interruption with no end, so the
+        // app events also end the wait.
+        for (NSNotificationName name in @[
+                 UIApplicationWillResignActiveNotification, UIApplicationDidBecomeActiveNotification,
+                 AVAudioSessionInterruptionNotification, AVAudioSessionMediaServicesWereResetNotification
+             ]) {
+            [NSNotificationCenter.defaultCenter addObserverForName:name
+                                                            object:nil
+                                                             queue:NSOperationQueue.mainQueue
+                                                        usingBlock:^(NSNotification *) {
+                                                          soundEvents++;
+                                                        }];
+        }
+    }
+    return soundEvents;
+}
+
+bool systemImpl::waitForSoundEvent(unsigned since) {
     handleQueuedEvents();
-    return moves;
+    if (soundEvents == since && activateSoundSession())
+        return false;
+    // A timeout this long never ends. The run returns after each source
+    // that it handles, and each notification comes from one.
+    while (soundEvents == since)
+        CFRunLoopRunInMode(kCFRunLoopDefaultMode, 1.0e10, true);
+    return true;
 }
 #endif
 
