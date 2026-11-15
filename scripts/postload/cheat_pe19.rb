@@ -64,10 +64,6 @@ if Object.const_defined?('GameData') || Object.const_defined?('PBItems')
       @cheat_window.active = true
       @cheat_window.visible = true
       @cheat_window.viewport = @cviewport
-
-      @party_array = []
-      $Trainer.party.each { |pokemon| @party_array.push(pokemon.name) } if $Trainer && $Trainer.party
-      @party_array.push('Cancel')
       Graphics.transition
       loop do
         Graphics.update
@@ -93,9 +89,13 @@ if Object.const_defined?('GameData') || Object.const_defined?('PBItems')
 
       return unless Input.trigger?(Input::C)
 
+      # Essentials v16 to v18 make $Trainer and the bag when the intro asks
+      # for the player's name, so the menu can open on a map before them.
+      # Essentials v21 has only $player.
+      player = $player || $Trainer
       case @cheat_window.index
       when 0
-        if ENABLE_GET_ITEM
+        if ENABLE_GET_ITEM && player
           @cheat_window.active = false
           @cheat_window.visible = false
           scene = SceneCheat_Items.new
@@ -116,7 +116,7 @@ if Object.const_defined?('GameData') || Object.const_defined?('PBItems')
         return -1
       when 1
         # rubocop:disable Style/SymbolProc -- Ruby 1.8 can't parse `&:heal`.
-        $Trainer.party.each { |pokemon| pokemon.heal } if $Trainer && $Trainer.party
+        player.party.each { |pokemon| pokemon.heal } if player
         # rubocop:enable Style/SymbolProc
         @cheat_window.active = false
         @cheat_window.visible = false
