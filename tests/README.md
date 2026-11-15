@@ -62,6 +62,7 @@ game, which is the only way to reach the drawing code.
 | `file_lookup_order.rb` | A path without an extension loads the first matching file in name order, and a folder path loads no file. |
 | `gc_clone.rb` | A clone keeps its instance variables and singleton methods, and a copied array and an object from `ObjectSpace.each_object` stay alive, through a collection, on each bundled interpreter. |
 | `win32_wrap_encoding.rb` | Text conversion in the Win32API stand-ins, on Ruby 1.9 and 3.1. |
+| `full_screen_resizer.rb` | The full-screen option of Pokemon Essentials gets a screen the size of the game from the Win32API stand-ins, on each bundled interpreter. |
 | `run_suites.rb` | Runs several suites in one launch. |
 
 Run it on a simulator with one command:

@@ -177,20 +177,21 @@ jobs:
         run: |
           tools/run-engine-tests.sh --no-build --timeout 300 --ruby 31 \
             --suite legacy_methods_off.rb --suite ruby_compat.rb --suite win32_wrap_encoding.rb \
-            --suite safe_write.rb --suite dir_chdir.rb --suite gc_clone.rb
+            --suite safe_write.rb --suite dir_chdir.rb --suite gc_clone.rb --suite full_screen_resizer.rb
 
       - name: Suites on Ruby 1.9
         if: env.TEST == 'true' && !cancelled() && steps.host.outcome == 'success'
         run: |
           tools/run-engine-tests.sh --no-build --timeout 300 --ruby 19 \
             --suite ruby_compat.rb --suite win32_wrap_encoding.rb --suite safe_write.rb \
-            --suite dir_chdir.rb --suite gc_clone.rb
+            --suite dir_chdir.rb --suite gc_clone.rb --suite full_screen_resizer.rb
 
       - name: Suites on Ruby 1.8
         if: env.TEST == 'true' && !cancelled() && steps.host.outcome == 'success'
         run: |
           tools/run-engine-tests.sh --no-build --timeout 300 --ruby 18 \
-            --suite ruby_compat.rb --suite safe_write.rb --suite dir_chdir.rb --suite gc_clone.rb
+            --suite ruby_compat.rb --suite safe_write.rb --suite dir_chdir.rb --suite gc_clone.rb \
+            --suite full_screen_resizer.rb
 
       # The legacy-method support only runs for scripts that come out
       # of Scripts.rxdata, so this suite needs a game folder of its
