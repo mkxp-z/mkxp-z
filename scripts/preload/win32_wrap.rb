@@ -513,6 +513,37 @@ module Win32API_Impl
       end
     end
 
+    # The game window has no borders and sits at the top left.
+    class GetWindowRect < GetClientRect
+    end
+
+    # Full-screen scripts size the canvas from the screen once, and the
+    # engine already scales the canvas to the window. A screen the size
+    # of the game keeps the canvas the size of the game.
+    class GetSystemMetrics
+      SM_CXSCREEN = 0
+      SM_CYSCREEN = 1
+
+      def call(args)
+        case args[0]
+        when SM_CXSCREEN then Graphics.width
+        when SM_CYSCREEN then Graphics.height
+        else 0
+        end
+      end
+    end
+
+    class SystemParametersInfo
+      SPI_GETWORKAREA = 0x30
+
+      def call(args)
+        return 0 unless args[0] == SPI_GETWORKAREA
+
+        memcpy_string(args[2], [0, 0, Graphics.width, Graphics.height].pack('l4'))
+        1
+      end
+    end
+
     class ScreenToClient
       def call(_args)
         1
@@ -581,6 +612,14 @@ module Win32API_Impl
     class GetCurrentThreadId
       def call(_args)
         1
+      end
+    end
+
+    # The command line of a player who opened Game.exe, with no
+    # test-play flags.
+    class GetCommandLine
+      def call(_args)
+        "\"#{File.join(Dir.pwd, 'Game.exe')}\""
       end
     end
 
