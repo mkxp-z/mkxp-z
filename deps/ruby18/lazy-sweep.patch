@@ -1,19 +1,21 @@
 diff --git a/gc.c b/gc.c
-index b7fc7b150c..5c16d9c747 100644
+index b7fc7b1..3c119c5 100644
 --- a/gc.c
 +++ b/gc.c
-@@ -436,6 +436,54 @@ add_heap()
+@@ -436,6 +436,56 @@ add_heap()
  }
  #define RANY(o) ((RVALUE*)(o))
  
-+/* Lazy sweep. garbage_collect() only marks. The sweep then runs in
-+ * small steps from rb_newobj(), so one collection does not stop the
++/* Lazy sweep. garbage_collect() marks, then sweeps only until it has
++ * SWEEP_STEP_FREE free slots. rb_newobj() sweeps the next part each
++ * time the freelist is empty, so one collection does not stop the
 + * game for the whole sweep. Heaps [0, sweep_heaps_end) existed at the
 + * mark. Slots before sweep_p in heap sweep_heap, and the slots of the
 + * heaps before it, are swept. While a sweep is pending, only swept
 + * slots and the slots of heaps added after the mark can be on the
 + * freelist. An unswept slot with flags 0 is free, and the sweep puts
-+ * it on the freelist. */
++ * it on the freelist. A live unswept slot keeps FL_MARK until its
++ * sweep. */
 +static int sweep_heap = -1;
 +static int sweep_heaps_end;
 +static RVALUE *sweep_p;
@@ -57,7 +59,7 @@ index b7fc7b150c..5c16d9c747 100644
  int
  rb_during_gc()
  {
-@@ -450,6 +498,7 @@ rb_newobj()
+@@ -450,6 +500,7 @@ rb_newobj()
      if (during_gc)
  	rb_bug("object allocation during garbage collection phase");
  
@@ -65,7 +67,7 @@ index b7fc7b150c..5c16d9c747 100644
      if (ruby_gc_stress || !freelist) garbage_collect();
  
      obj = (VALUE)freelist;
-@@ -1113,6 +1162,19 @@ add_freelist(p)
+@@ -1113,6 +1164,19 @@ add_freelist(p)
      freelist = p;
  }
  
@@ -85,7 +87,7 @@ index b7fc7b150c..5c16d9c747 100644
  static void
  finalize_list(p)
      RVALUE *p;
-@@ -1121,7 +1183,7 @@ finalize_list(p)
+@@ -1121,7 +1185,7 @@ finalize_list(p)
  	RVALUE *tmp = p->as.free.next;
  	run_final((VALUE)p);
  	if (!FL_TEST(p, FL_SINGLETON)) { /* not freeing page */
@@ -94,7 +96,7 @@ index b7fc7b150c..5c16d9c747 100644
  	}
  	p = tmp;
      }
-@@ -1132,6 +1194,8 @@ free_unused_heaps()
+@@ -1132,6 +1196,8 @@ free_unused_heaps()
  {
      int i, j;
  
@@ -103,7 +105,7 @@ index b7fc7b150c..5c16d9c747 100644
      for (i = j = 1; j < heaps_used; i++) {
  	if (heaps[i].limit == 0) {
  	    free(heaps[i].membase);
-@@ -1149,50 +1213,62 @@ free_unused_heaps()
+@@ -1149,50 +1215,62 @@ free_unused_heaps()
  void rb_gc_abort_threads(void);
  
  static void
@@ -199,7 +201,7 @@ index b7fc7b150c..5c16d9c747 100644
  	    if (!(p->as.basic.flags & FL_MARK)) {
  		if (p->as.basic.flags &&
  		    ((deferred = obj_free((VALUE)p)) ||
-@@ -1202,13 +1278,15 @@ gc_sweep()
+@@ -1202,13 +1280,15 @@ gc_sweep()
  			RDATA(p)->dfree = 0;
  		    }
  		    p->as.free.flags |= FL_MARK;
@@ -218,7 +220,7 @@ index b7fc7b150c..5c16d9c747 100644
  	    }
  	    else if (BUILTIN_TYPE(p) == T_ZOMBIE) {
  		/* objects to be finalized */
-@@ -1216,55 +1294,93 @@ gc_sweep()
+@@ -1216,55 +1296,93 @@ gc_sweep()
  	    }
  	    else {
  		RBASIC(p)->flags &= ~FL_MARK;
@@ -337,7 +339,7 @@ index b7fc7b150c..5c16d9c747 100644
  }
  
  static inline void
-@@ -1474,6 +1590,8 @@ garbage_collect()
+@@ -1474,6 +1592,8 @@ garbage_collect()
  	return;
      }
      if (during_gc) return;
@@ -346,7 +348,7 @@ index b7fc7b150c..5c16d9c747 100644
      during_gc++;
  
      init_mark_stack();
-@@ -1557,6 +1675,7 @@ void
+@@ -1557,6 +1677,7 @@ void
  rb_gc()
  {
      garbage_collect();
@@ -354,7 +356,7 @@ index b7fc7b150c..5c16d9c747 100644
      rb_gc_finalize_deferred();
  }
  
-@@ -1695,6 +1814,7 @@ os_obj_of(of)
+@@ -1695,6 +1816,7 @@ os_obj_of(of)
      int n = 0;
      volatile VALUE v;
  
@@ -362,7 +364,18 @@ index b7fc7b150c..5c16d9c747 100644
      for (i = 0; i < heaps_used; i++) {
  	RVALUE *p, *pend;
  
-@@ -1981,6 +2101,7 @@ rb_gc_call_finalizer_at_exit()
+@@ -1716,6 +1838,10 @@ os_obj_of(of)
+                     v = (VALUE)p;
+ 		    if (!of || rb_obj_is_kind_of(v, of)) {
+ 			rb_yield(v);
++			/* The block can start a collection. A dead object in an
++			 * unswept slot still has its flags, so the loop gives it
++			 * to the block, and its sweep then frees it. */
++			gc_sweep_rest();
+ 			n++;
+ 		    }
+ 		}
+@@ -1981,6 +2107,7 @@ rb_gc_call_finalizer_at_exit()
      RVALUE *final_list = 0;
      int i;
  
@@ -370,7 +383,7 @@ index b7fc7b150c..5c16d9c747 100644
      /* run finalizers */
      if (need_call_final) {
  	finalize_deferred();
-@@ -2061,6 +2182,7 @@ id2ref(obj, objid)
+@@ -2061,6 +2188,7 @@ id2ref(obj, objid)
      if (ptr == Qnil) return Qnil;
      if (FIXNUM_P(ptr)) return (VALUE)ptr;
      ptr = objid ^ FIXNUM_FLAG;	/* unset FIXNUM_FLAG */
@@ -378,3 +391,32 @@ index b7fc7b150c..5c16d9c747 100644
  
      if ((ptr % sizeof(RVALUE)) == (4 << 2)) {
          ID symid = ptr / sizeof(RVALUE);
+diff --git a/object.c b/object.c
+index 2aa8217..675e16f 100644
+--- a/object.c
++++ b/object.c
+@@ -247,7 +247,7 @@ rb_obj_clone(obj)
+     }
+     clone = rb_obj_alloc(rb_obj_class(obj));
+     RBASIC(clone)->klass = rb_singleton_class_clone(obj);
+-    RBASIC(clone)->flags = (RBASIC(obj)->flags | FL_TEST(clone, FL_TAINT)) & ~(FL_FREEZE|FL_FINALIZE);
++    RBASIC(clone)->flags = ((RBASIC(obj)->flags | FL_TEST(clone, FL_TAINT)) & ~(FL_FREEZE|FL_FINALIZE|FL_MARK)) | FL_TEST(clone, FL_MARK);
+     init_copy(clone, obj);
+     RBASIC(clone)->flags |= RBASIC(obj)->flags & FL_FREEZE;
+ 
+diff --git a/ruby.h b/ruby.h
+index ffbabb9..f94a5d4 100644
+--- a/ruby.h
++++ b/ruby.h
+@@ -313,8 +313,10 @@ DEPRECATED(char *rb_str2cstr _((VALUE,long*)));
+ 
+ VALUE rb_newobj _((void));
+ #define NEWOBJ(obj,type) type *obj = (type*)rb_newobj()
++/* A copied FL_MARK makes the next mark skip what obj holds. A
++ * collection can mark obj before this, so obj keeps its own FL_MARK. */
+ #define OBJSETUP(obj,c,t) do {\
+-    RBASIC(obj)->flags = (t);\
++    RBASIC(obj)->flags = ((t) & ~FL_MARK) | (RBASIC(obj)->flags & FL_MARK);\
+     RBASIC(obj)->klass = (c);\
+     if (rb_safe_level() >= 3) FL_SET(obj, FL_TAINT);\
+ } while (0)

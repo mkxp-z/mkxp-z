@@ -59,6 +59,7 @@ game, which is the only way to reach the drawing code.
 | `legacy_methods_off.rb` | The legacy methods stay away when the transform is off. |
 | `fast_forward_clock.rb` | `System.uptime` runs at the fast-forward speed, and the average frame rate does not. |
 | `file_lookup_order.rb` | A path without an extension loads the first matching file in name order, and a folder path loads no file. |
+| `gc_clone.rb` | A clone keeps its instance variables and singleton methods, and a copied array and an object from `ObjectSpace.each_object` stay alive, through a collection, on each bundled interpreter. |
 | `win32_wrap_encoding.rb` | Text conversion in the Win32API stand-ins, on Ruby 1.9 and 3.1. |
 | `run_suites.rb` | Runs several suites in one launch. |
 

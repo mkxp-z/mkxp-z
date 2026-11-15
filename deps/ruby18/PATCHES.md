@@ -19,8 +19,8 @@ patches.
 
 ## Patches
 
-All iOS patches are in `ios.patch`. The makefile applies it
-automatically via `git apply` before `autoconf`:
+`deps/ruby18.patches.lst` lists the patches in their order. The
+makefile applies each one with `git apply` before `autoconf`:
 
 ### `config.guess` and `config.sub`: updated for aarch64
 
@@ -29,7 +29,28 @@ platform triplets like `aarch64-apple-darwin`. We replaced both files
 with current versions from the GNU config project so that `./configure
 --host=aarch64-apple-darwin` works correctly.
 
-These are the ONLY modifications to the JoiPlay Ruby 1.8 source.
+### `lazy-sweep.patch`: sweep in small steps
+
+A collection marks, then sweeps only until it has 2048 free slots.
+`rb_newobj()` sweeps the next part each time the free list is empty,
+so one collection does not stop the game.
+
+A live object keeps its mark bit until the sweep gets to its slot.
+`rb_obj_clone()` and `CLONESETUP` give a new object all the flags of
+another object, so the patch removes the mark bit from those flags. Without that, the next collection does not mark what the copy
+holds and frees it. For example, the clone of a playing sound loses
+its name.
+
+A collection can also start after the new object exists and before it
+gets its flags, for example while `Array#reverse` allocates the buffer
+of its copy. That collection marks the new object, so `OBJSETUP` and
+`rb_obj_clone()` keep that mark bit. `DUPSETUP` gets this through
+`OBJSETUP`. Without it, the sweep frees the new object itself.
+
+`ObjectSpace.each_object` finishes the sweep after each call of its
+block. A block that starts a collection otherwise gets a dead object
+from a slot that the sweep did not get to yet, and the sweep then frees
+that object while the game holds it.
 
 ### Engine-side accommodations (in mkxp-z, not in Ruby source)
 
@@ -74,7 +95,7 @@ make -f iphoneos.make
 
 The makefile automatically:
 
-1. Applies `ios.patch` via `git apply` (updates config.guess/config.sub)
+1. Applies the patches of `deps/ruby18.patches.lst` via `git apply`
 2. Runs `autoconf` to generate `configure`
 3. Cross-compiles with `-std=gnu89` and the applicable `-Wno-*` flags
 4. Builds the core library (`libruby18-static.a`)
