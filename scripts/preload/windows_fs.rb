@@ -84,8 +84,6 @@ unless defined?(MKXPSaveFS)
   module MKXPSaveFS
     module_function
 
-    # Everything inside the game folder is literal. Games create,
-    # list, write, and delete their own files with no interception;
     # UserData is involved only when a game addresses it itself
     # (System.data_directory, faked env vars). The constants below
     # serve one purpose: the alias-era migration
@@ -161,7 +159,7 @@ unless defined?(MKXPSaveFS)
     # comparison stays as the fallback for paths the identity
     # check cannot stat.
     def same_directory?(a, b)
-      File.identical?(a, b)
+      identical_entry?(a, b)
     rescue StandardError
       File.expand_path(a) == File.expand_path(b)
     end
@@ -170,9 +168,17 @@ unless defined?(MKXPSaveFS)
     # error, prefer "not identical": the migration then runs its
     # normal collision path, which never destroys data.
     def same_entry?(a, b)
-      File.identical?(a, b)
+      identical_entry?(a, b)
     rescue StandardError
       false
+    end
+
+    # path_for calls this, so it must not go through the File.identical?
+    # wrapper, which calls path_for.
+    def identical_entry?(a, b)
+      return File._mkxp_orig_identical?(a, b) if File.respond_to?(:_mkxp_orig_identical?)
+
+      File.identical?(a, b)
     end
 
     def engine_internal_entry?(name)
@@ -225,9 +231,7 @@ unless defined?(MKXPSaveFS)
       false
     end
 
-    # Every path resolves literally - a game's writes inside its own
-    # folder land exactly where Windows would put them. This helper
-    # stays as the single file-API front for two recovery side
+    # This helper stays as the single file-API front for two recovery side
     # effects left from the alias era:
     #  - Earlier builds redirected bare working-directory save
     #    filenames ("Game.rxdata") into UserData. The first access
@@ -522,14 +526,28 @@ unless defined?(MKXPSaveFS)
     # the cache stays off during that resolution, so a listing never
     # outlives the disk state it described.
     def walk_entries(dir)
-      return entry_index(engine_fs.dir_entries(dir)) if @walk_cache_off
+      return entry_index(literal_entries(dir)) if @walk_cache_off
 
       cache = (@walk_cache ||= {})
       unless cache[:generation] == fs_generation
         cache.clear
         cache[:generation] = fs_generation
       end
-      cache[dir] ||= entry_index(engine_fs.dir_entries(dir))
+      cache[dir] ||= entry_index(literal_entries(dir))
+    end
+
+    # Ruby's own Dir.entries opens the folder through Dir.open. A walk
+    # of a missing folder would start a second walk there, and one
+    # more for each missing level.
+    def literal_entries(dir)
+      Thread.current[:mkxp_literal_listing] = true
+      engine_fs.dir_entries(dir)
+    ensure
+      Thread.current[:mkxp_literal_listing] = false
+    end
+
+    def literal_listing?
+      Thread.current[:mkxp_literal_listing] ? true : false
     end
 
     # A miss in a folder with thousands of files lowercased every name,
@@ -661,6 +679,50 @@ unless defined?(MKXPSaveFS)
       fixed ? path_for(fixed) : nil
     rescue StandardError
       nil
+    end
+
+    # The on-disk spelling of a path to a file or folder that exists.
+    # Any other path stays as it is, so the call that gets it fails or
+    # answers as it does for a missing file.
+    def existing_target(path)
+      target = path_for(path)
+      return target if !target.is_a?(String) || raw_exist?(target)
+
+      existing_spelling(target) || target
+    end
+
+    def existing_spelling(path)
+      fixed = read_fallback_target(path)
+      fixed if fixed && raw_exist?(fixed)
+    end
+
+    def open_lookup(path, mode)
+      write_mode?(mode) ? change_target(path) : existing_target(path)
+    end
+
+    # A string eval, because a block on Ruby 1.8 cannot take the &block
+    # of the call.
+    def wrap_lookups(owner, first, names)
+      names.each do |name|
+        next unless defined_method?(owner, name)
+
+        original = "_mkxp_orig_#{name}"
+        owner.send(:alias_method, original, name) unless defined_method?(owner, original)
+        owner.class_eval(<<-RUBY_EVAL, __FILE__, __LINE__ + 1)
+          def #{name}(*args, &block)                                 # def mtime(*args, &block)
+            #{original}(*MKXPSaveFS.existing_args(args, #{first}), &block) #   _mkxp_orig_mtime(*MKXPSaveFS.existing_args(args, 0), &block)
+          end                                                        # end
+        RUBY_EVAL
+        owner.send(:ruby2_keywords, name) if owner.respond_to?(:ruby2_keywords, true)
+      end
+    end
+
+    def existing_args(args, first)
+      args.each_with_index.map { |arg, i| i < first ? arg : existing_target(arg) }
+    end
+
+    def defined_method?(owner, name)
+      owner.method_defined?(name) || owner.private_method_defined?(name)
     end
 
     # True when a resolved directory target IS the per-game UserData
@@ -1253,10 +1315,9 @@ unless defined?(MKXPSafeWrite)
 end
 
 # --- File API front: legacy-save recovery + case resolution ---
-# Paths resolve literally. path_for only performs the one-time
-# legacy-save recovery side effect. The case helpers keep destructive
-# operations on the on-disk spelling. IO.read gets no save-path
-# handling. No observed game reads saves through it.
+# path_for only performs the one-time legacy-save recovery side
+# effect. The case helpers keep destructive operations on the on-disk
+# spelling.
 class << File
   alias _mkxp_orig_open open unless method_defined?(:_mkxp_orig_open)
   alias _mkxp_orig_delete delete unless method_defined?(:_mkxp_orig_delete)
@@ -1266,10 +1327,6 @@ class << File
   alias _mkxp_orig_exists exists? unless method_defined?(:_mkxp_orig_exists)
   alias _mkxp_orig_file file? unless method_defined?(:_mkxp_orig_file)
   alias _mkxp_orig_directory directory? unless method_defined?(:_mkxp_orig_directory)
-  alias _mkxp_orig_size size unless method_defined?(:_mkxp_orig_size)
-  alias _mkxp_orig_size? size? unless method_defined?(:_mkxp_orig_size?)
-  alias _mkxp_orig_zero? zero? unless method_defined?(:_mkxp_orig_zero?)
-  alias _mkxp_orig_mtime mtime unless method_defined?(:_mkxp_orig_mtime)
 
   def open(path, *args)
     path = MKXPSaveFS.cut_at_nul(path)
@@ -1348,70 +1405,45 @@ class << File
     MKXPSaveFS.probe_casefold(path) { |target| _mkxp_orig_directory(target) }
   end
 
-  def size(path)
-    _mkxp_orig_size(MKXPSaveFS.path_for(path))
-  end
+  MKXPSaveFS.wrap_lookups(self, 0, %w[atime ctime mtime birthtime stat lstat ftype size size? zero?
+                                      empty? readable? writable? executable? readable_real?
+                                      writable_real? executable_real? world_readable? world_writable?
+                                      owned? identical? truncate])
+  MKXPSaveFS.wrap_lookups(self, 1, %w[chmod])
+  MKXPSaveFS.wrap_lookups(self, 2, %w[utime])
 
-  def size?(path)
-    _mkxp_orig_size?(MKXPSaveFS.path_for(path))
-  end
+  if method_defined?(:realpath)
+    alias _mkxp_orig_realpath realpath unless method_defined?(:_mkxp_orig_realpath)
 
-  def zero?(path)
-    _mkxp_orig_zero?(MKXPSaveFS.path_for(path))
-  end
-
-  def mtime(path)
-    _mkxp_orig_mtime(MKXPSaveFS.path_for(path))
+    # The path is relative to dir, not to the working directory.
+    def realpath(path, dir = nil)
+      path = File.join(dir, path) if dir && path.to_s !~ %r{\A/}
+      _mkxp_orig_realpath(MKXPSaveFS.existing_target(path))
+    end
   end
 
   # Whole-file read/write helpers must resolve bare save names the
   # same way File.open does, or a game's File.read of a save sees a
   # different copy than its File.open (guard/act disagreement).
-  # binread/binwrite/write are guarded: absent on Ruby 1.8.
   alias _mkxp_orig_read read unless method_defined?(:_mkxp_orig_read)
 
   def read(path, *args)
     path = MKXPSaveFS.cut_at_nul(path)
-    _mkxp_orig_read(MKXPSaveFS.path_for(path), *MKXPTextMode.whole_file_args(args))
+    _mkxp_orig_read(MKXPSaveFS.existing_target(path), *MKXPTextMode.whole_file_args(args))
   end
 
   alias _mkxp_orig_readlines readlines unless method_defined?(:_mkxp_orig_readlines)
 
   def readlines(path, *args)
     path = MKXPSaveFS.cut_at_nul(path)
-    _mkxp_orig_readlines(MKXPSaveFS.path_for(path), *MKXPTextMode.whole_file_args(args))
+    _mkxp_orig_readlines(MKXPSaveFS.existing_target(path), *MKXPTextMode.whole_file_args(args))
   end
 
   alias _mkxp_orig_foreach foreach unless method_defined?(:_mkxp_orig_foreach)
 
   def foreach(path, *args, &block)
     path = MKXPSaveFS.cut_at_nul(path)
-    _mkxp_orig_foreach(MKXPSaveFS.path_for(path), *MKXPTextMode.whole_file_args(args), &block)
-  end
-
-  if (method_defined?(:binread) || private_method_defined?(:binread)) && !method_defined?(:_mkxp_orig_binread)
-    alias _mkxp_orig_binread binread
-
-    def binread(path, *args)
-      _mkxp_orig_binread(MKXPSaveFS.path_for(path), *args)
-    end
-  end
-
-  if (method_defined?(:write) || private_method_defined?(:write)) && !method_defined?(:_mkxp_orig_write)
-    alias _mkxp_orig_write write
-
-    def write(path, *args)
-      _mkxp_orig_write(MKXPSaveFS.change_target(path), *args)
-    end
-  end
-
-  if (method_defined?(:binwrite) || private_method_defined?(:binwrite)) &&
-     !method_defined?(:_mkxp_orig_binwrite)
-    alias _mkxp_orig_binwrite binwrite
-
-    def binwrite(path, *args)
-      _mkxp_orig_binwrite(MKXPSaveFS.change_target(path), *args)
-    end
+    _mkxp_orig_foreach(MKXPSaveFS.existing_target(path), *MKXPTextMode.whole_file_args(args), &block)
   end
 
   # Ruby 3 separates keyword args from positionals. Without the
@@ -1425,9 +1457,6 @@ class << File
     ruby2_keywords :read
     ruby2_keywords :readlines
     ruby2_keywords :foreach
-    ruby2_keywords :binread if method_defined?(:_mkxp_orig_binread)
-    ruby2_keywords :write if method_defined?(:_mkxp_orig_write)
-    ruby2_keywords :binwrite if method_defined?(:_mkxp_orig_binwrite)
   end
 end
 
@@ -1458,40 +1487,9 @@ module FileTest
       MKXPSaveFS.probe_casefold(path) { |target| _mkxp_orig_directory(target) }
     end
 
-    # Size probes need the same ENOENT casefold retry File.open has.
-    # Daybreak's AudioUtilities scans MP3 frames through an already
-    # casefolded File.open, then calls FileTest.size with the
-    # game's own mismatched spelling ("Audio/BGM/TITLE.mp3" for
-    # Title.mp3) and dies at the title screen without the retry.
-    if (method_defined?(:size) || private_method_defined?(:size)) && !method_defined?(:_mkxp_orig_size)
-      alias _mkxp_orig_size size
-
-      def size(path)
-        _mkxp_orig_size(MKXPSaveFS.path_for(path))
-      rescue Errno::ENOENT
-        fixed = MKXPSaveFS.read_fallback_target(path)
-        raise unless fixed
-
-        _mkxp_orig_size(fixed)
-      end
-    end
-
-    if (method_defined?(:size?) || private_method_defined?(:size?)) && !method_defined?(:_mkxp_orig_size?)
-      alias _mkxp_orig_size? size?
-
-      # size? answers nil for a missing file instead of raising, so
-      # the casefold retry keys on that rather than on ENOENT.
-      # rubocop:disable Style/ReturnNilInPredicateMethodDefinition
-      # -- nil-for-missing is FileTest.size?'s documented contract.
-      def size?(path)
-        found = _mkxp_orig_size?(MKXPSaveFS.path_for(path))
-        return found unless found.nil?
-
-        fixed = MKXPSaveFS.read_fallback_target(path)
-        fixed ? _mkxp_orig_size?(fixed) : nil
-      end
-      # rubocop:enable Style/ReturnNilInPredicateMethodDefinition
-    end
+    MKXPSaveFS.wrap_lookups(self, 0, %w[size size? zero? empty? readable? writable? executable?
+                                        readable_real? writable_real? executable_real?
+                                        world_readable? world_writable? owned? identical?])
   end
 end
 
@@ -1499,7 +1497,6 @@ class << Dir
   alias _mkxp_orig_glob glob unless method_defined?(:_mkxp_orig_glob)
   alias _mkxp_orig_brackets [] unless method_defined?(:_mkxp_orig_brackets)
   alias _mkxp_orig_new new unless method_defined?(:_mkxp_orig_new)
-  alias _mkxp_orig_open open unless method_defined?(:_mkxp_orig_open)
   alias _mkxp_orig_entries entries unless method_defined?(:_mkxp_orig_entries)
   if (method_defined?(:exist?) || private_method_defined?(:exist?)) && !method_defined?(:_mkxp_orig_exist)
     alias _mkxp_orig_exist exist?
@@ -1531,18 +1528,34 @@ class << Dir
 
   # Dir.new / Dir.open enumerate too - the Reborn-lineage load
   # screens list saves through Dir.new(getSaveFolder). Give both
-  # the portable recovery trigger. Paths stay literal.
+  # the portable recovery trigger.
+  # Ruby's own Dir.entries, Dir.foreach and Dir.children open the
+  # folder through Dir.open, and so does the walk that finds a
+  # spelling. So these two look for another spelling only after the
+  # literal path fails.
   def new(path, *args)
     path = MKXPSaveFS.cut_at_nul(path)
     MKXPSaveFS.maybe_recover_portable_dir(path)
     _mkxp_orig_new(path, *args)
+  rescue Errno::ENOENT
+    raise if MKXPSaveFS.literal_listing?
+
+    fixed = MKXPSaveFS.existing_spelling(path)
+    raise unless fixed
+
+    _mkxp_orig_new(fixed, *args)
   end
   ruby2_keywords :new if respond_to?(:ruby2_keywords, true)
 
-  def open(path, *args, &block)
-    path = MKXPSaveFS.cut_at_nul(path)
-    MKXPSaveFS.maybe_recover_portable_dir(path)
-    _mkxp_orig_open(path, *args, &block)
+  def open(path, *args)
+    dir = new(path, *args)
+    return dir unless block_given?
+
+    begin
+      yield dir
+    ensure
+      dir.close
+    end
   end
   ruby2_keywords :open if respond_to?(:ruby2_keywords, true)
 
@@ -1554,7 +1567,7 @@ class << Dir
     # else passes through.
     path = MKXPSaveFS.cut_at_nul(path)
     MKXPSaveFS.maybe_recover_portable_dir(path)
-    target = MKXPSaveFS.path_for(path)
+    target = MKXPSaveFS.existing_target(path)
     MKXPSaveFS.list_entries(target, _mkxp_orig_entries(target, *args))
   end
   ruby2_keywords :entries if respond_to?(:ruby2_keywords, true)
@@ -1562,7 +1575,7 @@ class << Dir
   def foreach(path = '.', *args, &block)
     path = MKXPSaveFS.cut_at_nul(path)
     MKXPSaveFS.maybe_recover_portable_dir(path)
-    target = MKXPSaveFS.path_for(path)
+    target = MKXPSaveFS.existing_target(path)
     found = MKXPSaveFS.list_entries(target, _mkxp_orig_entries(target, *args))
     return found.each unless block
 
@@ -1578,7 +1591,7 @@ class << Dir
 
     def children(path, *args)
       MKXPSaveFS.maybe_recover_portable_dir(path)
-      target = MKXPSaveFS.path_for(path)
+      target = MKXPSaveFS.existing_target(path)
       MKXPSaveFS.list_entries(target, _mkxp_orig_children(target, *args))
     end
     ruby2_keywords :children if respond_to?(:ruby2_keywords, true)
@@ -1587,7 +1600,7 @@ class << Dir
   if method_defined?(:each_child) || private_method_defined?(:each_child)
     def each_child(path, *args, &block)
       MKXPSaveFS.maybe_recover_portable_dir(path)
-      target = MKXPSaveFS.path_for(path)
+      target = MKXPSaveFS.existing_target(path)
       found = MKXPSaveFS.list_entries(target, _mkxp_orig_children(target, *args))
       return found.each unless block
 
@@ -1610,6 +1623,8 @@ class << Dir
       MKXPSaveFS.probe_casefold(path) { |target| _mkxp_orig_exists(target) }
     end
   end
+
+  MKXPSaveFS.wrap_lookups(self, 0, %w[empty?])
 
   # The portable save dir is LITERAL: Pokemon Rejuvenation's
   # portable mode (isPortable -> getSaveFolder == "Save Data/")
@@ -1648,48 +1663,105 @@ class << Dir
 end
 
 module Kernel
-  alias _mkxp_orig_load_data load_data unless method_defined?(:_mkxp_orig_load_data)
-  alias _mkxp_orig_save_data save_data unless method_defined?(:_mkxp_orig_save_data)
+  alias _mkxp_orig_load_data load_data unless private_method_defined?(:_mkxp_orig_load_data)
+  alias _mkxp_orig_save_data save_data unless private_method_defined?(:_mkxp_orig_save_data)
 
+  # The engine finds the files of the path cache in any case, but not
+  # a file that the game made in this session.
   def load_data(path, *args)
-    _mkxp_orig_load_data(MKXPSaveFS.path_for(path), *args)
+    _mkxp_orig_load_data(MKXPSaveFS.existing_target(path), *args)
   end
 
   def save_data(obj, path, *args)
-    _mkxp_orig_save_data(obj, MKXPSaveFS.path_for(path), *args)
+    _mkxp_orig_save_data(obj, MKXPSaveFS.change_target(path), *args)
   end
   module_function :load_data, :save_data
 end
 
 # IO.read and Kernel#open do not call the File wrappers above.
-# Kernel#open makes the File object in C (rb_io_s_open).
-if RUBY_VERSION < '1.9'
-  class << IO
-    alias _mkxp_orig_io_read read unless method_defined?(:_mkxp_orig_io_read)
-    alias _mkxp_orig_io_readlines readlines unless method_defined?(:_mkxp_orig_io_readlines)
-    alias _mkxp_orig_io_foreach foreach unless method_defined?(:_mkxp_orig_io_foreach)
+# Kernel#open makes the File object in C (rb_io_s_open). File.read,
+# File.readlines and File.foreach also read in text mode, so IO keeps
+# its own copies of these three. File gets binread, write and binwrite
+# from IO. They are absent on Ruby 1.8.
+class << IO
+  alias _mkxp_orig_io_read read unless method_defined?(:_mkxp_orig_io_read)
+  alias _mkxp_orig_io_readlines readlines unless method_defined?(:_mkxp_orig_io_readlines)
+  alias _mkxp_orig_io_foreach foreach unless method_defined?(:_mkxp_orig_io_foreach)
 
-    def read(path, *args)
-      _mkxp_orig_io_read(MKXPSaveFS.cut_at_nul(path), *args)
-    end
+  def read(path, *args)
+    _mkxp_orig_io_read(MKXPSaveFS.existing_target(MKXPSaveFS.cut_at_nul(path)), *args)
+  end
 
-    def readlines(path, *args)
-      _mkxp_orig_io_readlines(MKXPSaveFS.cut_at_nul(path), *args)
-    end
+  def readlines(path, *args)
+    _mkxp_orig_io_readlines(MKXPSaveFS.existing_target(MKXPSaveFS.cut_at_nul(path)), *args)
+  end
 
-    def foreach(path, *args, &block)
-      _mkxp_orig_io_foreach(MKXPSaveFS.cut_at_nul(path), *args, &block)
+  def foreach(path, *args, &block)
+    _mkxp_orig_io_foreach(MKXPSaveFS.existing_target(MKXPSaveFS.cut_at_nul(path)), *args, &block)
+  end
+
+  if method_defined?(:binread) && !method_defined?(:_mkxp_orig_io_binread)
+    alias _mkxp_orig_io_binread binread
+
+    def binread(path, *args)
+      _mkxp_orig_io_binread(MKXPSaveFS.existing_target(path), *args)
     end
   end
 
-  module Kernel
-    alias _mkxp_orig_kernel_open open unless private_method_defined?(:_mkxp_orig_kernel_open)
+  if method_defined?(:write) && !method_defined?(:_mkxp_orig_io_write)
+    alias _mkxp_orig_io_write write
 
-    def open(path, *args, &block)
-      _mkxp_orig_kernel_open(MKXPSaveFS.cut_at_nul(path), *args, &block)
+    def write(path, *args)
+      _mkxp_orig_io_write(MKXPSaveFS.change_target(path), *args)
     end
-    module_function :open
   end
+
+  if method_defined?(:binwrite) && !method_defined?(:_mkxp_orig_io_binwrite)
+    alias _mkxp_orig_io_binwrite binwrite
+
+    def binwrite(path, *args)
+      _mkxp_orig_io_binwrite(MKXPSaveFS.change_target(path), *args)
+    end
+  end
+
+  alias _mkxp_orig_io_sysopen sysopen unless method_defined?(:_mkxp_orig_io_sysopen)
+
+  def sysopen(path, *args)
+    _mkxp_orig_io_sysopen(MKXPSaveFS.open_lookup(MKXPSaveFS.cut_at_nul(path), args[0]), *args)
+  end
+
+  if method_defined?(:copy_stream) && !method_defined?(:_mkxp_orig_io_copy_stream)
+    alias _mkxp_orig_io_copy_stream copy_stream
+
+    def copy_stream(src, dst, *args)
+      dst = MKXPSaveFS.change_target(dst) if dst.is_a?(String)
+      _mkxp_orig_io_copy_stream(MKXPSaveFS.existing_target(src), dst, *args)
+    end
+  end
+
+  if respond_to?(:ruby2_keywords, true)
+    ruby2_keywords :read
+    ruby2_keywords :readlines
+    ruby2_keywords :foreach
+    ruby2_keywords :binread if method_defined?(:_mkxp_orig_io_binread)
+    ruby2_keywords :write if method_defined?(:_mkxp_orig_io_write)
+    ruby2_keywords :binwrite if method_defined?(:_mkxp_orig_io_binwrite)
+  end
+end
+
+class << File::Stat
+  MKXPSaveFS.wrap_lookups(self, 0, %w[new])
+end
+
+module Kernel
+  alias _mkxp_orig_kernel_open open unless private_method_defined?(:_mkxp_orig_kernel_open)
+
+  def open(path, *args, &block)
+    path = MKXPSaveFS.cut_at_nul(path)
+    _mkxp_orig_kernel_open(MKXPSaveFS.open_lookup(path, args[0]), *args, &block)
+  end
+  ruby2_keywords :open if respond_to?(:ruby2_keywords, true)
+  module_function :open
 end
 
 # A Dir object lists the folder through its own reader, past the
@@ -1741,6 +1813,8 @@ class << Dir
     if args.length == 1
       args[0] = MKXPSaveFS.cut_at_nul(args[0])
       raise Errno::EINVAL, args[0] if args[0] == ''
+
+      args[0] = MKXPSaveFS.existing_target(args[0])
     end
     _mkxp_orig_chdir(*args, &block)
   end

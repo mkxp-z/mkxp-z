@@ -9,6 +9,7 @@
 # test_save_fs.rb.
 # Run: ruby mkxp-z-apple-mobile/tools/test_save_fs_case.rb
 
+require 'stringio'
 require_relative 'save_fs_harness'
 
 def assert_write_mode_classification
@@ -83,7 +84,7 @@ def assert_case_variant_writes(records)
   File.open(File.expand_path('Audio/BGS/Battle Open.wav'), 'wb') { |f| f.write('abs') }
   assert_eq(read_raw('Audio/BGS/Battle Open.WAV'), 'abs', 'absolute case-variant write reached the file')
 
-  if File.respond_to?(:_mkxp_orig_binwrite)
+  if IO.respond_to?(:_mkxp_orig_io_binwrite)
     File.binwrite('Audio/BGS/Battle Open.wav', 'bin')
     assert_eq(read_raw('Audio/BGS/Battle Open.WAV'), 'bin', 'binwrite reached the file')
   end
@@ -255,6 +256,140 @@ def assert_filetest_size_casefold
   assert_eq(err.nil?, false, 'FileTest.size still raises ENOENT for missing files')
 end
 
+# The arguments that reach one raw method during the block. Kernel
+# methods run on the caller, so they are replaced in Kernel itself.
+def raw_args_of(receiver, name)
+  seen = []
+  if receiver == Kernel
+    original = Kernel.instance_method(name)
+    Kernel.send(:define_method, name) do |*args, &blk|
+      seen.concat(args.map(&:to_s))
+      original.bind(self).call(*args, &blk)
+    end
+  else
+    original = receiver.method(name)
+    receiver.define_singleton_method(name) do |*args, &blk|
+      seen.concat(args.map(&:to_s))
+      original.call(*args, &blk)
+    end
+  end
+  yield
+  seen
+ensure
+  if receiver == Kernel
+    Kernel.send(:define_method, name, original)
+    Kernel.send(:private, name)
+  else
+    receiver.define_singleton_method(name, original)
+  end
+end
+
+# The Essentials plugin manager asks File.mtime
+# for "meta.txt" in a folder that holds "Meta.txt". The host folds
+# case, so only the argument of the raw call shows the spelling.
+LOOKUP_DIR = 'Plugins/Redistribuidor EVS'.freeze
+LOOKUP_FILE = "#{LOOKUP_DIR}/Meta.txt".freeze
+LOOKUP_DIR_VARIANT = 'plugins/redistribuidor evs'.freeze
+LOOKUP_VARIANT = "#{LOOKUP_DIR_VARIANT}/meta.txt".freeze
+LOOKUP_MISSING = "#{LOOKUP_DIR_VARIANT}/missing.txt".freeze
+LOOKUP_CALLS = [
+  [File, :_mkxp_orig_mtime, lambda { File.mtime(LOOKUP_VARIANT) }],
+  [File, :_mkxp_orig_atime, lambda { File.atime(LOOKUP_VARIANT) }],
+  [File, :_mkxp_orig_ctime, lambda { File.ctime(LOOKUP_VARIANT) }],
+  [File, :_mkxp_orig_birthtime, lambda { File.birthtime(LOOKUP_VARIANT) }],
+  [File, :_mkxp_orig_stat, lambda { File.stat(LOOKUP_VARIANT) }],
+  [File, :_mkxp_orig_lstat, lambda { File.lstat(LOOKUP_VARIANT) }],
+  [File, :_mkxp_orig_ftype, lambda { File.ftype(LOOKUP_VARIANT) }],
+  [File, :_mkxp_orig_size, lambda { File.size(LOOKUP_VARIANT) }],
+  [File, :_mkxp_orig_size?, lambda { File.size?(LOOKUP_VARIANT) }],
+  [File, :_mkxp_orig_zero?, lambda { File.zero?(LOOKUP_VARIANT) }],
+  [File, :_mkxp_orig_empty?, lambda { File.empty?(LOOKUP_VARIANT) }],
+  [File, :_mkxp_orig_readable?, lambda { File.readable?(LOOKUP_VARIANT) }],
+  [File, :_mkxp_orig_writable?, lambda { File.writable?(LOOKUP_VARIANT) }],
+  [File, :_mkxp_orig_readable_real?, lambda { File.readable_real?(LOOKUP_VARIANT) }],
+  [File, :_mkxp_orig_world_readable?, lambda { File.world_readable?(LOOKUP_VARIANT) }],
+  [File, :_mkxp_orig_owned?, lambda { File.owned?(LOOKUP_VARIANT) }],
+  [File, :_mkxp_orig_identical?, lambda { File.identical?(LOOKUP_VARIANT, LOOKUP_VARIANT) }],
+  [File, :_mkxp_orig_realpath, lambda { File.realpath(LOOKUP_VARIANT) }],
+  [File, :_mkxp_orig_chmod, lambda { File.chmod(0o644, LOOKUP_VARIANT) }],
+  [File, :_mkxp_orig_utime, lambda { File.utime(Time.now, Time.now, LOOKUP_VARIANT) }],
+  [File, :_mkxp_orig_truncate, lambda { File.truncate(LOOKUP_VARIANT, 2) }],
+  [File, :_mkxp_orig_read, lambda { File.read(LOOKUP_VARIANT) }],
+  [File, :_mkxp_orig_readlines, lambda { File.readlines(LOOKUP_VARIANT) }],
+  [File, :_mkxp_orig_foreach, lambda { File.foreach(LOOKUP_VARIANT) { nil } }],
+  [IO, :_mkxp_orig_io_binread, lambda { File.binread(LOOKUP_VARIANT) }],
+  [File::Stat, :_mkxp_orig_new, lambda { File::Stat.new(LOOKUP_VARIANT) }],
+  [FileTest, :_mkxp_orig_size, lambda { FileTest.size(LOOKUP_VARIANT) }],
+  [FileTest, :_mkxp_orig_zero?, lambda { FileTest.zero?(LOOKUP_VARIANT) }],
+  [FileTest, :_mkxp_orig_readable?, lambda { FileTest.readable?(LOOKUP_VARIANT) }],
+  [FileTest, :_mkxp_orig_owned?, lambda { FileTest.owned?(LOOKUP_VARIANT) }],
+  [IO, :_mkxp_orig_io_read, lambda { IO.read(LOOKUP_VARIANT) }],
+  [IO, :_mkxp_orig_io_readlines, lambda { IO.readlines(LOOKUP_VARIANT) }],
+  [IO, :_mkxp_orig_io_foreach, lambda { IO.foreach(LOOKUP_VARIANT) { nil } }],
+  [IO, :_mkxp_orig_io_binread, lambda { IO.binread(LOOKUP_VARIANT) }],
+  [IO, :_mkxp_orig_io_write, lambda { IO.write(LOOKUP_VARIANT, "a\n") }],
+  [IO, :_mkxp_orig_io_binwrite, lambda { IO.binwrite(LOOKUP_VARIANT, "a\n") }],
+  [IO, :_mkxp_orig_io_sysopen, lambda { IO.new(IO.sysopen(LOOKUP_VARIANT)).close }],
+  [IO, :_mkxp_orig_io_copy_stream, lambda { IO.copy_stream(LOOKUP_VARIANT, StringIO.new) }],
+  [IO, :_mkxp_orig_io_copy_stream, lambda { IO.copy_stream(StringIO.new("a\n"), LOOKUP_VARIANT) }],
+  [Kernel, :_mkxp_orig_kernel_open, lambda { open(LOOKUP_VARIANT, 'rb', &:read) }],
+  [Kernel, :_mkxp_orig_kernel_open, lambda { open(LOOKUP_VARIANT, 'wb') { |f| f.write("a\n") } }],
+  [Kernel, :_mkxp_orig_load_data, lambda { load_data(LOOKUP_VARIANT) }],
+  [Kernel, :_mkxp_orig_save_data, lambda { save_data(nil, LOOKUP_VARIANT) }]
+].freeze
+LOOKUP_DIR_CALLS = [
+  [Dir, :_mkxp_orig_entries, lambda { Dir.entries(LOOKUP_DIR_VARIANT) }],
+  [Dir, :_mkxp_orig_entries, lambda { Dir.foreach(LOOKUP_DIR_VARIANT) { nil } }],
+  [Dir, :_mkxp_orig_children, lambda { Dir.children(LOOKUP_DIR_VARIANT) }],
+  [Dir, :_mkxp_orig_children, lambda { Dir.each_child(LOOKUP_DIR_VARIANT) { nil } }],
+  [Dir, :_mkxp_orig_empty?, lambda { Dir.empty?(LOOKUP_DIR_VARIANT) }],
+  [Dir, :_mkxp_orig_chdir, lambda { Dir.chdir(LOOKUP_DIR_VARIANT) { nil } }]
+].freeze
+
+def assert_lookup_spellings(label)
+  FileUtils.mkdir_p(LOOKUP_DIR)
+  File._mkxp_orig_open(LOOKUP_FILE, 'wb') { |f| f.write("a\n") }
+  [[LOOKUP_CALLS, LOOKUP_FILE], [LOOKUP_DIR_CALLS, LOOKUP_DIR]].each do |calls, expected|
+    calls.each do |receiver, raw, call|
+      seen = raw_args_of(receiver, raw, &call)
+      assert_true(seen.include?(expected), "#{label}: #{receiver}.#{raw} gets #{expected}, not #{seen.inspect}")
+    end
+  end
+  seen = raw_args_of(File, :_mkxp_orig_mtime) { File.mtime(LOOKUP_FILE) }
+  assert_eq(seen, [LOOKUP_FILE], "#{label}: File.mtime passes a path in its own case as it is")
+  err = nil
+  seen = raw_args_of(File, :_mkxp_orig_mtime) do
+    File.mtime(LOOKUP_MISSING)
+  rescue Errno::ENOENT => e
+    err = e.class
+  end
+  assert_eq(err, Errno::ENOENT, "#{label}: File.mtime of a missing file still raises ENOENT")
+  assert_eq(seen, [LOOKUP_MISSING], "#{label}: File.mtime of a missing file keeps the spelling of the game")
+  assert_eq(Dir._mkxp_orig_entries(LOOKUP_DIR).grep(/\Ameta\.txt\z/i), ['Meta.txt'], "#{label}: one Meta.txt on disk")
+  assert_realpath_base(label)
+end
+
+# File.realpath takes its path relative to its second argument.
+def assert_realpath_base(label)
+  File._mkxp_orig_open('Meta.txt', 'wb') { |f| f.write("top\n") }
+  seen = raw_args_of(File, :_mkxp_orig_realpath) { File.realpath('meta.txt', LOOKUP_DIR_VARIANT) }
+  assert_eq(seen, [LOOKUP_FILE], "#{label}: File.realpath with a folder gets the file in that folder")
+ensure
+  File._mkxp_orig_delete('Meta.txt')
+end
+
+# A probe under missing folders lists each folder of the path once.
+# Ruby's Dir.entries opens a folder through the Dir.open wrapper, which
+# must not start a walk of its own.
+# With the engine's own listing: Ruby's Dir.entries opens the folder
+# through the Dir.open wrapper.
+def assert_missing_folder_walk
+  seen = with_strict_engine_probes do
+    raw_args_of(Dir, :_mkxp_orig_entries) { File.exist?('Missing1/Missing2/Missing3/x.png') }
+  end
+  assert_true(seen.size <= 4, "a probe under 3 missing folders lists #{seen.inspect}")
+end
+
 # --- Predicate parity ---
 # Windows answers every probe API through the OS's case folding, so
 # every API must give the same answer for every spelling a game might
@@ -326,6 +461,7 @@ Dir.chdir(GAME) do
     assert_userdata_case_resolution
     assert_chdir_anchoring
     assert_filetest_size_casefold
+    assert_lookup_spellings('boot cache')
   end
 end
 
@@ -341,7 +477,12 @@ Dir.chdir(GAME) do
     with_recorded_raw_paths do |records|
       assert_pathcache_off_respell(records)
     end
+    assert_lookup_spellings('no path cache')
   end
+  assert_missing_folder_walk
+  load_data('Data/missing.rxdata')
+  save_data([1], 'Data/missing.rxdata')
+  asserted
 end
 
-test_passed('test_save_fs_case', 101)
+test_passed('test_save_fs_case', 211)

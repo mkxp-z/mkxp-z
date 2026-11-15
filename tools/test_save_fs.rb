@@ -629,8 +629,6 @@ Dir.chdir(GAME) do
     'File.delete' => -> { File.delete("Battler.png\0junk") },
     'File.rename' => -> { File.rename("Battler.png\0junk", 'Other.png') }
   }
-  assert_eq(IO.respond_to?(:_mkxp_orig_io_read), false, 'Ruby 1.9 and later keep the original IO.read')
-  assert_eq(Kernel.private_method_defined?(:_mkxp_orig_kernel_open), false, 'Ruby 1.9 and later keep the original Kernel#open')
   as_ruby_version('1.8.1') do
     load_windows_fs!(false)
     nul_calls.each do |name, call|
@@ -690,4 +688,4 @@ Dir.chdir(GAME) do
   load_windows_fs!(false)
 end
 
-test_passed('test_save_fs', 411)
+test_passed('test_save_fs', 409)

@@ -157,11 +157,11 @@ jobs:
             --suite fast_forward_clock.rb --suite mega_bitmap.rb --suite file_lookup_order.rb \
             --suite midi_playback.rb
 
-      - name: File lookup suite without the path cache
+      - name: File lookup suites without the path cache
         if: env.TEST == 'true' && !cancelled() && steps.host.outcome == 'success'
         run: |
           tools/run-engine-tests.sh --no-build --timeout 300 \
-            --suite file_lookup_order.rb --config '{"pathCache":false}'
+            --suite file_lookup_order.rb --suite case_lookup.rb --config '{"pathCache":false}'
 
       - name: Fast-forward suite at four times the speed
         if: env.TEST == 'true' && !cancelled() && steps.host.outcome == 'success'
@@ -177,7 +177,8 @@ jobs:
         run: |
           tools/run-engine-tests.sh --no-build --timeout 300 --ruby 31 \
             --suite legacy_methods_off.rb --suite ruby_compat.rb --suite win32_wrap_encoding.rb \
-            --suite safe_write.rb --suite dir_chdir.rb --suite gc_clone.rb --suite full_screen_resizer.rb
+            --suite safe_write.rb --suite dir_chdir.rb --suite gc_clone.rb --suite full_screen_resizer.rb \
+            --suite case_lookup.rb
 
       - name: Suites on Ruby 1.9
         if: env.TEST == 'true' && !cancelled() && steps.host.outcome == 'success'
@@ -185,14 +186,14 @@ jobs:
           tools/run-engine-tests.sh --no-build --timeout 300 --ruby 19 \
             --suite ruby_compat.rb --suite win32_wrap_encoding.rb --suite safe_write.rb \
             --suite dir_chdir.rb --suite gc_clone.rb --suite full_screen_resizer.rb \
-            --suite rgss_ruby_version.rb
+            --suite rgss_ruby_version.rb --suite case_lookup.rb
 
       - name: Suites on Ruby 1.8
         if: env.TEST == 'true' && !cancelled() && steps.host.outcome == 'success'
         run: |
           tools/run-engine-tests.sh --no-build --timeout 300 --ruby 18 \
             --suite ruby_compat.rb --suite safe_write.rb --suite dir_chdir.rb --suite gc_clone.rb \
-            --suite full_screen_resizer.rb --suite rgss_ruby_version.rb
+            --suite full_screen_resizer.rb --suite rgss_ruby_version.rb --suite case_lookup.rb
 
       # The legacy-method support only runs for scripts that come out
       # of Scripts.rxdata, so this suite needs a game folder of its

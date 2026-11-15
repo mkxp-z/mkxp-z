@@ -83,10 +83,11 @@ def load_windows_fs!(joiplay = false)
     define_method(:puts) { |*args| Kernel.puts(*args) }
     define_method(:joiplay_compat?) { joiplay }
   end)
-  unless Kernel.method_defined?(:load_data)
+  unless Kernel.private_method_defined?(:load_data)
     Kernel.module_eval do
       def load_data(_path, *_args); end
       def save_data(_obj, _path, *_args); end
+      module_function :load_data, :save_data
     end
   end
   # Reloading the whole file re-evaluates constants that production
@@ -116,9 +117,15 @@ def assert_false(value, label)
   assert_eq(value, false, label)
 end
 
-# Raw filesystem probes that bypass every wrapper.
+# Raw filesystem probes that bypass every wrapper. Ruby's own
+# Dir.entries calls the Dir.open wrapper, so list through an instance.
 def raw_entries(dir)
-  Dir._mkxp_orig_entries(dir)
+  names = []
+  handle = Dir._mkxp_orig_new(dir)
+  handle._mkxp_orig_each { |name| names << name }
+  names
+ensure
+  handle.close if handle
 end
 
 def raw_dir?(path)
@@ -159,7 +166,7 @@ end
 # the syscall.
 def device_strict_exist?(path)
   str = path.to_s
-  Dir._mkxp_orig_entries(File.dirname(str)).include?(File.basename(str))
+  raw_entries(File.dirname(str)).include?(File.basename(str))
 rescue StandardError
   false
 end
@@ -168,7 +175,7 @@ def build_boot_case_cache
   cache = {}
   walk = nil
   walk = lambda do |dir, rel|
-    Dir._mkxp_orig_entries(dir).each do |name|
+    raw_entries(dir).each do |name|
       next if ['.', '..'].include?(name)
 
       path = rel.empty? ? name : "#{rel}/#{name}"
@@ -201,7 +208,7 @@ class FakeEngineFS
   end
 
   def dir_entries(dir)
-    Dir._mkxp_orig_entries(dir)
+    raw_entries(dir)
   end
 end
 

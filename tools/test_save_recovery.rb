@@ -63,10 +63,11 @@ def load_windows_fs!(data_dir)
     define_method(:puts) { |*args| Kernel.puts(*args) }
     define_method(:joiplay_compat?) { false }
   end)
-  unless Kernel.method_defined?(:load_data)
+  unless Kernel.private_method_defined?(:load_data)
     Kernel.module_eval do
       def load_data(_path, *_args); end
       def save_data(_obj, _path, *_args); end
+      module_function :load_data, :save_data
     end
   end
   prev_verbose = $VERBOSE
