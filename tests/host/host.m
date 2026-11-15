@@ -177,6 +177,12 @@ static void engineTestHostStart(void) {
 }
 
 __attribute__((constructor)) static void engineTestHostInit(void) {
+    // The Simulator's audio service can stop answering, and CoreAudio
+    // then aborts the app: "RPC timeout. Apparently deadlocked." See
+    // https://developer.apple.com/forums/thread/738346. OpenAL Soft's
+    // null backend mixes in real time with no audio device, so the
+    // suites never call CoreAudio.
+    setenv("ALSOFT_DRIVERS", "null", 0);
     dispatch_async(dispatch_get_main_queue(), ^{
         engineTestHostStart();
     });

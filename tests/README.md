@@ -75,6 +75,10 @@ non-zero when a check fails or when the suite never finishes. Pass
 `--no-build` to reuse the last build, `--device <udid>` to pick a
 simulator, and `--keep` to hold on to the console log.
 
+The host sends the audio to the null backend of OpenAL Soft. The
+suites play no sound and never call CoreAudio, because the audio
+service of the Simulator can stop the app.
+
 `--suite <file>` runs another file in the same folder, and
 `--ruby 18|19|31` picks the interpreter. The host reads both at
 launch, so one build runs every suite on every interpreter. Add
