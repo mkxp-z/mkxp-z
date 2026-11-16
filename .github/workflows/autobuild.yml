@@ -843,8 +843,9 @@ jobs:
 
           protocol=http
           host=pkg.freebsd.org
-          abi_version=13
-          release=release_4
+          abi_version=16
+          release=latest
+          checksum="$(realpath freebsd-checksum.py)"
           mirror_selector="$(realpath freebsd-mirror-selector.py)"
 
           cd ${{ runner.temp }}
@@ -885,7 +886,7 @@ jobs:
             then
               continue
             fi
-            if ! echo "$(jq -r "$query.sum" data) *sysroot.pkg" | sha256sum -c
+            if ! python "$checksum" "$(jq -r "$query.sum" data)" sysroot.pkg
             then
               continue
             fi
