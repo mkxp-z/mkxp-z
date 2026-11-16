@@ -120,6 +120,7 @@ RB_METHOD(mkxpPuts);
 
 RB_METHOD(mkxpPlatform);
 RB_METHOD(mkxpIsMacHost);
+RB_METHOD(mkxpIsMacBundle);
 RB_METHOD(mkxpIsWindowsHost);
 RB_METHOD(mkxpIsLinuxHost);
 RB_METHOD(mkxpIsBSDHost);
@@ -234,6 +235,7 @@ static void mriBindingInit() {
     
     _rb_define_module_function(mod, "is_mac?", mkxpIsMacHost);
     _rb_define_module_function(mod, "is_rosetta?", mkxpIsUsingRosetta);
+    _rb_define_module_function(mod, "is_mac_bundle?", mkxpIsMacBundle);
     _rb_define_module_function(mod, "is_linux?", mkxpIsLinuxHost);
     _rb_define_module_function(mod, "is_windows?", mkxpIsWindowsHost);
     _rb_define_module_function(mod, "is_wine?", mkxpIsUsingWine);
@@ -443,6 +445,12 @@ RB_METHOD(mkxpIsUsingRosetta) {
     RB_UNUSED_PARAM;
     
     return rb_bool_new(mkxp_sys::isRosetta());
+}
+
+RB_METHOD(mkxpIsMacBundle) {
+    RB_UNUSED_PARAM;
+
+    return rb_bool_new(mkxp_sys::isBundle());
 }
 
 RB_METHOD(mkxpIsLinuxHost) {

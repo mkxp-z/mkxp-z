@@ -44,6 +44,10 @@ bool systemImpl::isRosetta() {
     return translated;
 }
 
+bool systemImpl::isBundle() {
+    return [[NSBundle mainBundle] bundleIdentifier] != nil;
+}
+
 systemImpl::WineHostType systemImpl::getRealHostType() {
     return WineHostType::Mac;
 }

@@ -40,6 +40,7 @@ int getScalingFactor();
 
 bool isWine();
 bool isRosetta();
+bool isBundle();
 WineHostType getRealHostType();
 }
 
