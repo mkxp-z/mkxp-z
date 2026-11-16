@@ -3257,44 +3257,33 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
     }
     
     // Trim the text to only fill double the rect width
-    int charLimit = 0;
     float squeezeLimit = 0.5f;
-    if (TTF_MeasureUTF8(sdlFont, str, std::min(width() - rect.x, rect.w) / squeezeLimit, nullptr, &charLimit) == 0)
+    int charLimit = shState->fontState().measureText(
+        sdlFont, str, std::min(width() - rect.x, rect.w) / squeezeLimit);
+    if (charLimit != fixed.size())
     {
-        if (charLimit != fixed.size())
+        /* TTF_MeasureUTF8 returns the charLimit in codepoints, not bytes,
+         * so we have to calculate where that limit is ourselves.
+         * Grabbing a few codepoints past the limit in case the next
+         * character is a multi codepoint character.*/
+        charLimit += 4;
+        for(std::string::iterator it=fixed.begin(); it!=fixed.end() && *it != '\0'; ++it)
         {
-            /* TTF_MeasureUTF8 returns the charLimit in codepoints, not bytes,
-             * so we have to calculate where that limit is ourselves.
-             * Grabbing a few codepoints past the limit in case the next
-             * character is a multi codepoint character.*/
-            charLimit += 4;
-            for(std::string::iterator it=fixed.begin(); it!=fixed.end() && *it != '\0'; ++it)
+            /* The first byte of a multibyte character starts with the first
+             * two bits set to 11, with subsequent bytes starting with 10.
+             * Single byte characters start with 0.*/
+            if ((*it & 0xC0) != 0x80)
             {
-                /* The first byte of a multibyte character starts with the first
-                 * two bits set to 11, with subsequent bytes starting with 10.
-                 * Single byte characters start with 0.*/
-                if ((*it & 0xC0) != 0x80)
+                if (charLimit-- == 0)
                 {
-                    if (charLimit-- == 0)
-                    {
-                        *it = '\0';
-                        break;
-                    }
+                    *it = '\0';
+                    break;
                 }
             }
         }
     }
     
-    SDL_Surface *txtSurf;
-    
-    if (p->font->isSolid())
-        txtSurf = TTF_RenderUTF8_Solid(sdlFont, str, c);
-    else
-        txtSurf = TTF_RenderUTF8_Blended(sdlFont, str, c);
-    
-    if (!txtSurf)
-        throw Exception(Exception::SDLError, "Error creating text: %s",
-                        SDL_GetError());
+    SDL_Surface *txtSurf = shState->fontState().renderText(sdlFont, str, c, p->font->isSolid());
     
     p->ensureFormat(txtSurf, SDL_PIXELFORMAT_ABGR8888);
     
@@ -3347,21 +3336,11 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
         TTF_Font *sdlOutline;
         try {
             sdlOutline = p->font->getSdlFont(scaledOutlineSize);
+            outline = shState->fontState().renderText(sdlOutline, str, co, p->font->isSolid());
         } catch (const Exception &e) {
             SDL_FreeSurface(txtSurf);
             throw e;
         }
-        if (p->font->isSolid())
-            outline = TTF_RenderUTF8_Solid(sdlOutline, str, co);
-        else
-            outline = TTF_RenderUTF8_Blended(sdlOutline, str, co);
-        
-        if (!outline) {
-            SDL_FreeSurface(txtSurf);
-            throw Exception(Exception::SDLError, "Error creating text outline: %s",
-                            SDL_GetError());
-        }
-        
         p->ensureFormat(outline, SDL_PIXELFORMAT_ABGR8888);
 
         // Enterbrain's runtime crops the top row and left column of the text
@@ -3462,12 +3441,9 @@ IntRect Bitmap::textSize(const char *str)
     // more accurate.
     std::string fixed = fixupString(str) + " ";
     
-    int w, h;
-    TTF_SizeUTF8(sdlFont, fixed.c_str(), &w, &h);
-    
-    int ws;
-    TTF_SizeUTF8(sdlFont, " ", &ws, 0);
-    w -= ws;
+    const IntRect size = shState->fontState().textSize(sdlFont, fixed.c_str());
+    int w = size.w - shState->fontState().textSize(sdlFont, " ").w;
+    int h = size.h;
     
     /* If str is one character long, *endPtr == 0 */
     const char *endPtr;

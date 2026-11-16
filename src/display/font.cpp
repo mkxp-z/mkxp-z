@@ -37,6 +37,10 @@
 #include <cctype>
 #include <array>
 #include <unordered_map>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <tuple>
 
 #include <SDL_ttf.h>
 
@@ -107,6 +111,80 @@ struct FontSet
 	}
 };
 
+using TextCacheKey = std::tuple<std::uintptr_t, int, int, int, int, int,
+                               std::string, std::uint32_t, bool, int>;
+
+static TextCacheKey textCacheKey(TTF_Font *font, const char *text,
+                                std::uint32_t color = 0, bool solid = false,
+                                int maxWidth = -1)
+{
+	return std::make_tuple(reinterpret_cast<std::uintptr_t>(font),
+	                      TTF_GetFontStyle(font), TTF_GetFontOutline(font),
+	                      TTF_GetFontHinting(font), TTF_GetFontKerning(font),
+	                      TTF_FontHeight(font), std::string(text), color, solid, maxWidth);
+}
+
+template<typename Value>
+class TextCache
+{
+	struct Entry
+	{
+		Value value;
+		size_t bytes;
+		unsigned long long used;
+	};
+
+	std::map<TextCacheKey, Entry> entries;
+	size_t maxEntries, maxBytes, bytes = 0;
+	unsigned long long clock = 0;
+
+public:
+	TextCache(size_t maxEntries, size_t maxBytes)
+	    : maxEntries(maxEntries), maxBytes(maxBytes) {}
+
+	const Value *find(const TextCacheKey &key)
+	{
+		++clock;
+		auto it = entries.find(key);
+		if (it != entries.end())
+		{
+			it->second.used = clock;
+		}
+		return it == entries.end() ? nullptr : &it->second.value;
+	}
+
+	void insert(TextCacheKey key, Value value, size_t payloadBytes)
+	{
+		const size_t cost = payloadBytes + std::get<6>(key).size() +
+		                    sizeof(TextCacheKey) + sizeof(Entry) + 4 * sizeof(void*);
+		if (cost > maxBytes || std::get<6>(key).size() > 1024)
+			return;
+
+		while (entries.size() >= maxEntries || bytes > maxBytes - cost)
+		{
+			// ponytail: bounded LRU scan on eviction; add a list if churn is costly.
+			auto oldest = std::min_element(entries.begin(), entries.end(),
+			    [](const auto &a, const auto &b) { return a.second.used < b.second.used; });
+			bytes -= oldest->second.bytes;
+			entries.erase(oldest);
+		}
+		entries.emplace(std::move(key), Entry{std::move(value), cost, clock});
+		bytes += cost;
+	}
+};
+
+struct TextSurfaceDeleter
+{
+	void operator()(SDL_Surface *surface) const { SDL_FreeSurface(surface); }
+};
+
+using TextSurface = std::unique_ptr<SDL_Surface, TextSurfaceDeleter>;
+
+struct TextMeasurement
+{
+	int width, height, count;
+};
+
 struct SharedFontStatePrivate
 {
 	/* Maps: font family name, To: substituted family name,
@@ -131,6 +209,9 @@ struct SharedFontStatePrivate
 	float fontScale;
 	bool fontKerning;
 	int fontHinting;
+
+	TextCache<TextMeasurement> textMetrics{1024, 1024 * 1024};
+	TextCache<TextSurface> textSurfaces{256, 8 * 1024 * 1024};
 };
 
 SharedFontState::SharedFontState(const Config &conf)
@@ -172,6 +253,66 @@ SharedFontState::~SharedFontState()
 	}
 
 	delete p;
+}
+
+IntRect SharedFontState::textSize(TTF_Font *font, const char *text)
+{
+	auto key = textCacheKey(font, text);
+	if (const TextMeasurement *size = p->textMetrics.find(key))
+		return IntRect(0, 0, size->width, size->height);
+
+	int width, height;
+	if (TTF_SizeUTF8(font, text, &width, &height) != 0)
+		throw Exception(Exception::SDLError, "Error measuring text: %s", SDL_GetError());
+
+	p->textMetrics.insert(std::move(key), TextMeasurement{width, height, 0}, 0);
+	return IntRect(0, 0, width, height);
+}
+
+int SharedFontState::measureText(TTF_Font *font, const char *text, int maxWidth)
+{
+	// Reserve -1 for unrestricted textSize queries.
+	maxWidth = std::max(maxWidth, 0);
+	auto key = textCacheKey(font, text, 0, false, maxWidth);
+	if (const TextMeasurement *size = p->textMetrics.find(key))
+		return size->count;
+
+	int width, count;
+	if (TTF_MeasureUTF8(font, text, maxWidth, &width, &count) != 0)
+		throw Exception(Exception::SDLError, "Error measuring text limit: %s", SDL_GetError());
+
+	p->textMetrics.insert(std::move(key), TextMeasurement{width, 0, count}, 0);
+	return count;
+}
+
+SDL_Surface *SharedFontState::renderText(TTF_Font *font, const char *text,
+                                       const SDL_Color &color, bool solid)
+{
+	const std::uint32_t rgba = (std::uint32_t(color.r) << 24) |
+	                           (std::uint32_t(color.g) << 16) |
+	                           (std::uint32_t(color.b) << 8) | color.a;
+	auto key = textCacheKey(font, text, rgba, solid);
+	if (const TextSurface *surface = p->textSurfaces.find(key))
+	{
+		SDL_Surface *copy = SDL_ConvertSurfaceFormat(surface->get(), SDL_PIXELFORMAT_ABGR8888, 0);
+		if (!copy)
+			throw Exception(Exception::SDLError, "Error copying cached text: %s", SDL_GetError());
+		return copy;
+	}
+
+	TextSurface surface(solid ? TTF_RenderUTF8_Solid(font, text, color)
+	                          : TTF_RenderUTF8_Blended(font, text, color));
+	if (!surface)
+		throw Exception(Exception::SDLError, "Error creating text: %s", SDL_GetError());
+
+	TextSurface copy(SDL_ConvertSurfaceFormat(surface.get(), SDL_PIXELFORMAT_ABGR8888, 0));
+	if (!copy)
+		throw Exception(Exception::SDLError, "Error converting text: %s", SDL_GetError());
+
+	const size_t cost = size_t(surface->pitch) * surface->h +
+	                    (surface->format->palette ? sizeof(SDL_Color) * surface->format->palette->ncolors : 0);
+	p->textSurfaces.insert(std::move(key), std::move(surface), cost);
+	return copy.release();
 }
 
 static std::string decodeSfntName(const FT_SfntName &aname)
