@@ -1,0 +1,293 @@
+# subprojects/packagefiles/syntax-transform/3.1/0037-errinfo.patch
+#
+# This file is part of mkxp.
+#
+# Copyright (C) 2026 The mkxp-z authors
+#
+# mkxp is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# mkxp is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with mkxp.  If not, see <http://www.gnu.org/licenses/>.
+
+# In Ruby 1.8, it is allowed to modify the value of the `$!` variable, subject
+# to the following conditions:
+#
+#   * The variable can only be set to `nil` or an `Exception`. Attempting to set
+#     it to any other Ruby object will result in a `TypeError` with the message
+#     "assigning non-exception to $!".
+#   * Any changes made to the variable are localized to the current
+#     `begin`/`rescue` block, if any. Once the current `begin`/`rescue` block is
+#     exited, the value of the variable is reverted to whatever it was before
+#     the `begin`/`rescue` block began.
+#
+# In later versions of Ruby, the variable is read-only.
+#
+# This code snippet therefore only works in Ruby 1.8, and the correct values it
+# should print are indicated in the comments of the code snippet.
+#
+#   p $! # nil
+#   $! = RuntimeError.new('A')
+#   p $! # #<RuntimeError: A>
+#   $! = nil
+#   p $! # nil
+#   $! = RuntimeError.new('B')
+#   p $! # #<RuntimeError: B>
+#   begin
+#     p $! # #<RuntimeError: B>
+#     $! = RuntimeError.new('C')
+#     p $! # #<RuntimeError: C>
+#   end
+#   p $! # #<RuntimeError: C>
+#   begin
+#     p $! # #<RuntimeError: C>
+#     $! = RuntimeError.new('D')
+#     p $! # #<RuntimeError: D>
+#   rescue
+#   end
+#   p $! # #<RuntimeError: C>
+#   begin
+#     p $! # #<RuntimeError: C>
+#     $! = RuntimeError.new('E')
+#     p $! # #<RuntimeError: E>
+#   ensure
+#   end
+#   p $! # #<RuntimeError: E>
+#   begin
+#     p $! # #<RuntimeError: E>
+#     $! = RuntimeError.new('F')
+#     p $! # #<RuntimeError: F>
+#   rescue
+#   ensure
+#   end
+#   p $! # #<RuntimeError: E>
+#   begin
+#     p $! # #<RuntimeError: E>
+#     $! = RuntimeError.new('G')
+#     p $! # #<RuntimeError: G>
+#     raise 'H'
+#   rescue
+#     p $! # #<RuntimeError: H>
+#     $! = RuntimeError.new('I')
+#     p $! # #<RuntimeError: I>
+#     begin
+#       p $! # #<RuntimeError: I>
+#       $! = RuntimeError.new('J')
+#       p $! # #<RuntimeError: J>
+#       raise 'K'
+#     rescue
+#       p $! # #<RuntimeError: K>
+#       $! = RuntimeError.new('L')
+#       p $! # #<RuntimeError: L>
+#     end
+#     p $! # #<RuntimeError: I>
+#   end
+#   p $! # #<RuntimeError: E>
+
+--- a/compile.c
++++ b/compile.c
+@@ -9316,7 +9316,13 @@ iseq_compile_each0(rb_iseq_t *iseq, LINK_ANCHOR *const ret, const NODE *const no
+ 	break;
+       }
+       case NODE_RESCUE:
++	if (mkxp_iseq_is_syntax_transform_active(iseq, 1, 8, -1)) {
++	    ADD_INSN(ret, node, mkxp_syntax_transform_push_errinfo);
++	}
+ 	CHECK(compile_rescue(iseq, ret, node, popped));
++	if (mkxp_iseq_is_syntax_transform_active(iseq, 1, 8, -1)) {
++	    ADD_INSN(ret, node, mkxp_syntax_transform_pop_errinfo);
++	}
+ 	break;
+       case NODE_RESBODY:
+ 	CHECK(compile_resbody(iseq, ret, node, popped));
+--- a/eval.c
++++ b/eval.c
+@@ -1758,6 +1758,14 @@ errinfo_place(const rb_execution_context_t *ec)
+ 
+     while (RUBY_VM_VALID_CONTROL_FRAME_P(cfp, end_cfp)) {
+ 	if (VM_FRAME_RUBYFRAME_P(cfp)) {
++            for (const struct mkxp_errinfo_node *node = cfp->mkxp_errinfo_stack_top; node != NULL; node = node->prev) {
++		if (node->errinfo != 0) {
++		    return &node->errinfo;
++		}
++	    }
++            if (cfp->mkxp_rescue_errinfo != 0) {
++                return &cfp->mkxp_rescue_errinfo;
++            }
+ 	    if (cfp->iseq->body->type == ISEQ_TYPE_RESCUE) {
+ 		return &cfp->ep[VM_ENV_INDEX_LAST_LVAR];
+ 	    }
+@@ -1811,6 +1819,36 @@ rb_set_errinfo(VALUE err)
+     GET_EC()->errinfo = err;
+ }
+ 
++static void
++mkxp_errinfo_setter(VALUE err, ID id, VALUE *data)
++{
++    if (!mkxp_ec_is_syntax_transform_active(1, 8, -1)) {
++        rb_name_error(id, "%s is a read-only variable", rb_id2name(id));
++    }
++    if (!NIL_P(err) && !rb_obj_is_kind_of(err, rb_eException)) {
++        rb_raise(rb_eTypeError, "assigning non-exception to $!");
++    }
++    rb_execution_context_t *ec = GET_EC();
++    rb_control_frame_t *cfp = ec->cfp;
++    const rb_control_frame_t *end_cfp = RUBY_VM_END_CONTROL_FRAME(ec);
++    while (RUBY_VM_VALID_CONTROL_FRAME_P(cfp, end_cfp)) {
++        if (cfp->mkxp_errinfo_stack_top != NULL) {
++            cfp->mkxp_errinfo_stack_top->errinfo = err;
++            VM_ASSERT(errinfo_place(ec) == &cfp->mkxp_errinfo_stack_top->errinfo);
++            return;
++        }
++        if (cfp->iseq->body->type == ISEQ_TYPE_RESCUE || (cfp->iseq->body->type == ISEQ_TYPE_ENSURE && !THROW_DATA_P(cfp->ep[VM_ENV_INDEX_LAST_LVAR]) && !FIXNUM_P(cfp->ep[VM_ENV_INDEX_LAST_LVAR]))) {
++            cfp->mkxp_rescue_errinfo = err;
++            VM_ASSERT(errinfo_place(ec) == &cfp->mkxp_rescue_errinfo);
++            return;
++        }
++        cfp = RUBY_VM_PREVIOUS_CONTROL_FRAME(cfp);
++    }
++    ec->errinfo = err;
++    ec->mkxp_saved_toplevel_errinfo = err;
++    VM_ASSERT(errinfo_place(ec) == NULL);
++}
++
+ static VALUE
+ errat_getter(ID id, VALUE *_)
+ {
+@@ -1979,7 +2017,7 @@ void
+ Init_eval(void)
+ {
+     rb_define_virtual_variable("$@", errat_getter, errat_setter);
+-    rb_define_virtual_variable("$!", errinfo_getter, 0);
++    rb_define_virtual_variable("$!", errinfo_getter, mkxp_errinfo_setter);
+ 
+     rb_gvar_ractor_local("$@");
+     rb_gvar_ractor_local("$!");
+--- a/gc.c
++++ b/gc.c
+@@ -7202,6 +7202,24 @@ gc_mark_roots(rb_objspace_t *objspace, const char **categoryp)
+ 
+     MARK_CHECKPOINT("machine_context");
+     mark_current_machine_context(objspace, ec);
++    {
++        const rb_control_frame_t *cfp = ec->cfp;
++        const rb_control_frame_t *end_cfp = RUBY_VM_END_CONTROL_FRAME(ec);
++        while (RUBY_VM_VALID_CONTROL_FRAME_P(cfp, end_cfp)) {
++            for (const struct mkxp_errinfo_node *node = cfp->mkxp_errinfo_stack_top; node != NULL; node = node->prev) {
++                if (node->errinfo != 0) {
++                    gc_mark(objspace, node->errinfo);
++                }
++            }
++            if (cfp->mkxp_rescue_errinfo != 0) {
++                gc_mark(objspace, cfp->mkxp_rescue_errinfo);
++            }
++            cfp = RUBY_VM_PREVIOUS_CONTROL_FRAME(cfp);
++        }
++        if (ec->mkxp_saved_toplevel_errinfo != 0) {
++            gc_mark(objspace, ec->mkxp_saved_toplevel_errinfo);
++        }
++    }
+ 
+     /* mark protected global variables */
+     MARK_CHECKPOINT("global_list");
+--- a/insns.def
++++ b/insns.def
+@@ -1604,3 +1604,36 @@ mkxp_syntax_transform_convert_splatarray_output
+             break;
+     }
+ }
++
++DEFINE_INSN
++mkxp_syntax_transform_push_errinfo
++()
++()
++()
++{
++    ++ec->mkxp_errinfo_level;
++    VM_ASSERT(ec->mkxp_errinfo_level > 0);
++
++    rb_control_frame_t *cfp = GET_CFP();
++    struct mkxp_errinfo_node *prev = cfp->mkxp_errinfo_stack_top;
++    cfp->mkxp_errinfo_stack_top = ruby_xmalloc(sizeof *cfp->mkxp_errinfo_stack_top);
++    cfp->mkxp_errinfo_stack_top->prev = prev;
++    cfp->mkxp_errinfo_stack_top->errinfo = 0;
++}
++
++DEFINE_INSN
++mkxp_syntax_transform_pop_errinfo
++()
++()
++()
++{
++    rb_control_frame_t *cfp = GET_CFP();
++    struct mkxp_errinfo_node *node = cfp->mkxp_errinfo_stack_top;
++    cfp->mkxp_errinfo_stack_top = node->prev;
++    ruby_xfree(node);
++
++    VM_ASSERT(ec->mkxp_errinfo_level > 0);
++    if (--ec->mkxp_errinfo_level == 0 && ec->mkxp_saved_toplevel_errinfo != 0 && ec->errinfo == Qnil) {
++        ec->errinfo = ec->mkxp_saved_toplevel_errinfo;
++    }
++}
+--- a/vm_core.h
++++ b/vm_core.h
+@@ -826,6 +826,11 @@ struct rb_block {
+     enum rb_block_type type;
+ };
+ 
++struct mkxp_errinfo_node {
++    struct mkxp_errinfo_node *prev;
++    VALUE errinfo;
++};
++
+ typedef struct rb_control_frame_struct {
+     const VALUE *pc;		/* cfp[0] */
+     VALUE *sp;			/* cfp[1] */
+@@ -840,6 +845,9 @@ typedef struct rb_control_frame_struct {
+ #endif
+     // Return address for YJIT code
+     void *jit_return;
++
++    struct mkxp_errinfo_node *mkxp_errinfo_stack_top;
++    VALUE mkxp_rescue_errinfo;
+ } rb_control_frame_t;
+ 
+ extern const rb_data_type_t ruby_threadptr_data_type;
+@@ -960,6 +968,9 @@ struct rb_execution_context_struct {
+ 	size_t stack_maxsize;
+ 	RUBY_ALIGNAS(SIZEOF_VALUE) jmp_buf regs;
+     } machine;
++
++    size_t mkxp_errinfo_level;
++    VALUE mkxp_saved_toplevel_errinfo;
+ };
+ 
+ #ifndef rb_execution_context_t
+--- a/vm_insnhelper.c
++++ b/vm_insnhelper.c
+@@ -413,6 +413,18 @@ vm_pop_frame(rb_execution_context_t *ec, rb_control_frame_t *cfp, const VALUE *e
+     if (VMDEBUG == 2)       SDR();
+ 
+     RUBY_VM_CHECK_INTS(ec);
++
++    /* Clean up any `mkxp_errinfo_node`s that we would otherwise leak if an exception is raised that causes the `mkxp_syntax_transform_pop_errinfo` instruction to be bypassed */
++    for (struct mkxp_errinfo_node *node = cfp->mkxp_errinfo_stack_top, *prev; node != NULL; node = prev) {
++        prev = node->prev;
++        ruby_xfree(node);
++
++        VM_ASSERT(ec->mkxp_errinfo_level > 0);
++        if (--ec->mkxp_errinfo_level == 0 && ec->mkxp_saved_toplevel_errinfo != 0 && ec->errinfo == Qnil) {
++            ec->errinfo = ec->mkxp_saved_toplevel_errinfo;
++        }
++    }
++
+     ec->cfp = RUBY_VM_PREVIOUS_CONTROL_FRAME(cfp);
+ 
+     return flags & VM_FRAME_FLAG_FINISH;

@@ -220,7 +220,7 @@ static VALUE stringForceUTF8(VALUE arg)
 static VALUE stringForceUTF8(RB_BLOCK_CALL_FUNC_ARGLIST(arg, callback_arg))
 #endif
 {
-    if (RB_TYPE_P(arg, RUBY_T_STRING) && ENCODING_IS_ASCII8BIT(arg))
+    if (RB_TYPE_P(arg, RUBY_T_STRING) && ENCODING_IS_ASCII8BIT(arg) && !mkxpUsingRuby18Encoding())
         rb_enc_associate_index(arg, rb_utf8_encindex());
     
     return arg;
