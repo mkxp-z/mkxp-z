@@ -452,7 +452,8 @@ RGSS_enumerateFiles(void *opaque, const char *dirname,
 
 	BoostSet<std::string>::const_iterator iter;
 	for (iter = entries.cbegin(); iter != entries.cend(); ++iter)
-		cb(callbackdata, origdir, iter->c_str());
+		if (!iter->empty() && *iter != "." && *iter != "..")
+			cb(callbackdata, origdir, iter->c_str());
 
 	return PHYSFS_ENUM_OK;
 }
