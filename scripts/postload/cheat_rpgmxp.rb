@@ -317,7 +317,7 @@ if defined?(Game_Player) && Game_Player.method_defined?(:update)
     alias cheat_update update unless method_defined?(:cheat_update)
     def update
       cheat_update
-      return unless Input.trigger?(Input::HOME) && MKXP.cheats_enabled?
+      return unless MKXP.cheat_menu_requested?
 
       $scene = Scene_Cheat.new
     end

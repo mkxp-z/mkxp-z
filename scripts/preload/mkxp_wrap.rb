@@ -41,6 +41,25 @@ module MKXP
       System.cheats_enabled?
     end
 
+    # True on the map frame that the HOME press of the cheat button
+    # starts. HOME is a button of this engine only, so game scripts
+    # that replace Input.trigger? do not expect it, and Yanfly's
+    # Debug Extension raises ArgumentError for :HOME. jpress? is the
+    # native method under a name that game scripts do not replace.
+    #
+    # The press advances on each call, not on each Input.update.
+    # Pokemon Essentials fan games call Input.update in the middle of
+    # a frame, which clears the native trigger edge before the map
+    # reads it (see pokemon_input.rb).
+    def cheat_menu_requested?
+      return false unless cheats_enabled?
+
+      down = Input.jpress?(Input::HOME)
+      requested = down && !@cheat_home_down
+      @cheat_home_down = down
+      requested
+    end
+
     # Per-game in-game-keyboard toggle. The host app sets
     # the bridge value at session start. `pokemon_input.rb`
     # reads this to decide whether to force `USEKEYBOARDTEXTENTRY
