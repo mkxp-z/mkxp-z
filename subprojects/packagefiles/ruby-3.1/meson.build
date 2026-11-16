@@ -87,6 +87,7 @@ ruby = declare_dependency(
                 # Disable LTO while running link tests for Ruby extensions if the linker is LLD (LLVM linker) and we are building for 32-bit ARM.
                 # Otherwise, the link tests may fail due to https://github.com/llvm/llvm-project/issues/108262.
                 'MKXP_DISABLE_LTO_FOR_LINK_TESTS': (meson.get_compiler('c').get_linker_id().split('.')[-1] == 'lld' or meson.get_compiler('c').get_linker_id() == 'lld-link') and host_machine.cpu_family() == 'arm' ? 'yes' : 'no',
+                'MKXP_EXE_NAME': get_option('exe_name'),
                 'DLLWRAP': 'false',
                 'WINDRES': run_command(subproject('common').get_variable('quotetool'), subproject('common').get_variable('windres'), check: true).stdout().strip(),
                 'YACC': run_command(subproject('common').get_variable('quotetool'), (meson.version().version_compare('>=1.10.0') ? find_program('bison').cmd_array() : find_program('bison')), check: true).stdout().strip(),
@@ -150,15 +151,13 @@ ruby = declare_dependency(
         '-I' + meson.project_build_root() / 'dist' / 'include',
     ],
     link_args: [
-        # If the executable format is ELF, we need this linker flag to export Ruby's symbols from our executable so that gems can find them.
-        # Otherwise, any Ruby gems that have extensions will fail to load with undefined symbol errors.
-        # For non-ELF executable formats (e.g. Mach-O or PE), this behavior is already the default so no linker flag is needed for non-ELF formats.
-        meson.get_compiler('c').first_supported_link_argument('-rdynamic', '-Wl,-export-dynamic'),
-        (host_machine.system() in ['windows', 'cygwin']) and not meson.get_compiler('c').has_header_symbol('math.h', 'lgamma_r')
-            ? [
-                meson.project_build_root() / 'build' / 'lgamma_r.o',
-            ]
-            : [],
+        meson.get_compiler('c').first_supported_link_argument(
+            # If the executable format is ELF, we need this linker flag to export Ruby's symbols from our executable so that gems can find them.
+            # Otherwise, any Ruby gems that have extensions will fail to load with undefined symbol errors.
+            # For other executable formats (e.g. Mach-O or PE), this behavior is already the default so no linker flag is needed for other executable formats.
+            '-rdynamic',
+            '-Wl,-export-dynamic',
+        ),
         meson.project_build_root() / 'build' / 'ext' / 'extinit.a',
         meson.project_build_root() / 'build' / 'ext' / 'bigdecimal' / 'bigdecimal.a',
         meson.project_build_root() / 'build' / 'ext' / 'cgi' / 'escape' / 'escape.a',
@@ -209,6 +208,15 @@ ruby = declare_dependency(
 
 ruby_build_dir = meson.project_build_root()
 
+miniruby_deps = executable(
+    'miniruby-deps',
+    sources: [
+        'deps-stub.c',
+    ],
+    dependencies: [
+        ruby,
+    ],
+)
 miniruby = custom_target(
     'miniruby',
     output: 'miniruby',
@@ -219,18 +227,25 @@ miniruby = custom_target(
         ruby_build_dir / 'build',
         '@OUTPUT@',
     ],
-    depends: [
-        executable(
-            'miniruby-deps',
-            sources: [
-                'deps-stub.c',
-            ],
-            dependencies: [
-                ruby,
-            ],
-        ),
-    ],
+    depends: miniruby_deps,
     build_by_default: true,
 )
+
+if host_machine.system() in ['windows', 'cygwin']
+    ruby = declare_dependency(
+        dependencies: ruby,
+        sources: custom_target(
+            'libruby-implib.a.def',
+            output: 'libruby-implib.a.def',
+            command: [
+                subproject('common').get_variable('deftool'),
+                meson.project_build_root() / 'build' / 'libruby-implib.a.def',
+                '@OUTPUT@',
+            ],
+            depends: miniruby_deps,
+        ),
+        link_args: meson.project_build_root() / 'libruby-implib.a.def',
+    )
+endif
 
 meson.override_dependency('ruby-3.1', ruby, static: true)

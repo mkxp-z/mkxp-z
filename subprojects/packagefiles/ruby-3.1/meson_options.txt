@@ -1,3 +1,5 @@
+option('exe_name', type: 'string', description: 'Name of the mkxp-z executable, excluding the file extension if there is one')
+
 option('cflags', type: 'string', value: '')
 option('cppflags', type: 'string', value: '')
 option('ldflags', type: 'string', value: '')
