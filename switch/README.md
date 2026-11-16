@@ -55,6 +55,10 @@ python3 switch/find_bad_tls.py dis.txt
 4. Pick a game. Closing it returns to the picker; B in the picker exits. In
    handheld mode you can also tap a game to select it, tap it again to start
    it, and drag the row to scroll.
+5. In a game, ZL soft resets after a Yes/No prompt, from any screen. On a
+   Pokémon Essentials map it returns to the title at once; anywhere else it
+   does what F12 does in RPG Maker and reloads the game's scripts, unless the
+   game turns that off with `"enableReset": false` in its `mkxp.json`.
 
 The picker's Settings tile edits controller profiles. The system keyboard is
 used for text entry.
