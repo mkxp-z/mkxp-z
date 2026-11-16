@@ -1038,6 +1038,7 @@ if not sdl2_image.found()
         'CMAKE_C_FLAGS': run_command(quotetool, sdl2_image_internal_cflags + sdl2_image_external_cflags, check: true).stdout().strip(),
         'CMAKE_CXX_FLAGS': run_command(quotetool, sdl2_image_internal_cflags + sdl2_image_external_cflags, check: true).stdout().strip(),
         'BUILD_SHARED_LIBS': false,
+        'BUILD_TESTING': false,
         'SDL2IMAGE_JPG_SAVE': true,
         'SDL2IMAGE_PNG_SAVE': true,
         'SDL2IMAGE_PNG_SHARED': false,
@@ -1130,10 +1131,21 @@ if not fluidsynth.found()
 endif
 global_dependencies += fluidsynth
 
-global_args += '-DMKXPZ_FLUIDSYNTH_SONAME="' + run_command(sonametool, 'fluidsynth', check: true).stdout().strip() + '"'
+if host_system != 'switch'
+    global_args += '-DMKXPZ_FLUIDSYNTH_SONAME="' + run_command(sonametool, 'fluidsynth', check: true).stdout().strip() + '"'
+endif
 
 ruby = dependency('ruby-' + get_option('mri_version'), allow_fallback: false, required: get_option('ruby_system').disable_auto_if(default_system_disabled).enable_auto_if(default_system_enabled))
-if not ruby.found()
+if not ruby.found() and host_system == 'switch'
+    # Switch: no fiddle, so no libffi, and psych uses its bundled libyaml
+    ruby_options = meson_base_options + {
+        'cflags': run_command(quotetool, zlib_includes, check: true).stdout().strip(),
+        'cppflags': run_command(quotetool, zlib_includes, check: true).stdout().strip(),
+        'ldflags': run_command(quotetool, zlib_libs, check: true).stdout().strip(),
+    }
+    ruby = subproject('ruby-' + get_option('mri_version'), default_options: ruby_options).get_variable('ruby')
+    ruby_build_dir = subproject('ruby-' + get_option('mri_version'), default_options: ruby_options).get_variable('ruby_build_dir')
+elif not ruby.found()
     libffi = dependency('libffi', allow_fallback: false, method: 'pkg-config', required: get_option('libffi_system').disable_auto_if(default_system_disabled).enable_auto_if(default_system_enabled))
     if not libffi.found()
         libffi_options = meson_base_options
@@ -1284,7 +1296,7 @@ main_source = files(
     'input/keybindings.cpp',
 
     'net/LUrlParser.cpp',
-    'net/net.cpp',
+    host_system != 'switch' ? 'net/net.cpp' : [], # Switch: switch/switch_http_stub.cpp
 
     host_system == 'darwin' ? 'system/systemImplApple.mm' : 'system/systemImpl.cpp',
 )

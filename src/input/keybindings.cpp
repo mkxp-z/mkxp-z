@@ -26,6 +26,12 @@
 
 #include <stdio.h>
 
+#ifdef __SWITCH__
+/* switch/switch_controls.h: a custom controller profile presses keyboard
+ * keys itself, so the controller bindings below must not also fire */
+extern "C" bool switch_controls_custom_active();
+#endif
+
 struct KbBindingData
 {
 	SDL_Scancode source;
@@ -104,6 +110,27 @@ static elementsN(defaultKbBindings2);
 
 static const CtrlBindingData defaultCtrlBindings[] =
 {
+#ifdef __SWITCH__
+	/* SDL's Switch mapping is positional (Xbox layout): SDL "A" is the
+	 * bottom button, labelled B on the Switch. The layout below goes by the
+	 * Switch labels and follows the Game Boy: A confirms, B goes back, Y and
+	 * + are Start (F6 marks them), X and - are Select. F5 (ZL) is a soft
+	 * reset. romfs:/preload/switch_controls.rb gives F5/F6 and B-to-run
+	 * their meaning in Pokemon Essentials games. */
+	{ SDL_CONTROLLER_BUTTON_B, Input::C  },  /* A */
+	{ SDL_CONTROLLER_BUTTON_A, Input::B  },  /* B */
+	{ SDL_CONTROLLER_BUTTON_X, Input::B  },  /* Y: Start */
+	{ SDL_CONTROLLER_BUTTON_X, Input::F6 },
+	{ SDL_CONTROLLER_BUTTON_START, Input::B  },  /* + : Start */
+	{ SDL_CONTROLLER_BUTTON_START, Input::F6 },
+	{ SDL_CONTROLLER_BUTTON_Y, Input::A  },  /* X: Select */
+	{ SDL_CONTROLLER_BUTTON_Y, Input::Z  },
+	{ SDL_CONTROLLER_BUTTON_BACK, Input::A  },  /* - : Select */
+	{ SDL_CONTROLLER_BUTTON_BACK, Input::Z  },
+	{ SDL_CONTROLLER_BUTTON_LEFTSHOULDER, Input::L  },
+	{ SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, Input::Z  },
+	/* ZL/ZR and the right stick are axes; see genDefaultBindings() */
+#else
 	{ SDL_CONTROLLER_BUTTON_X, Input::A  },
 	{ SDL_CONTROLLER_BUTTON_B, Input::B  },
 	{ SDL_CONTROLLER_BUTTON_A, Input::C },
@@ -112,7 +139,8 @@ static const CtrlBindingData defaultCtrlBindings[] =
 	{ SDL_CONTROLLER_BUTTON_RIGHTSTICK, Input::Z },
 	{ SDL_CONTROLLER_BUTTON_LEFTSHOULDER, Input::L  },
 	{ SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, Input::R  },
-    
+#endif
+
     { SDL_CONTROLLER_BUTTON_DPAD_UP, Input::Up },
     { SDL_CONTROLLER_BUTTON_DPAD_DOWN, Input::Down },
     { SDL_CONTROLLER_BUTTON_DPAD_LEFT, Input::Left },
@@ -149,6 +177,11 @@ BDescVec genDefaultBindings(const Config &conf)
 		for (size_t i = 0; i < defaultKbBindings2N; ++i)
 			defaultKbBindings2[i].add(d);
 
+#ifdef __SWITCH__
+	if (switch_controls_custom_active())
+		return d;
+#endif
+
 	for (size_t i = 0; i < defaultCtrlBindingsN; ++i)
 		defaultCtrlBindings[i].add(d);
 
@@ -156,6 +189,15 @@ BDescVec genDefaultBindings(const Config &conf)
 	addAxisBinding(d, SDL_CONTROLLER_AXIS_LEFTX, Positive, Input::Right);
 	addAxisBinding(d, SDL_CONTROLLER_AXIS_LEFTY, Negative, Input::Up   );
 	addAxisBinding(d, SDL_CONTROLLER_AXIS_LEFTY, Positive, Input::Down );
+
+#ifdef __SWITCH__
+	/* ZL: soft reset, ZR: R (game speed in Pokemon Essentials games),
+	 * right stick up/down: X/Y (page up/down in lists) */
+	addAxisBinding(d, SDL_CONTROLLER_AXIS_TRIGGERLEFT, Positive, Input::F5);
+	addAxisBinding(d, SDL_CONTROLLER_AXIS_TRIGGERRIGHT, Positive, Input::R);
+	addAxisBinding(d, SDL_CONTROLLER_AXIS_RIGHTY, Negative, Input::X);
+	addAxisBinding(d, SDL_CONTROLLER_AXIS_RIGHTY, Positive, Input::Y);
+#endif
 
 	return d;
 }
