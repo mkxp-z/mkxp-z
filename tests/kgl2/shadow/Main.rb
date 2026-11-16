@@ -6,15 +6,15 @@
 # to the public domain worldwide.
 # https://creativecommons.org/publicdomain/zero/1.0/
 
-# Run the suite via the "customScript" field in mkxp.json.
-
-require_relative '../../scripts/preload/kgl2_wrap'
+require_relative 'scripts/preload/kgl2_wrap'
 
 if Win32API.new('System/KGL2.klib', 'kglVersion', '', 'i').call != 200
   System.puts 'Version should be 200'
   exit 1
 end
 Win32API.new('System/KGL2.klib', 'kglLoad', '', 'i').call
+
+$all_tests_passed = true
 
 def test_hv(test_id, width, height, x1, x2, y, expected_data_with_soft_shadows)
   test_id = test_id.to_s
@@ -52,6 +52,7 @@ def test_hv(test_id, width, height, x1, x2, y, expected_data_with_soft_shadows)
     System.puts "Test #{test_id}a ok"
   else
     System.puts "Test #{test_id}a failed"
+    $all_tests_passed = false
   end
 
   bitmap = Bitmap.new(height, width)
@@ -79,6 +80,7 @@ def test_hv(test_id, width, height, x1, x2, y, expected_data_with_soft_shadows)
     System.puts "Test #{test_id}b ok"
   else
     System.puts "Test #{test_id}b failed"
+    $all_tests_passed = false
   end
 
   bitmap = Bitmap.new(width, height)
@@ -116,6 +118,7 @@ def test_hv(test_id, width, height, x1, x2, y, expected_data_with_soft_shadows)
     System.puts "Test #{test_id}c ok"
   else
     System.puts "Test #{test_id}c failed"
+    $all_tests_passed = false
   end
 
   bitmap = Bitmap.new(height, width)
@@ -153,6 +156,7 @@ def test_hv(test_id, width, height, x1, x2, y, expected_data_with_soft_shadows)
     System.puts "Test #{test_id}d ok"
   else
     System.puts "Test #{test_id}d failed"
+    $all_tests_passed = false
   end
 end
 
@@ -192,6 +196,7 @@ def test_w(test_id, width, height, y1, y2, x, expected_data_with_soft_shadows)
     System.puts "Test #{test_id}a ok"
   else
     System.puts "Test #{test_id}a failed"
+    $all_tests_passed = false
   end
 
   bitmap = Bitmap.new(width, height)
@@ -229,6 +234,7 @@ def test_w(test_id, width, height, y1, y2, x, expected_data_with_soft_shadows)
     System.puts "Test #{test_id}b ok"
   else
     System.puts "Test #{test_id}b failed"
+    $all_tests_passed = false
   end
 end
 
@@ -1557,4 +1563,4 @@ test_w(25, 50, 50, 10, 20, 34, (
   '..................................................' \
 ))
 
-exit
+exit($all_tests_passed ? 0 : 1)

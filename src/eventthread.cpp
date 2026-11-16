@@ -787,6 +787,11 @@ void EventThread::requestSettingsMenu()
 
 void EventThread::showMessageBox(const char *body, int flags)
 {
+    if (shState->config().testMode) {
+        std::fputs(body, stderr);
+        return;
+    }
+
     msgBoxDone.clear();
     
     // mkxp has already been asked to quit.

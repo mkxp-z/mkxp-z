@@ -232,6 +232,16 @@ try { exp } catch (...) {}
     }
     
     json::value baseConf = readConfFile(CONF_FILE);
+    try {
+        testMode = baseConf.as_object()["_testMode"].as_boolean();
+    } catch (...) {
+        testMode = false;
+    }
+    if (testMode) {
+        opts["rgssVersion"] = json::value(3);
+        opts["customScript"] = json::value("Main.rb");
+        opts["pathCache"] = json::value(false);
+    }
     copyObject(optsJ, baseConf);
     copyObject(opts["bindingNames"], baseConf.as_object()["bindingNames"], "bindingNames .");
     
@@ -263,9 +273,11 @@ try { exp } catch (...) {}
     readGameINI();
     
     // Now check for an extra mkxp.conf in the user's save directory and merge anything else from that
-    userConfPath = mkxp_fs::normalizePath(std::string(customDataPath + "/" CONF_FILE).c_str(), 0, 1);
-    json::value userConf = readConfFile(userConfPath.c_str());
-    copyObject(optsJ, userConf);
+    if (!testMode) {
+        userConfPath = mkxp_fs::normalizePath(std::string(customDataPath + "/" CONF_FILE).c_str(), 0, 1);
+        json::value userConf = readConfFile(userConfPath.c_str());
+        copyObject(optsJ, userConf);
+    }
     
     // now RESUME
     

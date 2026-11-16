@@ -6,9 +6,7 @@
 # to the public domain worldwide.
 # https://creativecommons.org/publicdomain/zero/1.0/
 
-# Run the suite via the "customScript" field in mkxp.json.
-
-require_relative '../../scripts/preload/kgl2_wrap'
+require_relative 'scripts/preload/kgl2_wrap'
 
 if Win32API.new('System/KGL2.klib', 'kglVersion', '', 'i').call != 200
   System.puts 'Version should be 200'
@@ -16,14 +14,18 @@ if Win32API.new('System/KGL2.klib', 'kglVersion', '', 'i').call != 200
 end
 Win32API.new('System/KGL2.klib', 'kglLoad', '', 'i').call
 
+all_tests_passed = true
+
 bitmap = Bitmap.new(1, 1)
 bitmap.fill_rect(bitmap.rect, Color.new(0xde, 0xad, 0xbe, 0xef))
-status = Win32API.new('System/KGL2.klib', 'kglInvert', 'i', 'i').call(bitmap.object_id)
-expected_data = "\x21\x52\x41\xef"
-if status == 1 && bitmap.raw_data == String.new(expected_data, encoding: 'ASCII-8BIT')
+bind_status = Win32API.new('System/KGL2.klib', 'kglBindFramebuffer', 'i', 'i').call(bitmap.object_id)
+status = Win32API.new('System/KGL2.klib', 'kglClearFramebuffer', '', 'i').call
+expected_data = "\x00\x00\x00\x00"
+if status == 1 && bind_status == 1 && bitmap.raw_data == String.new(expected_data, encoding: 'ASCII-8BIT')
   System.puts 'Test 1 ok'
 else
   System.puts 'Test 1 failed'
+  all_tests_passed = false
 end
 
-exit
+exit(all_tests_passed ? 0 : 1)

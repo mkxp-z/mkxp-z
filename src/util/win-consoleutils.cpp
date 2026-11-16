@@ -33,9 +33,13 @@ void reopenWindowsStreams()
     freopen_s(&errStream, "CONOUT$", "w+", stderr);
     freopen_s(&inStream, "CONIN$", "r", stdin);
     std::cout.clear();
+    std::wcout.clear();
     std::clog.clear();
+    std::wclog.clear();
     std::cerr.clear();
+    std::wcerr.clear();
     std::cin.clear();
+    std::wcin.clear();
 
     stdoutFD = openStdHandle(STD_OUTPUT_HANDLE);
     stdinFD = openStdHandle(STD_INPUT_HANDLE);

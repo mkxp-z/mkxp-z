@@ -1,9 +1,8 @@
 # Test suite for HTTPLite.
 # Copyright 2023 Splendide Imaginarius (based on Struma's docs).
 # License GPLv2+.
-#
-# Run the suite via the "customScript" field in mkxp.json.
-# Use RGSS v3 for best results.
+
+all_tests_passed = true
 
 System::puts "\nGET HTTP"
 response = HTTPLite.get("http://httpbin.org/json")
@@ -11,6 +10,7 @@ if response[:status] == 200 #OK
     System::puts response[:body]
 else
     System::puts "You got something other than an OK: #{response[:status]}"
+    all_tests_passed = false
 end
 
 System::puts "\nGET HTTPS"
@@ -19,6 +19,7 @@ if response[:status] == 200 #OK
     System::puts response[:body]
 else
     System::puts "You got something other than an OK: #{response[:status]}"
+    all_tests_passed = false
 end
 
 postdata = {
@@ -32,6 +33,7 @@ if response[:status] == 200 #OK
     System::puts response[:body]
 else
     System::puts "You got something other than an OK: #{response[:status]}"
+    all_tests_passed = false
 end
 
 System::puts "\nPOST HTTPS"
@@ -40,6 +42,7 @@ if response[:status] == 200 #OK
     System::puts response[:body]
 else
     System::puts "You got something other than an OK: #{response[:status]}"
+    all_tests_passed = false
 end
 
 postdata = HTTPLite::JSON.stringify(postdata)
@@ -50,6 +53,7 @@ if response[:status] == 200 #OK
     System::puts response[:body]
 else
     System::puts "You got something other than an OK: #{response[:status]}"
+    all_tests_passed = false
 end
 
 System::puts "\nPOST body HTTPS"
@@ -58,6 +62,7 @@ if response[:status] == 200 #OK
     System::puts response[:body]
 else
     System::puts "You got something other than an OK: #{response[:status]}"
+    all_tests_passed = false
 end
 
-exit
+exit(all_tests_passed ? 0 : 1)
