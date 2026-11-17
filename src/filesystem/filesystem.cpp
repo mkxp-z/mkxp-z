@@ -1015,8 +1015,11 @@ std::string FileSystem::normalize(const char *pathname, bool preferred,
   return filesystemImpl::normalizePath(pathname, preferred, absolute);
 }
 
+// PhysFS reads an empty path as the root of the game folder.
 bool FileSystem::exists(const char *filename) {
   std::string normalized = normalize(filename, false, false);
+  if (normalized.empty())
+    return false;
 
   if (PHYSFS_exists(normalized.c_str()))
     return true;
@@ -1030,6 +1033,9 @@ bool FileSystem::exists(const char *filename) {
 
 bool FileSystem::directoryExists(const char *filename) {
   std::string normalized = normalize(filename, false, false);
+  if (normalized.empty())
+    return false;
+
   PHYSFS_Stat stat;
 
   if (PHYSFS_stat(normalized.c_str(), &stat) &&
