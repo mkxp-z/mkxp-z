@@ -718,4 +718,6 @@ DEF_GFX_PROP(Klass, double, PropName, float, rb_float_new)
 #define DEF_GFX_PROP_B(Klass, PropName)                                            \
 DEF_GFX_PROP(Klass, bool, PropName, bool, rb_bool_new)
 
+bool mkxp_use_legacy_delta() noexcept;
+
 #endif // BINDING_UTIL_H
