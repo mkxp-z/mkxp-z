@@ -47,12 +47,11 @@ RB_METHOD(tilemapAutotilesSet) {
     
     Bitmap *bitmap = getPrivateDataCheck<Bitmap>(bitmapObj, BitmapType);
     
-    GFX_LOCK;
+    GFX_GUARD;
     a->set(i, bitmap);
     
     VALUE ary = rb_iv_get(self, "array");
     rb_ary_store(ary, i, bitmapObj);
-    GFX_UNLOCK;
     return self;
 }
 
@@ -86,7 +85,7 @@ RB_METHOD(tilemapInitialize) {
     if (!NIL_P(viewportObj))
         viewport = getPrivateDataCheck<Viewport>(viewportObj, ViewportType);
     
-    GFX_LOCK;
+    GFX_GUARD;
     /* Construct object */
     t = new Tilemap(viewport);
     
@@ -119,7 +118,6 @@ RB_METHOD(tilemapInitialize) {
      * alive at the same time */
     rb_iv_set(autotilesObj, "tilemap", self);
     
-    GFX_UNLOCK;
     return self;
 }
 
@@ -134,9 +132,8 @@ RB_METHOD(tilemapUpdate) {
     
     Tilemap *t = getPrivateData<Tilemap>(self);
     
-    GFX_LOCK;
+    GFX_GUARD;
     t->update();
-    GFX_UNLOCK;
     
     return Qnil;
 }
