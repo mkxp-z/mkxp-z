@@ -45,7 +45,6 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <string>
-#include <chrono>
 #include <mutex>
 
 SharedState *SharedState::instance = 0;
@@ -105,7 +104,7 @@ struct SharedStatePrivate
 	unsigned int stampCounter;
     
     std::mutex runTimeMutex;
-    std::chrono::time_point<std::chrono::steady_clock> lastRunTimeSample;
+    double lastRunTimeSample = 0;
     double scaledRunTime = 0;
 
     Patcher patcher;
@@ -129,7 +128,7 @@ struct SharedStatePrivate
 	void init(RGSSThreadData *threadData)
 	{
         
-        lastRunTimeSample = std::chrono::steady_clock::now();
+        lastRunTimeSample = mkxp_engineSeconds();
         
 		/* Shaders have been compiled in ShaderSet's constructor */
 		if (gl.ReleaseShaderCompiler)
@@ -423,8 +422,8 @@ Font &SharedState::defaultFont() const
 double SharedState::runTime() {
     if (!p) return 0;
     std::lock_guard<std::mutex> lock(p->runTimeMutex);
-    const auto now = std::chrono::steady_clock::now();
-    const double elapsed = std::chrono::duration<double>(now - p->lastRunTimeSample).count();
+    const double now = mkxp_engineSeconds();
+    const double elapsed = now - p->lastRunTimeSample;
     p->lastRunTimeSample = now;
     p->scaledRunTime += elapsed * mkxp_getFastForwardMultiplier();
     return p->scaledRunTime;

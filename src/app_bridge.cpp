@@ -16,6 +16,7 @@
 #include "audio.h"
 #include "eventthread.h"
 #include "config.h"
+#include "util/awayclock.h"
 #include "util/debugwriter.h"
 #include <atomic>
 #include <cstdio>
@@ -246,6 +247,42 @@ static std::atomic<bool> s_paused{false};
 static std::mutex s_pauseMutex;
 static std::condition_variable s_pauseCV;
 
+static std::mutex s_awayMutex;
+static AwayClock s_awayClock{AwayClock::Clock::now()};
+
+static void leaveEngine() {
+    std::lock_guard<std::mutex> lock(s_awayMutex);
+    s_awayClock.leave(AwayClock::Clock::now());
+}
+
+static void comeBackToEngine() {
+    std::lock_guard<std::mutex> lock(s_awayMutex);
+    s_awayClock.comeBack(AwayClock::Clock::now());
+}
+
+/* The flag and the clock change under one lock. Else a resume between
+ * the two starts a clock that still runs, and the pause then stops it
+ * for good. */
+static void setPauseRequested(bool requested) {
+    std::lock_guard<std::mutex> lock(s_awayMutex);
+    if (s_pauseRequested.exchange(requested, std::memory_order_acq_rel) == requested)
+        return;
+    if (requested)
+        s_awayClock.leave(AwayClock::Clock::now());
+    else
+        s_awayClock.comeBack(AwayClock::Clock::now());
+}
+
+double mkxp_engineSeconds(void) {
+    std::lock_guard<std::mutex> lock(s_awayMutex);
+    return s_awayClock.seconds(AwayClock::Clock::now());
+}
+
+unsigned mkxp_engineComebacks(void) {
+    std::lock_guard<std::mutex> lock(s_awayMutex);
+    return s_awayClock.comebacks();
+}
+
 // Snapshot buffer: owned by the bridge, written by engine, read by UI.
 static std::mutex s_snapshotMutex;
 static std::vector<unsigned char> s_snapshotData;
@@ -313,7 +350,7 @@ void mkxp_requestTerminate(void) {
     {
         std::lock_guard<std::mutex> lock(s_pauseMutex);
         s_paused.store(false, std::memory_order_release);
-        s_pauseRequested.store(false, std::memory_order_release);
+        setPauseRequested(false);
     }
     s_pauseCV.notify_one();
 
@@ -805,6 +842,7 @@ void mkxp_presentErrorAndWait(const char *message) {
 
     s_errorDismissed.store(false, std::memory_order_release);
     s_errorAwaitingDismiss.store(true, std::memory_order_release);
+    leaveEngine();
     mkxp_setErrorMessage(message);
 
     if (pthread_main_np()) {
@@ -821,6 +859,7 @@ void mkxp_presentErrorAndWait(const char *message) {
             return s_errorDismissed.load(std::memory_order_acquire);
         });
     }
+    comeBackToEngine();
     s_errorAwaitingDismiss.store(false, std::memory_order_release);
 }
 
@@ -847,12 +886,16 @@ void mkxp_presentInfoAndWait(const char *message) {
 
     s_infoDismissed.store(false, std::memory_order_release);
     s_infoAwaitingDismiss.store(true, std::memory_order_release);
+    leaveEngine();
     s_infoMsgCb.fire(message);
 
-    std::unique_lock<std::mutex> lock(s_infoDismissMutex);
-    s_infoDismissCV.wait(lock, [] {
-        return s_infoDismissed.load(std::memory_order_acquire);
-    });
+    {
+        std::unique_lock<std::mutex> lock(s_infoDismissMutex);
+        s_infoDismissCV.wait(lock, [] {
+            return s_infoDismissed.load(std::memory_order_acquire);
+        });
+    }
+    comeBackToEngine();
     s_infoAwaitingDismiss.store(false, std::memory_order_release);
 }
 
@@ -911,13 +954,13 @@ void mkxp_setErrorMessageCallback(mkxp_ErrorMessageCallback cb, void *userdata) 
 // Pause / Resume
 
 void mkxp_requestPause(void) {
-    s_pauseRequested.store(true, std::memory_order_release);
+    setPauseRequested(true);
 }
 
 void mkxp_requestResume(void) {
     {
         std::lock_guard<std::mutex> lock(s_pauseMutex);
-        s_pauseRequested.store(false, std::memory_order_release);
+        setPauseRequested(false);
         s_paused.store(false, std::memory_order_release);
     }
     // Arm the one-shot frame-rendered signal so the UI knows when the
@@ -927,17 +970,23 @@ void mkxp_requestResume(void) {
 }
 
 void mkxp_checkPause(void) {
-    if (!s_pauseRequested.load(std::memory_order_acquire) &&
-        !s_paused.load(std::memory_order_acquire))
+    if (!s_pauseRequested.load(std::memory_order_acquire))
         return;
+
+    /* A resume can come after the read above. Under the lock it either
+     * came first, and the engine runs on, or it wakes the wait below. */
+    {
+        std::lock_guard<std::mutex> lock(s_pauseMutex);
+        if (!s_pauseRequested.load(std::memory_order_acquire))
+            return;
+        s_paused.store(true, std::memory_order_release);
+    }
 
     /* Pause every AL_PLAYING source. We deliberately don't detach
      * the OpenAL context. Keeping it current avoids the audio blip
      * Apple's implementation produces on alcMakeContextCurrent. */
     if (SharedState::instance)
         SharedState::instance->audio().pauseSources();
-
-    s_paused.store(true, std::memory_order_release);
 
     s_pausedCb.fire();
 

@@ -40,8 +40,10 @@
 // They belong to the launch and not to the build, so one build of
 // this host runs every game and suite on every interpreter.
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
@@ -130,6 +132,44 @@ static MKXPRubyVersion requestedRubyVersion(void) {
     return MKXP_RUBY_UNSET;
 }
 
+static void after(double seconds, dispatch_block_t block) {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(seconds * NSEC_PER_SEC)),
+                   dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), block);
+}
+
+// pause_clock.rb shows game dialogs whose text is a command for this
+// host, to act as a launcher does:
+//
+//   pause N           pause the engine for N seconds
+//   hold N            keep the dialog open for N seconds
+//   pause-cancel D S  ask for a pause after D seconds, and cancel it
+//                     S seconds later, while the suite draws no frame
+//
+// Every other dialog closes at once.
+static void answerGameDialog(const char *message, void *userdata) {
+    (void)userdata;
+    double first = 0, second = 0;
+    if (sscanf(message, "pause-cancel %lf %lf", &first, &second) == 2) {
+        mkxp_signalInfoDismissed();
+        // One timer, because a late second timer would let the engine
+        // reach a frame while the pause is still asked for.
+        after(first, ^{
+            mkxp_requestPause();
+            usleep((useconds_t)(second * 1e6));
+            mkxp_requestResume();
+        });
+    } else if (sscanf(message, "pause %lf", &first) == 1) {
+        mkxp_requestPause();
+        mkxp_signalInfoDismissed();
+        after(first, ^{ mkxp_requestResume(); });
+    } else if (sscanf(message, "hold %lf", &first) == 1) {
+        after(first, ^{ mkxp_signalInfoDismissed(); });
+    } else {
+        NSLog(@"[host] game dialog: %s", message);
+        mkxp_signalInfoDismissed();
+    }
+}
+
 static void engineTestHostStart(void) {
     @autoreleasepool {
         NSString *resources = NSBundle.mainBundle.resourcePath;
@@ -156,6 +196,7 @@ static void engineTestHostStart(void) {
             mkxp_setFastForwardMultiplier(atoi(fastForward));
 
         mkxp_setConfigOverlayJSON(getenv("MKXP_TEST_CONFIG"));
+        mkxp_setInfoMessageCallback(answerGameDialog, NULL);
 
         mkxp_setLauncherIdentity("mkxp-z engine tests", NULL);
         mkxp_setUserDataDirectory(documents.fileSystemRepresentation);

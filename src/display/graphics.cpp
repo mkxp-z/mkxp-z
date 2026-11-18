@@ -325,6 +325,8 @@ struct FPSLimiter {
     const double tickFreqNS;
     
     bool disabled;
+
+    unsigned comebacks = 0;
     
     /* Data for frame timing adjustment */
     struct {
@@ -362,6 +364,15 @@ struct FPSLimiter {
     void delay() {
         if (disabled)
             return;
+
+        /* Start again from now after the engine was away, or the
+         * limiter catches up on that time by skipping frames. */
+        unsigned seen = mkxp_engineComebacks();
+        if (seen != comebacks) {
+            comebacks = seen;
+            lastTickCount = adj.last = SDL_GetPerformanceCounter();
+            adj.idealDiff = 0;
+        }
         
         int64_t tickDelta = SDL_GetPerformanceCounter() - lastTickCount;
         // Runtime fast-forward (host bridge): scale target ticks-per-
@@ -498,7 +509,6 @@ struct GraphicsPrivate {
     bool integerLastMileScaling;
     
     FrameRateAverage frameRateAverage;
-    Uint64 avgFPSStart;
     SDL_mutex *avgFPSLock;
 
     SDL_mutex *glResourceLock;
@@ -521,7 +531,7 @@ struct GraphicsPrivate {
     multithreadedMode(true),
     frameRate(DEF_FRAMERATE), frameCount(0), brightness(255),
     fpsLimiter(frameRate), useFrameSkip(rtData->config.frameSkip), frozen(false),
-    last_update(0), last_delta(0), avgFPSStart(SDL_GetPerformanceCounter()), backingScaleFactor(1), integerScaleFactor(0, 0),
+    last_update(0), last_delta(0), backingScaleFactor(1), integerScaleFactor(0, 0),
     glResourceLockOwner(0), glResourceLockDepth(0),
     integerScaleActive(rtData->config.integerScaling.active),
     integerLastMileScaling(rtData->config.integerScaling.lastMileScaling) {
@@ -1093,9 +1103,17 @@ struct GraphicsPrivate {
     
     double averageFPS() {
         SDL_LockMutex(avgFPSLock);
-        double ret = frameRateAverage.average();
+        double ret = frameRateAverage.average(frameRate);
         SDL_UnlockMutex(avgFPSLock);
         return ret;
+    }
+
+    /* Under avgFPSLock, because the host reads frameRate through
+     * averageFPS() from its own thread. */
+    void storeFrameRate(int value) {
+        SDL_LockMutex(avgFPSLock);
+        frameRate = value;
+        SDL_UnlockMutex(avgFPSLock);
     }
     
     void setLock(bool force = false) {
@@ -1128,15 +1146,11 @@ struct GraphicsPrivate {
         SDL_UnlockMutex(glResourceLock);
     }
 
-    // Use real time here. Fast-forward speeds up shState->runTime(),
-    // and this rate must count the frames that the screen shows.
-    double avgFPSSeconds() const {
-        return (double)(SDL_GetPerformanceCounter() - avgFPSStart) / SDL_GetPerformanceFrequency();
-    }
-
+    // Not shState->runTime(): fast-forward speeds that up, and this rate
+    // must count the frames that the screen shows.
     void updateAvgFPS() {
         SDL_LockMutex(avgFPSLock);
-        frameRateAverage.frameShown(avgFPSSeconds());
+        frameRateAverage.frameShown(mkxp_engineSeconds());
         SDL_UnlockMutex(avgFPSLock);
     }
 
@@ -1239,19 +1253,7 @@ struct GraphicsPrivate {
             mkxp_setSnapshot(pixels.data(), w, h);
         }
 
-        double pausedAt = avgFPSSeconds();
-        double runTimeAtPause = shState->runTime();
         mkxp_checkPause();
-
-        /* Reset frame timing so the limiter doesn't try to catch up. */
-        fpsLimiter.resetFrameAdjust();
-
-        if (last_update > 0)
-            last_update += shState->runTime() - runTimeAtPause;
-
-        SDL_LockMutex(avgFPSLock);
-        frameRateAverage.skip(avgFPSSeconds() - pausedAt);
-        SDL_UnlockMutex(avgFPSLock);
     }
 
     /* Call right after every swap. */
@@ -1295,7 +1297,7 @@ Graphics::Graphics(RGSSThreadData *data) {
         // dictates game speed. Initial target is the display
         // refresh - the game's first `Graphics.frame_rate = N`
         // call updates it to the right value via setFrameRate.
-        p->frameRate = data->refreshRate;
+        p->storeFrameRate(data->refreshRate);
         p->fpsLimiter.setDesiredFPS(data->refreshRate);
     }
 }
@@ -1538,7 +1540,7 @@ DEF_ATTR_RD_SIMPLE(Graphics, FrameRate, int, p->frameRate)
 DEF_ATTR_SIMPLE(Graphics, FrameCount, int, p->frameCount)
 
 void Graphics::setFrameRate(int value) {
-    p->frameRate = std::max(value, 1);
+    p->storeFrameRate(std::max(value, 1));
 
     // fixedFramerate>0 means the user / mkxp.json explicitly
     // pinned a target FPS; respect that and ignore the game's

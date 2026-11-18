@@ -12,28 +12,29 @@ class FrameRateAverage
 public:
     void frameShown(double seconds)
     {
-        if (intervals.size() > 40)
-            intervals.pop_front();
-
-        intervals.push_back(seconds - lastFrame);
+        if (hasLastFrame)
+        {
+            if (intervals.size() > 40)
+                intervals.pop_front();
+            intervals.push_back(seconds - lastFrame);
+        }
         lastFrame = seconds;
+        hasLastFrame = true;
     }
 
-    /* Leaves a pause out of the next frame, so that the pause does not
-     * count as one long frame. Games divide by
-     * Graphics.average_frame_rate to keep a speed per second, and a rate
-     * near 0 makes that step huge. */
-    void skip(double seconds) { lastFrame += seconds; }
-
-    double average() const
+    /* `fallback` is the rate until two frames are shown. */
+    double average(double fallback) const
     {
         double total = std::accumulate(intervals.begin(), intervals.end(), 0.0);
+        if (total <= 0)
+            return fallback;
         return intervals.size() / total;
     }
 
 private:
     std::deque<double> intervals;
     double lastFrame = 0;
+    bool hasLastFrame = false;
 };
 
 #endif // FRAMERATEAVERAGE_H
