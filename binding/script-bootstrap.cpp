@@ -281,6 +281,7 @@ void loadEnginePostloadsBeforeMain() {
         "nilclass_safe_stubs",
         "pokemon_windowskin_fix",
         "hmode7_shim",
+        "audio_file_name_repair",
         nullptr
     };
 
