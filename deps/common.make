@@ -120,8 +120,8 @@ all: angle deps-core ruby ruby18 ruby19 mkxp-merged mkxp-core ruby-stdlib
 # ANGLE (prebuilt). The engine draws with GLES through ANGLE, which
 # draws with Metal. The core needs the headers only. A host links the
 # static libraries of the same release.
-ANGLE_VERSION := angle-2026-11-01
-ANGLE_SHA256 := 22f6b332acaa9973650c30a99314287594fbf9ed38db682c2389bd34181e7831
+ANGLE_VERSION := angle-2026-11-19
+ANGLE_SHA256 := 89077b8af161d026da2400f91459d16aac4789db5b69bf5b515104dc4c765460
 ANGLE_STAMP := ${PWD}/ANGLE/.$(ANGLE_VERSION)
 
 angle: $(ANGLE_STAMP)
