@@ -1669,7 +1669,9 @@ module Kernel
   # The engine finds the files of the path cache in any case, but not
   # a file that the game made in this session.
   def load_data(path, *args)
-    _mkxp_orig_load_data(MKXPSaveFS.existing_target(path), *args)
+    value = _mkxp_orig_load_data(MKXPSaveFS.existing_target(path), *args)
+    MKXPSaveRepair.after_load_data(path, value) if defined?(MKXPSaveRepair)
+    value
   end
 
   def save_data(obj, path, *args)

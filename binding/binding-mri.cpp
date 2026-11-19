@@ -152,6 +152,8 @@ RB_METHOD(mkxpSetTitle);
 RB_METHOD(mkxpGetTitle);
 RB_METHOD(mkxpDesensitize);
 RB_METHOD(mkxpPuts);
+RB_METHOD(mkxpReportSaveLoad);
+RB_METHOD(mkxpReportSaveRepaired);
 
 RB_METHOD(mkxpPlatform);
 RB_METHOD(mkxpIsMacHost);
@@ -544,6 +546,8 @@ static void mriBindingInit() {
     _rb_define_module_function(mod, "window_title=", mkxpSetTitle);
     _rb_define_module_function(mod, "show_settings", mkxpSettingsMenu);
     _rb_define_module_function(mod, "puts", mkxpPuts);
+    _rb_define_module_function(mod, "report_save_load", mkxpReportSaveLoad);
+    _rb_define_module_function(mod, "report_save_repaired", mkxpReportSaveRepaired);
     _rb_define_module_function(mod, "desensitize", mkxpDesensitize);
     _rb_define_module_function(mod, "platform", mkxpPlatform);
     
@@ -871,6 +875,24 @@ RB_METHOD(mkxpPuts) {
     // down hangs.
     mkxp_debugLog("SCRIPT", "System.puts [Ruby]", str);
     
+    return Qnil;
+}
+
+RB_METHOD(mkxpReportSaveLoad) {
+    RB_UNUSED_PARAM;
+
+    const char *name;
+    rb_get_args(argc, argv, "z", &name RB_ARG_END);
+    mkxp_reportSaveEvent(MKXP_SAVE_LOAD, name);
+    return Qnil;
+}
+
+RB_METHOD(mkxpReportSaveRepaired) {
+    RB_UNUSED_PARAM;
+
+    const char *detail;
+    rb_get_args(argc, argv, "z", &detail RB_ARG_END);
+    mkxp_reportSaveEvent(MKXP_SAVE_REPAIRED, detail);
     return Qnil;
 }
 

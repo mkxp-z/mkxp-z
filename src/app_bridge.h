@@ -116,6 +116,16 @@ typedef void (*mkxp_TextInputModeCallback)(int active, void *userdata);
 typedef void (*mkxp_ErrorMessageCallback)(const char *message, void *userdata);
 typedef void (*mkxp_InfoMessageCallback)(const char *message, void *userdata);
 
+typedef enum {
+    // The game loaded a save. The detail is the file name.
+    MKXP_SAVE_LOAD     = 0,
+    // The engine repaired a broken value in a save that the game
+    // writes or reads. The detail is the file name and the fault.
+    MKXP_SAVE_REPAIRED = 1,
+} MKXPSaveEvent;
+
+typedef void (*mkxp_SaveEventCallback)(MKXPSaveEvent event, const char *detail, void *userdata);
+
 // Fires on engine thread when paused (snapshot captured, audio suspended).
 typedef void (*mkxp_PausedCallback)(void *userdata);
 typedef void (*mkxp_ResumedCallback)(void *userdata);
@@ -599,6 +609,11 @@ void        mkxp_signalInfoDismissed(void);
 
 void        mkxp_setInfoMessageCallback(mkxp_InfoMessageCallback cb, void *userdata);
 
+// Save events (Engine -> UI). Fire on the engine thread, and the game
+// does not wait.
+void        mkxp_reportSaveEvent(MKXPSaveEvent event, const char *detail);
+void        mkxp_setSaveEventCallback(mkxp_SaveEventCallback cb, void *userdata);
+
 // Pause / Resume (UI <-> Engine).
 //   1. UI calls `mkxp_requestPause()`
 //   2. Engine's `mkxp_checkPause()` (called from Graphics blocking
@@ -815,6 +830,8 @@ static inline void        mkxp_setErrorMessageCallback(mkxp_ErrorMessageCallback
 static inline void        mkxp_presentInfoAndWait(const char *message) { (void)message; }
 static inline void        mkxp_signalInfoDismissed(void) {}
 static inline void        mkxp_setInfoMessageCallback(mkxp_InfoMessageCallback cb, void *userdata) { (void)cb; (void)userdata; }
+static inline void        mkxp_reportSaveEvent(MKXPSaveEvent event, const char *detail) { (void)event; (void)detail; }
+static inline void        mkxp_setSaveEventCallback(mkxp_SaveEventCallback cb, void *userdata) { (void)cb; (void)userdata; }
 
 // No host-driven pause on desktop (window focus handling is SDL's).
 static inline void        mkxp_requestPause(void) {}

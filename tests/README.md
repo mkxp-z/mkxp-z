@@ -56,6 +56,7 @@ game, which is the only way to reach the drawing code.
 | `mega_bitmap.rb` | Mega-surface suite. |
 | `ruby_compat.rb` | Behaviour every bundled interpreter must share. |
 | `safe_write.rb` | A save that stops half way keeps the old file, and the folder lists hide the temp file, on each bundled interpreter. |
+| `save_repair.rb` | A save with a broken sound name saves no sound, `save_data` too, a save with Shift_JIS symbols goes through, only a file with a `Game_System` that the game reads to the end counts as a save load, in Essentials 19 and later `Game.load` is the save load, a script that wraps `Game.load` after the engine does not make a loop, a block given to `Game.load` reaches the game, and the host gets one report for each kind of fault, on each bundled interpreter. |
 | `dir_chdir.rb` | `Dir.chdir` with nil, an empty path, or a NUL raises or stays in the folder as RGSS does, on each bundled interpreter. |
 | `legacy_methods_off.rb` | The legacy methods stay away when the transform is off. |
 | `fast_forward_clock.rb` | `System.uptime` runs at the fast-forward speed, and the average frame rate does not. |

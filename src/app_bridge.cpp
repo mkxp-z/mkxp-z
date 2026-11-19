@@ -229,6 +229,8 @@ static BridgeCallback<mkxp_ErrorMessageCallback> s_errorMsgCb;
 // can present them without error framing.
 static BridgeCallback<mkxp_InfoMessageCallback> s_infoMsgCb;
 
+static BridgeCallback<mkxp_SaveEventCallback> s_saveEventCb;
+
 #if MKXPZ_MOBILE
 static std::mutex s_errorDismissMutex;
 static std::condition_variable s_errorDismissCV;
@@ -925,6 +927,16 @@ void mkxp_signalInfoDismissed(void) {}
 
 void mkxp_setInfoMessageCallback(mkxp_InfoMessageCallback cb, void *userdata) {
     s_infoMsgCb.set(cb, userdata);
+}
+
+void mkxp_reportSaveEvent(MKXPSaveEvent event, const char *detail) {
+    const char *text = detail ? detail : "";
+    mkxp_debugLog("SAVE", event == MKXP_SAVE_REPAIRED ? "save repaired" : "save load", text);
+    s_saveEventCb.fire(event, text);
+}
+
+void mkxp_setSaveEventCallback(mkxp_SaveEventCallback cb, void *userdata) {
+    s_saveEventCb.set(cb, userdata);
 }
 
 void mkxp_reportFatalError(const char *message) {

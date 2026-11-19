@@ -7,7 +7,7 @@
 # another object, and the game saved it. On load,
 # `File.basename(bgs.name)` raises TypeError. An empty name is the RGSS
 # value for "no sound", so the repair sets it, and the next save keeps
-# the repaired name.
+# the repaired name. The host gets a report of each repair.
 #
 # It runs after the game's scripts, because games define
 # RPG::AudioFile#name again (GS Vitro does in RGSS2Compatibility). F12
@@ -17,7 +17,10 @@
 module RPG
   class AudioFile
     def name
-      @name = '' unless @name.nil? || @name.is_a?(String)
+      unless @name.nil? || @name.is_a?(String)
+        MKXPSaveRepair.repaired_on_read(self, @name) if defined?(MKXPSaveRepair)
+        @name = ''
+      end
       @name
     end
   end
