@@ -133,12 +133,17 @@ require_system_openssl = get_option('openssl_system').disable_auto_if(default_sy
 if get_option('openssl').disabled() or (get_option('openssl').auto() and require_system_openssl.enabled())
     require_system_openssl = get_option('openssl')
 endif
-openssl = dependency('openssl', allow_fallback: false, required: require_system_openssl)
+openssl = dependency('openssl', allow_fallback: false, method: 'pkg-config', required: require_system_openssl)
 if not openssl.found() and not get_option('openssl').disabled() and not get_option('openssl_system').disable_auto_if(default_system_disabled).enable_auto_if(default_system_enabled).enabled()
     openssl_options = meson_base_options + {
         'asm': 'disabled',
     }
     openssl = subproject('openssl', default_options: openssl_options).get_variable('openssl_dep')
+    openssl_includes = []
+    foreach openssl_include : subproject('openssl', default_options: openssl_options).get_variable('include_directories')
+        openssl_includes += '-I' + meson.project_source_root() / 'subprojects' / ('openssl-' + openssl.version()) / openssl_include
+    endforeach
+    openssl_libs = ['-L' + meson.project_build_root() / 'subprojects' / ('openssl-' + openssl.version())]
     meson.override_dependency('openssl', openssl, static: true)
     if host_system not in ['windows', 'cygwin', 'darwin']
         atomic = meson.get_compiler('c').find_library('atomic', required: false)
@@ -146,6 +151,9 @@ if not openssl.found() and not get_option('openssl').disabled() and not get_opti
             global_dependencies += atomic
         endif
     endif
+elif openssl.found()
+    openssl_includes = ['-I' + openssl.get_variable(pkgconfig: 'includedir')]
+    openssl_libs = ['-L' + openssl.get_variable(pkgconfig: 'libdir')]
 endif
 have_openssl = openssl.found()
 if have_openssl
@@ -1188,10 +1196,21 @@ if not ruby.found()
         ruby_external_cflags += libffi_includes
         ruby_external_ldflags += libffi_libs
     endif
+    have_ruby_openssl = have_openssl and get_option('ruby_openssl').allowed()
+    if have_ruby_openssl
+        if openssl.type_name() == 'internal'
+            ruby_internal_cflags += openssl_includes
+            ruby_internal_ldflags += openssl_libs
+        else
+            ruby_external_cflags += openssl_includes
+            ruby_external_ldflags += openssl_libs
+        endif
+    endif
     ruby_options = meson_base_options + {
         'cflags': run_command(quotetool, ruby_internal_cflags + ruby_external_cflags, check: true).stdout().strip(),
         'cppflags': run_command(quotetool, ruby_internal_cflags + ruby_external_cflags, check: true).stdout().strip(),
-        'ldflags': run_command(quotetool, ruby_internal_ldflags + ruby_external_ldflags, check: true).stdout().strip()
+        'ldflags': run_command(quotetool, ruby_internal_ldflags + ruby_external_ldflags, check: true).stdout().strip(),
+        'openssl': have_ruby_openssl ? 'enabled' : 'disabled',
     }
     ruby = subproject('ruby-' + get_option('mri_version'), default_options: ruby_options).get_variable('ruby')
     ruby_build_dir = subproject('ruby-' + get_option('mri_version'), default_options: ruby_options).get_variable('ruby_build_dir')

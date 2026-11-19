@@ -323,6 +323,9 @@ endif
 if openal.type_name() == 'internal'
     summary('PulseAudio', have_pulseaudio, bool_yn: true)
 endif
+if ruby.type_name() == 'internal'
+    summary('Ruby OpenSSL extension', have_ruby_openssl, bool_yn: true)
+endif
 summary('License', gplv3_features.length() != 0 ? 'GPL-3.0-or-later' : 'GPL-2.0-or-later')
 if gplv3_features.length() != 0
     summary('Enabled features requiring GPLv3', gplv3_features)
