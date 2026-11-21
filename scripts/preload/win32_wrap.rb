@@ -655,19 +655,126 @@ module Win32API_Impl
       end
     end
 
-    # Encoding-aware wide/narrow char conversion (codepage
-    # tables, WideCharToMultiByte, MultiByteToWideChar) is
-    # Ruby 1.9+ only. Encoding::*, force_encoding, byteslice,
-    # getbyte/setbyte, and kw-arg encode(invalid: :replace) are
-    # all 1.9-or-later. Lives in win32_wrap_encoding.rb, loaded
-    # conditionally from binding-mri.cpp's preload list when
-    # RUBY_API_VERSION_MAJOR/MINOR >= 1.9. On the Ruby 1.8
-    # dispatch path (mkxp18-merged.o, RGSS1/RGSS2) those classes
-    # are absent. Games that probe for them via
-    # `Win32API_Impl::Kernel32.const_defined?(:WideCharToMultiByte)`
-    # will see false and Win32API#call falls through to the
-    # TOLERATE_ERRORS branch (logs + returns 0). RGSS1/RGSS2
-    # games typically don't exercise UTF-16 paths anyway.
+    # Ruby 1.8 has no code page tables, so these read every code page
+    # as UTF-8. win32_wrap_encoding.rb replaces them on Ruby 1.9 and
+    # later.
+    def self.to_utf16(text, _codepage)
+      units = []
+      utf8_codes(text).each do |code|
+        if code > 0xFFFF
+          code -= 0x10000
+          units << (0xD800 + (code >> 10)) << (0xDC00 + (code & 0x3FF))
+        else
+          units << code
+        end
+      end
+      units.pack('v*')
+    end
+
+    # A byte that does not start a valid sequence becomes U+FFFD, and the
+    # next byte starts a new character, as Win32 does.
+    def self.utf8_codes(text)
+      bytes = text.unpack('C*')
+      codes = []
+      i = 0
+      while i < bytes.size
+        lead = bytes[i]
+        size = if lead < 0x80 then 1
+               elsif lead >= 0xF0 then 4
+               elsif lead >= 0xE0 then 3
+               elsif lead >= 0xC2 then 2
+               end
+        code = size && utf8_code(bytes[i, size])
+        if code
+          codes << code
+          i += size
+        else
+          codes << 0xFFFD
+          i += 1
+        end
+      end
+      codes
+    end
+
+    def self.utf8_code(char)
+      code = char.pack('C*').unpack('U').first
+      code unless code > 0x10FFFF || (code >= 0xD800 && code < 0xE000)
+    rescue ArgumentError
+      nil
+    end
+
+    def self.from_utf16(wide, _codepage)
+      units = wide.unpack('v*')
+      codes = []
+      i = 0
+      while i < units.size
+        high = units[i]
+        low = units[i + 1]
+        if high >= 0xD800 && high < 0xDC00 && low && low >= 0xDC00 && low < 0xE000
+          codes << (0x10000 + ((high - 0xD800) << 10) + (low - 0xDC00))
+          i += 2
+        else
+          codes << (high >= 0xD800 && high < 0xE000 ? 0xFFFD : high)
+          i += 1
+        end
+      end
+      codes.pack('U*')
+    end
+
+    # A count of -1 reads up to the first null unit and keeps it, as
+    # Win32 does.
+    def self.unit_slice(buf, count, unit)
+      return '' unless buf.is_a?(String)
+
+      if count == -1
+        bytes = buf.unpack('C*')
+        size = 0
+        while size + unit <= bytes.size
+          size += unit
+          break if bytes[size - unit, unit] == [0] * unit
+        end
+      else
+        size = [count * unit, buf.bytesize].min
+        size = 0 if size < 0
+      end
+      buf.unpack("a#{size}").first
+    end
+
+    # With no buffer or a size of 0, the caller asks how many bytes the
+    # result needs.
+    def self.write_buffer(dst, data, size)
+      return data.bytesize unless dst.is_a?(String) && size > 0
+
+      count = [data.bytesize, dst.bytesize, size].min
+      if defined?(Encoding)
+        # On Ruby 1.9 and later, dst[i] = b replaces the i-th character,
+        # not the i-th byte.
+        count.times { |i| dst.setbyte(i, data.getbyte(i)) }
+      else
+        memcpy_string(dst, data[0, count])
+      end
+      count
+    end
+
+    class MultiByteToWideChar
+      def call(args)
+        codepage, _flags, source, count, dst, dst_units = args
+        text = Win32API_Impl::Kernel32.unit_slice(source, count.to_i, 1)
+        wide = Win32API_Impl::Kernel32.to_utf16(text, codepage.to_i)
+        Win32API_Impl::Kernel32.write_buffer(dst, wide, dst_units.to_i * 2) / 2
+      end
+    end
+    MultiByteToWideCharA = MultiByteToWideChar
+
+    class WideCharToMultiByte
+      def call(args)
+        codepage, _flags, source, count, dst, dst_size = args
+        wide = Win32API_Impl::Kernel32.unit_slice(source, count.to_i, 2)
+        text = Win32API_Impl::Kernel32.from_utf16(wide, codepage.to_i)
+        Win32API_Impl::Kernel32.write_buffer(dst, text, dst_size.to_i)
+      end
+    end
+    WideCharToMultiByteA = WideCharToMultiByte
   end
 
   # There is no Windows registry here, so a key lookup must fail the
@@ -802,52 +909,18 @@ module Win32API_Impl
 
       private
 
-      # 1.8-safe ASCII-only fallbacks. The real UTF-16 /
-      # Encoding-aware versions live in win32_wrap_encoding.rb
-      # and override these via `private` redef in a reopened
-      # class when Ruby >= 1.9.
-      #
-      # Caveat: RPG Maker's MCI bridge passes args as UTF-16LE
-      # (every other byte is 0 for ASCII-range commands).
-      # These stubs handle the ASCII subset by stripping the
-      # zero bytes. Non-ASCII Unicode passes through corrupted.
-      # Acceptable for RGSS1/RGSS2 games that ran on Windows
-      # ANSI codepages with ASCII-only MCI commands like
-      # "open foo type AVIVideo alias X".
-
       def decode_utf16(buf)
-        return '' unless buf.is_a?(String) && !buf.empty?
+        return '' unless buf.is_a?(String)
 
-        # Unpack as 16-bit little-endian unsigned shorts.
-        # `unpack("v*")` works on every Ruby version we
-        # target. For ASCII-range chars the high byte is 0
-        # and the low byte is the codepoint.
-        codes = buf.unpack('v*')
-        out = ''
-        codes.each do |c|
-          break if c.zero?
-
-          # ASCII-range: encode as single byte.
-          # Beyond ASCII: substitute '?' (we lack proper
-          # Unicode-to-bytes conversion on 1.8).
-          out << (c < 128 ? c.chr : '?')
-        end
-        out
+        Win32API_Impl::Kernel32.from_utf16(buf, 65_001).split("\0", 2).first || ''
       end
 
       def write_response(buf, text)
-        return unless buf.is_a?(String) && buf.length >= 2
+        return unless buf.is_a?(String)
 
-        # Encode `text` as UTF-16LE bytes manually. On 1.8
-        # all `length`/`[i] = b.chr` ops work on byte
-        # strings (no encoding system). Pad with NUL.
-        utf16 = ''
-        text.each_byte { |b| utf16 << b.chr << 0.chr }
-        utf16 << 0.chr << 0.chr # null terminator
-        limit = [utf16.length, buf.length].min
-        limit.times { |i| buf[i] = utf16[i, 1] }
-        # Null-pad the rest of the buffer.
-        (limit...buf.length).each { |i| buf[i] = "\0" }
+        size = buf.bytesize
+        wide = Win32API_Impl::Kernel32.to_utf16(text, 65_001)
+        Win32API_Impl::Kernel32.write_buffer(buf, wide + ("\0" * size), size)
       end
     end
     MciSendStringA = MciSendStringW

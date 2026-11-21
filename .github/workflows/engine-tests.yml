@@ -170,8 +170,7 @@ jobs:
             --suite fast_forward_clock.rb --fast-forward 4
 
       # legacy_methods_off.rb goes first, because the other suites
-      # load code that it must not see. The win32 text stand-ins load
-      # only on Ruby 1.9 and later.
+      # load code that it must not see.
       - name: Suites on Ruby 3.1
         if: env.TEST == 'true' && !cancelled() && steps.host.outcome == 'success'
         run: |
@@ -192,7 +191,7 @@ jobs:
         if: env.TEST == 'true' && !cancelled() && steps.host.outcome == 'success'
         run: |
           tools/run-engine-tests.sh --no-build --timeout 300 --ruby 18 \
-            --suite ruby_compat.rb --suite safe_write.rb --suite save_repair.rb --suite dir_chdir.rb \
+            --suite ruby_compat.rb --suite win32_wrap_encoding.rb --suite safe_write.rb --suite save_repair.rb --suite dir_chdir.rb \
             --suite gc_clone.rb --suite full_screen_resizer.rb --suite rgss_ruby_version.rb --suite case_lookup.rb
 
       # In stress mode each allocation collects the whole heap, so the
