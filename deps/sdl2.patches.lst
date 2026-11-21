@@ -2,3 +2,4 @@
 # See deps/sdl2/PATCHES.md.
 sdl2/ios.patch
 sdl2/macos-no-opengl.patch
+sdl2/macos.patch

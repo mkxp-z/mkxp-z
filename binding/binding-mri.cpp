@@ -108,6 +108,7 @@ int rb_stack_growup_p(volatile VALUE *addr);
 #include <SDL_filesystem.h>
 #include <SDL_loadso.h>
 #include <SDL_messagebox.h>
+#include <SDL_misc.h>
 #include <SDL_power.h>
 
 static void mriBindingExecute();
@@ -1345,51 +1346,20 @@ RB_METHOD_GUARD(mkxpStringToUTF8Bang) {
 }
 RB_METHOD_GUARD_END
 
-#ifdef __APPLE__
-#define OPENCMD "open "
-#define OPENARGS "--args"
-#elif defined(__linux__)
-#define OPENCMD "xdg-open "
-#define OPENARGS ""
-#else
-#define OPENCMD "start /b \"launch\" "
-#define OPENARGS ""
-#endif
-
 RB_METHOD_GUARD(mkxpLaunch) {
     RB_UNUSED_PARAM;
     
-    VALUE cmdname, args;
+    VALUE target, args;
     
-    rb_scan_args(argc, argv, "11", &cmdname, &args);
-    SafeStringValue(cmdname);
+    rb_scan_args(argc, argv, "11", &target, &args);
+    SafeStringValue(target);
+    const char *url = StringValueCStr(target);
     
-    std::string command(OPENCMD);
-    command += "\""; command += RSTRING_PTR(cmdname); command += "\"";
+    if (SDL_strncasecmp(url, "http://", 7) != 0 && SDL_strncasecmp(url, "https://", 8) != 0)
+        throw Exception(Exception::MKXPError, "System.launch opens only http and https links, not \"%s\"", url);
     
-    if (args != RUBY_Qnil) {
-#ifndef __linux__
-        command += " ";
-        command += OPENARGS;
-        Check_Type(args, T_ARRAY);
-        
-        for (int i = 0; i < RARRAY_LEN(args); i++) {
-            VALUE arg = rb_ary_entry(args, i);
-            SafeStringValue(arg);
-            
-            if (RSTRING_LEN(arg) <= 0)
-                continue;
-            
-            command += " ";
-            command += RSTRING_PTR(arg);
-        }
-#else
-        Debug() << command << ":" << "Arguments are not supported with xdg-open. Ignoring.";
-#endif
-    }
-    
-    // system() is unavailable on iOS
-    throw Exception(Exception::MKXPError, "system() not available on iOS for \"%s\"", RSTRING_PTR(cmdname));
+    if (SDL_OpenURL(url) != 0)
+        Debug() << "System.launch could not open" << url << ":" << SDL_GetError();
     
     return RUBY_Qnil;
 }

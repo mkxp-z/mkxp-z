@@ -65,6 +65,7 @@ game, which is the only way to reach the drawing code.
 | `case_lookup.rb` | The file, IO, and folder calls find a file or a folder whose name is in another case, also a file that the game made after launch, on each bundled interpreter. |
 | `gc_clone.rb` | A clone keeps its instance variables and singleton methods, and a copied array and an object from `ObjectSpace.each_object` stay alive, through a collection, on each bundled interpreter. |
 | `gc_stress.rb` | Code like a game (clones of the playing sounds, battles) keeps its objects in GC stress mode, on each bundled interpreter. It runs in its own launch. |
+| `system_launch.rb` | `System.launch` opens an http or https link and the game goes on, it returns for a link that is not UTF-8, and it raises for a program name. The step checks that Safari opens. It runs in its own launch, because the link sends the app to the background. |
 | `rgss_ruby_version.rb` | Ruby 1.8 and 1.9 report `RUBY_VERSION` 1.8.1 and 1.9.2, as RPG Maker XP, VX, and VX Ace do. |
 | `win32_wrap_encoding.rb` | Text conversion in the Win32API stand-ins, on each bundled interpreter. |
 | `full_screen_resizer.rb` | The full-screen option of Pokemon Essentials gets a screen the size of the game from the Win32API stand-ins, on each bundled interpreter. |

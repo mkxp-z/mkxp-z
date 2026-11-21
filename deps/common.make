@@ -277,7 +277,7 @@ $(LIBDIR)/libSDL2.a: $(SOURCES)/sdl2/$(CMAKE_BUILDDIR)/Makefile
 	cd $(SOURCES)/sdl2/$(CMAKE_BUILDDIR); \
 	make -j$(NPROC); make install
 
-$(SOURCES)/sdl2/.patched-$(SDK_TAG): $(PATCHES)/sdl2.patches.lst $(PATCHES)/sdl2/ios.patch $(PATCHES)/sdl2/macos-no-opengl.patch
+$(SOURCES)/sdl2/.patched-$(SDK_TAG): $(PATCHES)/sdl2.patches.lst $(PATCHES)/sdl2/ios.patch $(PATCHES)/sdl2/macos-no-opengl.patch $(PATCHES)/sdl2/macos.patch
 	cd $(SOURCES)/sdl2; \
 	git checkout -- . 2>/dev/null; \
 	$(PATCHES)/apply-sdl-patches.sh $(SOURCES)/sdl2 --patches-root $(PATCHES); \

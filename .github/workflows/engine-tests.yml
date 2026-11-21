@@ -144,6 +144,19 @@ jobs:
           path: ~/.ccache
           key: ccache-engine-tests-iphonesimulator-${{ github.sha }}
 
+      # The simulator plays sound through the default output of the
+      # runner. At the first launch, "Apple Virtual Sound Device" does
+      # not keep time: a MIDI track was at 0 or at 4.8 seconds after
+      # 1.5 seconds. "Null Audio Device" keeps time.
+      - name: Play sound through the null device
+        if: env.TEST == 'true' && steps.host.outcome == 'success'
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: |
+          brew install switchaudio-osx
+          SwitchAudioSource -t output -s "Null Audio Device"
+
       # Each launch runs its suites one after the other, and each
       # suite reports on its own. The suite steps run also when an
       # earlier one fails, so one run shows every failure.
@@ -204,6 +217,23 @@ jobs:
             tools/run-engine-tests.sh --no-build --timeout 300 --ruby "$ruby" --suite gc_stress.rb || STATUS=1
           done
           exit "$STATUS"
+
+      # The link opens Safari and sends the test host to the background,
+      # so no suite can run after it in the same launch.
+      - name: System.launch suite
+        if: env.TEST == 'true' && !cancelled() && steps.host.outcome == 'success'
+        run: |
+          xcrun simctl terminate booted com.apple.mobilesafari 2>/dev/null || true
+          tools/run-engine-tests.sh --no-build --timeout 300 --suite system_launch.rb
+          # simctl sends no event when an app starts.
+          for _ in $(seq 30); do
+            if xcrun simctl spawn booted launchctl list | grep -q com.apple.mobilesafari; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Safari did not open the link of System.launch."
+          exit 1
 
       # The legacy-method support only runs for scripts that come out
       # of Scripts.rxdata, so this suite needs a game folder of its
