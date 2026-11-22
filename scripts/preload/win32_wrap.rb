@@ -519,17 +519,30 @@ module Win32API_Impl
 
     # Full-screen scripts size the canvas from the screen once, and the
     # engine already scales the canvas to the window. A screen the size
-    # of the game keeps the canvas the size of the game.
+    # of the game keeps the canvas the size of the game. Pokemon
+    # Essentials v17 divides the screen by the game size plus its screen
+    # border, and rounds down. A screen without the border gives a factor
+    # below 1: 0.5 in v17, 0 in Pokemon Sage.
     class GetSystemMetrics
       SM_CXSCREEN = 0
       SM_CYSCREEN = 1
 
       def call(args)
         case args[0]
-        when SM_CXSCREEN then Graphics.width
-        when SM_CYSCREEN then Graphics.height
+        when SM_CXSCREEN then Graphics.width + (2 * essentials_border[0])
+        when SM_CYSCREEN then Graphics.height + (2 * essentials_border[1])
         else 0
         end
+      end
+
+      private
+
+      def essentials_border
+        return [0, 0] unless defined?(::BORDERWIDTH) && defined?(::BORDERHEIGHT)
+        return [0, 0] unless $PokemonSystem.respond_to?(:border) && $PokemonSystem.border == 1
+        return [0, 0] if defined?(::FULLSCREENBORDERCROP) && ::FULLSCREENBORDERCROP
+
+        [::BORDERWIDTH, ::BORDERHEIGHT]
       end
     end
 

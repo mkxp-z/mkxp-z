@@ -14,7 +14,7 @@ unless defined?(EngineTest)
   eval(File.read(harness_path), TOPLEVEL_BINDING, harness_path) # rubocop:disable Security/Eval
 end
 
-EngineTest.suite('full-screen-resizer', 2)
+EngineTest.suite('full-screen-resizer', 3)
 
 EngineTest.load_preloads(%w[windows_fs platform_compat pokemon_compat win32_wrap])
 
@@ -88,9 +88,32 @@ EngineTest.test('full screen keeps the game size with no border') do
   EngineTest.assert_equal([1.0, 0.0, 0.0], essentials_full_screen(0), 'factor and offsets')
 end
 
-EngineTest.test('full screen with the border has a factor above 0') do
-  factor, = essentials_full_screen(1)
-  EngineTest.assert(factor > 0, "factor #{factor}")
+def with_border
+  Object.const_set(:BORDERWIDTH, 80)
+  Object.const_set(:BORDERHEIGHT, 80)
+  $PokemonSystem = Struct.new(:border).new(1)
+  yield
+ensure
+  Object.send(:remove_const, :BORDERWIDTH)
+  Object.send(:remove_const, :BORDERHEIGHT)
+  $PokemonSystem = nil
+end
+
+EngineTest.test('full screen with the border on keeps the game size') do
+  with_border do
+    EngineTest.assert_equal([1.0, 80.0, 80.0], essentials_full_screen(1), 'factor and offsets')
+  end
+end
+
+# Pokemon Sage: whole-number factors.
+EngineTest.test('full screen with the border on has a whole-number factor of 1') do
+  with_border do
+    screen_width, screen_height = Win32API.fillScreen
+    factor = [screen_width / (Graphics.width + 160), screen_height / (Graphics.height + 160)].min
+    EngineTest.assert_equal(1, factor, 'factor')
+    offsets = [(screen_width - Graphics.width) / 2, (screen_height - Graphics.height) / 2]
+    EngineTest.assert_equal([80, 80], offsets, 'offsets')
+  end
 end
 
 EngineTest.finish
