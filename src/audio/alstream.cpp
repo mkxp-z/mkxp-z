@@ -31,7 +31,6 @@
 #include "sdl-util.h"
 #include "debugwriter.h"
 
-#include <SDL_mutex.h>
 #include <SDL_thread.h>
 #include <SDL_timer.h>
 
@@ -53,8 +52,6 @@ ALStream::ALStream(LoopMode loopMode,
 	for (int i = 0; i < STREAM_BUFS; ++i)
 		alBuf[i] = AL::Buffer::gen();
 
-	pauseMut = SDL_CreateMutex();
-
 	threadName = std::string("al_stream (") + threadId + ")";
 }
 
@@ -67,8 +64,6 @@ ALStream::~ALStream()
 
 	for (int i = 0; i < STREAM_BUFS; ++i)
 		AL::Buffer::del(alBuf[i]);
-
-	SDL_DestroyMutex(pauseMut);
 }
 
 void ALStream::close()
@@ -308,26 +303,22 @@ void ALStream::startStream(double offset)
 
 void ALStream::pauseStream()
 {
-	SDL_LockMutex(pauseMut);
+	std::lock_guard<std::mutex> guard(pauseMut);
 
 	if (AL::Source::getState(alSrc) != AL_PLAYING)
 		preemptPause = true;
 	else
 		AL::Source::pause(alSrc);
-
-	SDL_UnlockMutex(pauseMut);
 }
 
 void ALStream::resumeStream()
 {
-	SDL_LockMutex(pauseMut);
+	std::lock_guard<std::mutex> guard(pauseMut);
 
 	if (preemptPause)
 		preemptPause = false;
 	else
 		AL::Source::play(alSrc);
-
-	SDL_UnlockMutex(pauseMut);
 }
 
 void ALStream::checkStopped()

@@ -26,6 +26,7 @@
 #include "alstream.h"
 #include "sdl-util.h"
 
+#include <mutex>
 #include <string>
 
 struct AudioStream
@@ -81,8 +82,10 @@ struct AudioStream
 	bool noResumeStop;
 
 	ALStream stream;
-	SDL_mutex *streamMut;
+private:
+	std::recursive_mutex streamMut;
 
+public:
 	/* Fade out */
 	struct
 	{
@@ -135,8 +138,8 @@ struct AudioStream
 	/* Any access to this classes 'stream' member,
 	 * whether state query or modification, must be
 	 * protected by a 'lock'/'unlock' pair */
-	void lockStream();
-	void unlockStream();
+	void lock();
+	void unlock();
 
 	void setVolume(VolumeType type, float value);
 	float getVolume(VolumeType type);
