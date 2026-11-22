@@ -22,6 +22,9 @@
 #ifndef GRAPHICS_H
 #define GRAPHICS_H
 
+#include <mutex>
+
+#include "sharedstate.h"
 #include "util.h"
 
 class Scene;
@@ -111,7 +114,6 @@ private:
 	GraphicsPrivate *p;
 };
 
-#define GFX_LOCK shState->graphics().lock()
-#define GFX_UNLOCK shState->graphics().unlock()
+#define GFX_GUARD std::lock_guard<Graphics> _gfx_guard(shState->graphics())
 
 #endif // GRAPHICS_H
