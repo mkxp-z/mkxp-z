@@ -142,10 +142,8 @@ RB_METHOD_GUARD(MiniFFI_initialize) {
                  RARRAY_LEN(ary_imports), MINIFFI_MAX_ARGS);
     
     rb_iv_set(self, "_imports", ary_imports);
-    int ex;
-    if (NIL_P(exports)) {
-        ex = _T_VOID;
-    } else {
+    int ex = _T_VOID;
+    if (!NIL_P(exports)) {
         SafeStringValue(exports);
         switch (*RSTRING_PTR(exports)) {
             case 'V':
