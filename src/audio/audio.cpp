@@ -141,6 +141,14 @@ struct AudioPrivate
 				{
 					/* ME has ended while fading OUT BGM. -> FadeInBGM */
 					me.unlockStream();
+
+					for (auto track : bgmTracks)
+					{
+						track->lockStream();
+						track->extPaused = false;
+						track->unlockStream();
+					}
+
 					meWatch.state = BgmFadingIn;
 
 					break;
