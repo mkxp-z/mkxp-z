@@ -179,10 +179,11 @@ return Data_Wrap_Struct(klass, 0, free, 0);                                \
 
 #endif
 
-#if RAPI_FULL < 220
-#define rb_utf8_str_new_cstr rb_str_new2
-#define rb_utf8_str_new rb_str_new
-#endif
+/* Equivalent to `rb_str_new()` if `mkxpUsingRuby18Encoding()` is true, otherwise equivalent to `rb_utf8_str_new()` */
+VALUE mkxp_str_new(const char *str, long size_in_bytes_not_including_null_terminator);
+
+/* Equivalent to `rb_str_new_cstr()` if `mkxpUsingRuby18Encoding()` is true, otherwise equivalent to `rb_utf8_str_new_cstr()` */
+VALUE mkxp_str_new_cstr(const char *str);
 
 // end
 
@@ -717,5 +718,7 @@ DEF_GFX_PROP(Klass, double, PropName, float, rb_float_new)
 
 #define DEF_GFX_PROP_B(Klass, PropName)                                            \
 DEF_GFX_PROP(Klass, bool, PropName, bool, rb_bool_new)
+
+bool mkxpUsingRuby18Encoding();
 
 #endif // BINDING_UTIL_H
