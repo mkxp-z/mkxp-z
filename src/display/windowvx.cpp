@@ -415,8 +415,8 @@ struct WindowVXPrivate
 
 		const Vec2i sideLen(geo.w - 16*2, geo.h - 16*2);
 
-		bool drawSidesLR = sideLen.x > 0;
-		bool drawSidesTB = sideLen.y > 0;
+		bool drawSidesLR = sideLen.y > 0;
+		bool drawSidesTB = sideLen.x > 0;
 
 		base.borderQuads = 0;
 		base.borderQuads += 4; /* 4 corners */
