@@ -947,7 +947,7 @@ jobs:
             endian = '${{ matrix.endian }}'
           EOF
           echo '--------------------------------------------------------------------------------'
-          if [ '${{ matrix.arch }}' = 'i386' ]
+          if [ '${{ matrix.arch }}' = 'amd64' ] || [ '${{ matrix.arch }}' = 'i386' ]
           then
             # We get "ld.lld: error: undefined hidden symbol: memcmp" somehow if LTO is enabled
             lto=false

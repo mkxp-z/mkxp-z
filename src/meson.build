@@ -414,6 +414,7 @@ if not sdl2.found() or not sdl2main.found()
             angle_vulkan = 'auto'
         endif
         angle = subproject('angle', default_options: meson_base_options + {
+            'b_ndebug': 'if-release', # Prevents ANGLE from trying to use validation layers in release builds, since ANGLE may emit warnings if the user's computer doesn't have validation layers installed when ANGLE tries to use them, and if validation layers are installed, they tend to reduce performance when enabled
             'direct3d11': angle_direct3d11,
             'metal': angle_metal,
             'null': angle_null,
