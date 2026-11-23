@@ -30,10 +30,14 @@ endif
 
 baseruby = run_command(subproject('common').get_variable('quotetool'), (meson.version().version_compare('>=1.10.0') ? find_program('ruby').cmd_array() : find_program('ruby')), check: true).stdout().strip()
 
+openssl = dependency('openssl', required: get_option('openssl'))
+have_openssl = openssl.found()
+
 ruby_deps = [
     dependency('libffi', required: true),
     dependency('yaml-0.1', required: true),
     dependency('zlib', required: true),
+    openssl,
 ]
 
 ruby = declare_dependency(
@@ -58,7 +62,7 @@ ruby = declare_dependency(
                 '--with-soname=ruby',
                 '--disable-shared',
                 '--disable-install-doc',
-                '--with-out-ext=openssl,readline,dbm,gdbm',
+                have_openssl ? '--with-out-ext=readline,dbm,gdbm' : '--with-out-ext=openssl,readline,dbm,gdbm',
                 '--with-static-linked-ext',
                 '--disable-rubygems',
                 '--without-gmp',
@@ -182,6 +186,11 @@ ruby = declare_dependency(
         meson.project_build_root() / 'build' / 'ext' / 'monitor' / 'monitor.a',
         meson.project_build_root() / 'build' / 'ext' / 'nkf' / 'nkf.a',
         meson.project_build_root() / 'build' / 'ext' / 'objspace' / 'objspace.a',
+        have_openssl
+            ? [
+                meson.project_build_root() / 'build' / 'ext' / 'openssl' / 'openssl.a',
+            ]
+            : [],
         meson.project_build_root() / 'build' / 'ext' / 'pathname' / 'pathname.a',
         meson.project_build_root() / 'build' / 'ext' / 'psych' / 'psych.a',
         meson.project_build_root() / 'build' / 'ext' / 'racc' / 'cparse' / 'cparse.a',
