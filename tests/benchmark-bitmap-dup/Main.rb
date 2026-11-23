@@ -1,19 +1,12 @@
 # Test suite for mkxp-z.
 # Copyright 2023-2024 Splendide Imaginarius.
 # License GPLv2+.
-#
-# Run the suite via the "customScript" field in mkxp.json.
-
-def dump(bmp, spr, desc)
-	spr.bitmap = bmp
-	Graphics.wait(1)
-end
 
 src = Bitmap.new("Graphics/Pictures/lime")
 
 starttime = System.uptime
 
-for i in 1..100 do
+for i in 1..5 do
 	dst1 = src.dup
 	dst2 = src.dup
 	dst3 = src.dup

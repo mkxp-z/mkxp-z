@@ -1,0 +1,25 @@
+# Allows the Direct3D 11 device type to be changed using the environment variable ANGLE_D3D11_DEVICE_TYPE.
+# This is used to select the WARP software renderer for CI tests.
+
+--- a/src/libANGLE/renderer/d3d/d3d11/Renderer11.cpp
++++ b/src/libANGLE/renderer/d3d/d3d11/Renderer11.cpp
+@@ -85,7 +85,7 @@
+ #ifndef ANGLE_SKIP_DXGI_1_2_CHECK
+ #    define ANGLE_SKIP_DXGI_1_2_CHECK 0
+ #endif
+-
++#include "common/system_utils.h"
+ namespace rx
+ {
+ 
+@@ -478,8 +478,8 @@ Renderer11::Renderer11(egl::Display *display)
+             }
+         }
+ 
+-        EGLint requestedDeviceType = static_cast<EGLint>(attributes.get(
+-            EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE, EGL_PLATFORM_ANGLE_DEVICE_TYPE_HARDWARE_ANGLE));
++        std::string requestedDeviceTypeString = angle::GetEnvironmentVar("ANGLE_D3D11_DEVICE_TYPE");
++        EGLint requestedDeviceType = requestedDeviceTypeString.empty() ? EGL_PLATFORM_ANGLE_DEVICE_TYPE_HARDWARE_ANGLE : std::stoi(requestedDeviceTypeString);
+         switch (requestedDeviceType)
+         {
+             case EGL_PLATFORM_ANGLE_DEVICE_TYPE_HARDWARE_ANGLE:

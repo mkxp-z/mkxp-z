@@ -1,0 +1,331 @@
+name: Test
+
+on:
+  push:
+    branches: ['dev', 'autobuild']
+    paths-ignore: ['*.md', '*.json', '*.png']
+  pull_request:
+    branches: ['dev', 'autobuild']
+    paths-ignore: ['*.md', '*.json', '*.png']
+  workflow_dispatch:
+
+env:
+  GCOVR_VERSION: 8.7
+
+jobs:
+  test-windows:
+    name: Windows
+    runs-on: windows-latest
+    steps:
+      - name: Install dependencies
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: mingw64
+          install: >-
+            bison mingw-w64-x86_64-ccache mingw-w64-x86_64-cmake diffutils mingw-w64-x86_64-git make mingw-w64-x86_64-meson mingw-w64-x86_64-ruby
+            mingw-w64-x86_64-python-lxml mingw-w64-x86_64-python-pip
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-7zip mingw-w64-x86_64-curl
+
+      - name: Install gcovr
+        shell: msys2 {0}
+        run: |
+          python -m pip install --break-system-packages gcovr==$GCOVR_VERSION
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Restore from cache
+        if: true
+        uses: actions/cache/restore@v6
+        with:
+          path: ccache
+          key: test-windows-
+          restore-keys: test-windows-
+
+      - name: Set up ccache
+        shell: msys2 {0}
+        run: |
+          ccache --set-config=cache_dir="$(pwd)/ccache"
+          ccache --set-config=compiler_check=content
+          ccache --set-config=max_size=768MiB
+          ccache --zero-stats
+
+      - name: Configure
+        shell: msys2 {0}
+        run: |
+          meson setup -Db_coverage=true build
+
+      - name: Build
+        id: build
+        shell: msys2 {0}
+        run: |
+          exit_code=0
+          CLICOLOR_FORCE=1 ninja -C build -v || exit_code=$?
+          echo exit-code=$exit_code >> "$GITHUB_OUTPUT"
+          date -u +time=%Y-%m-%dT%H:%M:%SZ >> "$GITHUB_OUTPUT"
+
+      - name: Save to cache
+        if: true
+        uses: actions/cache/save@v6
+        with:
+          path: ccache
+          key: test-windows-${{ github.sha }}-${{ steps.build.outputs.time }}
+
+      - name: Show ccache statistics
+        shell: msys2 {0}
+        run: |
+          ccache --show-stats --verbose
+
+      - name: Check build status
+        shell: msys2 {0}
+        run: |
+          exit ${{ steps.build.outputs.exit-code }}
+
+      - name: Install Mesa
+        shell: msys2 {0}
+        run: |
+          # Mesa provides opengl32.dll on Windows, which we can install just by putting a symbolic link to it and its dependency libgallium_wgl.dll in the same directory as our executable.
+          # However, Mesa does not provide vulkan-1.dll (Vulkan loader). That's provided by the operating system.
+          # To make the operating system's vulkan-1.dll use Mesa, we edit the Windows registry to register Mesa as a Vulkan driver.
+          cd build
+          curl --retry 5 -Lo mesa.7z https://github.com/pal1000/mesa-dist-win/releases/download/26.2.4/mesa3d-26.2.4-release-mingw.7z
+          echo '36a30a04d8cab6e2bea2d3c747c326d15024d9711dd80f45ef97ac6f2c3c5086 *mesa.7z' | sha256sum -c
+          7z x -omesa mesa.7z
+          ln -s "$(realpath mesa/x64/opengl32.dll)" opengl32.dll
+          ln -s "$(realpath mesa/x64/libgallium_wgl.dll)" libgallium_wgl.dll
+          reg add 'HKLM\Software\Khronos\Vulkan\Drivers' -v "$(cygpath -w "$(realpath mesa/x64/lvp_icd.x86_64.json)")" -t REG_DWORD -d 0 -f
+
+      - name: Test
+        shell: msys2 {0}
+        run: |
+          export GALLIUM_DRIVER=llvmpipe # Force Mesa to use software rendering when we are targeting OpenGL, since we don't have a graphics card
+          export ANGLE_D3D11_DEVICE_TYPE=12811 # Make ANGLE use the WARP software renderer when targeting Direct3D 11, since we don't have a graphics card and ANGLE will fail to initialize its Direct3D 11 backend if we don't specifically choose a software renderer when there's no graphics card
+          meson test -C build --maxfail 10 --print-errorlogs
+
+      - name: Generate JSON coverage report
+        shell: msys2 {0}
+        run: |
+          python -m gcovr build --json coverage.json
+
+      - name: Upload JSON coverage report
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-json-windows
+          path: coverage.json
+
+  test-linux:
+    name: Linux
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y bison ccache cmake diffutils git make meson ruby
+          sudo apt install -y python3-pip
+          sudo apt install -y gcc g++
+          sudo apt install -y libegl-mesa0 libglx-mesa0 mesa-libgallium mesa-vulkan-drivers # Mesa
+          sudo apt install -y libegl1 libgl1 libgles2 libglx0 libopengl0 # libglvnd (provides the OpenGL .so files, delegates to Mesa for the actual implementation of OpenGL)
+          sudo apt install -y libvulkan1 # Vulkan loader (provides libvulkan.so, delegates to Mesa for the actual implementation of Vulkan)
+          sudo apt install -y libx11-6 libx11-xcb1 libxcursor1 libxext6 libxfixes3 libxrandr2 xvfb # X11
+
+      - name: Install gcovr
+        run: |
+          python3 -m pip install --break-system-packages gcovr==$GCOVR_VERSION
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Restore from cache
+        if: true
+        uses: actions/cache/restore@v6
+        with:
+          path: ccache
+          key: test-linux-
+          restore-keys: test-linux-
+
+      - name: Set up ccache
+        run: |
+          ccache --set-config=cache_dir="$(pwd)/ccache"
+          ccache --set-config=compiler_check=content
+          ccache --set-config=max_size=768MiB
+          ccache --zero-stats
+
+      - name: Configure
+        run: |
+          meson setup -Db_coverage=true build
+
+      - name: Build
+        id: build
+        run: |
+          exit_code=0
+          CLICOLOR_FORCE=1 ninja -C build -v || exit_code=$?
+          echo exit-code=$exit_code >> "$GITHUB_OUTPUT"
+          date -u +time=%Y-%m-%dT%H:%M:%SZ >> "$GITHUB_OUTPUT"
+
+      - name: Save to cache
+        if: true
+        uses: actions/cache/save@v6
+        with:
+          path: ccache
+          key: test-linux-${{ github.sha }}-${{ steps.build.outputs.time }}
+
+      - name: Show ccache statistics
+        run: |
+          ccache --show-stats --verbose
+
+      - name: Check build status
+        run: |
+          exit ${{ steps.build.outputs.exit-code }}
+
+      - name: Test
+        run: |
+          xvfb-run meson test -C build --maxfail 10 --print-errorlogs
+
+      - name: Generate JSON coverage report
+        run: |
+          python3 -m gcovr build --json coverage.json
+
+      - name: Upload JSON coverage report
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-json-linux
+          path: coverage.json
+
+  test-macos:
+    name: macOS
+    runs-on: macos-latest
+    steps:
+      - name: Install dependencies
+        run: |
+          brew install -q bison ccache cmake diffutils git make meson ruby
+          python -m ensurepip
+          brew install -q mesa # Mesa
+          brew install -q vulkan-loader # Vulkan loader (provides libvulkan.dylib, delegates to Mesa for the actual implementation of Vulkan)
+
+      - name: Install gcovr
+        run: |
+          python -m pip install --break-system-packages gcovr==$GCOVR_VERSION
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Restore from cache
+        if: true
+        uses: actions/cache/restore@v6
+        with:
+          path: ccache
+          key: test-macos-
+          restore-keys: test-macos-
+
+      - name: Set up ccache
+        run: |
+          ccache --set-config=cache_dir="$(pwd)/ccache"
+          ccache --set-config=compiler_check=content
+          ccache --set-config=max_size=768MiB
+          ccache --zero-stats
+
+      - name: Configure
+        run: |
+          meson setup -Db_coverage=true build
+
+      - name: Build
+        id: build
+        run: |
+          exit_code=0
+          CLICOLOR_FORCE=1 ninja -C build -v || exit_code=$?
+          echo exit-code=$exit_code >> "$GITHUB_OUTPUT"
+          date -u +time=%Y-%m-%dT%H:%M:%SZ >> "$GITHUB_OUTPUT"
+
+      - name: Save to cache
+        if: true
+        uses: actions/cache/save@v6
+        with:
+          path: ccache
+          key: test-macos-${{ github.sha }}-${{ steps.build.outputs.time }}
+
+      - name: Show ccache statistics
+        run: |
+          ccache --show-stats --verbose
+
+      - name: Check build status
+        run: |
+          exit ${{ steps.build.outputs.exit-code }}
+
+      - name: Test
+        run: |
+          export DYLD_LIBRARY_PATH="$(brew --prefix vulkan-loader)/lib:$DYLD_LIBRARY_PATH" # Add Vulkan loader to the dynamic linker path since it's not there by default
+          meson test -C build --maxfail 10 --print-errorlogs
+
+      - name: Generate JSON coverage report
+        run: |
+          python -m gcovr build --json coverage.json
+
+      - name: Upload JSON coverage report
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-json-macos
+          path: coverage.json
+
+  merge-coverage-reports:
+    name: Merge coverage reports
+    runs-on: ubuntu-26.04
+    needs:
+      - test-windows
+      - test-linux
+      - test-macos
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y git python3-pip
+
+      - name: Install gcovr
+        run: |
+          python3 -m pip install --break-system-packages gcovr==$GCOVR_VERSION
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Download Windows JSON coverage report
+        uses: actions/download-artifact@v8
+        with:
+          name: coverage-json-windows
+          path: coverage-json-windows
+
+      - name: Download Linux JSON coverage report
+        uses: actions/download-artifact@v8
+        with:
+          name: coverage-json-linux
+          path: coverage-json-linux
+
+      - name: Download macOS JSON coverage report
+        uses: actions/download-artifact@v8
+        with:
+          name: coverage-json-macos
+          path: coverage-json-macos
+
+      - name: Generate JSON coverage report
+        run: |
+          python3 -m gcovr \
+            -a coverage-json-windows/coverage.json \
+            -a coverage-json-linux/coverage.json \
+            -a coverage-json-macos/coverage.json \
+            --json coverage.json
+
+      - name: Upload JSON coverage report
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-json
+          path: coverage.json
+
+      - name: Generate HTML coverage report
+        run: |
+          mkdir coverage-html
+          python3 -m gcovr -a coverage.json --html-nested coverage-html/index.html
+
+      - name: Upload HTML coverage report
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-html
+          path: coverage-html

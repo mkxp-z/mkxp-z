@@ -6,15 +6,15 @@
 # to the public domain worldwide.
 # https://creativecommons.org/publicdomain/zero/1.0/
 
-# Run the suite via the "customScript" field in mkxp.json.
-
-require_relative '../../scripts/preload/kgl2_wrap'
+require_relative 'scripts/preload/kgl2_wrap'
 
 if Win32API.new('System/KGL2.klib', 'kglVersion', '', 'i').call != 200
   System.puts 'Version should be 200'
   exit 1
 end
 Win32API.new('System/KGL2.klib', 'kglLoad', '', 'i').call
+
+all_tests_passed = true
 
 dst_bitmap = Bitmap.new(1, 1)
 dst_bitmap.fill_rect(dst_bitmap.rect, Color.new(0x12, 0x34, 0x56, 0x78))
@@ -27,6 +27,7 @@ if status == 1 && dst_bitmap.raw_data == String.new(dst_expected_data, encoding:
   System.puts 'Test 1 ok'
 else
   System.puts 'Test 1 failed'
+  all_tests_passed = false
 end
 
 dst_bitmap = Bitmap.new(1, 2)
@@ -40,6 +41,7 @@ if status == 112 && dst_bitmap.raw_data == String.new(dst_expected_data, encodin
   System.puts 'Test 2 ok'
 else
   System.puts 'Test 2 failed'
+  all_tests_passed = false
 end
 
-exit
+exit(all_tests_passed ? 0 : 1)

@@ -6,15 +6,15 @@
 # to the public domain worldwide.
 # https://creativecommons.org/publicdomain/zero/1.0/
 
-# Run the suite via the "customScript" field in mkxp.json.
-
-require_relative '../../scripts/preload/kgl2_wrap'
+require_relative 'scripts/preload/kgl2_wrap'
 
 if Win32API.new('System/KGL2.klib', 'kglVersion', '', 'i').call != 200
   System.puts 'Version should be 200'
   exit 1
 end
 Win32API.new('System/KGL2.klib', 'kglLoad', '', 'i').call
+
+all_tests_passed = true
 
 dst_bitmap = Bitmap.new(1, 1)
 dst_bitmap.fill_rect(dst_bitmap.rect, Color.new(0xff, 0xff, 0xff, 0xff))
@@ -32,6 +32,7 @@ if setting_status == 1 && bind_status == 1 && shader_status == 1 && dst_bitmap.r
   System.puts 'Test 1 ok'
 else
   System.puts 'Test 1 failed'
+  all_tests_passed = false
 end
 
 dst_bitmap = Bitmap.new(1, 1)
@@ -50,6 +51,7 @@ if setting_status == 1 && bind_status == 1 && shader_status == 1 && dst_bitmap.r
   System.puts 'Test 2 ok'
 else
   System.puts 'Test 2 failed'
+  all_tests_passed = false
 end
 
 dst_bitmap = Bitmap.new(1, 1)
@@ -68,6 +70,7 @@ if setting_status == 1 && bind_status == 1 && shader_status == 1 && dst_bitmap.r
   System.puts 'Test 3 ok'
 else
   System.puts 'Test 3 failed'
+  all_tests_passed = false
 end
 
 dst_bitmap = Bitmap.new(1, 1)
@@ -86,6 +89,7 @@ if setting_status == 1 && bind_status == 1 && shader_status == 1 && dst_bitmap.r
   System.puts 'Test 4 ok'
 else
   System.puts 'Test 4 failed'
+  all_tests_passed = false
 end
 
 dst_bitmap = Bitmap.new(1, 1)
@@ -105,6 +109,7 @@ if setting_status == 1 && bind_status == 1 && shader_status == 1 && [String.new(
   System.puts 'Test 5 ok'
 else
   System.puts 'Test 5 failed'
+  all_tests_passed = false
 end
 
 dst_bitmap = Bitmap.new(1, 1)
@@ -123,6 +128,7 @@ if setting_status == 1 && bind_status == 1 && shader_status == 1 && dst_bitmap.r
   System.puts 'Test 6 ok'
 else
   System.puts 'Test 6 failed'
+  all_tests_passed = false
 end
 
 dst_bitmap = Bitmap.new(1, 1)
@@ -141,6 +147,7 @@ if setting_status == 1 && bind_status == 1 && shader_status == 1 && dst_bitmap.r
   System.puts 'Test 7 ok'
 else
   System.puts 'Test 7 failed'
+  all_tests_passed = false
 end
 
 dst_bitmap = Bitmap.new(2, 2)
@@ -162,6 +169,7 @@ if setting_status == 1 && bind_status == 1 && shader_status == 1 && dst_bitmap.r
   System.puts 'Test 8 ok'
 else
   System.puts 'Test 8 failed'
+  all_tests_passed = false
 end
 
 dst_bitmap = Bitmap.new(2, 2)
@@ -183,6 +191,7 @@ if setting_status == 1 && bind_status == 1 && shader_status == 1 && dst_bitmap.r
   System.puts 'Test 9 ok'
 else
   System.puts 'Test 9 failed'
+  all_tests_passed = false
 end
 
 dst_bitmap = Bitmap.new(2, 2)
@@ -204,6 +213,7 @@ if setting_status == 1 && bind_status == 1 && shader_status == 1 && dst_bitmap.r
   System.puts 'Test 10 ok'
 else
   System.puts 'Test 10 failed'
+  all_tests_passed = false
 end
 
 dst_bitmap = Bitmap.new(2, 2)
@@ -225,6 +235,7 @@ if setting_status == 1 && bind_status == 1 && shader_status == 1 && dst_bitmap.r
   System.puts 'Test 11 ok'
 else
   System.puts 'Test 11 failed'
+  all_tests_passed = false
 end
 
 dst_bitmap = Bitmap.new(2, 2)
@@ -246,6 +257,7 @@ if setting_status == 1 && bind_status == 1 && shader_status == 1 && dst_bitmap.r
   System.puts 'Test 12 ok'
 else
   System.puts 'Test 12 failed'
+  all_tests_passed = false
 end
 
 dst_bitmap = Bitmap.new(2, 2)
@@ -267,6 +279,7 @@ if setting_status == 1 && bind_status == 1 && shader_status == 1 && dst_bitmap.r
   System.puts 'Test 13 ok'
 else
   System.puts 'Test 13 failed'
+  all_tests_passed = false
 end
 
 dst_bitmap = Bitmap.new(2, 2)
@@ -288,6 +301,7 @@ if setting_status == 1 && bind_status == 1 && shader_status == 1 && dst_bitmap.r
   System.puts 'Test 14 ok'
 else
   System.puts 'Test 14 failed'
+  all_tests_passed = false
 end
 
 dst_bitmap = Bitmap.new(2, 2)
@@ -309,6 +323,7 @@ if setting_status == 1 && bind_status == 1 && shader_status == 111 && dst_bitmap
   System.puts 'Test 15 ok'
 else
   System.puts 'Test 15 failed'
+  all_tests_passed = false
 end
 
 dst_bitmap = Bitmap.new(2, 2)
@@ -330,6 +345,7 @@ if setting_status == 1 && bind_status == 1 && shader_status == 111 && dst_bitmap
   System.puts 'Test 16 ok'
 else
   System.puts 'Test 16 failed'
+  all_tests_passed = false
 end
 
 dst_bitmap = Bitmap.new(3, 2)
@@ -351,6 +367,7 @@ if setting_status == 1 && bind_status == 1 && shader_status == 1 && dst_bitmap.r
   System.puts 'Test 17 ok'
 else
   System.puts 'Test 17 failed'
+  all_tests_passed = false
 end
 
 dst_bitmap = Bitmap.new(2, 3)
@@ -372,6 +389,7 @@ if setting_status == 1 && bind_status == 1 && shader_status == 1 && dst_bitmap.r
   System.puts 'Test 18 ok'
 else
   System.puts 'Test 18 failed'
+  all_tests_passed = false
 end
 
 dst_bitmap = Bitmap.new(2, 2)
@@ -395,6 +413,7 @@ if setting_status == 1 && bind_status == 1 && shader_status == 1 && dst_bitmap.r
   System.puts 'Test 19 ok'
 else
   System.puts 'Test 19 failed'
+  all_tests_passed = false
 end
 
 dst_bitmap = Bitmap.new(2, 2)
@@ -418,6 +437,7 @@ if setting_status == 1 && bind_status == 1 && shader_status == 1 && dst_bitmap.r
   System.puts 'Test 20 ok'
 else
   System.puts 'Test 20 failed'
+  all_tests_passed = false
 end
 
-exit
+exit(all_tests_passed ? 0 : 1)

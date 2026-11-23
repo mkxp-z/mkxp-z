@@ -51,7 +51,7 @@ std::string systemImpl::getUserName() {
     return std::string("unused");
 #else
     char ret[30];
-    char *username = getenv("USER");
+    char *username = SDL_getenv("USER");
     if (username)
         strncpy(ret, username, sizeof(ret));
     return std::string(ret);
