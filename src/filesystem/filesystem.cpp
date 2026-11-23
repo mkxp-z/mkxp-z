@@ -263,6 +263,10 @@ static const char *findExt(const char *filename) {
 }
 
 static void initReadOps(PHYSFS_File *handle, SDL_RWops &ops, bool freeOnClose) {
+  /* PhysFS passes each read to the kernel unless the handle has a
+   * buffer, and the stb_vorbis of SDL_sound reads one byte at a time. */
+  PHYSFS_setBuffer(handle, 16 * 1024);
+
   ops.size = SDL_RWopsSize;
   ops.seek = SDL_RWopsSeek;
   ops.read = SDL_RWopsRead;

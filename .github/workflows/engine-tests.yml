@@ -168,7 +168,8 @@ jobs:
         run: |
           tools/run-engine-tests.sh --no-build --timeout 300 \
             --suite fast_forward_clock.rb --suite frozen_screen_rate.rb --suite mega_bitmap.rb \
-            --suite file_lookup_order.rb --suite midi_playback.rb --suite pause_clock.rb
+            --suite file_lookup_order.rb --suite midi_playback.rb --suite pause_clock.rb \
+            --suite sound_effect_read.rb
 
       - name: File lookup suites without the path cache
         if: env.TEST == 'true' && !cancelled() && steps.host.outcome == 'success'
