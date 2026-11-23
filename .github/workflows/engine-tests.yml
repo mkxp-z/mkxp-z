@@ -167,8 +167,8 @@ jobs:
         if: env.TEST == 'true' && !cancelled() && steps.host.outcome == 'success'
         run: |
           tools/run-engine-tests.sh --no-build --timeout 300 \
-            --suite fast_forward_clock.rb --suite mega_bitmap.rb --suite file_lookup_order.rb \
-            --suite midi_playback.rb --suite pause_clock.rb
+            --suite fast_forward_clock.rb --suite frozen_screen_rate.rb --suite mega_bitmap.rb \
+            --suite file_lookup_order.rb --suite midi_playback.rb --suite pause_clock.rb
 
       - name: File lookup suites without the path cache
         if: env.TEST == 'true' && !cancelled() && steps.host.outcome == 'success'
@@ -176,11 +176,11 @@ jobs:
           tools/run-engine-tests.sh --no-build --timeout 300 \
             --suite file_lookup_order.rb --suite case_lookup.rb --config '{"pathCache":false}'
 
-      - name: Fast-forward suite at four times the speed
+      - name: Fast-forward suites at four times the speed
         if: env.TEST == 'true' && !cancelled() && steps.host.outcome == 'success'
         run: |
           tools/run-engine-tests.sh --no-build --timeout 300 \
-            --suite fast_forward_clock.rb --fast-forward 4
+            --suite fast_forward_clock.rb --suite frozen_screen_rate.rb --fast-forward 4
 
       # legacy_methods_off.rb goes first, because the other suites
       # load code that it must not see.

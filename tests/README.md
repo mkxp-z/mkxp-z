@@ -60,6 +60,7 @@ game, which is the only way to reach the drawing code.
 | `dir_chdir.rb` | `Dir.chdir` with nil, an empty path, or a NUL raises or stays in the folder as RGSS does, on each bundled interpreter. |
 | `legacy_methods_off.rb` | The legacy methods stay away when the transform is off. |
 | `fast_forward_clock.rb` | `System.uptime` runs at the fast-forward speed, and the average frame rate does not. |
+| `frozen_screen_rate.rb` | `Graphics.update` on a frozen screen takes one frame and counts one frame, also under fast-forward and after a slow step. |
 | `pause_clock.rb` | The clocks and the average frame rate leave out a pause, a game dialog, and a cancelled pause. `tests/host/host.m` reads each dialog text as a command. |
 | `file_lookup_order.rb` | A path without an extension loads the first matching file in name order, and a folder path loads no file. |
 | `case_lookup.rb` | The file, IO, and folder calls find a file or a folder whose name is in another case, also a file that the game made after launch, on each bundled interpreter. |
@@ -118,11 +119,12 @@ as a launcher does. CI runs `file_lookup_order.rb` and
 `case_lookup.rb` with and without `--config '{"pathCache":false}'`.
 
 `--fast-forward <n>` starts the engine at that fast-forward
-multiplier. Run `fast_forward_clock.rb` with and without it:
+multiplier. Run `fast_forward_clock.rb` and `frozen_screen_rate.rb`
+with and without it:
 
 ```sh
-tools/run-engine-tests.sh --suite fast_forward_clock.rb --no-build
-tools/run-engine-tests.sh --suite fast_forward_clock.rb --fast-forward 4 --no-build
+tools/run-engine-tests.sh --suite fast_forward_clock.rb --suite frozen_screen_rate.rb --no-build
+tools/run-engine-tests.sh --suite fast_forward_clock.rb --suite frozen_screen_rate.rb --fast-forward 4 --no-build
 ```
 
 `--game` picks the game folder. `build-test-host-ios.sh --game <dir>`
