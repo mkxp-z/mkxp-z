@@ -31,6 +31,7 @@
 #include "eventthread.h"
 #include "filesystem.h"
 #include "framerateaverage.h"
+#include "frametimes.h"
 #include "gl-fun.h"
 #include "gl-util.h"
 #include "glstate.h"
@@ -409,6 +410,8 @@ struct FPSLimiter {
     }
     
     void resetFrameAdjust() { adj.resetFlag = true; }
+
+    double frameSeconds() const { return (double)tpf / tickFreq; }
     
     /* If we're more than a full frame's worth
      * of ticks behind the ideal timestep,
@@ -509,6 +512,7 @@ struct GraphicsPrivate {
     bool integerLastMileScaling;
     
     FrameRateAverage frameRateAverage;
+    FrameTimes frameTimes;
     SDL_mutex *avgFPSLock;
 
     SDL_mutex *glResourceLock;
@@ -961,9 +965,32 @@ struct GraphicsPrivate {
         getActiveScriptBinding()->terminate();
     }
     
-    void swapGLBuffer() {
+    void markFrameTime(FrameTimes::Part part) {
+        if (mkxp_debugLogEnabled())
+            frameTimes.mark(part, mkxp_engineSeconds());
+    }
+
+    void frameTimeDone(bool drawn) {
+        if (!mkxp_debugLogEnabled())
+            return;
+
+        std::string report =
+            frameTimes.frameDone(fpsLimiter.frameSeconds(), drawn);
+        if (!report.empty())
+            mkxp_debugLog("INFO", "frame-times", report.c_str());
+    }
+
+    void delayFrame() {
+        markFrameTime(FrameTimes::Draw);
         fpsLimiter.delay();
+        markFrameTime(FrameTimes::Sleep);
+    }
+
+    void swapGLBuffer() {
+        delayFrame();
         graphicsGL_SwapWindow(threadData->window);
+        markFrameTime(FrameTimes::Swap);
+        frameTimeDone(true);
 
         ++frameCount;
 
@@ -1260,6 +1287,7 @@ struct GraphicsPrivate {
     void framePresented(TEXFBO &presented) {
         checkPause(presented);
         keepPresentedFrame(presented);
+        markFrameTime(FrameTimes::Draw);
     }
 };
 
@@ -1319,6 +1347,7 @@ void Graphics::update(bool checkForShutdown) {
         shState->checkShutdown();
         return;
     }
+    p->markFrameTime(FrameTimes::Scripts);
     p->threadData->rqWindowAdjust.wait();
     double now = shState->runTime();
     if (p->last_update > 0) {
@@ -1347,7 +1376,8 @@ void Graphics::update(bool checkForShutdown) {
     if (p->fpsLimiter.frameSkipRequired()) {
         if (p->useFrameSkip) {
             /* Skip frame */
-            p->fpsLimiter.delay();
+            p->delayFrame();
+            p->frameTimeDone(false);
             ++p->frameCount;
             p->threadData->ethread->notifyFrame();
             
@@ -1377,6 +1407,8 @@ void Graphics::update(bool checkForShutdown) {
             bool render = (p->presentSkipCounter % multiplier) == 0;
             p->presentSkipCounter++;
             if (!render) {
+                p->markFrameTime(FrameTimes::Draw);
+                p->frameTimeDone(false);
                 ++p->frameCount;
                 p->threadData->ethread->notifyFrame();
                 /* This branch skips the draw and the swap, so there is
@@ -1405,6 +1437,7 @@ void Graphics::update(bool checkForShutdown) {
 }
 
 void Graphics::freeze() {
+    p->markFrameTime(FrameTimes::Scripts);
     p->frozen = true;
     
     p->checkShutDownReset();
@@ -1412,9 +1445,11 @@ void Graphics::freeze() {
     
     /* Capture scene into frozen buffer */
     p->compositeToBuffer(p->frozenScene);
+    p->markFrameTime(FrameTimes::Draw);
 }
 
 void Graphics::transition(int duration, const char *filename, int vague) {
+    p->markFrameTime(FrameTimes::Scripts);
     p->checkSyncLock();
     
     if (!p->frozen)
@@ -1526,6 +1561,7 @@ void Graphics::transition(int duration, const char *filename, int vague) {
     delete transMap;
     
     p->frozen = false;
+    p->markFrameTime(FrameTimes::Draw);
 }
 
 void Graphics::frameReset() {p->fpsLimiter.resetFrameAdjust();}
@@ -1559,6 +1595,7 @@ double Graphics::averageFrameRate() {
 }
 
 void Graphics::wait(int duration) {
+    p->markFrameTime(FrameTimes::Scripts);
     for (int i = 0; i < duration; ++i) {
         p->checkShutDownReset();
         p->redrawScreen();
@@ -1567,6 +1604,7 @@ void Graphics::wait(int duration) {
 }
 
 void Graphics::fadeout(int duration) {
+    p->markFrameTime(FrameTimes::Scripts);
     FBO::unbind();
     
     float curr = p->brightness;
@@ -1584,6 +1622,7 @@ void Graphics::fadeout(int duration) {
 }
 
 void Graphics::fadein(int duration) {
+    p->markFrameTime(FrameTimes::Scripts);
     FBO::unbind();
     
     float curr = p->brightness;
