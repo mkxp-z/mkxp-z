@@ -347,16 +347,23 @@ def kappatalize(s)
 	return s
 end
 
+$win32Called = {}
+
 class Win32API
 	NATIVE_ON_WINDOWS = true unless const_defined?("NATIVE_ON_WINDOWS")
 	TOLERATE_ERRORS = true unless const_defined?("TOLERATE_ERRORS")
 	LOG_NATIVE = false unless const_defined?("LOG_NATIVE")
 
+	FINALIZER = lambda do |id|
+		$win32Called.delete(id)
+	end
+
 	alias_method :mkxp_native_initialize, :initialize
 	def initialize(dll, func, *args)
+		ObjectSpace.define_finalizer(self, FINALIZER)
+
 		@dll = dll
 		@func = func
-		@called = false
 
 		dll = kappatalize(dll.chomp(".dll"))
 		func = kappatalize(func)
@@ -395,8 +402,8 @@ class Win32API
 		end
 
 		if TOLERATE_ERRORS
-			System.puts("[Win32API] [#{@dll}:#{@func}] #{args.to_s}") if !@called
-			@called = true
+			System.puts("[Win32API] [#{@dll}:#{@func}] #{args.to_s}") unless $win32Called[self.object_id]
+			$win32Called[self.object_id] = true
 			return 0
 		else
 			raise RuntimeError, "[Win32API] [#{@dll}:#{@func}] #{args.to_s}"
