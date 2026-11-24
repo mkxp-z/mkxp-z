@@ -72,6 +72,10 @@ bool systemImpl::isRosetta() {
     return false;
 }
 
+bool systemImpl::isBundle() {
+    return false;
+}
+
 systemImpl::WineHostType systemImpl::getRealHostType() {
 #if MKXPZ_PLATFORM == MKXPZ_PLATFORM_WINDOWS
     void *ntdll = SDL_LoadObject("ntdll.dll");
