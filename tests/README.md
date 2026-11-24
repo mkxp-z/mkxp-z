@@ -63,6 +63,7 @@ game, which is the only way to reach the drawing code.
 | `frozen_screen_rate.rb` | `Graphics.update` on a frozen screen takes one frame and counts one frame, also under fast-forward and after a slow step. |
 | `pause_clock.rb` | The clocks and the average frame rate leave out a pause, a game dialog, and a cancelled pause. `tests/host/host.m` reads each dialog text as a command. |
 | `sound_effect_read.rb` | The first play of a sound effect reads its file in blocks, not one byte for each read. |
+| `text_draw.rb` | A text of `draw_text` is in the bitmap for the next call and on the screen, in the order of the calls, and many texts on drawn pixels in one frame take the time of the texts on cleared pixels. |
 | `file_lookup_order.rb` | A path without an extension loads the first matching file in name order, and a folder path loads no file. |
 | `case_lookup.rb` | The file, IO, and folder calls find a file or a folder whose name is in another case, also a file that the game made after launch, on each bundled interpreter. |
 | `gc_clone.rb` | A clone keeps its instance variables and singleton methods, and a copied array and an object from `ObjectSpace.each_object` stay alive, through a collection, on each bundled interpreter. |

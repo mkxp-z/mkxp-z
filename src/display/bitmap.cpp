@@ -238,6 +238,12 @@ struct BitmapPrivate
      * ourselves the expensive blending calculation */
     pixman_region16_t tainted;
 
+    /* A text draw onto drawn pixels costs two render passes. ANGLE on Metal
+     * ends a command buffer after each 16 passes, and the thread then waits
+     * for the GPU. */
+    std::vector<IntRect> heldTextRects;
+    IntRect heldTextBox;
+
     // For high-resolution texture replacement.
     Bitmap *selfHires;
     Bitmap *selfLores;
@@ -419,7 +425,24 @@ struct BitmapPrivate
         
         self->modified();
     }
+
+    bool holdText(const SDL_Surface *text, IntRect textRect, IntRect destRect);
+    void drawOwnHeldText();
+    void dropHeldText();
 };
+
+static BitmapPrivate *heldTextOwner = 0;
+
+/* The held texts of the owner, blended together. A row has the width of the
+ * owner. Each pixel is zero while no bitmap holds text. */
+static std::vector<uint32_t> heldTextPixels;
+
+static const size_t heldTextMaxPixels = 2048 * 2048;
+
+/* A draw of the held texts copies and uploads the box around them. On an
+ * iPhone 13 Pro, a box of 300 000 pixels takes less time than one more draw,
+ * and a box of 1 000 000 pixels takes more. */
+static const int heldTextMaxBoxPixels = 640 * 480;
 
 struct BitmapOpenHandler : FileSystem::OpenHandler
 {
@@ -751,6 +774,7 @@ Bitmap::Bitmap(void *pixeldata, int width, int height)
 Bitmap::Bitmap(const Bitmap &other, int frame)
 {
     other.guardDisposed();
+    other.p->drawOwnHeldText();
     other.ensureNonMega();
     if (frame > -2) other.ensureAnimated();
     
@@ -957,6 +981,7 @@ DEF_ATTR_RD_SIMPLE(Bitmap, Hires, Bitmap*, p->selfHires)
 
 void Bitmap::setHires(Bitmap *hires) {
     guardDisposed();
+    p->drawOwnHeldText();
 
     Debug() << "BUG: High-res Bitmap setHires not fully implemented, expect bugs";
     hires->setLores(this);
@@ -1079,9 +1104,150 @@ static bool shrinkRects(int &sourcePos, int &sourceLen, const int &sBitmapLen,
     return ret || sourceLen == 0 || destLen == 0;
 }
 
+/* Must give the pixels of shader/bitmapBlit.frag at full opacity */
+static inline void blendPixel(uint8_t *dest, const uint8_t *source)
+{
+    if (dest[3] == 0 || source[3] == 255)
+    {
+        memcpy(dest, source, 4);
+        return;
+    }
+    
+    if (source[3] == 0)
+        return;
+    
+    float co1 = source[3] / 255.0f;
+    float co2 = dest[3] / 255.0f * (1.0f - co1);
+    float alpha = co1 + co2;
+    
+    for (int i = 0; i < 3; ++i)
+        dest[i] = (co1 * source[i] + co2 * dest[i]) / alpha + 0.5f;
+    
+    dest[3] = alpha * 255.0f + 0.5f;
+}
+
+bool BitmapPrivate::holdText(const SDL_Surface *text, IntRect textRect, IntRect destRect)
+{
+    if (destRect.w <= 0 || destRect.h <= 0)
+        return false;
+    
+    if (shrinkRects(textRect.x, textRect.w, text->w, destRect.x, destRect.w, gl.width) ||
+        shrinkRects(textRect.y, textRect.h, text->h, destRect.y, destRect.h, gl.height))
+        return true;
+    
+    /* Text on cleared pixels needs no blend, and it is apart from each held
+     * text, because a held text counts as drawn pixels. Without
+     * GL_EXT_unpack_subimage, an upload of the box sends the whole
+     * heldTextPixels. */
+    if (!::gl.unpack_subimage || (size_t) gl.width * gl.height > heldTextMaxPixels ||
+        !touchesTaintedArea(destRect))
+        return false;
+    
+    IntRect box = destRect;
+    if (heldTextOwner == this)
+    {
+        int left = std::min(heldTextBox.x, destRect.x);
+        int top = std::min(heldTextBox.y, destRect.y);
+        int right = std::max(heldTextBox.x + heldTextBox.w, destRect.x + destRect.w);
+        int bottom = std::max(heldTextBox.y + heldTextBox.h, destRect.y + destRect.h);
+        box = IntRect(left, top, right - left, bottom - top);
+    }
+    
+    if (heldTextOwner != this || box.w * box.h > heldTextMaxBoxPixels)
+    {
+        Bitmap::drawHeldText();
+        
+        size_t pixels = (size_t) gl.width * gl.height;
+        if (heldTextPixels.size() < pixels)
+            heldTextPixels.resize(pixels);
+        
+        heldTextOwner = this;
+        box = destRect;
+    }
+    
+    for (int y = 0; y < destRect.h; ++y)
+    {
+        const uint8_t *source = (const uint8_t*) text->pixels + (textRect.y + y) * text->pitch + textRect.x * 4;
+        uint8_t *dest = (uint8_t*) &heldTextPixels[(size_t) (destRect.y + y) * gl.width + destRect.x];
+        
+        for (int x = 0; x < destRect.w; ++x)
+            blendPixel(dest + x * 4, source + x * 4);
+    }
+    
+    heldTextBox = box;
+    heldTextRects.push_back(destRect);
+    addTaintedArea(destRect);
+    onModified();
+    return true;
+}
+
+void BitmapPrivate::drawOwnHeldText()
+{
+    if (heldTextOwner == this)
+        Bitmap::drawHeldText();
+}
+
+void BitmapPrivate::dropHeldText()
+{
+    if (heldTextOwner == this)
+        heldTextOwner = 0;
+    
+    for (int y = heldTextBox.y; y < heldTextBox.y + heldTextBox.h; ++y)
+        memset(&heldTextPixels[(size_t) y * gl.width + heldTextBox.x], 0,
+               heldTextBox.w * sizeof(uint32_t));
+    
+    heldTextBox = IntRect();
+    heldTextRects.clear();
+}
+
+void Bitmap::drawHeldText()
+{
+    BitmapPrivate *p = heldTextOwner;
+    
+    if (!p)
+        return;
+    
+    heldTextOwner = 0;
+    
+    struct Drop
+    {
+        BitmapPrivate *p;
+        ~Drop() { p->dropHeldText(); }
+    } drop = { p };
+    
+    SDL_Surface *surf = SDL_CreateRGBSurfaceFrom
+    (heldTextPixels.data(), p->gl.width, p->gl.height, p->format->BitsPerPixel, p->gl.width * 4,
+     p->format->Rmask, p->format->Gmask, p->format->Bmask, p->format->Amask);
+    
+    if (!surf)
+        throw Exception(Exception::SDLError, "Error creating text surface: %s",
+                        SDL_GetError());
+    
+    Bitmap text(surf, nullptr, true);
+    
+    p->self->stretchBlt(p->heldTextBox, text, p->heldTextBox, 255, false, &p->heldTextRects);
+}
+
 void Bitmap::stretchBlt(IntRect destRect,
                         const Bitmap &source, IntRect sourceRect,
                         int opacity, bool smooth)
+{
+    guardDisposed();
+    
+    if (source.isDisposed())
+        return;
+    
+    p->drawOwnHeldText();
+    source.p->drawOwnHeldText();
+    stretchBlt(destRect, source, sourceRect, opacity, smooth, nullptr);
+}
+
+/* With parts, the caller recorded each part as drawn area, and the blend
+ * path draws only these parts of destRect */
+void Bitmap::stretchBlt(IntRect destRect,
+                        const Bitmap &source, IntRect sourceRect,
+                        int opacity, bool smooth,
+                        const std::vector<IntRect> *parts)
 {
     guardDisposed();
 
@@ -1391,7 +1557,6 @@ void Bitmap::stretchBlt(IntRect destRect,
             shader.setOpacity(normOpacity);
             
             Quad &quad = shState->gpQuad();
-            quad.setTexPosRect(sourceRect, destRect);
             quad.setColor(Vec4(1, 1, 1, normOpacity));
             
             p->bindFBO();
@@ -1400,7 +1565,21 @@ void Bitmap::stretchBlt(IntRect destRect,
             if (smooth)
                 TEX::setSmooth(true);
             
-            p->blitQuad(quad);
+            if (parts)
+            {
+                for (const IntRect &part : *parts)
+                {
+                    quad.setTexPosRect(IntRect(part.x - destRect.x + sourceRect.x,
+                                               part.y - destRect.y + sourceRect.y,
+                                               part.w, part.h), part);
+                    p->blitQuad(quad);
+                }
+            }
+            else
+            {
+                quad.setTexPosRect(sourceRect, destRect);
+                p->blitQuad(quad);
+            }
             
             p->popViewport();
             
@@ -1412,7 +1591,9 @@ void Bitmap::stretchBlt(IntRect destRect,
     if (blitTemp)
         SDL_FreeSurface(blitTemp);
     
-    p->addTaintedArea(destRect);
+    if (!parts)
+        p->addTaintedArea(destRect);
+    
     p->onModified();
 }
 
@@ -1426,6 +1607,7 @@ void Bitmap::fillRect(int x, int y,
 void Bitmap::fillRect(const IntRect &rect, const Vec4 &color)
 {
     guardDisposed();
+    p->drawOwnHeldText();
     
     GUARD_ANIMATED;
     
@@ -1476,6 +1658,7 @@ void Bitmap::gradientFillRect(const IntRect &rect,
                               bool vertical)
 {
     guardDisposed();
+    p->drawOwnHeldText();
     
     GUARD_MEGA;
     GUARD_ANIMATED;
@@ -1533,6 +1716,7 @@ void Bitmap::clearRect(int x, int y, int width, int height)
 void Bitmap::clearRect(const IntRect &rect)
 {
     guardDisposed();
+    p->drawOwnHeldText();
     
     GUARD_ANIMATED;
     
@@ -1561,6 +1745,7 @@ void Bitmap::clearRect(const IntRect &rect)
 void Bitmap::blur()
 {
     guardDisposed();
+    p->drawOwnHeldText();
     
     GUARD_MEGA;
     GUARD_ANIMATED;
@@ -1607,12 +1792,14 @@ void Bitmap::blur()
     
     shState->texPool().release(auxTex);
     
+    p->addTaintedArea(this->rect());
     p->onModified();
 }
 
 void Bitmap::radialBlur(int angle, int divisions)
 {
     guardDisposed();
+    p->drawOwnHeldText();
     
     GUARD_MEGA;
     GUARD_ANIMATED;
@@ -1708,12 +1895,14 @@ void Bitmap::radialBlur(int angle, int divisions)
     shState->texPool().release(p->gl);
     p->gl = newTex;
     
+    p->addTaintedArea(rect());
     p->onModified();
 }
 
 void Bitmap::clear()
 {
     guardDisposed();
+    p->dropHeldText();
     
     GUARD_ANIMATED;
     
@@ -1751,6 +1940,10 @@ static uint32_t &getPixelAt(SDL_Surface *surf, SDL_PixelFormat *form, int x, int
 Color Bitmap::getPixel(int x, int y) const
 {
     guardDisposed();
+    
+    /* bitmapGetPixel takes the graphics lock only for a bitmap that has no
+     * copy of its pixels on the CPU. A bitmap that holds text has no copy. */
+    p->drawOwnHeldText();
     
     GUARD_ANIMATED;
     
@@ -1836,6 +2029,7 @@ Color Bitmap::getPixel(int x, int y) const
 void Bitmap::setPixel(int x, int y, const Color &color)
 {
     guardDisposed();
+    p->drawOwnHeldText();
     
     GUARD_ANIMATED;
     
@@ -1901,6 +2095,7 @@ bool Bitmap::getRaw(void *output, int output_size)
     if (output_size != width()*height()*4) return false;
     
     guardDisposed();
+    p->drawOwnHeldText();
     
     if (hasHires()) {
         Debug() << "GAME BUG: Game is calling getRaw on low-res Bitmap; you may want to patch the game to improve graphics quality.";
@@ -1920,6 +2115,7 @@ bool Bitmap::getRaw(void *output, int output_size)
 void Bitmap::replaceRaw(void *pixel_data, int size)
 {
     guardDisposed();
+    p->drawOwnHeldText();
     
     GUARD_MEGA;
     
@@ -1944,6 +2140,7 @@ void Bitmap::replaceRaw(void *pixel_data, int size)
 void Bitmap::uploadCPURect(int x, int y, int w, int h)
 {
     guardDisposed();
+    p->drawOwnHeldText();
 
     /* Mega surfaces have no GPU texture; painting on them is valid
      * but there's nothing to sync. Callers that hold a mega-surface
@@ -2010,6 +2207,7 @@ void Bitmap::uploadCPURect(int x, int y, int w, int h)
 void Bitmap::saveToFile(const char *filename)
 {
     guardDisposed();
+    p->drawOwnHeldText();
     
     if (hasHires()) {
         Debug() << "GAME BUG: Game is calling saveToFile on low-res Bitmap; you may want to patch the game to improve graphics quality.";
@@ -2070,6 +2268,7 @@ void Bitmap::saveToFile(const char *filename)
 void Bitmap::hueChange(int hue)
 {
     guardDisposed();
+    p->drawOwnHeldText();
     
     GUARD_MEGA;
     GUARD_ANIMATED;
@@ -2584,7 +2783,14 @@ void Bitmap::drawText(const IntRect &rect, const char *str, int align)
     
     Bitmap txtBitmap(txtSurf, nullptr, true);
     bool smooth = squeeze != 1.0f;
-    stretchBlt(destRect, txtBitmap, sourceRect, 255, smooth);
+    
+    if (!smooth && p->holdText(txtSurf, sourceRect, destRect))
+        return;
+    
+    if (p->touchesTaintedArea(destRect))
+        p->drawOwnHeldText();
+    
+    stretchBlt(destRect, txtBitmap, sourceRect, 255, smooth, nullptr);
 }
 
 /* http://www.lemoda.net/c/utf8-to-ucs2/index.html */
@@ -2853,6 +3059,8 @@ int Bitmap::addFrame(Bitmap &source, int position)
 {
     guardDisposed();
     source.guardDisposed();
+    p->drawOwnHeldText();
+    source.p->drawOwnHeldText();
     
     GUARD_MEGA;
     
@@ -3140,6 +3348,8 @@ void Bitmap::assumeRubyGC()
 
 void Bitmap::releaseResources()
 {
+    p->dropHeldText();
+    
     if (p->selfHires && !p->assumingRubyGC) {
         delete p->selfHires;
     }

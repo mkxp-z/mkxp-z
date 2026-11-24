@@ -28,6 +28,8 @@
 
 #include "sigslot/signal.hpp"
 
+#include <vector>
+
 class Font;
 class ShaderBase;
 struct TEXFBO;
@@ -193,7 +195,14 @@ public:
 
     void assumeRubyGC();
 
+	static void drawHeldText();
+
 private:
+	void stretchBlt(IntRect destRect,
+	                const Bitmap &source, IntRect sourceRect,
+	                int opacity, bool smooth,
+	                const std::vector<IntRect> *parts);
+
 	void releaseResources();
 	sigslot::connection loresDispCon;
 	const char *klassName() const { return "bitmap"; }

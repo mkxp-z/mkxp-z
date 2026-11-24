@@ -154,6 +154,8 @@ public:
         const int w = geometry.rect.w;
         const int h = geometry.rect.h;
         
+        /* The slots of prepareDraw read bitmap textures */
+        Bitmap::drawHeldText();
         shState->prepareDraw();
         
         pp.startRender();
