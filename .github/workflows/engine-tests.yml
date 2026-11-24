@@ -183,6 +183,20 @@ jobs:
           tools/run-engine-tests.sh --no-build --timeout 300 \
             --suite fast_forward_clock.rb --suite frozen_screen_rate.rb --fast-forward 4
 
+      # A launcher can turn on high-res mode with
+      # framebufferScalingFactor alone, so each high-res copy has the
+      # size of its bitmap. A textureScalingFactor of 2 gives each
+      # pixel a block of 4.
+      - name: High-res suite
+        if: env.TEST == 'true' && !cancelled() && steps.host.outcome == 'success'
+        run: |
+          STATUS=0
+          for texture in 1 2; do
+            tools/run-engine-tests.sh --no-build --timeout 300 --suite hires_pixel.rb \
+              --config "{\"enableHires\":true,\"textureScalingFactor\":$texture,\"framebufferScalingFactor\":2}" || STATUS=1
+          done
+          exit "$STATUS"
+
       # legacy_methods_off.rb goes first, because the other suites
       # load code that it must not see.
       - name: Suites on Ruby 3.1
