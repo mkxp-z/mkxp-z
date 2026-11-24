@@ -171,11 +171,11 @@ jobs:
             --suite file_lookup_order.rb --suite midi_playback.rb --suite pause_clock.rb \
             --suite sound_effect_read.rb --suite text_draw.rb
 
-      - name: File lookup suites without the path cache
+      - name: File lookup suites without the path cache and with a missing patch folder
         if: env.TEST == 'true' && !cancelled() && steps.host.outcome == 'success'
         run: |
           tools/run-engine-tests.sh --no-build --timeout 300 \
-            --suite file_lookup_order.rb --suite case_lookup.rb --config '{"pathCache":false}'
+            --suite file_lookup_order.rb --suite case_lookup.rb --config '{"pathCache":false,"patches":["missing-patch"]}'
 
       - name: Fast-forward suites at four times the speed
         if: env.TEST == 'true' && !cancelled() && steps.host.outcome == 'success'

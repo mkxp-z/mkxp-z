@@ -429,7 +429,8 @@
 
     // Similar to the RTP option, except items are loaded before
     // the game archive and folder, for incremental game updates
-    // or modding. Same name and meaning as upstream mkxp-z.
+    // or modding. Same name and meaning as upstream mkxp-z, but
+    // a path that does not exist is skipped.
     // (default: none)
     //
     // "patches": [

@@ -131,7 +131,8 @@ struct Config {
     // before the game folder so their assets override the bundled
     // ones. Used for incremental updates and asset mods. Whole-file
     // replacement, matched by filename. Config key: `patches`,
-    // same name and meaning as upstream mkxp-z.
+    // same name and meaning as upstream mkxp-z, but a path that does
+    // not exist is skipped.
     std::vector<std::string> patches;
     // JoiPlay-style script text-patcher inputs. Each entry is a JSON
     // file with a top-level "rpgm" array of {key, value} objects.

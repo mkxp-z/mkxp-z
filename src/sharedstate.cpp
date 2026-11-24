@@ -42,6 +42,7 @@
 #include "patcher.h"
 #include "app_bridge.h"
 
+#include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string>
@@ -136,8 +137,19 @@ struct SharedStatePrivate
 
 		std::string archPath = config.execName + gameArchExt();
 
+		/* Some zip tools and cloud drives drop an empty folder, such
+		 * as the empty "patch" folder that Pokemon Rejuvenation ships. */
 		for (size_t i = 0; i < config.patches.size(); ++i)
-			fileSystem.addPath(config.patches[i].c_str());
+		{
+			const char *patch = config.patches[i].c_str();
+			if (access(patch, F_OK) != 0 && errno == ENOENT)
+			{
+				std::string msg = std::string("skipped the missing ") + patch;
+				mkxp_debugLog("WARN", "patches", msg.c_str());
+				continue;
+			}
+			fileSystem.addPath(patch);
+		}
 
 		/* Check if a game archive exists */
 		FILE *tmp = fopen(archPath.c_str(), "rb");
