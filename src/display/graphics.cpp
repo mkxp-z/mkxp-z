@@ -30,6 +30,7 @@
 #include "etc-internal.h"
 #include "eventthread.h"
 #include "filesystem.h"
+#include "framedeadline.h"
 #include "framerateaverage.h"
 #include "frametimes.h"
 #include "gl-fun.h"
@@ -393,11 +394,16 @@ struct FPSLimiter {
         if (toDelay < 0)
             toDelay = 0;
         
+        endFrameWork();
         delayTicks(toDelay);
         
         uint64_t now = lastTickCount = SDL_GetPerformanceCounter();
         int64_t diff = now - adj.last;
         adj.last = now;
+
+        /* With fast-forward, the frame adjustment below still brings
+         * the time between two calls to one full frame. */
+        startFrameWork(tpf / tickFreqNS / 4);
         
         /* Recalculate our temporal position
          * relative to the ideal timestep */
@@ -1395,12 +1401,8 @@ void Graphics::update(bool checkForShutdown) {
     // below), so logic advances Nx per visible frame while the
     // screen refreshes at the display's native rate.
     //
-    // This is the vsync-mode counterpart of the FPSLimiter::delay
-    // multiplier path. With syncToRefreshrate=true (iOS default) the
-    // limiter is `disabled`, so the divisor inside delay() never
-    // runs and pacing comes from eglSwapBuffers' Metal drawable
-    // wait. Skipping redrawScreen entirely here releases the Ruby
-    // thread without hitting that wait.
+    // Skipping redrawScreen here also skips the limiter and the wait
+    // for the Metal drawable in eglSwapBuffers.
     {
         int multiplier = mkxp_getFastForwardMultiplier();
         if (multiplier > 1) {

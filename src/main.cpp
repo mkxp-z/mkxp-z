@@ -267,7 +267,8 @@ int rgssThreadFun(void *userdata) {
    * unclassified threads on efficiency cores, and on A13-class
    * devices that alone holds heavy games well under their target
    * frame rate. Declare the thread user-interactive - it paces
-   * every visible frame - so it qualifies for performance cores. */
+   * every visible frame. That alone does not move it to the
+   * performance cores: see src/display/framedeadline.cpp. */
   pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
 #ifdef MKXPZ_BUILD_XCODE
   mkxp_debugLog("INFO", "main.cpp",
