@@ -317,7 +317,7 @@ struct FPSLimiter {
     uint64_t lastTickCount;
     
     /* ticks per frame */
-    int64_t tpf;
+    int64_t tpf = 0;
     
     /* Ticks per second */
     const uint64_t tickFreq;
@@ -343,7 +343,7 @@ struct FPSLimiter {
         bool resetFlag;
     } adj;
     
-    FPSLimiter(uint16_t desiredFPS)
+    FPSLimiter(int desiredFPS)
     : lastTickCount(SDL_GetPerformanceCounter()),
     tickFreq(SDL_GetPerformanceFrequency()), tickFreqMS(tickFreq / 1000),
     tickFreqNS((double)tickFreq / NS_PER_S), disabled(false) {
@@ -354,13 +354,17 @@ struct FPSLimiter {
         adj.resetFlag = false;
     }
     
-    void setDesiredFPS(uint16_t value) {
-        tpf = tickFreq / value;
+    void setDesiredFPS(int value) {
+        // Some games set Graphics.frame_rate on each frame.
+        const int64_t newTpf = tickFreq / std::max(value, 1);
+        if (newTpf == tpf)
+            return;
+        tpf = newTpf;
         if (mkxp_debugLogEnabled()) {
             char msg[80];
             std::snprintf(msg, sizeof(msg),
-                          "FPSLimiter::setDesiredFPS(%u) -> tpf=%lld",
-                          (unsigned)value, (long long)tpf);
+                          "FPSLimiter::setDesiredFPS(%d) -> tpf=%lld",
+                          value, (long long)tpf);
             mkxp_debugLog("INFO", "fps-limiter", msg);
         }
     }
