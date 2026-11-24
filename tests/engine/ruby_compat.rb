@@ -20,7 +20,7 @@ unless defined?(EngineTest)
   eval(File.read(harness_path), TOPLEVEL_BINDING, harness_path) # rubocop:disable Security/Eval
 end
 
-EngineTest.suite('ruby-compat', 11)
+EngineTest.suite('ruby-compat', 12)
 
 # A path with no per-cent sign in it, and a spare argument after it.
 # Pokemon Essentials writes many calls in this shape.
@@ -96,6 +96,24 @@ EngineTest.test('$userAgentVersion is a frozen "unknown" when the launcher passe
 end
 
 EngineTest.load_preloads(%w[windows_fs platform_compat])
+
+# LonaRPG's light script runs @sprite.visible = @sprite, and Galv's
+# Event Pop Ups in Hello Charlotte EP1 runs font.shadow = 20. The
+# test host runs as RGSS1, where Font has no shadow, so bold stands in.
+EngineTest.test('a flag setter takes any value as true, and nil as false') do
+  sprite = Sprite.new
+  begin
+    sprite.visible = sprite
+    EngineTest.assert_equal(true, sprite.visible, 'visible after a Sprite')
+    sprite.visible = nil
+    EngineTest.assert_equal(false, sprite.visible, 'visible after nil')
+  ensure
+    sprite.dispose
+  end
+  font = Font.new
+  font.bold = 20
+  EngineTest.assert_equal(true, font.bold, 'bold after 20')
+end
 
 # Essentials writes $game_variables with Marshal.dump. A missing
 # constant turns into IOS::NullStub, and a variable can hold it.

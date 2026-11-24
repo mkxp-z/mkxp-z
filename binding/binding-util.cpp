@@ -221,7 +221,7 @@ int rb_get_args(int argc, VALUE *argv, const char *format, ...) {
         bool *b = va_arg(ap, bool *);
         VALUE bVal = *arg++;
 
-        rb_bool_arg(bVal, b, argI);
+        rb_bool_arg(bVal, b);
 
         ++argI;
         break;

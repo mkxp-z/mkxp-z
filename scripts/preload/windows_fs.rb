@@ -1761,8 +1761,11 @@ end
 module Kernel
   alias _mkxp_orig_kernel_open open unless private_method_defined?(:_mkxp_orig_kernel_open)
 
+  # Kernel#open makes the File through File#initialize, past the File.open
+  # and File.new wrappers.
   def open(path, *args, &block)
     path = MKXPSaveFS.cut_at_nul(path)
+    args = MKXPTextMode.read_args(args)
     _mkxp_orig_kernel_open(MKXPSaveFS.open_lookup(path, args[0]), *args, &block)
   end
   ruby2_keywords :open if respond_to?(:ruby2_keywords, true)

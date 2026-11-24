@@ -18,7 +18,7 @@ unless defined?(EngineTest)
   eval(File.read(harness_path), TOPLEVEL_BINDING, harness_path) # rubocop:disable Security/Eval
 end
 
-EngineTest.suite('text-reads', defined?(Encoding) ? 10 : 9)
+EngineTest.suite('text-reads', defined?(Encoding) ? 11 : 10)
 
 EngineTest.load_preloads(%w[windows_fs])
 
@@ -59,6 +59,17 @@ EngineTest.test('File.new drops the CR of each CR LF') do
   ensure
     file.close
   end
+end
+
+# LonaRPG reads its JSON with open(path).read.
+EngineTest.test('Kernel#open drops the CR of each CR LF') do
+  file = open(TEXT_FILE) # rubocop:disable Security/Open
+  begin
+    EngineTest.assert_equal(FOLDED, file.read, 'open')
+  ensure
+    file.close
+  end
+  EngineTest.assert_equal(FOLDED, open(TEXT_FILE, 'r', &:read), "open 'r'") # rubocop:disable Security/Open
 end
 # rubocop:enable Style/FileRead
 

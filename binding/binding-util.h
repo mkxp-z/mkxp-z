@@ -525,20 +525,9 @@ inline void rb_int_arg(VALUE arg, int *out, int argPos = 0) {
     }
 }
 
-inline void rb_bool_arg(VALUE arg, bool *out, int argPos = 0) {
-    switch (rb_type(arg)) {
-        case RUBY_T_TRUE:
-            *out = true;
-            break;
-            
-        case RUBY_T_FALSE:
-        case RUBY_T_NIL:
-            *out = false;
-            break;
-            
-        default:
-            throw Exception(Exception::TypeError, "Argument %d: Expected bool", argPos);
-    }
+// RGSS takes any value but false and nil as true.
+inline void rb_bool_arg(VALUE arg, bool *out) {
+    *out = RTEST(arg);
 }
 
 /* rb_check_argc and rb_error_arity are both
