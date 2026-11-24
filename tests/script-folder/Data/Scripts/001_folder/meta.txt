@@ -1,0 +1,4 @@
+Name       = Tip Cards
+Version    = 1.2
+Essentials = 20.1,21.1
+Credits    = Someone

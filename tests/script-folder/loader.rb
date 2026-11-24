@@ -14,7 +14,11 @@ def load_scripts_from_folder(path)
   Dir.foreach(path) do |f|
     next if ['.', '..'].include?(f)
 
-    File.directory?("#{path}/#{f}") ? folders.push(f) : files.push(f)
+    if File.directory?("#{path}/#{f}")
+      folders.push(f) unless f =~ /^\./
+    elsif f =~ /\.rb$/i
+      files.push(f)
+    end
   end
   files.sort.each do |f|
     code = File.read("#{path}/#{f}")

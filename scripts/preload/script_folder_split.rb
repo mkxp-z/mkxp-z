@@ -9,7 +9,9 @@
 # exists. binding-mri.cpp calls MKXPScriptFolder.expand to split that
 # section into the loader's definitions plus one section per file, in
 # the loader's order: the files of a folder by name, then its
-# subfolders by name.
+# subfolders by name. The loader takes only the .rb files and skips
+# the folders whose name starts with a dot. Plugins keep a meta.txt
+# next to their scripts.
 module MKXPScriptFolder
   CALL = %r{^[ \t]*load_scripts_from_folder\([ \t]*(["'])Data/Scripts\1[ \t]*\)[ \t]*\r?$}.freeze
   DEFINITION = /^[ \t]*def load_scripts_from_folder\b/.freeze
@@ -30,6 +32,8 @@ module MKXPScriptFolder
   def self.sections_in(path)
     entries = Dir.entries(path) - ['.', '..']
     folders, files = entries.partition { |f| File.directory?("#{path}/#{f}") }
+    folders = folders.reject { |f| f =~ /^\./ }
+    files = files.grep(/\.rb$/i)
     sections = files.sort.map { |f| [0, f, '', File.read("#{path}/#{f}")] }
     folders.sort.each { |f| sections.concat(sections_in("#{path}/#{f}")) }
     sections

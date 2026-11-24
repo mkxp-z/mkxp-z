@@ -49,6 +49,21 @@ def assert_order_and_shape
   assert_eq(scripts.length, 3, 'the input array is not changed')
 end
 
+def assert_only_ruby_files
+  FileUtils.rm_rf('Data/Scripts')
+  write('Data/Scripts/.hidden.rb', 'hidden file')
+  write('Data/Scripts/001_a.rb', 'a')
+  write('Data/Scripts/002_upper.RB', 'upper')
+  write('Data/Scripts/001_plugin/meta.txt', "Name       = Tip Cards\r\nVersion    = 1.2\r\n")
+  write('Data/Scripts/001_plugin/001_scene.rb', 'scene')
+  write('Data/Scripts/.git/001_hidden.rb', 'hidden')
+
+  main = section('Main', "#{LOADER}load_scripts_from_folder('Data/Scripts')\n")
+  out = MKXPScriptFolder.expand([main], 0)
+  assert_eq(out.map { |s| s[1] }, %w[Main .hidden.rb 001_a.rb 002_upper.RB 001_scene.rb],
+            'only .rb files of any case, and no folder whose name starts with a dot')
+end
+
 def assert_extractor_shape
   code = "#{LOADER}load_scripts_from_folder(\"Data/Scripts\")".gsub("\n", "\r\n")
   out = MKXPScriptFolder.expand([section('Main', code)], 0)
@@ -75,7 +90,8 @@ Dir.mktmpdir do |dir|
     assert_order_and_shape
     assert_extractor_shape
     assert_no_split
+    assert_only_ruby_files
   end
 end
 
-test_passed('script_folder', 14)
+test_passed('script_folder', 15)
