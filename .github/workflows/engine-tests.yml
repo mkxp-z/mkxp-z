@@ -191,7 +191,9 @@ jobs:
           tools/run-engine-tests.sh --no-build --timeout 300 --ruby 31 \
             --suite legacy_methods_off.rb --suite ruby_compat.rb --suite win32_wrap_encoding.rb \
             --suite safe_write.rb --suite save_repair.rb --suite dir_chdir.rb --suite gc_clone.rb \
-            --suite full_screen_resizer.rb --suite case_lookup.rb
+            --suite full_screen_resizer.rb --suite case_lookup.rb --suite text_reads.rb --suite dl_memory.rb
+          tools/run-engine-tests.sh --no-build --timeout 300 --ruby 31 \
+            --suite text_reads.rb --config '{"syntaxTransform":"legacy","rgssVersion":1}'
 
       - name: Suites on Ruby 1.9
         if: env.TEST == 'true' && !cancelled() && steps.host.outcome == 'success'
@@ -199,14 +201,15 @@ jobs:
           tools/run-engine-tests.sh --no-build --timeout 300 --ruby 19 \
             --suite ruby_compat.rb --suite win32_wrap_encoding.rb --suite safe_write.rb --suite save_repair.rb \
             --suite dir_chdir.rb --suite gc_clone.rb --suite full_screen_resizer.rb \
-            --suite rgss_ruby_version.rb --suite case_lookup.rb
+            --suite rgss_ruby_version.rb --suite case_lookup.rb --suite text_reads.rb --suite dl_memory.rb
 
       - name: Suites on Ruby 1.8
         if: env.TEST == 'true' && !cancelled() && steps.host.outcome == 'success'
         run: |
           tools/run-engine-tests.sh --no-build --timeout 300 --ruby 18 \
             --suite ruby_compat.rb --suite win32_wrap_encoding.rb --suite safe_write.rb --suite save_repair.rb --suite dir_chdir.rb \
-            --suite gc_clone.rb --suite full_screen_resizer.rb --suite rgss_ruby_version.rb --suite case_lookup.rb
+            --suite gc_clone.rb --suite full_screen_resizer.rb --suite rgss_ruby_version.rb --suite case_lookup.rb \
+            --suite text_reads.rb --suite dl_memory.rb
 
       # In stress mode each allocation collects the whole heap, so the
       # leftovers of other suites in the same launch make it far slower.

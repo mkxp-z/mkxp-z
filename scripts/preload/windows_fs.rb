@@ -943,9 +943,10 @@ end
 # from the fields, and a kept "\r" breaks both. Pokemon Pathways ships
 # the RGSS Script Editor loader, which splits a CRLF load_order.txt on
 # "\n" and then rejects every entry because File.extname sees ".rb\r".
-# Fold the same way for plain read-mode opens on the modern VM. Binary
-# opens ('b' flag, integer flags), update modes, write modes, and calls
-# with explicit extra arguments stay raw.
+# Fold the same way for plain read-mode opens on Ruby 1.9 and later.
+# Ruby 1.8 takes no "t" in a mode, so its reads stay raw. Binary opens
+# ('b' flag, integer flags), update modes, write modes, and calls with
+# explicit extra arguments stay raw.
 unless defined?(MKXPTextMode)
   module MKXPTextMode
     module_function
@@ -955,37 +956,39 @@ unless defined?(MKXPTextMode)
     # form only: a call that gives a length, a separator, or its own
     # options keeps the arguments it was given.
     def whole_file_args(args)
-      opts = universal_newline_opts
-      return args unless opts && args.empty?
+      return args unless text_mode? && args.empty?
 
-      [opts]
+      [whole_file_opts]
     end
 
+    # Ruby 1.9 on Unix folds CR LF only for a mode with "t". The
+    # universal_newline option alone does not set text mode there.
     def read_args(args)
-      opts = universal_newline_opts
-      return args unless opts
-      return ['r', opts] if args.empty?
+      return args unless text_mode?
+      return ['rt'] if args.empty?
       return args unless args.length == 1
 
       mode = args[0]
       return args unless mode.is_a?(String)
 
-      flags = mode.split(':', 2)[0]
+      flags, encoding = mode.split(':', 2)
       return args unless %w[r rt].include?(flags)
 
-      [mode, opts]
+      [encoding ? "rt:#{encoding}" : 'rt']
     end
 
-    # The option hash carries the ruby2_keywords flag so the splat
-    # in the File wrappers passes it as keywords.
-    def universal_newline_opts
-      return @universal_newline_opts if defined?(@universal_newline_opts)
+    def text_mode?
+      return @text_mode if defined?(@text_mode)
 
-      capable = defined?(System) && System.respond_to?(:ruby_version) &&
-                System.ruby_version.to_f >= 3.1 &&
-                Hash.respond_to?(:ruby2_keywords_hash)
-      @universal_newline_opts =
-        capable ? Hash.ruby2_keywords_hash({ :newline => :universal }) : nil
+      @text_mode = defined?(System) && System.respond_to?(:ruby_version) &&
+                   System.ruby_version.to_f >= 1.9
+    end
+
+    # On Ruby 3 the hash carries the ruby2_keywords flag so the splat
+    # in the File wrappers passes it as keywords.
+    def whole_file_opts
+      opts = { :mode => 'rt' }
+      Hash.respond_to?(:ruby2_keywords_hash) ? Hash.ruby2_keywords_hash(opts) : opts
     end
   end
 end

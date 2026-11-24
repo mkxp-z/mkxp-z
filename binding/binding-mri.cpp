@@ -2373,6 +2373,14 @@ static void mriBindingExecute() {
     }
 #endif
 
+#if RAPI_FULL >= 190 && RAPI_FULL < 200
+    /* Ruby 1.9 starts here with ASCII-8BIT as the default external
+     * encoding. LonaRPG reads its translation files with
+     * File.read(path).encode("utf-8"), which then raises on the first
+     * byte above 0x7F. */
+    rb_enc_set_default_external(rb_enc_from_encoding(rb_utf8_encoding()));
+#endif
+
     // Set the default encoding for regular expressions to UTF-8 when using syntax transform targeting Ruby <= 1.8
     rb_gv_set("$KCODE", rb_str_new_cstr("UTF8"));
     rb_gv_set("$-K", rb_str_new_cstr("UTF8"));

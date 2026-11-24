@@ -913,6 +913,39 @@ module DL
     table.each { |fn| h[fn] = fn }
     h
   end
+
+  # Hime's full keyboard script (LonaRPG) runs
+  # `DL::CPtr.new(DL.malloc(256), 256)` and passes `ptr.to_i` to
+  # GetKeyboardState.
+  def self.malloc(size)
+    Win32API_Impl::FakeHeap.alloc("\0" * size.to_i)
+  end
+
+  class CPtr
+    def initialize(address, size = 0)
+      @address = address.to_i
+      @bytes = Win32API_Impl::FakeHeap.block(@address) || ("\0" * size.to_i)
+    end
+
+    def to_i
+      @address
+    end
+
+    # Windows DL reads a signed char.
+    def [](index)
+      byte = (defined?(Encoding) ? @bytes.getbyte(index) : @bytes[index]) || 0
+      byte >= 0x80 ? byte - 0x100 : byte
+    end
+
+    def []=(index, value)
+      byte = value.to_i & 0xff
+      if defined?(Encoding)
+        @bytes.setbyte(index, byte)
+      else
+        @bytes[index] = byte
+      end
+    end
+  end
 end
 
 # --- Socket / network stubs ---

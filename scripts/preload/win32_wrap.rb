@@ -240,9 +240,23 @@ end
 def memcpy_string(dst, src)
   i = 0
   src.each_byte do |b|
-    dst[i] = b
+    # On Ruby 1.9 and later, dst[i] = b replaces the i-th character,
+    # not the i-th byte.
+    if defined?(Encoding) && i < dst.bytesize
+      dst.setbyte(i, b)
+    else
+      dst[i] = b
+    end
     i += 1
   end
+end
+
+# On Ruby 1.9 and later, String#[] counts characters, and Win32 counts
+# bytes.
+def binary_copy(str)
+  copy = str.to_s.dup
+  copy.force_encoding('ASCII-8BIT') if copy.respond_to?(:force_encoding)
+  copy
 end
 
 def state_pressed(states, sdl_scan)
@@ -309,11 +323,17 @@ module Win32API_Impl
       PRESSED_BIT = 0x80
       def call(args)
         out_states = args[0]
+        out_states = Win32API_Impl::FakeHeap.block(out_states) if out_states.is_a?(Integer)
+        return 0 unless out_states
 
+        states = Array.new(256, 0)
         Scancodes::WIN32.each do |_name, val|
-          pressed = Input.asyncKeyState(val) > 0
-
-          out_states[val] = pressed ? PRESSED_BIT : 0
+          states[val] = PRESSED_BIT if Input.asyncKeyState(val) > 0
+        end
+        if out_states.is_a?(String)
+          memcpy_string(out_states, states.pack('C*')[0, out_states.bytesize])
+        else
+          states.each_with_index { |state, i| out_states[i] = state }
         end
         1
       end
@@ -657,13 +677,13 @@ module Win32API_Impl
         return 0 unless destination.is_a?(String) && length > 0
 
         data = if source.is_a?(String)
-                 source[0, length]
+                 binary_copy(source)[0, length]
                else
                  Win32API_Impl::FakeHeap.read(source, length)
                end
         return 0 if data.nil?
 
-        memcpy_string(destination, data[0, destination.length].to_s)
+        memcpy_string(destination, data[0, destination.bytesize].to_s)
         1
       end
     end
@@ -1335,13 +1355,14 @@ module Win32API_Impl
     BASE = 0x7F00_0000
     STRIDE = 0x1000
 
-    @blocks = {}
-    @next_address = BASE
+    # F12 loads this file again. A game can still hold an old address.
+    @blocks ||= {}
+    @next_address ||= BASE
 
     def self.alloc(bytes)
       address = @next_address
       @next_address += STRIDE
-      @blocks[address] = bytes.to_s
+      @blocks[address] = binary_copy(bytes)
       address
     end
 
@@ -1355,6 +1376,10 @@ module Win32API_Impl
 
       data = block[0, length].to_s
       data + ("\0" * (length - data.length))
+    end
+
+    def self.block(address)
+      @blocks[address]
     end
   end
 

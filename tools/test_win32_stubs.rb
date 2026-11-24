@@ -619,4 +619,12 @@ assert_eq(Win32API.new('Kernel32', 'GetCommandLineW', '', 'p').call, 0, 'GetComm
   assert_eq(spi.call(0x30, 0, buffer, 0), 0, 'SPI_GETWORKAREA refuses a buffer that is not a RECT')
 end
 
-test_passed('test_win32_stubs', 115)
+old_block = Win32API_Impl::FakeHeap.alloc('old block')
+prev_verbose = $VERBOSE
+$VERBOSE = nil
+load File.join(ROOT, 'scripts', 'preload', 'win32_wrap.rb')
+$VERBOSE = prev_verbose
+assert_eq(Win32API_Impl::FakeHeap.block(old_block), 'old block', 'a reload of win32_wrap.rb keeps the old blocks')
+assert_true(Win32API_Impl::FakeHeap.alloc('new block') != old_block, 'a reload of win32_wrap.rb gives a new block a new address')
+
+test_passed('test_win32_stubs', 117)
