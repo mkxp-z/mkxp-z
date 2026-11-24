@@ -41,7 +41,7 @@
 #include <vector>
 
 #ifdef __APPLE__
-#include <iconv.h>
+#include "system-iconv.h"
 #endif
 
 #ifdef __WIN32__
@@ -357,19 +357,21 @@ struct CacheEnumData {
   std::stack<std::vector<std::string> *> fileLists;
 
 #ifdef __APPLE__
-  iconv_t nfd2nfc;
+  mkxp_system_iconv_t nfd2nfc;
   char buf[512];
 #endif
 
   CacheEnumData(FileSystemPrivate *p) : p(p) {
 #ifdef __APPLE__
-    nfd2nfc = iconv_open("utf-8", "utf-8-mac");
+    /* libiconv, the iconv implementation that we use if the iconv_system Meson option is disabled, doesn't support UTF-8-MAC,
+     * so we use mkxp_system_iconv_* functions here which always use the system version of iconv. */
+    nfd2nfc = mkxp_system_iconv_open("utf-8", "utf-8-mac");
 #endif
   }
 
   ~CacheEnumData() {
 #ifdef __APPLE__
-    iconv_close(nfd2nfc);
+    mkxp_system_iconv_close(nfd2nfc);
 #endif
   }
 
@@ -384,7 +386,7 @@ struct CacheEnumData {
     /* Reserve room for null terminator */
     --bufSize;
 
-    iconv(nfd2nfc, &inoutPtr, &srcSize, &bufPtr, &bufSize);
+    mkxp_system_iconv(nfd2nfc, &inoutPtr, &srcSize, &bufPtr, &bufSize);
     /* Null-terminate */
     *bufPtr = 0;
     strcpy(inout, buf);

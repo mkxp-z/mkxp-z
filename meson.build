@@ -132,6 +132,23 @@ if host_system == 'darwin'
         required: true,
     )
     subdir('macos/views')
+
+    global_dependencies += declare_dependency(
+        link_with: static_library(
+            meson.project_name() + '-system-iconv',
+            sources: [
+                'src/system-iconv.cpp',
+            ],
+            dependencies: [
+                meson.get_compiler('cpp').find_library('iconv', required: true),
+            ],
+            c_args: global_args,
+            cpp_args: global_args + global_cpp_args,
+            objc_args: global_args + global_objc_args,
+            objcpp_args: global_args + global_objc_args + global_cpp_args + global_objcpp_args,
+            override_options: {'c_std': c_std, 'cpp_std': cpp_std},
+        ),
+    )
 endif
 
 if get_option('steamworks_path') != ''
