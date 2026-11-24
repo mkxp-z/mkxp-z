@@ -1,6 +1,6 @@
 # Test suite for mkxp-z high-res Bitmap replacement.
 # Bitmap tests.
-# Copyright 2023 Splendide Imaginarius.
+# Copyright 2023-2026 Splendide Imaginarius.
 # License GPLv2+.
 # Test images are from https://github.com/xinntao/Real-ESRGAN/
 #
@@ -46,6 +46,11 @@ dump(bmp, spr, "constructor-filename")
 bmp = Bitmap.new(640, 480)
 bmp.clear
 dump(bmp, spr, "constructor-dimensions")
+
+bmp = Bitmap.new("Graphics/Pictures/children-alpha")
+bmp2 = bmp.dup
+bmp.dispose
+dump(bmp2, spr, "constructor-dup")
 
 # TODO: Animation constructor
 

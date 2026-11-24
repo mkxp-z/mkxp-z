@@ -414,6 +414,7 @@ if not sdl2.found() or not sdl2main.found()
             angle_vulkan = 'auto'
         endif
         angle = subproject('angle', default_options: meson_base_options + {
+            'b_ndebug': 'if-release', # Prevents ANGLE from trying to use validation layers in release builds, since ANGLE may emit warnings if the user's computer doesn't have validation layers installed when ANGLE tries to use them, and if validation layers are installed, they tend to reduce performance when enabled
             'direct3d11': angle_direct3d11,
             'metal': angle_metal,
             'null': angle_null,
@@ -1122,7 +1123,9 @@ if not fluidsynth.found()
         'enable-kai': false,
         'osal': 'embedded',
     })
-    foreach opt, val : cmake_override_options
+    foreach opt, val : cmake_override_options + {
+        'b_ndebug': 'if-release', # Needed to silence FluidSynth's "function is a stub" log messages
+    }
         fluidsynth_options.set_override_option(opt, val)
     endforeach
     fluidsynth = cmake.subproject('fluidsynth', options: fluidsynth_options).dependency('libfluidsynth')
@@ -1199,7 +1202,7 @@ endif
 global_dependencies += ruby
 
 if host_system in ['windows', 'cygwin']
-    global_link_args += ['-static-libgcc', '-static-libstdc++', '-Wl,-Bstatic', '-lpthread', '-Wl,-Bdynamic']
+    global_link_args += ['-static-libgcc', '-static-libstdc++', '-Wl,-Bstatic', '-lpthread', '-Wl,-Bdynamic', '-Wl,--stack=0x200000']
 else
     global_link_args += ['-static-libstdc++']
 endif

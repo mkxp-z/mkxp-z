@@ -1,0 +1,21 @@
+# Disables the forced replacement of `setjmp()`/`longjmp()` with `__builtin_setjmp()`/`__builtin_longjmp()` in Ruby's codebase when building for Windows x86_64.
+# Using `__builtin_setjmp()`/`__builtin_longjmp()` currently causes Ruby to crash whenever running code that uses these functions in Windows x86_64 builds built with llvm-mingw.
+
+--- a/configure.ac
++++ b/configure.ac
+@@ -1205,11 +1205,11 @@ main()
+ 		ac_cv_func_malloc_usable_size=no
+ 		ac_cv_type_off_t=yes
+ 		ac_cv_sizeof_off_t=8
+-		AS_IF([test "$target_cpu" = x64], [
+-		    ac_cv_func___builtin_setjmp=yes
+ 
+-		    coroutine_type=yes
+-		])
++
++
++
++
+ 		ac_cv_func_tgamma=no
+ 		AC_CHECK_TYPE([NET_LUID], [], [],
+ 			      [@%:@include <winsock2.h>

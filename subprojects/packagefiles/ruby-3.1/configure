@@ -13552,14 +13552,11 @@ esac
 		ac_cv_func_malloc_usable_size=no
 		ac_cv_type_off_t=yes
 		ac_cv_sizeof_off_t=8
-		if test "$target_cpu" = x64
-then :
 
-		    ac_cv_func___builtin_setjmp=yes
 
-		    coroutine_type=yes
 
-fi
+
+
 		ac_cv_func_tgamma=no
 		ac_fn_c_check_type "$LINENO" "NET_LUID" "ac_cv_type_NET_LUID" "#include <winsock2.h>
 			      #include <iphlpapi.h>

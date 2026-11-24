@@ -90,6 +90,7 @@ ruby = declare_dependency(
                 'DLLWRAP': 'false',
                 'WINDRES': run_command(subproject('common').get_variable('quotetool'), subproject('common').get_variable('windres'), check: true).stdout().strip(),
                 'YACC': run_command(subproject('common').get_variable('quotetool'), (meson.version().version_compare('>=1.10.0') ? find_program('bison').cmd_array() : find_program('bison')), check: true).stdout().strip(),
+                'ac_cv_func___builtin_setjmp': 'no',
                 'ac_cv_func_crypt': 'no',
                 'ac_cv_func_crypt_r': 'no',
                 'ac_cv_header_crypt_h': 'no',

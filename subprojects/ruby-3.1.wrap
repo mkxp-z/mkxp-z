@@ -29,6 +29,7 @@ diff_files =
     ruby-3.1-verbose.patch,
     ruby-3.1-win32-winnt.patch,
     ruby-3.1-windows-arm64.patch,
+    ruby-3.1-windows-builtin-setjmp.patch,
     ruby-3.1-mkxp-z-patches.patch,
     ruby-3.1-clock-gettime.patch,
     ruby-3.1-mkxp-z-patches-windows-libs.patch,
