@@ -282,7 +282,7 @@ struct SettingsMenuPrivate
 	{
 		int bpp;
 		Uint32 rMask, gMask, bMask, aMask;
-		SDL_PixelFormatEnumToMasks(SDL_PIXELFORMAT_ABGR8888,
+		SDL_PixelFormatEnumToMasks(SDL_PIXELFORMAT_RGBA32,
 		                           &bpp, &rMask, &gMask, &bMask, &aMask);
 
 		return SDL_CreateRGBSurface(0, w, h, bpp, rMask, gMask, bMask, 0);

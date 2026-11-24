@@ -28,6 +28,13 @@
 #include "exception.h"
 #include "util.h"
 
+// swab()/_swab()
+#ifdef _WIN32
+#  include <cstdlib>
+#else
+#  include <unistd.h>
+#endif // _WIN32
+
 /* Init normally */
 Table::Table(int x, int y /*= 1*/, int z /*= 1*/)
     : xs(x), ys(y), zs(z),
@@ -96,6 +103,19 @@ int Table::serialSize() const
 	return 20 + (xs * ys * zs) * 2;
 }
 
+// Copies `n` bytes from `src` to `dest`, swapping each pair of adjacent bytes.
+// If `n` is negative, no bytes will be copied.
+// If `n` is positive and odd, the first `n - 1` will be copied like for the positive and even case, and it is unspecified what the last byte of `dest` will be set to.
+// It is unspecified what happens if there is overlap between `src` and `dest`.
+static void mkxp_swab(const void *src, void *dest, int32_t n) noexcept
+{
+#ifdef _WIN32
+	_swab((char *)src, (char *)dest, n);
+#else
+	swab(src, dest, n);
+#endif // _WIN32
+}
+
 void Table::serialize(char *buffer) const
 {
 	/* Table dimensions: we don't care
@@ -115,7 +135,11 @@ void Table::serialize(char *buffer) const
 	writeInt32(&buffer, zs);
 	writeInt32(&buffer, size);
 
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+	mkxp_swab(dataPtr(data), buffer, sizeof(int16_t)*size);
+#else
 	memcpy(buffer, dataPtr(data), sizeof(int16_t)*size);
+#endif
 }
 
 
@@ -137,7 +161,11 @@ Table *Table::deserialize(const char *data, int len)
 		throw Exception(Exception::RGSSError, "Marshal: Table: bad file format");
 
 	Table *t = new Table(x, y, z);
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+	mkxp_swab(data, dataPtr(t->data), sizeof(int16_t)*size);
+#else
 	memcpy(dataPtr(t->data), data, sizeof(int16_t)*size);
+#endif
 
 	return t;
 }
