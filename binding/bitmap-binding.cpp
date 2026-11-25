@@ -39,7 +39,34 @@ static const char *objAsStringPtr(VALUE obj) {
     return RSTRING_PTR(str);
 }
 
+// Ruby does not count the pixels of a bitmap as memory. A game that drops
+// a large bitmap on each frame (Xenoverse clones a 1024x1024 background on
+// each frame of a trade) then fills the GPU memory before a GC runs, and
+// iOS kills the app. Ruby 1.8 has no API to report these bytes to the GC.
+static size_t pixelBytesSinceGC = 0;
+static const size_t pixelBytesPerGC = 256 * 1024 * 1024;
+
+static void countPixelsForGC(size_t bytes) {
+    pixelBytesSinceGC += bytes;
+    if (pixelBytesSinceGC < pixelBytesPerGC)
+        return;
+    pixelBytesSinceGC = 0;
+    rb_gc();
+}
+
+static size_t frameBytes(Bitmap *b) {
+    return (size_t)b->width() * b->height() * 4;
+}
+
+static size_t pixelBytes(Bitmap *b) {
+    return frameBytes(b) * (b->isAnimated() ? b->numFrames() : 1);
+}
+
 void bitmapInitProps(Bitmap *b, VALUE self) {
+    countPixelsForGC(pixelBytes(b));
+    if (b->hasHires())
+        countPixelsForGC(pixelBytes(b->getHires()));
+
     /* Wrap properties */
     VALUE fontKlass = rb_const_get(rb_cObject, rb_intern("Font"));
     VALUE fontObj = rb_obj_alloc(fontKlass);
@@ -653,6 +680,7 @@ RB_METHOD_GUARD(bitmapAddFrame){
     int ret;
     
     GFX_GUARD_EXC(ret = b->addFrame(*src, pos););
+    countPixelsForGC(frameBytes(b));
     
     return INT2NUM(ret);
 }
