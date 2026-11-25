@@ -1377,7 +1377,10 @@ void Graphics::update(bool checkForShutdown) {
         double afr = std::abs(averageFrameRate()); // abs shouldn't be necessary but that's ok
         afr += mult / 2;
         afr -= std::fmod(afr, mult);
-        shState->input().recalcRepeat(std::floor(afr));
+        // Input.update runs once per Graphics.update, and fast-forward
+        // shows only one update in n. The rate of updates is what turns
+        // the repeat delay into a count of updates.
+        shState->input().recalcRepeat(std::floor(afr), mkxp_getFastForwardMultiplier());
     }
     
     if (checkForShutdown)

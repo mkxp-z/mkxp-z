@@ -686,17 +686,18 @@ struct InputPrivate
     bool mouseInWindow;
     
     Input::ButtonCode repeating;
-    int rawRepeating;
-    int buttonRepeating;
+    int rawRepeating = -1;
+    int buttonRepeating = -1;
     
     unsigned int repeatCount;
-    unsigned int rawRepeatCount;
-    unsigned int buttonRepeatCount;
+    unsigned int rawRepeatCount = 0;
+    unsigned int buttonRepeatCount = 0;
     
     double repeatTime, rawRepeatTime, buttonRepeatTime;
     
     unsigned int repeatStart;
     unsigned int repeatDelay;
+    int repeatFastForward = 1;
     
     double last_update;
 
@@ -713,7 +714,7 @@ struct InputPrivate
         int active;
     } dir8Data;
     
-    void recalcRepeatTime(unsigned int fps) {
+    void recalcRepeatTime(unsigned int fps, int fastForward = 1) {
         // 0 fps would cause a divide by zero segfault later.
         // Bail in that case.
         if (fps == 0)
@@ -727,8 +728,10 @@ struct InputPrivate
         double start = (rgssVer >= 2) ? 0.375 : 0.400;
         double delay = 0.100;
         
-        repeatStart = ceil(start / framems);
-        repeatDelay = ceil(delay / framems);
+        // Round at normal speed, then multiply. A change of speed then
+        // scales the delay exactly, and the repeats keep their phase.
+        repeatStart = ceil(start / framems) * fastForward;
+        repeatDelay = ceil(delay / framems) * fastForward;
     }
     
     InputPrivate(const RGSSThreadData &rtData)
@@ -1175,8 +1178,24 @@ double Input::getDelta() {
     return shState->runTime() - p->last_update;
 }
 
-void Input::recalcRepeat(unsigned int fps) {
-    p->recalcRepeatTime(fps);
+// The counts of a held key are in updates, and a change of the
+// fast-forward speed changes how long an update takes. A key repeats
+// when count + 1 is a multiple of the delay, so count + 1 changes with
+// the speed. The time held and the time to the next repeat stay the same.
+static unsigned int rescaleRepeatCount(unsigned int count, int from, int to) {
+    unsigned int scaled = (count + 1) * to / from;
+    return scaled > 0 ? scaled - 1 : 0;
+}
+
+void Input::recalcRepeat(unsigned int fps, int fastForward) {
+    if (fastForward > 0 && fastForward != p->repeatFastForward) {
+        int from = p->repeatFastForward;
+        p->repeatCount = rescaleRepeatCount(p->repeatCount, from, fastForward);
+        p->rawRepeatCount = rescaleRepeatCount(p->rawRepeatCount, from, fastForward);
+        p->buttonRepeatCount = rescaleRepeatCount(p->buttonRepeatCount, from, fastForward);
+        p->repeatFastForward = fastForward;
+    }
+    p->recalcRepeatTime(fps, p->repeatFastForward);
 }
 
 void Input::update()

@@ -66,7 +66,7 @@ public:
         ButtonCodeCount
 	};
     
-    void recalcRepeat(unsigned int fps);
+    void recalcRepeat(unsigned int fps, int fastForward);
 
     double getDelta();
 	void update();

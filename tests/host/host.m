@@ -137,19 +137,34 @@ static void after(double seconds, dispatch_block_t block) {
                    dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), block);
 }
 
-// pause_clock.rb shows game dialogs whose text is a command for this
-// host, to act as a launcher does:
+// pause_clock.rb and input_repeat.rb show game dialogs whose text is
+// a command for this host, to act as a launcher does:
 //
 //   pause N           pause the engine for N seconds
 //   hold N            keep the dialog open for N seconds
 //   pause-cancel D S  ask for a pause after D seconds, and cancel it
 //                     S seconds later, while the suite draws no frame
+//   key C S           hold the key with scancode C for S seconds
+//   fast-forward N    set the fast-forward multiplier to N, or back
+//                     to the launch value when N is 0
 //
 // Every other dialog closes at once.
 static void answerGameDialog(const char *message, void *userdata) {
     (void)userdata;
     double first = 0, second = 0;
-    if (sscanf(message, "pause-cancel %lf %lf", &first, &second) == 2) {
+    int scancode = 0, multiplier = 0;
+    if (sscanf(message, "key %d %lf", &scancode, &first) == 2) {
+        mkxp_signalInfoDismissed();
+        mkxp_injectKeyEvent(scancode, 1);
+        after(first, ^{ mkxp_injectKeyEvent(scancode, 0); });
+    } else if (sscanf(message, "fast-forward %d", &multiplier) == 1) {
+        if (multiplier == 0) {
+            const char *launch = getenv("MKXP_TEST_FAST_FORWARD");
+            multiplier = launch ? atoi(launch) : 1;
+        }
+        mkxp_setFastForwardMultiplier(multiplier);
+        mkxp_signalInfoDismissed();
+    } else if (sscanf(message, "pause-cancel %lf %lf", &first, &second) == 2) {
         mkxp_signalInfoDismissed();
         // One timer, because a late second timer would let the engine
         // reach a frame while the pause is still asked for.

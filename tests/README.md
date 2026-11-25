@@ -61,6 +61,7 @@ game, which is the only way to reach the drawing code.
 | `legacy_methods_off.rb` | The legacy methods stay away when the transform is off. |
 | `fast_forward_clock.rb` | `System.uptime` runs at the fast-forward speed, and the average frame rate does not. |
 | `frozen_screen_rate.rb` | `Graphics.update` on a frozen screen takes one frame and counts one frame, also under fast-forward and after a slow step. |
+| `input_repeat.rb` | A short key press gives one `Input.repeat?`, and a held key repeats at the same real-time rate, also under fast-forward and when fast-forward stops during a press. `tests/host/host.m` reads each "key" dialog as a key press, and each "fast-forward" dialog as a change of speed. |
 | `pause_clock.rb` | The clocks and the average frame rate leave out a pause, a game dialog, and a cancelled pause. `tests/host/host.m` reads each dialog text as a command. |
 | `sound_effect_read.rb` | The first play of a sound effect reads its file in blocks, not one byte for each read. |
 | `text_draw.rb` | A text of `draw_text` is in the bitmap for the next call and on the screen, in the order of the calls, and many texts on drawn pixels in one frame take the time of the texts on cleared pixels. |
@@ -122,12 +123,12 @@ as a launcher does. CI runs `file_lookup_order.rb` and
 `case_lookup.rb` with and without `--config '{"pathCache":false}'`.
 
 `--fast-forward <n>` starts the engine at that fast-forward
-multiplier. Run `fast_forward_clock.rb` and `frozen_screen_rate.rb`
-with and without it:
+multiplier. Run `fast_forward_clock.rb`, `frozen_screen_rate.rb` and
+`input_repeat.rb` with and without it:
 
 ```sh
-tools/run-engine-tests.sh --suite fast_forward_clock.rb --suite frozen_screen_rate.rb --no-build
-tools/run-engine-tests.sh --suite fast_forward_clock.rb --suite frozen_screen_rate.rb --fast-forward 4 --no-build
+tools/run-engine-tests.sh --suite fast_forward_clock.rb --suite frozen_screen_rate.rb --suite input_repeat.rb --no-build
+tools/run-engine-tests.sh --suite fast_forward_clock.rb --suite frozen_screen_rate.rb --suite input_repeat.rb --fast-forward 4 --no-build
 ```
 
 `--game` picks the game folder. `build-test-host-ios.sh --game <dir>`
