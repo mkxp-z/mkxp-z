@@ -15,7 +15,7 @@ unless defined?(EngineTest)
   eval(File.read(harness_path), TOPLEVEL_BINDING, harness_path) # rubocop:disable Security/Eval
 end
 
-EngineTest.suite('input-repeat', 4)
+EngineTest.suite('input-repeat', 5)
 
 SCANCODE_DOWN = 81
 
@@ -49,6 +49,15 @@ def repeats_for_press(seconds, &block)
 end
 
 EngineTest.test('a press of 0.25 s repeats once') do
+  repeats = repeats_for_press(0.25)
+  EngineTest.assert(repeats == 1, "Input.repeat? was true #{repeats} times")
+end
+
+# A slow step, such as a map that loads, stays in
+# Graphics.average_frame_rate for 40 more frames.
+EngineTest.test('a press of 0.25 s right after a slow step repeats once') do
+  sleep 2
+  Graphics.update
   repeats = repeats_for_press(0.25)
   EngineTest.assert(repeats == 1, "Input.repeat? was true #{repeats} times")
 end
