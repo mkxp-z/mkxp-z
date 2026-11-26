@@ -72,10 +72,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y bison ccache cmake diffutils git make ruby
-          # The Meson version provided by APT is too old so we install Meson using pip instead
-          sudo apt install -y ninja-build python3-pip
-          pip3 install meson
+          sudo apt install -y bison ccache cmake diffutils git make meson ruby
           sudo apt install -y gcc g++
 
           sudo apt install -y gzip tar zstd
@@ -237,10 +234,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y bison ccache cmake diffutils git make ruby
-          # The Meson version provided by APT is too old so we install Meson using pip instead
-          sudo apt install -y ninja-build python3-pip
-          pip3 install meson
+          sudo apt install -y bison ccache cmake diffutils git make meson ruby
           sudo apt install -y gcc g++
 
           if [ '${{ matrix.clang }}' = 'true' ]
@@ -320,7 +314,7 @@ jobs:
 
   build-linux-gnu:
     name: ${{ matrix.distro }} ${{ matrix.suite }} ${{ matrix.arch_mkxpz }}
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -771,7 +765,7 @@ jobs:
 
   build-freebsd:
     name: FreeBSD ${{ matrix.arch }}
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
